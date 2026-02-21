@@ -1,0 +1,30 @@
+{
+  "scripts": {
+    "format": "prettier --write .",
+    "build": "npm run build --workspaces --if-present",
+    "test": "vitest",
+    "prepare": "husky && husky install"
+  },
+  "workspaces": [
+    "common",
+    "rules",
+    "minecraft"
+  ],
+  "devDependencies": {
+    "git-format-staged": "^4.0.1",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.7",
+    "prettier": "^3.8.1",
+    "typescript": "^5.8.2",
+    "vite": "^7.3.1",
+    "vite-plugin-dts": "^4.5.4",
+    "vitest": "^4.0.18"
+  },
+  "dependencies": {
+    "@types/node": "^25.3.0",
+    "effect": "^3.19.18"
+  },
+  "lint-staged": {
+    "*.{js,css,md}": "prettier --write"
+  }
+}
