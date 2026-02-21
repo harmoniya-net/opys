@@ -1,75 +1,32 @@
-import { Schema } from 'effect';
-import { Enums, Struct, Union } from 'effect/Schema';
+import { z } from 'zod';
+import { Rule } from './rule';
+import type { SatisfiesOsOptions } from './satisfies';
 
-export enum RuleOsName {
-  Linux = 'linux',
-  Windows = 'windows',
-  Osx = 'osx',
+export class Ruleset {
+  constructor(private readonly inner: Rule[]) {}
+
+  public static CODEC = z.codec(z.array(Rule.CODEC), z.instanceof(Ruleset), {
+    decode: (rules) => new Ruleset(rules),
+    encode: (ruleset) => ruleset.toJSON(),
+  });
+
+  public static empty() {
+    return new Ruleset([]);
+  }
+
+  [Symbol.iterator]() {
+    return this.inner[Symbol.iterator]();
+  }
+
+  public get length() {
+    return this.inner.length;
+  }
+
+  public satisfies(options: SatisfiesOsOptions, feats: string[] = []): boolean {
+    return this.inner.every((rule) => rule.satisfies(options, feats));
+  }
+
+  public toJSON() {
+    return this.inner;
+  }
 }
-
-export const RuleOsNameSchema = Enums(RuleOsName).annotations({
-  message: () => "Unknown OS name, expected 'linux', 'windows', or 'osx'",
-});
-
-export enum RuleOsArch {
-  X86 = 'x86',
-  X86_64 = 'x86_64',
-  ARM = 'arm',
-  AARCH64 = 'aarch64',
-  ANY = 'any',
-}
-
-export const RuleOsArchSchema = Enums(RuleOsArch).annotations({
-  message: () =>
-    "Unknown OS architecture, expected 'x86', 'x86_64', 'arm', or 'aarch64'",
-});
-
-export enum RuleAction {
-  Allow = 'allow',
-  Disallow = 'disallow',
-}
-
-export const RuleActionSchema = Enums(RuleAction).annotations({
-  message: () => "Unknown action, expected 'allow' or 'disallow'",
-});
-
-export const RuleOsSchema = Union(
-  Struct({
-    name: RuleOsNameSchema,
-    version: Schema.String,
-  }),
-  Struct({
-    name: RuleOsNameSchema,
-  }),
-  Struct({
-    arch: Enums(RuleOsArch),
-  }),
-);
-
-export type RuleOs = Schema.Schema.Type<typeof RuleOsSchema>;
-
-export const FeatureMapSchema = Schema.Record({
-  key: Schema.String,
-  value: Schema.Boolean,
-});
-
-export type FeatureMap = Schema.Schema.Type<typeof FeatureMapSchema>;
-
-export const RuleSchema = Union(
-  Struct({
-    action: RuleActionSchema,
-    os: RuleOsSchema,
-  }),
-  Struct({
-    action: RuleActionSchema,
-    features: FeatureMapSchema,
-  }),
-  Struct({
-    action: RuleActionSchema,
-  }),
-);
-
-export type Rule = Schema.Schema.Type<typeof RuleSchema>;
-
-export const RuleSetSchema = Schema.Array(RuleSchema);
-export type RuleSet = Schema.Schema.Type<typeof RuleSetSchema>;

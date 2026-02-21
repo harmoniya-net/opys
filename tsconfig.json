@@ -1,21 +1,32 @@
 {
   "compilerOptions": {
-    "module": "esnext",
+    // Environment setup & latest features
+    "lib": ["ESNext"],
+    "target": "ESNext",
+    "module": "Preserve",
+    "moduleDetection": "force",
+    "jsx": "react-jsx",
+    "allowJs": true,
+    "types": ["bun"],
+
     "moduleResolution": "bundler",
-    "target": "esnext",
-    "types": ["vitest/importMeta"],
-    "sourceMap": true,
+    "verbatimModuleSyntax": true,
     "declaration": true,
     "declarationMap": true,
-    "noUncheckedIndexedAccess": true,
-    "exactOptionalPropertyTypes": true,
+    "sourceMap": true,
+    "outDir": "dist",
+
+    // Best practices
     "strict": true,
-    "verbatimModuleSyntax": true,
-    "isolatedModules": true,
-    "noUncheckedSideEffectImports": true,
-    "esModuleInterop": true,
     "skipLibCheck": true,
-    "outDir": "dist"
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+
+    // Some stricter flags (disabled by default)
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "noPropertyAccessFromIndexSignature": false
   },
-  "exclude": ["dist", "vite.config.ts"]
+  "exclude": ["dist"]
 }

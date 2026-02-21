@@ -1,14 +1,14 @@
 {
-  "name": "minecraft",
+  "name": "@unipack/minecraft",
   "version": "1.0.0",
-  "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "peerDependencies": {
+    "zod": "*"
+  },
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js",
+      "import": "./dist/index.mjs",
       "require": "./dist/index.cjs"
     }
   },
@@ -16,12 +16,12 @@
     "dist"
   ],
   "scripts": {
-    "build": "vite build -c ../vite.config.ts --mode library"
+    "build": "tsdown lib/index.ts --format esm,cjs --dts --clean",
+    "test": "bun test tests/unit",
+    "test:int": "bun test tests/int"
   },
-  "devDependencies": {
-    "vitest": "^4.0.18"
-  },
-  "peerDependencies": {
-    "effect": "*"
+  "type": "module",
+  "dependencies": {
+    "@unipack/rules": "workspace:*"
   }
 }

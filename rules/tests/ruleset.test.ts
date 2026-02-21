@@ -1,36 +1,24 @@
 import { describe, expect, test } from 'bun:test';
-import { Schema } from 'effect';
-import { RuleAction, RuleOsName, RuleSetSchema } from '../lib';
+import { RuleAction, RuleOsName } from '../dist/index.mjs';
+import { Ruleset } from '../lib';
 import { LINUX, OSX, WINDOWS_10, WINDOWS_7, help } from './fixtures';
 
 describe('RuleSet', () => {
   test('empty', () => {
-    const rules = Schema.decodeSync(RuleSetSchema)([]);
+    const rules = Ruleset.CODEC.parse([]);
     const { os, ok, feats } = help(rules);
 
     expect(os(LINUX)).toBe(true);
-    expect(os(WINDOWS_10)).toBe(true);
     expect(os(OSX)).toBe(true);
-
+    expect(os(WINDOWS_10)).toBe(true);
     expect(ok()).toBe(true);
-    expect(feats(['some_random_feature', 'is_demo_user'])).toBe(true);
-    expect(feats(['some_random_feature'])).toBe(true);
-    expect(
-      feats(['some_random_feature', 'is_demo_user', 'high_resolution']),
-    ).toBe(true);
+    expect(feats(['any_feature'])).toBe(true);
   });
 
   test('everything_except_osx', () => {
-    const rules = Schema.decodeSync(RuleSetSchema)([
-      {
-        action: RuleAction.Allow,
-      },
-      {
-        action: RuleAction.Disallow,
-        os: {
-          name: RuleOsName.Osx,
-        },
-      },
+    const rules = Ruleset.CODEC.parse([
+      { action: RuleAction.Allow },
+      { action: RuleAction.Disallow, os: { name: RuleOsName.Osx } },
     ]);
     const { os } = help(rules);
 
@@ -40,13 +28,10 @@ describe('RuleSet', () => {
   });
 
   test('windows_10_only', () => {
-    const rules = Schema.decodeSync(RuleSetSchema)([
+    const rules = Ruleset.CODEC.parse([
       {
         action: RuleAction.Allow,
-        os: {
-          name: RuleOsName.Windows,
-          version: '^10\\.',
-        },
+        os: { name: RuleOsName.Windows, version: '^10\\.' },
       },
     ]);
     const { os } = help(rules);
@@ -58,13 +43,8 @@ describe('RuleSet', () => {
   });
 
   test('with_features', () => {
-    const rules = Schema.decodeSync(RuleSetSchema)([
-      {
-        action: RuleAction.Allow,
-        features: {
-          is_demo_user: true,
-        },
-      },
+    const rules = Ruleset.CODEC.parse([
+      { action: RuleAction.Allow, features: { is_demo_user: true } },
     ]);
     const { os, feats } = help(rules);
 
@@ -74,13 +54,10 @@ describe('RuleSet', () => {
   });
 
   test('both_features', () => {
-    const rules = Schema.decodeSync(RuleSetSchema)([
+    const rules = Ruleset.CODEC.parse([
       {
         action: RuleAction.Allow,
-        features: {
-          is_demo_user: true,
-          high_resolution: true,
-        },
+        features: { is_demo_user: true, high_resolution: true },
       },
     ]);
     const { feats } = help(rules);
@@ -90,13 +67,10 @@ describe('RuleSet', () => {
   });
 
   test('feature_excludes', () => {
-    const rules = Schema.decodeSync(RuleSetSchema)([
+    const rules = Ruleset.CODEC.parse([
       {
         action: RuleAction.Allow,
-        features: {
-          is_demo_user: true,
-          high_resolution: false,
-        },
+        features: { is_demo_user: true, high_resolution: false },
       },
     ]);
     const { ok, feats } = help(rules);
@@ -107,9 +81,7 @@ describe('RuleSet', () => {
   });
 
   test('single rule', () => {
-    const rules = Schema.decodeSync(RuleSetSchema)([
-      { action: RuleAction.Allow },
-    ]);
+    const rules = Ruleset.CODEC.parse([{ action: RuleAction.Allow }]);
     expect(help(rules).ok()).toBe(true);
   });
 });

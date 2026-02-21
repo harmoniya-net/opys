@@ -1,4 +1,4 @@
-import { satisfies, type Ruleset, type SatisfiesOsOptions } from '../lib';
+import { type Ruleset, type SatisfiesOsOptions } from '../lib';
 
 export const LINUX: SatisfiesOsOptions = {
   name: 'linux',
@@ -26,8 +26,8 @@ export const WINDOWS_10: SatisfiesOsOptions = {
 
 export const help = (rules: Ruleset) => {
   return {
-    os: (opt: SatisfiesOsOptions) => satisfies(rules, opt, []),
-    feats: (feats: string[]) => satisfies(rules, LINUX, feats),
-    ok: () => satisfies(rules, LINUX, []),
+    os: (opt: SatisfiesOsOptions) => rules.satisfies(opt, []),
+    feats: (feats: string[]) => rules.satisfies(LINUX, feats),
+    ok: () => rules.satisfies(LINUX, []),
   };
 };
