@@ -1,5 +1,5 @@
 {
-  "name": "@unipack/minecraft",
+  "name": "@unifest/minecraft",
   "version": "1.0.0",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -17,11 +17,15 @@
   ],
   "scripts": {
     "build": "tsdown lib/index.ts --format esm,cjs --dts --clean",
-    "test": "bun test tests/unit",
-    "test:int": "bun test tests/int"
+    "test": "vitest run tests/unit",
+    "test:int": "vitest run tests/integration"
   },
   "type": "module",
   "dependencies": {
-    "@unipack/rules": "workspace:*"
+    "@unifest/rules": "*",
+    "@unifest/core": "*"
+  },
+  "devDependencies": {
+    "vitest": "*"
   }
 }

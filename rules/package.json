@@ -1,5 +1,5 @@
 {
-  "name": "@unipack/rules",
+  "name": "@unifest/rules",
   "version": "1.0.0",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -17,7 +17,7 @@
   ],
   "scripts": {
     "build": "tsdown lib/index.ts --format esm,cjs --dts --clean",
-    "test": "bun test"
+    "test": "vitest run tests"
   },
   "type": "module"
 }

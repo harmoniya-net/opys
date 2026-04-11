@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { FeatureMap } from './features';
-import { RuleOs } from './os';
+import { RuleOs, RuleOsName } from './os';
 import type { SatisfiesOsOptions } from './satisfies';
 
 export enum RuleAction {
@@ -36,6 +36,13 @@ export class Rule {
     }
 
     return allow;
+  }
+
+  public static allowOs(name: RuleOsName) {
+    return new Rule({
+      action: RuleAction.Allow,
+      os: new RuleOs({ name }),
+    });
   }
 
   public toJSON() {

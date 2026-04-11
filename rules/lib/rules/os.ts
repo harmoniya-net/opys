@@ -35,10 +35,16 @@ export class RuleOs {
 
   public satisfies(options: SatisfiesOsOptions): boolean {
     if ('name' in this.inner && 'version' in this.inner) {
-      return (
-        this.inner.name === options.name &&
-        new RegExp(this.inner.version).test(options.version)
-      );
+      try {
+        return (
+          this.inner.name === options.name &&
+          new RegExp(this.inner.version).test(options.version)
+        );
+      } catch (e) {
+        throw new Error(
+          `Invalid OS version pattern "${this.inner.version}": ${e}`,
+        );
+      }
     }
     if ('name' in this.inner) {
       return this.inner.name === options.name;

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { RuleOsName } from './os';
 import { Rule } from './rule';
 import type { SatisfiesOsOptions } from './satisfies';
 
@@ -12,6 +13,10 @@ export class Ruleset {
 
   public static empty() {
     return new Ruleset([]);
+  }
+
+  public static allowOs(name: RuleOsName) {
+    return new Ruleset([Rule.allowOs(name)]);
   }
 
   [Symbol.iterator]() {

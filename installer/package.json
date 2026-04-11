@@ -1,0 +1,34 @@
+{
+  "name": "@unifest/installer",
+  "version": "1.0.0",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "exports": {
+    ".": {
+      "types": "./lib/index.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsdown lib/index.ts --format esm,cjs --dts --clean",
+    "test": "vitest run tests/unit",
+    "test:int": "vitest run tests/integration",
+    "bench": "vitest bench tests/bench"
+  },
+  "type": "module",
+  "dependencies": {
+    "@unifest/core": "*",
+    "@unifest/rules": "*",
+    "fflate": "^0.8.2"
+  },
+  "devDependencies": {
+    "@unifest/mc": "*"
+  },
+  "peerDependencies": {
+    "zod": "*"
+  }
+}

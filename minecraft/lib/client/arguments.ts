@@ -1,4 +1,4 @@
-import { Valset } from '@unipack/rules';
+import { Valset } from '@unifest/rules';
 import { z } from 'zod';
 
 export const LEGACY_JVM_ARGS = Valset.CODEC.decode([

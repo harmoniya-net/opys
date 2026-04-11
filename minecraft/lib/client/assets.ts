@@ -39,7 +39,7 @@ export class AssetManifest {
   );
 }
 
-class AssetIndex {
+export class AssetIndex {
   constructor(
     public readonly id: string,
     public readonly sha1: string,

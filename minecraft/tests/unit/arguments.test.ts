@@ -1,5 +1,5 @@
-import { RuleAction } from '@unipack/rules';
-import { describe, expect, test } from 'bun:test';
+import { RuleAction } from '@unifest/rules';
+import { describe, expect, test } from 'vitest';
 import { Arguments, LEGACY_JVM_ARGS } from '../../lib/client/arguments';
 
 describe('Arguments', () => {

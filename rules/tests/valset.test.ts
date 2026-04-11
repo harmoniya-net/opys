@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'bun:test';
+import { describe, expect, test } from 'vitest';
 import { RuleAction, RuleOsName, Ruleset, Val, Valset } from '../lib';
 import { LINUX, OSX } from './fixtures';
 

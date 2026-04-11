@@ -1,0 +1,23 @@
+{
+  "name": "@unifest/cli",
+  "version": "1.0.0",
+  "bin": {
+    "unifest": "./dist/unifest.mjs"
+  },
+  "scripts": {
+    "build": "tsdown --config tsdown.config.ts",
+    "test": "vitest run tests --passWithNoTests"
+  },
+  "type": "module",
+  "dependencies": {
+    "@unifest/core": "*",
+    "@unifest/installer": "*",
+    "@unifest/mc": "*",
+    "@unifest/minecraft": "*",
+    "@unifest/rules": "*",
+    "smol-toml": "^1.3.4"
+  },
+  "peerDependencies": {
+    "zod": "*"
+  }
+}

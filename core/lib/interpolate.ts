@@ -1,0 +1,74 @@
+/**
+ * Variable interpolation for ${name} placeholders.
+ *
+ * Two-pass resolution:
+ * 1. Self-references expand against the current accumulated value.
+ * 2. All forward references are resolved recursively.
+ *
+ * Rules:
+ * - \${ is an escaped literal ${
+ * - ${name} with spaces or unclosed ${ are left as-is
+ * - Missing variables are left as-is (placeholder preserved verbatim)
+ * - Circular dependencies throw
+ */
+
+export type VarMap = Record<string, string>;
+
+const PLACEHOLDER = /\\\$\{|\$\{([^}\s]+)\}/g;
+
+function substitute(template: string, vars: VarMap): string {
+  return template.replace(PLACEHOLDER, (match, name?: string) => {
+    if (match === '\\${') return '${';
+    if (!name) return match;
+    return Object.prototype.hasOwnProperty.call(vars, name)
+      ? (vars[name] ?? match)
+      : match;
+  });
+}
+
+/**
+ * Resolve all variables in `vars`, replacing ${name} references.
+ * Returns a flat map of resolved key→value.
+ */
+export function resolveVars(vars: VarMap): VarMap {
+  const resolved: VarMap = {};
+  const resolving = new Set<string>();
+
+  function resolve(key: string): string {
+    if (Object.prototype.hasOwnProperty.call(resolved, key))
+      return resolved[key]!;
+    if (resolving.has(key))
+      throw new Error(`Circular variable reference: ${key}`);
+
+    const template = vars[key];
+    if (template === undefined) return `\${${key}}`;
+
+    resolving.add(key);
+    // Substitute any references in the template
+    const result = template.replace(PLACEHOLDER, (match, name?: string) => {
+      if (match === '\\${') return '${';
+      if (!name) return match;
+      if (name === key) {
+        // Self-reference: use current resolved value (empty string if not yet set)
+        return resolved[key] ?? '';
+      }
+      return resolve(name);
+    });
+    resolving.delete(key);
+    resolved[key] = result;
+    return result;
+  }
+
+  for (const key of Object.keys(vars)) {
+    resolve(key);
+  }
+
+  return resolved;
+}
+
+/**
+ * Apply resolved vars to an arbitrary string.
+ */
+export function interpolate(template: string, vars: VarMap): string {
+  return substitute(template, vars);
+}

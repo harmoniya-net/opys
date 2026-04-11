@@ -1,5 +1,17 @@
 import { z } from 'zod';
 
+export class VersionFetchError extends Error {
+  readonly kind = 'version-fetch' as const;
+  constructor(
+    readonly url: string,
+    readonly status: number,
+    message: string,
+  ) {
+    super(message);
+    this.name = 'VersionFetchError';
+  }
+}
+
 export const VERSION_MANIFEST_URL =
   'https://launchermeta.mojang.com/mc/game/version_manifest_v2.json';
 
@@ -33,7 +45,11 @@ export class VersionManifest {
   ): Promise<VersionManifest> {
     const response = await fetch(url);
     if (!response.ok) {
-      throw new Error(`Failed to fetch manifest: ${response.statusText}`);
+      throw new VersionFetchError(
+        url,
+        response.status,
+        `Failed to fetch version manifest: HTTP ${response.status} ${response.statusText}`,
+      );
     }
     return new VersionManifest(
       VersionManifestSchema.parse(await response.json()),

@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'bun:test';
+import { describe, expect, test } from 'vitest';
 import { RuleAction, RuleOsName } from '../dist/index.mjs';
 import { Ruleset } from '../lib';
 import { LINUX, OSX, WINDOWS_10, WINDOWS_7, help } from './fixtures';
