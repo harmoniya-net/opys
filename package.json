@@ -1,6 +1,7 @@
 {
   "name": "unifest",
   "version": "1.0.0",
+  "private": true,
   "scripts": {
     "format": "prettier --write .",
     "build": "npm run build --workspaces --if-present",

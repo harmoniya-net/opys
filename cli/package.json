@@ -1,6 +1,7 @@
 {
   "name": "@unifest/cli",
   "version": "1.0.0",
+  "private": true,
   "bin": {
     "unifest": "./dist/unifest.mjs"
   },
