@@ -67,15 +67,8 @@ publish:
     - |
       echo "@unifest:registry=https://${CI_SERVER_HOST}/api/v4/projects/${CI_PROJECT_ID}/packages/npm/" >> .npmrc
       echo "//${CI_SERVER_HOST}/api/v4/projects/${CI_PROJECT_ID}/packages/npm/:_authToken=${CI_JOB_TOKEN}" >> .npmrc
-    # Stamp exact version in every non-private workspace package.json,
-    # including cross-workspace @unifest/* dependencies
+    # Stamp version from tag across all workspaces (private ones are skipped at publish)
     - |
       VERSION="${CI_COMMIT_TAG#v}"
-      for dir in rules core minecraft mc forge installer; do
-        npm pkg set "version=${VERSION}" --prefix "$dir"
-        for dep in $(npm pkg get dependencies --prefix "$dir" 2>/dev/null | grep -o '"@unifest/[^"]*"' | tr -d '"'); do
-          npm pkg set "dependencies.${dep}=${VERSION}" --prefix "$dir"
-        done
-      done
-    # Publish all non-private workspaces
+      npm version "$VERSION" --workspaces --no-git-tag-version
     - npm publish --workspaces
