@@ -1,91 +1,57 @@
 import { z } from 'zod';
 
-const SizeSchema = z.union([
+export type UnifactSize =
+  | { readonly kind: 'exact'; readonly bytes: number }
+  | { readonly kind: 'at-least'; readonly bytes: number }
+  | { readonly kind: 'unknown' };
+
+const SizeRawSchema = z.union([
   z.object({ exact: z.number().int().nonnegative() }),
   z.object({ at_least: z.number().int().nonnegative() }),
   z.literal('unknown'),
 ]);
 
-type SizeInner = z.infer<typeof SizeSchema>;
+export const SizeSchema: z.ZodType<UnifactSize> = SizeRawSchema.transform(
+  (raw): UnifactSize => {
+    if (raw === 'unknown') return { kind: 'unknown' };
+    if ('exact' in raw) return { kind: 'exact', bytes: raw.exact };
+    return { kind: 'at-least', bytes: raw.at_least };
+  },
+) as unknown as z.ZodType<UnifactSize>;
 
-export class UnifactSize {
-  constructor(private readonly inner: SizeInner) {}
+export function encodeSize(s: UnifactSize): unknown {
+  if (s.kind === 'unknown') return 'unknown';
+  if (s.kind === 'exact') return { exact: s.bytes };
+  return { at_least: s.bytes };
+}
 
-  public static exact(bytes: number): UnifactSize {
-    return new UnifactSize({ exact: bytes });
-  }
+// Factory functions
+export const exactSize = (bytes: number): UnifactSize => ({
+  kind: 'exact',
+  bytes,
+});
+export const atLeastSize = (bytes: number): UnifactSize => ({
+  kind: 'at-least',
+  bytes,
+});
+export const unknownSize = (): UnifactSize => ({ kind: 'unknown' });
+export const zeroSize = (): UnifactSize => ({ kind: 'exact', bytes: 0 });
 
-  public static atLeast(bytes: number): UnifactSize {
-    return new UnifactSize({ at_least: bytes });
-  }
+/**
+ * Commutative monoid addition:
+ *   exact(a) + exact(b)   = exact(a+b)
+ *   atLeast(a) + exact(b) = atLeast(a+b)
+ *   exact(a) + unknown    = atLeast(a)
+ *   unknown + unknown     = atLeast(0)
+ */
+export function addSize(a: UnifactSize, b: UnifactSize): UnifactSize {
+  if (a.kind === 'exact' && b.kind === 'exact')
+    return { kind: 'exact', bytes: a.bytes + b.bytes };
+  const aBytes = a.kind === 'unknown' ? 0 : a.bytes;
+  const bBytes = b.kind === 'unknown' ? 0 : b.bytes;
+  return { kind: 'at-least', bytes: aBytes + bBytes };
+}
 
-  public static unknown(): UnifactSize {
-    return new UnifactSize('unknown');
-  }
-
-  /** Identity for the addition monoid: Exact(0) */
-  public static zero(): UnifactSize {
-    return UnifactSize.exact(0);
-  }
-
-  public static CODEC = z.codec(SizeSchema, z.instanceof(UnifactSize), {
-    decode: (val) => new UnifactSize(val),
-    encode: (size) => size.toJSON(),
-  });
-
-  /**
-   * Commutative monoid addition:
-   *   Exact(a) + Exact(b)   = Exact(a + b)
-   *   AtLeast(a) + Exact(b) = AtLeast(a + b)
-   *   Exact(a) + Unknown    = AtLeast(a)
-   *   AtLeast(a) + Unknown  = AtLeast(a)
-   *   Unknown + Unknown     = AtLeast(0)
-   */
-  public add(other: UnifactSize): UnifactSize {
-    const aIsUnknown = this.inner === 'unknown';
-    const bIsUnknown = other.inner === 'unknown';
-    const aBytes = aIsUnknown
-      ? 0
-      : 'exact' in this.inner
-        ? this.inner.exact
-        : this.inner.at_least;
-    const bBytes = bIsUnknown
-      ? 0
-      : 'exact' in other.inner
-        ? other.inner.exact
-        : other.inner.at_least;
-
-    if (
-      !aIsUnknown &&
-      !bIsUnknown &&
-      'exact' in this.inner &&
-      'exact' in other.inner
-    ) {
-      return UnifactSize.exact(aBytes + bBytes);
-    }
-
-    return UnifactSize.atLeast(aBytes + bBytes);
-  }
-
-  public isExact(): boolean {
-    return typeof this.inner === 'object' && 'exact' in this.inner;
-  }
-
-  public isAtLeast(): boolean {
-    return typeof this.inner === 'object' && 'at_least' in this.inner;
-  }
-
-  public isUnknown(): boolean {
-    return this.inner === 'unknown';
-  }
-
-  public bytes(): number | undefined {
-    if (this.inner === 'unknown') return undefined;
-    if ('exact' in this.inner) return this.inner.exact;
-    return this.inner.at_least;
-  }
-
-  public toJSON(): SizeInner {
-    return this.inner;
-  }
+export function sizeBytes(s: UnifactSize): number | undefined {
+  return s.kind === 'unknown' ? undefined : s.bytes;
 }

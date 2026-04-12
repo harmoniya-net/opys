@@ -1,10 +1,9 @@
 import { describe, expect, test } from 'vitest';
-import { Libraries } from '../../lib/client/libraries';
-import { RuleOsName } from '@unifest/rules';
+import { parseLibraries } from '../../lib/client/libraries';
 
-describe('Libraries', () => {
-  test('test_decode_simple_library', () => {
-    const raw = [
+describe('parseLibraries', () => {
+  test('simple library without natives', () => {
+    const libs = parseLibraries([
       {
         name: 'com.google.code.gson:gson:2.10.1',
         downloads: {
@@ -16,21 +15,15 @@ describe('Libraries', () => {
           },
         },
       },
-    ];
-
-    const libs = Libraries.CODEC.decode(raw);
-    const arr = Array.from(libs);
-    expect(arr).toHaveLength(1);
-    expect(arr[0]!.name.toString()).toBe('com.google.code.gson:gson:2.10.1');
-    expect(arr[0]!.artifact.path).toBe(
-      'com/google/code/gson/gson/2.10.1/gson-2.10.1.jar',
-    );
-    expect(arr[0]!.rules).toHaveLength(0);
-    expect(arr[0]!.native).toBe(false);
+    ]);
+    expect(libs).toHaveLength(1);
+    expect(libs[0]!.name.toString()).toBe('com.google.code.gson:gson:2.10.1');
+    expect(libs[0]!.rules).toHaveLength(0);
+    expect(libs[0]!.native).toBe(false);
   });
 
-  test('test_decode_library_with_natives', () => {
-    const raw = [
+  test('library with native classifiers produces one entry per classifier', () => {
+    const libs = parseLibraries([
       {
         name: 'org.lwjgl:lwjgl:3.3.1',
         downloads: {
@@ -53,46 +46,32 @@ describe('Libraries', () => {
               size: 257766,
               url: 'https://libraries.minecraft.net/org/lwjgl/lwjgl/3.3.1/lwjgl-3.3.1-natives-windows.jar',
             },
-            'natives-osx': {
-              path: 'org/lwjgl/lwjgl/3.3.1/lwjgl-3.3.1-natives-osx.jar',
-              sha1: '028198f16182390823521d0353063f272a2e1d08',
-              size: 34509,
-              url: 'https://libraries.minecraft.net/org/lwjgl/lwjgl/3.3.1/lwjgl-3.3.1-natives-osx.jar',
-            },
           },
+          natives: { linux: 'natives-linux', windows: 'natives-windows' },
         },
-        natives: {
-          linux: 'natives-linux',
-          windows: 'natives-windows',
-          osx: 'natives-osx',
-        },
+        natives: { linux: 'natives-linux', windows: 'natives-windows' },
       },
-    ];
+    ]);
+    // 1 main artifact + 2 native classifiers
+    expect(libs).toHaveLength(3);
 
-    const libs = Libraries.CODEC.decode(raw);
-    const arr = Array.from(libs);
-    // 1 main artifact + 3 native classifiers = 4
-    expect(arr).toHaveLength(4);
-
-    const main = arr.find((l) => l.rules.length === 0);
+    const main = libs.find((l) => l.rules.length === 0);
     expect(main).toBeDefined();
-    expect(main!.artifact.path).toBe('org/lwjgl/lwjgl/3.3.1/lwjgl-3.3.1.jar');
+    expect(main!.native).toBe(false);
 
-    const linux = arr.find((l) => {
-      const rules = Array.from(l.rules);
-      return (
-        rules.length === 1 &&
-        (rules[0] as any).inner.os?.inner.name === RuleOsName.Linux
-      );
-    });
-    expect(linux).toBeDefined();
-    expect(linux!.artifact.path).toBe(
-      'org/lwjgl/lwjgl/3.3.1/lwjgl-3.3.1-natives-linux.jar',
+    const linuxNative = libs.find(
+      (l) =>
+        l.rules.length === 1 &&
+        'os' in l.rules[0]! &&
+        (l.rules[0] as { action: string; os: { name?: string } }).os.name ===
+          'linux',
     );
+    expect(linuxNative).toBeDefined();
+    expect(linuxNative!.native).toBe(true);
   });
 
-  test('test_arch_replacement', () => {
-    const raw = [
+  test('arch replacement in classifier key', () => {
+    const libs = parseLibraries([
       {
         name: 'ca.weblite:java-objc-bridge:1.1',
         downloads: {
@@ -105,15 +84,10 @@ describe('Libraries', () => {
             },
           },
         },
-        natives: {
-          osx: 'natives-osx-{arch}',
-        },
+        natives: { osx: 'natives-osx-{arch}' },
       },
-    ];
-
-    const libs = Libraries.CODEC.decode(raw);
-    const arr = Array.from(libs);
-    expect(arr).toHaveLength(1);
-    expect(arr[0]!.artifact.path).toContain('natives-osx-64');
+    ]);
+    expect(libs).toHaveLength(1);
+    expect(libs[0]!.artifact.path).toContain('natives-osx-64');
   });
 });

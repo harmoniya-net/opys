@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { RuleAction, RuleOsName, ShortRule, ShortRuleset } from '../lib';
+import { ShortRule, ShortRuleset } from '../lib';
 import { LINUX, OSX, WINDOWS_10, WINDOWS_7, help } from './fixtures';
 
 describe('ShortRule (single)', () => {
@@ -112,8 +112,8 @@ describe('ShortRuleset', () => {
 
   test('allow.arch.x86_64', () => {
     const rules = ShortRuleset.decode(['allow.arch.x86_64']);
-    expect(help(rules).os(LINUX)).toBe(true); // LINUX is x86_64
-    expect(help(rules).os(WINDOWS_10)).toBe(true); // WINDOWS_10 is x86_64
+    expect(help(rules).os(LINUX)).toBe(true);
+    expect(help(rules).os(WINDOWS_10)).toBe(true);
     expect(help(rules).os(OSX)).toBe(false); // OSX is aarch64
   });
 
@@ -132,17 +132,17 @@ describe('ShortRuleset', () => {
 
   test('mixed: disallow aarch64 then allow all → except aarch64', () => {
     const rules = ShortRuleset.decode(['disallow.arch.aarch64', 'allow']);
-    expect(help(rules).os(OSX)).toBe(false); // OSX is aarch64
+    expect(help(rules).os(OSX)).toBe(false);
     expect(help(rules).os(LINUX)).toBe(true);
   });
 
   test('mixed string + object rule', () => {
     const rules = ShortRuleset.decode([
       'disallow.arch.aarch64',
-      { action: RuleAction.Allow, os: { name: RuleOsName.Osx } },
+      { action: 'allow' as const, os: { name: 'osx' as const } },
     ]);
-    expect(help(rules).os(OSX)).toBe(false); // disallow.arch.aarch64 fails (OSX is aarch64)
-    expect(help(rules).os(LINUX)).toBe(false); // Allow osx fails for linux
+    expect(help(rules).os(OSX)).toBe(false);
+    expect(help(rules).os(LINUX)).toBe(false);
   });
 
   test('version range: disallow.os.windows@^7\\.', () => {
@@ -152,8 +152,7 @@ describe('ShortRuleset', () => {
   });
 
   test('roundtrip single string', () => {
-    const input = 'allow';
-    expect(ShortRuleset.encode(ShortRuleset.decode(input))).toBe(input);
+    expect(ShortRuleset.encode(ShortRuleset.decode('allow'))).toBe('allow');
   });
 
   test('roundtrip array', () => {

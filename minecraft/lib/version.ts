@@ -27,60 +27,39 @@ export const VersionSchema = z.object({
 
 export type Version = z.infer<typeof VersionSchema>;
 
-export const VersionManifestSchema = z.object({
-  latest: z.object({
-    release: z.string(),
-    snapshot: z.string(),
-  }),
+const VersionManifestRawSchema = z.object({
+  latest: z.object({ release: z.string(), snapshot: z.string() }),
   versions: z.array(VersionSchema),
 });
 
-export class VersionManifest {
-  constructor(
-    private readonly manifest: z.infer<typeof VersionManifestSchema>,
-  ) {}
+export interface VersionManifest {
+  readonly latest: { release: string; snapshot: string };
+  readonly versions: Version[];
+}
 
-  public static async fetch(
-    url = VERSION_MANIFEST_URL,
-  ): Promise<VersionManifest> {
-    const response = await fetch(url);
-    if (!response.ok) {
-      throw new VersionFetchError(
-        url,
-        response.status,
-        `Failed to fetch version manifest: HTTP ${response.status} ${response.statusText}`,
-      );
-    }
-    return new VersionManifest(
-      VersionManifestSchema.parse(await response.json()),
+export async function fetchVersionManifest(
+  url = VERSION_MANIFEST_URL,
+): Promise<VersionManifest> {
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new VersionFetchError(
+      url,
+      response.status,
+      `Failed to fetch version manifest: HTTP ${response.status} ${response.statusText}`,
     );
   }
+  return VersionManifestRawSchema.parse(await response.json());
+}
 
-  public latest(): Version {
-    const version = this.manifest.versions.find(
-      (v) => v.id === this.manifest.latest.release,
-    );
-    if (!version)
-      throw new Error('No release version found. Manifest is invalid.');
-    return version;
-  }
+export function findVersion(
+  manifest: VersionManifest,
+  id: string,
+): Version | undefined {
+  return manifest.versions.find((v) => v.id === id);
+}
 
-  public snapshot(): Version {
-    const version = this.manifest.versions.find(
-      (v) => v.id === this.manifest.latest.snapshot,
-    );
-    if (!version)
-      throw new Error('No snapshot version found. Manifest is invalid.');
-    return version;
-  }
-
-  public oldest(): Version {
-    const version = this.manifest.versions.at(-1);
-    if (!version) throw new Error('No versions found. Manifest is invalid.');
-    return version;
-  }
-
-  public search(id: string): Version | undefined {
-    return this.manifest.versions.find((v) => v.id === id);
-  }
+export function latestRelease(manifest: VersionManifest): Version {
+  const v = manifest.versions.find((v) => v.id === manifest.latest.release);
+  if (!v) throw new Error('No release version found in manifest');
+  return v;
 }

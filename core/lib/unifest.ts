@@ -1,92 +1,87 @@
-import type { SatisfiesOsOptions } from '@unifest/rules';
 import { z } from 'zod';
-import { Launch } from './launch';
-import { UnifactSize } from './size';
-import { Unifact } from './unifact';
-import { ValDefs } from './valdefs';
+import type { OsOptions } from '@unifest/rules';
+import { type Launch, LaunchSchema, encodeLaunch } from './launch';
+import {
+  type Unifact,
+  UnifactSchema,
+  encodeUnifact,
+  unifactApplies,
+  deduplicateUnifacts,
+} from './unifact';
+import {
+  type ValDefs,
+  parseValDefs,
+  encodeValDefs,
+  concatValDefs,
+  emptyValDefs,
+} from './valdefs';
+import { type UnifactSize, addSize, zeroSize } from './size';
 
-const UnifestSchema = z.object({
-  vars: ValDefs.CODEC.default(ValDefs.empty()),
-  launch: Launch.CODEC.optional(),
-  unifacts: z.array(Unifact.CODEC).default([]),
+export interface Unifest {
+  readonly vars: ValDefs;
+  readonly launch?: Launch;
+  readonly unifacts: ReadonlyArray<Unifact>;
+}
+
+const UnifestRawSchema = z.object({
+  vars: z.any().optional(),
+  launch: LaunchSchema.optional(),
+  unifacts: z.array(UnifactSchema).optional(),
 });
 
-export class Unifest {
-  constructor(
-    public readonly vars: ValDefs,
-    public readonly launch: Launch | undefined,
-    public readonly unifacts: Unifact[],
-  ) {}
+export const UnifestSchema: z.ZodType<Unifest> = UnifestRawSchema.transform(
+  (raw): Unifest => ({
+    vars: raw.vars != null ? parseValDefs(raw.vars) : emptyValDefs(),
+    launch: raw.launch,
+    unifacts: raw.unifacts ?? [],
+  }),
+) as unknown as z.ZodType<Unifest>;
 
-  public static CODEC = z.codec(UnifestSchema, z.instanceof(Unifest), {
-    decode: ({ vars, launch, unifacts }) => new Unifest(vars, launch, unifacts),
-    encode: (unifest) => ({
-      vars: unifest.vars,
-      launch: unifest.launch,
-      unifacts: unifest.unifacts,
-    }),
-  });
+export function encodeUnifest(u: Unifest): unknown {
+  return {
+    vars: encodeValDefs(u.vars),
+    ...(u.launch ? { launch: encodeLaunch(u.launch) } : {}),
+    unifacts: u.unifacts.map(encodeUnifact),
+  };
+}
 
-  /**
-   * Parse a Unifest from a string. Detects JSON by leading `{`, falls back to TOML.
-   */
-  public static async parse(input: string): Promise<Unifest> {
-    const trimmed = input.trimStart();
-    if (trimmed.startsWith('{')) {
-      try {
-        return Unifest.CODEC.decode(JSON.parse(input));
-      } catch (e) {
-        throw new Error(`Failed to parse manifest as JSON: ${e}`);
-      }
-    }
+export async function parseUnifest(input: string): Promise<Unifest> {
+  const trimmed = input.trimStart();
+  if (trimmed.startsWith('{')) {
     try {
-      const { parse: parseTOML } = await import('smol-toml');
-      return Unifest.CODEC.decode(parseTOML(input));
+      return UnifestSchema.parse(JSON.parse(input));
     } catch (e) {
-      throw new Error(`Failed to parse manifest as TOML: ${e}`);
+      throw new Error(`Failed to parse manifest as JSON: ${e}`);
     }
   }
-
-  /**
-   * Filter unifacts to only those that apply to the given platform.
-   */
-  public filter(options: SatisfiesOsOptions, feats: string[] = []): Unifest {
-    return new Unifest(
-      this.vars,
-      this.launch,
-      this.unifacts.filter((u) => u.applies(options, feats)),
-    );
+  try {
+    const { parse: parseTOML } = await import('smol-toml');
+    return UnifestSchema.parse(parseTOML(input));
+  } catch (e) {
+    throw new Error(`Failed to parse manifest as TOML: ${e}`);
   }
+}
 
-  /**
-   * Total size of all unifacts (monoid sum).
-   */
-  public totalSize(): UnifactSize {
-    return this.unifacts.reduce(
-      (acc, u) => acc.add(u.size),
-      UnifactSize.zero(),
-    );
-  }
+export function filterUnifest(
+  u: Unifest,
+  os: OsOptions,
+  feats: string[] = [],
+): Unifest {
+  return {
+    vars: u.vars,
+    launch: u.launch,
+    unifacts: u.unifacts.filter((a) => unifactApplies(a, os, feats)),
+  };
+}
 
-  /**
-   * Merge another Unifest into this one (other's launch wins if defined).
-   */
-  public merge(other: Unifest): Unifest {
-    return new Unifest(
-      this.vars.concat(other.vars),
-      other.launch ?? this.launch,
-      [...this.unifacts, ...other.unifacts],
-    );
-  }
+export function mergeUnifest(a: Unifest, b: Unifest): Unifest {
+  return {
+    vars: concatValDefs(a.vars, b.vars),
+    launch: b.launch ?? a.launch,
+    unifacts: deduplicateUnifacts([...a.unifacts, ...b.unifacts]),
+  };
+}
 
-  public toJSON() {
-    return {
-      vars: ValDefs.CODEC.encode(this.vars),
-      launch:
-        this.launch !== undefined
-          ? Launch.CODEC.encode(this.launch)
-          : undefined,
-      unifacts: this.unifacts.map((u) => Unifact.CODEC.encode(u)),
-    };
-  }
+export function totalSize(u: Unifest): UnifactSize {
+  return u.unifacts.reduce((acc, a) => addSize(acc, a.size), zeroSize());
 }

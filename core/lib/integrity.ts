@@ -1,79 +1,50 @@
 import { z } from 'zod';
 
-const HashEntry = z.union([
+const HashEntrySchema = z.union([
   z.object({ sha1: z.string() }),
   z.object({ sha256: z.string() }),
 ]);
 
-export type HashEntry = z.infer<typeof HashEntry>;
+export type HashEntry = z.infer<typeof HashEntrySchema>;
 
-// Accept single entry (backward compat), array of entries, or 'skip'
-const IntegrityInput = z.union([
+export type Integrity =
+  | { readonly kind: 'skip' }
+  | { readonly kind: 'hashes'; readonly entries: ReadonlyArray<HashEntry> };
+
+const IntegrityRawSchema = z.union([
   z.literal('skip'),
-  HashEntry,
-  z.array(HashEntry),
+  HashEntrySchema,
+  z.array(HashEntrySchema),
 ]);
 
-export class Integrity {
-  constructor(
-    private readonly _entries: HashEntry[],
-    private readonly _skip: boolean,
-  ) {}
+export const IntegritySchema: z.ZodType<Integrity> =
+  IntegrityRawSchema.transform((raw): Integrity => {
+    if (raw === 'skip') return { kind: 'skip' };
+    const entries = Array.isArray(raw) ? raw : [raw];
+    return { kind: 'hashes', entries };
+  }) as unknown as z.ZodType<Integrity>;
 
-  public static skip(): Integrity {
-    return new Integrity([], true);
-  }
+export function encodeIntegrity(i: Integrity): unknown {
+  if (i.kind === 'skip') return 'skip';
+  if (i.entries.length === 1) return i.entries[0];
+  return [...i.entries];
+}
 
-  public static sha1(hash: string): Integrity {
-    return new Integrity([{ sha1: hash }], false);
-  }
+// Factory functions
+export const skipIntegrity = (): Integrity => ({ kind: 'skip' });
+export const sha1Integrity = (hash: string): Integrity => ({
+  kind: 'hashes',
+  entries: [{ sha1: hash }],
+});
+export const sha256Integrity = (hash: string): Integrity => ({
+  kind: 'hashes',
+  entries: [{ sha256: hash }],
+});
+export const ofIntegrity = (entries: HashEntry[]): Integrity => ({
+  kind: 'hashes',
+  entries,
+});
 
-  public static sha256(hash: string): Integrity {
-    return new Integrity([{ sha256: hash }], false);
-  }
-
-  /** Create an integrity check that passes if ANY of the given hashes matches. */
-  public static of(hashes: HashEntry[]): Integrity {
-    return new Integrity(hashes, false);
-  }
-
-  public static CODEC = z.codec(IntegrityInput, z.instanceof(Integrity), {
-    decode: (val) => {
-      if (val === 'skip') return Integrity.skip();
-      const arr = Array.isArray(val) ? val : [val];
-      return new Integrity(arr, false);
-    },
-    encode: (integrity) => integrity.toJSON(),
-  });
-
-  public isSkip(): boolean {
-    return this._skip;
-  }
-
-  /** All hash entries. Any one matching a file passes verification. */
-  public entries(): HashEntry[] {
-    return this._entries;
-  }
-
-  /** @deprecated Use {@link entries} + {@link isSkip}. Returns the algorithm of the first entry. */
-  public algorithm(): 'sha1' | 'sha256' | 'skip' {
-    if (this._skip) return 'skip';
-    const first = this._entries[0];
-    if (!first) return 'skip';
-    return 'sha1' in first ? 'sha1' : 'sha256';
-  }
-
-  /** @deprecated Use {@link entries} + {@link isSkip}. Returns the hash of the first entry. */
-  public hash(): string | undefined {
-    if (this._skip) return undefined;
-    const first = this._entries[0];
-    if (!first) return undefined;
-    return 'sha1' in first ? first.sha1 : first.sha256;
-  }
-
-  public toJSON(): z.input<typeof IntegrityInput> {
-    if (this._skip) return 'skip';
-    if (this._entries.length === 1) return this._entries[0]!; // single entry: backward-compat format
-    return this._entries;
-  }
+export function isIntegritySkip(i: Integrity): i is { kind: 'skip' } {
+  return i.kind === 'skip';
 }

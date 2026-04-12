@@ -2,104 +2,147 @@
 
 ## What this is
 
-A TypeScript/Bun monorepo that builds and launches Minecraft client installations from
-declarative manifests (`unifest.json`). Two user-facing commands:
+A TypeScript monorepo that builds and launches Minecraft client installations from declarative manifests (`unifest.json`). Pure functional architecture — no OOP classes, discriminated unions instead of `instanceof`, side effects pushed to edges.
 
-- `unifest build` — reads a JS config (`unifest.config.mjs`), fetches Minecraft metadata
-  from Mojang, and emits a `unifest.json` manifest describing every file that must be
-  present to run the game.
-- `unifest launch` — installs everything described in the manifest, then spawns the JVM.
+Two user-facing commands:
+
+- `unifest build` — reads JS config, fetches Mojang metadata, emits `unifest.json`
+- `unifest launch` — installs artifacts described in manifest, spawns JVM
 
 ## Package layout
 
-| Package              | Role                                                                                                         |
-| -------------------- | ------------------------------------------------------------------------------------------------------------ |
-| `@unifest/rules`     | Pure platform/feature matching (OS name, arch, version). No I/O, no errors.                                  |
-| `@unifest/core`      | Data model: `Unifest`, `Unifact`, `Source`, `Integrity`, `Extract`, `ValDefs`. Zod codecs for serialisation. |
-| `@unifest/minecraft` | Parses Mojang's launcher manifest and per-version JSON into typed objects.                                   |
-| `@unifest/mc`        | Converts a parsed Mojang `Client` into a `Unifest` template (libraries, assets, client jar).                 |
-| `@unifest/installer` | Downloads, verifies, and extracts artifacts; spawns the game process.                                        |
-| `cli`                | Thin entry point wiring `build` and `launch` commands to the packages above.                                 |
+| Package              | Role                                                                                                                                                                                              |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@unifest/rules`     | Pure platform/feature matching. POJOs + functions. `satisfiesRuleset(rules, os, feats)` etc.                                                                                                      |
+| `@unifest/core`      | Data model as discriminated unions: `Source`, `Integrity`, `Size`, `ExtractRule`, `ValDefs`. Factory functions (`sourceUrl`, `extractDump`) instead of classes. Zod for parsing only — no codecs. |
+| `@unifest/minecraft` | **Zero-binding module.** Pure Mojang JSON parsers. No dependencies on other unipack packages.                                                                                                     |
+| `@unifest/mc`        | Bridge layer. Converts Mojang types to Unifest via pure mapper functions. Owns template creation.                                                                                                 |
+| `@unifest/installer` | Downloads, verifies, extracts. Split into atomic phase modules. Side effects isolated to phase runners.                                                                                           |
+| `cli`                | Entry point. Thin command handlers. Functional progress state reducer.                                                                                                                            |
 
-## Installer lifecycle
+## Data Model (Functional)
 
-`install(source, options)` in `installer/lib/install.ts`:
+### `@unifest/rules` — Rule Evaluation
 
-Phases are strictly sequential. No integrity checking happens during download; no extraction
-happens during or after download. Each phase is entirely separate.
+```ts
+type RuleAction = 'allow' | 'disallow';
+type Rule =
+  | { action: RuleAction; os: OsConstraint }
+  | { action: RuleAction; features: Record<string, boolean> }
+  | { action: RuleAction };
+
+type Ruleset = Rule[];
+
+// Pure functions
+function satisfiesRuleset(
+  rules: Ruleset,
+  os: OsOptions,
+  feats?: string[],
+): boolean;
+function parseShortRuleset(raw: string | Rule | (string | Rule)[]): Ruleset;
+function encodeShortRuleset(rules: Ruleset): unknown;
+```
+
+### `@unifest/core` — Core Types
+
+```ts
+// Discriminated unions with `kind` field
+type Source = { kind: 'url'; url: string }
+            | { kind: 'file'; file: string }
+            | { kind: 'string'; string: string }
+            | { kind: 'empty' }
+
+type ExtractRule = { kind: 'pick'; file: string; into: string }
+                 | { kind: 'scan'; matches: string; into: string; ... }
+                 | { kind: 'dump'; into: string; clean?: boolean; ... }
+
+// Factory functions (not classes)
+const src: Source = sourceUrl('https://...')
+const rule: ExtractRule = extractDump('natives/', { excludes: ['META-INF/'] })
+
+// Parsing/encoding (no codecs)
+function SourceSchema.parse(raw: unknown): Source
+function encodeSource(s: Source): unknown
+```
+
+## Installer Lifecycle
+
+`install(source, options)` at `installer/lib/install.ts`:
 
 ```
 PHASE 1 — resolve
-  Read manifest from file, URL, or in-memory Unifest object.
+  └─ resolveManifest(): read file/URL/in-memory → Unifest
 
-PHASE 2 — download  (retry loop, max 3 attempts)
-  ┌─────────────────────────────────────────────────────────────────────────────────┐
-  │                                                                                 │
-  │  a. scan — existsSync every artifact; skip files already on disk               │
-  │                                                                                 │
-  │  b. fetch — download missing files in parallel (default concurrency 32)        │
-  │               each file: up to 3 HTTP attempts with linear backoff             │
-  │               downloaded to a per-pid staging dir first, then renamed to final │
-  │                                                                                 │
-  │  c. verify — after ALL files are in place, check sha1/sha256 in one batch     │
-  │               pass → done                                                      │
-  │               fail, attempt < 3 → delete bad files, restart from (a)          │
-  │               fail, attempt == 3 → throw IntegrityError                       │
-  │                                                                                 │
-  └─────────────────────────────────────────────────────────────────────────────────┘
+PHASE 2 — download (retry loop, max 3 attempts)
+  └─ for attempt = 1..3:
+       a. scan(manifest) → determine missing files (existsSync)
+       b. fetchAll(tasks, vars, concurrency) → download to staging
+       c. verifyAll(tasks) → batch hash check AFTER all files complete
+          └─ pass → done
+          └─ fail, attempt < 3 → delete bad files, restart scan
+          └─ fail, attempt == 3 → throw IntegrityError
 
-PHASE 3 — extract  (only for artifacts freshly downloaded in this run)
-  For each Unifact that has an ExtractDump rule AND was downloaded above:
-    • if rule.clean: wipe the target directory first
-    • mkdir target
-    • unzip artifact → target (with include/exclude glob filters)
-  Artifacts already on disk from a prior run are NOT re-extracted.
+PHASE 3 — extract
+  └─ extractAll(tasks, vars)
+     └─ For each Unifact with `extract` rules that was freshly downloaded:
+         • if rule.clean: rm target
+         • mkdir target
+         • unzip artifact → target
 
-(staging dir cleaned up in finally regardless of outcome)
+Note: Already-cached artifacts skip extraction entirely (prevents natives/ wipe on re-launch).
 ```
 
-`launch(manifestPath, { install: false })` runs after `install()` and spawns the JVM.
+### Phase Modules
 
-## Error types
+```
+installer/lib/phases/
+├── resolve.ts   — ManifestSource → Unifest
+├── scan.ts      — existsSync check, returns ScanResult
+├── fetch.ts     — Parallel download with semaphore
+├── verify.ts    — Batch hash verification
+└── extract.ts   — Zip extraction
+```
 
-All typed errors are in `installer/lib/errors.ts` and exported from `@unifest/installer`:
+Each phase is pure input→output. Side effects (fs, network) only in async runners.
 
-| Class               | When                                                      | CLI exit code |
-| ------------------- | --------------------------------------------------------- | ------------- |
-| `NetworkError`      | HTTP failure during download or manifest fetch            | 2             |
-| `IntegrityError`    | Files still failing hash check after 3 attempts           | 3             |
-| `ExtractionError`   | ZIP extraction failure (wraps original error via `cause`) | 4             |
-| `UsageError`        | Bad CLI args or missing required config fields            | 1             |
-| `VersionFetchError` | Mojang API fetch failure (in `@unifest/minecraft`)        | 2             |
+## Error Types
 
-## Progress callback
+| Class               | When                               | Exit Code |
+| ------------------- | ---------------------------------- | --------- |
+| `NetworkError`      | HTTP failure                       | 2         |
+| `IntegrityError`    | Hash check failed after 3 attempts | 3         |
+| `ExtractionError`   | ZIP extraction failure             | 4         |
+| `UsageError`        | Bad CLI args                       | 1         |
+| `VersionFetchError` | Mojang API fetch                   | 2         |
 
-`InstallOptions.onProgress` is a single callback receiving an `InstallProgress` discriminated union:
+## Progress Type
 
 ```ts
 type InstallProgress =
   | { phase: 'resolve' }
-  | {
-      phase: 'download';
-      fetched: number;
-      total: number;
-      skipped: number;
-      file: string;
-    }
+  | { phase: 'download'; fetched: number; total: number; skipped: number }
   | { phase: 'verify' }
   | { phase: 'extract'; count: number };
 ```
 
-`download` is emitted once with `fetched: 0` when the total is known, then once per
-completed file. `file` is the final path of the downloaded artifact.
+## Key Design Decisions
 
-## Key design decisions
+1. **Extract only fresh downloads.** Already-cached artifacts skip extraction.
+2. **No `Result<T,E>` monad.** Typed exceptions for control flow.
+3. **Pure functions over classes.** Data is POJO, behavior is standalone.
+4. **Zero-binding `@unifest/minecraft`.** No deps on other unipack packages.
+5. **Explicit parse/encode.** No `z.codec` — separate `parseXxx` and `encodeXxx` functions.
+6. **Discriminated unions.** `kind` field replaces `instanceof` checks.
 
-- **Extract only on fresh downloads.** `extractAll` is skipped entirely when all files were
-  already on disk. This prevents redundant directory wipes (e.g. `natives/`) on every launch.
-- **No Result<T,E> monad.** Typed `throw`/`catch` with class hierarchy is used instead —
-  more idiomatic TypeScript.
-- **Retry is a combinator.** `withRetry(fn, maxAttempts, backoff)` in `installer/lib/retry.ts`
-  is used for per-file download retries; the integrity-cycle retry is a plain `for` loop.
-- **`onProgress` is the only callback.** Phase transitions and per-file events go through the
-  same typed callback so callers have one integration point.
+## Dependency Graph
+
+```
+cli → installer, mc, core
+installer → core, rules
+mc → minecraft, core, rules
+core → rules
+minecraft → (none / zod only)
+rules → (zod only)
+```
+
+`@unifest/minecraft` is the leaf — Mojang data in, nothing else out.

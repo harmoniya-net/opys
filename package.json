@@ -1,17 +1,20 @@
 {
   "name": "unifest",
+  "version": "1.0.0",
   "scripts": {
     "format": "prettier --write .",
     "build": "npm run build --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "test:int": "npm run test:int --workspaces --if-present",
-    "prepare": "husky"
+    "prepare": "husky",
+    "bump": "npm version --workspaces --include-workspace-root"
   },
   "workspaces": [
     "rules",
     "core",
     "minecraft",
     "mc",
+    "forge",
     "installer",
     "cli"
   ],

@@ -1,63 +1,79 @@
+import { posix } from 'node:path';
 import { z } from 'zod';
-import { ShortRuleset, Ruleset } from '@unifest/rules';
-import type { SatisfiesOsOptions } from '@unifest/rules';
-import { Source } from './source';
-import { Integrity } from './integrity';
-import { UnifactSize } from './size';
-import { Extract } from './extract';
+import {
+  type Ruleset,
+  satisfiesRuleset,
+  parseShortRuleset,
+} from '@unifest/rules';
+import type { OsOptions } from '@unifest/rules';
+import { type Source, SourceSchema, encodeSource } from './source';
+import { unknownSize } from './size';
+import {
+  type Integrity,
+  IntegritySchema,
+  encodeIntegrity,
+  skipIntegrity,
+} from './integrity';
+import { type UnifactSize, SizeSchema, encodeSize } from './size';
+import { type ExtractRule, ExtractSchema, encodeExtract } from './extract';
 
-const UnifactSchema = z.object({
+export interface Unifact {
+  readonly path: string;
+  readonly source: Source;
+  readonly size: UnifactSize;
+  readonly rules: Ruleset;
+  readonly integrity: Integrity;
+  readonly metadata?: unknown;
+  readonly extract?: ExtractRule[];
+}
+
+const UnifactRawSchema = z.object({
   path: z.string(),
-  source: Source.CODEC,
-  size: UnifactSize.CODEC.default(UnifactSize.unknown()),
-  rules: ShortRuleset.default(Ruleset.empty()),
-  integrity: Integrity.CODEC.default(Integrity.skip()),
+  source: SourceSchema,
+  size: SizeSchema.optional(),
+  rules: z.any().optional(),
+  integrity: IntegritySchema.optional(),
   metadata: z.unknown().optional(),
-  extract: Extract.CODEC.optional(),
+  extract: ExtractSchema.optional(),
 });
 
-export class Unifact {
-  constructor(
-    public readonly path: string,
-    public readonly source: Source,
-    public readonly size: UnifactSize,
-    public readonly rules: Ruleset,
-    public readonly integrity: Integrity,
-    public readonly metadata: unknown,
-    public readonly extract: Extract | undefined,
-  ) {}
+export const UnifactSchema: z.ZodType<Unifact> = UnifactRawSchema.transform(
+  (raw): Unifact => ({
+    path: raw.path,
+    source: raw.source,
+    size: raw.size ?? unknownSize(),
+    rules: raw.rules != null ? parseShortRuleset(raw.rules) : [],
+    integrity: raw.integrity ?? skipIntegrity(),
+    metadata: raw.metadata,
+    extract: raw.extract,
+  }),
+) as unknown as z.ZodType<Unifact>;
 
-  public static CODEC = z.codec(UnifactSchema, z.instanceof(Unifact), {
-    decode: ({ path, source, size, rules, integrity, metadata, extract }) =>
-      new Unifact(path, source, size, rules, integrity, metadata, extract),
-    encode: (unifact) => ({
-      path: unifact.path,
-      source: unifact.source,
-      size: unifact.size,
-      rules: unifact.rules,
-      integrity: unifact.integrity,
-      metadata: unifact.metadata,
-      extract: unifact.extract,
-    }),
-  });
+export function encodeUnifact(u: Unifact): unknown {
+  return {
+    path: u.path,
+    source: encodeSource(u.source),
+    size: encodeSize(u.size),
+    rules: u.rules.length > 0 ? u.rules : undefined,
+    integrity: encodeIntegrity(u.integrity),
+    ...(u.metadata !== undefined ? { metadata: u.metadata } : {}),
+    ...(u.extract ? { extract: encodeExtract(u.extract) } : {}),
+  };
+}
 
-  /** Returns true if this unifact applies to the given platform. */
-  public applies(options: SatisfiesOsOptions, feats: string[] = []): boolean {
-    return this.rules.satisfies(options, feats);
+/** Deduplicate by normalized path — later entries win. */
+export function deduplicateUnifacts(unifacts: Unifact[]): Unifact[] {
+  const map = new Map<string, Unifact>();
+  for (const u of unifacts) {
+    map.set(posix.normalize(u.path), u);
   }
+  return [...map.values()];
+}
 
-  public toJSON() {
-    return {
-      path: this.path,
-      source: Source.CODEC.encode(this.source),
-      size: UnifactSize.CODEC.encode(this.size),
-      rules: ShortRuleset.encode(this.rules),
-      integrity: Integrity.CODEC.encode(this.integrity),
-      metadata: this.metadata,
-      extract:
-        this.extract !== undefined
-          ? Extract.CODEC.encode(this.extract)
-          : undefined,
-    };
-  }
+export function unifactApplies(
+  u: Unifact,
+  os: OsOptions,
+  feats: string[] = [],
+): boolean {
+  return satisfiesRuleset(u.rules, os, feats);
 }

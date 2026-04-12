@@ -1,54 +1,66 @@
 import { z } from 'zod';
-import { Valset } from '@unifest/rules';
-import type { SatisfiesOsOptions } from '@unifest/rules';
-import { ValDefs } from './valdefs';
+import {
+  parseValset,
+  encodeValset,
+  resolveValset,
+  type Valset,
+} from '@unifest/rules';
+import type { OsOptions } from '@unifest/rules';
+import {
+  parseValDefs,
+  encodeValDefs,
+  resolveValDefs,
+  type ValDefs,
+} from './valdefs';
 
-const LaunchSchema = z.object({
+export interface Launch {
+  readonly command: string;
+  readonly workdir: string;
+  readonly args: Valset;
+  readonly envs: ValDefs;
+}
+
+const LaunchRawSchema = z.object({
   command: z.string(),
   workdir: z.string(),
-  args: Valset.CODEC.default(new Valset([])),
-  envs: ValDefs.CODEC.default(ValDefs.empty()),
+  args: z.any().optional(),
+  envs: z.any().optional(),
 });
 
-export class Launch {
-  constructor(
-    public readonly command: string,
-    public readonly workdir: string,
-    public readonly args: Valset,
-    public readonly envs: ValDefs,
-  ) {}
+export function parseLaunch(raw: z.infer<typeof LaunchRawSchema>): Launch {
+  return {
+    command: raw.command,
+    workdir: raw.workdir,
+    args: raw.args ? parseValset(raw.args) : [],
+    envs: raw.envs ? parseValDefs(raw.envs) : [],
+  };
+}
 
-  public static CODEC = z.codec(LaunchSchema, z.instanceof(Launch), {
-    decode: ({ command, workdir, args, envs }) =>
-      new Launch(command, workdir, args, envs),
-    encode: (launch) => ({
-      command: launch.command,
-      workdir: launch.workdir,
-      args: launch.args,
-      envs: launch.envs,
-    }),
-  });
+export function encodeLaunch(launch: Launch): unknown {
+  return {
+    command: launch.command,
+    workdir: launch.workdir,
+    args: encodeValset(launch.args),
+    envs: encodeValDefs(launch.envs),
+  };
+}
 
-  public resolvedArgs(
-    options: SatisfiesOsOptions,
-    feats: string[] = [],
-  ): string[] {
-    return this.args.resolve(options, feats);
-  }
+export const LaunchSchema: z.ZodType<Launch> = LaunchRawSchema.transform(
+  parseLaunch,
+) as unknown as z.ZodType<Launch>;
 
-  public resolvedEnvs(
-    options: SatisfiesOsOptions,
-    feats: string[] = [],
-  ): Record<string, string> {
-    return this.envs.resolve(options, feats);
-  }
+export function resolvedArgs(
+  launch: Launch,
+  os: OsOptions,
+  feats: string[] = [],
+): string[] {
+  return resolveValset(launch.args, os, feats);
+}
 
-  public toJSON() {
-    return {
-      command: this.command,
-      workdir: this.workdir,
-      args: Valset.CODEC.encode(this.args),
-      envs: ValDefs.CODEC.encode(this.envs),
-    };
-  }
+export function resolvedEnvs(
+  launch: Launch,
+  os: OsOptions,
+  feats: string[] = [],
+): Record<string, string> {
+  return resolveValDefs(launch.envs, os, feats);
 }

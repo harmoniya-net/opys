@@ -1,73 +1,51 @@
 import { z } from 'zod';
 
-const SourceSchema = z.union([
+export type Source =
+  | { readonly kind: 'url'; readonly url: string }
+  | { readonly kind: 'file'; readonly file: string }
+  | { readonly kind: 'string'; readonly string: string }
+  | { readonly kind: 'empty' };
+
+const SourceRawSchema = z.union([
   z.object({ url: z.string() }),
   z.object({ file: z.string() }),
   z.object({ string: z.string() }),
   z.literal('empty'),
 ]);
 
-type SourceInner = z.infer<typeof SourceSchema>;
+export const SourceSchema: z.ZodType<Source> = SourceRawSchema.transform(
+  (raw): Source => {
+    if (raw === 'empty') return { kind: 'empty' };
+    if ('url' in raw) return { kind: 'url', url: raw.url };
+    if ('file' in raw) return { kind: 'file', file: raw.file };
+    return { kind: 'string', string: raw.string };
+  },
+) as unknown as z.ZodType<Source>;
 
-export class Source {
-  constructor(private readonly inner: SourceInner) {}
-
-  public static url(url: string): Source {
-    return new Source({ url });
-  }
-
-  public static file(path: string): Source {
-    return new Source({ file: path });
-  }
-
-  public static string(content: string): Source {
-    return new Source({ string: content });
-  }
-
-  public static empty(): Source {
-    return new Source('empty');
-  }
-
-  public static CODEC = z.codec(SourceSchema, z.instanceof(Source), {
-    decode: (val) => new Source(val),
-    encode: (source) => source.toJSON(),
-  });
-
-  public isUrl(): this['inner'] extends { url: string } ? true : false {
-    return (typeof this.inner === 'object' && 'url' in this.inner) as never;
-  }
-
-  public isFile(): boolean {
-    return typeof this.inner === 'object' && 'file' in this.inner;
-  }
-
-  public isString(): boolean {
-    return typeof this.inner === 'object' && 'string' in this.inner;
-  }
-
-  public isEmpty(): boolean {
-    return this.inner === 'empty';
-  }
-
-  public url(): string | undefined {
-    if (typeof this.inner === 'object' && 'url' in this.inner)
-      return this.inner.url;
-    return undefined;
-  }
-
-  public file(): string | undefined {
-    if (typeof this.inner === 'object' && 'file' in this.inner)
-      return this.inner.file;
-    return undefined;
-  }
-
-  public string(): string | undefined {
-    if (typeof this.inner === 'object' && 'string' in this.inner)
-      return this.inner.string;
-    return undefined;
-  }
-
-  public toJSON(): SourceInner {
-    return this.inner;
-  }
+export function encodeSource(source: Source): unknown {
+  if (source.kind === 'empty') return 'empty';
+  const { kind, ...rest } = source;
+  return rest;
 }
+
+// Factory functions
+export const sourceUrl = (url: string): Source => ({ kind: 'url', url });
+export const sourceFile = (file: string): Source => ({ kind: 'file', file });
+export const sourceString = (string: string): Source => ({
+  kind: 'string',
+  string,
+});
+export const sourceEmpty = (): Source => ({ kind: 'empty' });
+
+// Type guards
+export const isSourceUrl = (s: Source): s is Extract<Source, { kind: 'url' }> =>
+  s.kind === 'url';
+export const isSourceFile = (
+  s: Source,
+): s is Extract<Source, { kind: 'file' }> => s.kind === 'file';
+export const isSourceString = (
+  s: Source,
+): s is Extract<Source, { kind: 'string' }> => s.kind === 'string';
+export const isSourceEmpty = (
+  s: Source,
+): s is Extract<Source, { kind: 'empty' }> => s.kind === 'empty';

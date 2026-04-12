@@ -19,16 +19,10 @@ export type ArtifactIterable = Iterable<Unifact> | AsyncIterable<Unifact>;
 
 export interface UnifestConfig {
   output?: string;
-  /** Each element may be a sync or async iterable of Unifacts. Flattened in order. */
   artifacts?: ArtifactIterable[];
-  /** Variables baked into the built manifest. */
   vars?: ValDefs;
-  /** JVM launch command baked into the built manifest. */
   command?: Launch;
-  /** Local run configuration — not baked into the manifest. */
-  runClient?: {
-    vars?: Record<string, string>;
-  };
+  runClient?: { vars?: Record<string, string> };
 }
 
 export type UnifestConfigInput =

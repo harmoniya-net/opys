@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
-import type { Integrity } from '@unifest/core';
+import { isIntegritySkip } from '@unifest/core';
+import type { Integrity, HashEntry } from '@unifest/core';
 
 export async function readBytes(path: string): Promise<Buffer> {
   return readFile(path);
@@ -16,23 +17,26 @@ export async function checkHash(
   return hash.digest('hex') === expected;
 }
 
-/**
- * Verify a file against an {@link Integrity} descriptor.
- * Returns `true` if skip or if ANY of the stored hashes matches.
- */
+async function verifyHashEntry(
+  path: string,
+  entry: HashEntry,
+): Promise<boolean> {
+  if ('sha1' in entry) {
+    return checkHash(path, 'sha1', entry.sha1);
+  }
+  return checkHash(path, 'sha256', entry.sha256);
+}
+
 export async function verifyIntegrity(
   path: string,
   integrity: Integrity,
 ): Promise<boolean> {
-  if (integrity.isSkip()) return true;
-  const entries = integrity.entries();
+  if (isIntegritySkip(integrity)) return true;
+  if (integrity.kind !== 'hashes') return true;
+  const entries = integrity.entries;
   if (entries.length === 0) return true;
   for (const entry of entries) {
-    const [algo, expected] =
-      'sha1' in entry
-        ? ['sha1' as const, entry.sha1]
-        : ['sha256' as const, entry.sha256];
-    if (await checkHash(path, algo, expected)) return true;
+    if (await verifyHashEntry(path, entry)) return true;
   }
   return false;
 }

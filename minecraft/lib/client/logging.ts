@@ -17,8 +17,5 @@ export const LoggingClientSchema = z.object({
 
 export type LoggingClient = z.infer<typeof LoggingClientSchema>;
 
-export const LoggingSchema = z.object({
-  client: LoggingClientSchema,
-});
-
+export const LoggingSchema = z.object({ client: LoggingClientSchema });
 export type Logging = z.infer<typeof LoggingSchema>;

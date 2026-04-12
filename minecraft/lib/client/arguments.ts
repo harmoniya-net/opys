@@ -1,64 +1,65 @@
-import { Valset } from '@unifest/rules';
 import { z } from 'zod';
+import type { MojangRule } from './libraries';
 
-export const LEGACY_JVM_ARGS = Valset.CODEC.decode([
+/** Raw Mojang argument: a plain string or a conditional { rules, value } object. */
+export type MojangArgValue =
+  | string
+  | { rules: MojangRule[]; value: string | string[] };
+
+export interface Arguments {
+  readonly game: MojangArgValue[];
+  readonly jvm: MojangArgValue[];
+  /** True if parsed from the legacy `minecraftArguments` string field. */
+  readonly legacy: boolean;
+}
+
+/** Legacy JVM arguments used when the version JSON has `minecraftArguments`. */
+export const LEGACY_JVM_ARGS: MojangArgValue[] = [
   '-Djava.library.path=${natives_directory}',
   '-cp',
   '${classpath}',
+];
+
+const MojangRuleSchema = z.union([
+  z.object({
+    action: z.string(),
+    os: z.record(z.string(), z.string().optional()),
+  }),
+  z.object({ action: z.string(), features: z.record(z.string(), z.boolean()) }),
+  z.object({ action: z.string() }),
+]) as z.ZodType<MojangRule>;
+
+const MojangArgSchema: z.ZodType<MojangArgValue> = z.union([
+  z.string(),
+  z.object({
+    rules: z.array(MojangRuleSchema),
+    value: z.union([z.string(), z.array(z.string())]),
+  }),
 ]);
 
-export class Arguments {
-  constructor(
-    public readonly game: Valset,
-    public readonly jvm: Valset,
-    public readonly legacy: boolean,
-  ) {}
+const ArgumentsObjectSchema = z.object({
+  game: z.array(MojangArgSchema).default([]),
+  jvm: z.array(MojangArgSchema).default([]),
+});
 
-  public static CODEC = z.codec(
-    z.union([z.string(), z.object({ game: Valset.CODEC, jvm: Valset.CODEC })]),
-    z.instanceof(Arguments),
-    {
-      decode: (item) => {
-        if (typeof item === 'string') {
-          const game = Valset.CODEC.decode(item.split(/\s+/).filter(Boolean));
-          return new Arguments(game, LEGACY_JVM_ARGS, true);
-        }
+/**
+ * Merge a patch version's args onto a base version's args (inheritsFrom semantics).
+ * When patch is legacy it has no structured jvm/game delta — base is returned as-is.
+ */
+export function mergeArgs(base: Arguments, patch: Arguments): Arguments {
+  if (patch.legacy) return base;
+  return {
+    jvm: [...base.jvm, ...patch.jvm],
+    game: [...base.game, ...patch.game],
+    legacy: false,
+  };
+}
 
-        return new Arguments(item.game, item.jvm, false);
-      },
-
-      encode: (item) => item.toJSON(),
-    },
-  );
-
-  public concat(other: Arguments): Arguments {
-    if (this.legacy && other.legacy) {
-      return new Arguments(
-        new Valset([...this.game, ...other.game]),
-        LEGACY_JVM_ARGS,
-        true,
-      );
-    }
-
-    if (this.legacy || other.legacy) {
-      const legacyOne = this.legacy ? this : other;
-      const modernOne = this.legacy ? other : this;
-
-      return new Arguments(
-        new Valset([...legacyOne.game, ...modernOne.game]),
-        modernOne.jvm,
-        false,
-      );
-    }
-
-    return new Arguments(
-      new Valset([...this.game, ...other.game]),
-      new Valset([...this.jvm, ...other.jvm]),
-      false,
-    );
+export function parseArguments(raw: unknown): Arguments {
+  if (typeof raw === 'string') {
+    const game = raw.split(/\s+/).filter(Boolean) as MojangArgValue[];
+    return { game, jvm: LEGACY_JVM_ARGS, legacy: true };
   }
-
-  public toJSON() {
-    return this;
-  }
+  const parsed = ArgumentsObjectSchema.parse(raw);
+  return { game: parsed.game, jvm: parsed.jvm, legacy: false };
 }

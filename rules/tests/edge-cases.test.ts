@@ -1,104 +1,92 @@
 import { describe, expect, it } from 'vitest';
-import { RuleAction, RuleOsName } from '../lib';
-import { Ruleset } from '../lib/rules/ruleset';
-import { Rule } from '../lib/rules/rule';
-import { RuleOs, RuleOsArch } from '../lib/rules/os';
+import {
+  RulesetSchema,
+  satisfiesRuleset,
+  emptyRuleset,
+  satisfiesRule,
+  satisfiesOs,
+} from '../lib';
 import { LINUX, OSX, WINDOWS_10, WINDOWS_7 } from './fixtures';
 
-describe('Rule.satisfies', () => {
-  it('action-only Allow rule always satisfies', () => {
-    const rule = Rule.CODEC.decode({ action: RuleAction.Allow });
-    expect(rule.satisfies(LINUX)).toBe(true);
-    expect(rule.satisfies(WINDOWS_10)).toBe(true);
-    expect(rule.satisfies(OSX)).toBe(true);
+describe('satisfiesRule', () => {
+  it('action-only allow rule always satisfies', () => {
+    const rule = { action: 'allow' as const };
+    expect(satisfiesRule(rule, LINUX)).toBe(true);
+    expect(satisfiesRule(rule, WINDOWS_10)).toBe(true);
+    expect(satisfiesRule(rule, OSX)).toBe(true);
   });
 
-  it('action-only Disallow rule never satisfies', () => {
-    const rule = Rule.CODEC.decode({ action: RuleAction.Disallow });
-    expect(rule.satisfies(LINUX)).toBe(false);
-    expect(rule.satisfies(WINDOWS_10)).toBe(false);
+  it('action-only disallow rule never satisfies', () => {
+    const rule = { action: 'disallow' as const };
+    expect(satisfiesRule(rule, LINUX)).toBe(false);
+    expect(satisfiesRule(rule, WINDOWS_10)).toBe(false);
   });
 
   it('Allow + OS: satisfies only matching OS', () => {
-    const rule = Rule.allowOs(RuleOsName.Linux);
-    expect(rule.satisfies(LINUX)).toBe(true);
-    expect(rule.satisfies(OSX)).toBe(false);
-    expect(rule.satisfies(WINDOWS_10)).toBe(false);
+    const rule = { action: 'allow' as const, os: { name: 'linux' as const } };
+    expect(satisfiesRule(rule, LINUX)).toBe(true);
+    expect(satisfiesRule(rule, OSX)).toBe(false);
+    expect(satisfiesRule(rule, WINDOWS_10)).toBe(false);
   });
 
   it('Disallow + OS: fails only on that OS', () => {
-    const rule = Rule.CODEC.decode({
-      action: RuleAction.Disallow,
-      os: { name: RuleOsName.Osx },
-    });
-    expect(rule.satisfies(OSX)).toBe(false);
-    expect(rule.satisfies(LINUX)).toBe(true);
-    expect(rule.satisfies(WINDOWS_10)).toBe(true);
+    const rule = { action: 'disallow' as const, os: { name: 'osx' as const } };
+    expect(satisfiesRule(rule, OSX)).toBe(false);
+    expect(satisfiesRule(rule, LINUX)).toBe(true);
+    expect(satisfiesRule(rule, WINDOWS_10)).toBe(true);
   });
 });
 
-describe('RuleOs.satisfies', () => {
-  it('matches by name only when no version or arch', () => {
-    const os = RuleOs.CODEC.decode({ name: RuleOsName.Linux });
-    expect(os.satisfies(LINUX)).toBe(true);
-    expect(os.satisfies(OSX)).toBe(false);
+describe('satisfiesOs', () => {
+  it('matches by name only when no version', () => {
+    expect(satisfiesOs({ name: 'linux' }, LINUX)).toBe(true);
+    expect(satisfiesOs({ name: 'linux' }, OSX)).toBe(false);
   });
 
   it('version regex must match', () => {
-    const os = RuleOs.CODEC.decode({
-      name: RuleOsName.Windows,
-      version: '^10\\.',
-    });
-    expect(os.satisfies(WINDOWS_10)).toBe(true);
-    expect(os.satisfies(WINDOWS_7)).toBe(false);
+    expect(
+      satisfiesOs({ name: 'windows', version: '^10\\.' }, WINDOWS_10),
+    ).toBe(true);
+    expect(satisfiesOs({ name: 'windows', version: '^10\\.' }, WINDOWS_7)).toBe(
+      false,
+    );
   });
 
-  it('arch filter works', () => {
-    const os = RuleOs.CODEC.decode({ name: RuleOsName.Linux, arch: 'x86_64' });
-    expect(os.satisfies(LINUX)).toBe(true); // LINUX is x86_64
-    expect(os.satisfies(OSX)).toBe(false); // OSX is aarch64
-  });
-
-  it('arch without name still filters by arch', () => {
-    const os = RuleOs.CODEC.decode({ arch: 'aarch64' });
-    expect(os.satisfies(OSX)).toBe(true); // OSX is aarch64
-    expect(os.satisfies(LINUX)).toBe(false); // LINUX is x86_64
+  it('arch-only filter', () => {
+    expect(satisfiesOs({ arch: 'aarch64' }, OSX)).toBe(true);
+    expect(satisfiesOs({ arch: 'aarch64' }, LINUX)).toBe(false);
   });
 });
 
 describe('Ruleset composed edge cases', () => {
   it('empty ruleset satisfies vacuously', () => {
-    expect(Ruleset.empty().satisfies(LINUX)).toBe(true);
-    expect(Ruleset.empty().satisfies(WINDOWS_10)).toBe(true);
+    expect(satisfiesRuleset(emptyRuleset(), LINUX)).toBe(true);
+    expect(satisfiesRuleset(emptyRuleset(), WINDOWS_10)).toBe(true);
   });
 
-  it('Allow + Disallow in sequence: first failing stops evaluation', () => {
-    // Allow linux, then disallow everything → linux still fails because disallow matches
-    const rs = Ruleset.CODEC.decode([
-      { action: RuleAction.Allow, os: { name: RuleOsName.Linux } },
-      { action: RuleAction.Disallow },
+  it('Allow + Disallow: every rule must pass', () => {
+    const rs = RulesetSchema.parse([
+      { action: 'allow', os: { name: 'linux' } },
+      { action: 'disallow' },
     ]);
-    // Allow linux passes, but Disallow (unconditional) fails → result false
-    expect(rs.satisfies(LINUX)).toBe(false);
+    expect(satisfiesRuleset(rs, LINUX)).toBe(false);
   });
 
-  it('multiple allows act as AND — both must pass', () => {
-    // Rule 1 allows Linux, Rule 2 allows OSX — no platform satisfies both
-    const rs = Ruleset.CODEC.decode([
-      { action: RuleAction.Allow, os: { name: RuleOsName.Linux } },
-      { action: RuleAction.Allow, os: { name: RuleOsName.Osx } },
+  it('multiple allows act as AND', () => {
+    const rs = RulesetSchema.parse([
+      { action: 'allow', os: { name: 'linux' } },
+      { action: 'allow', os: { name: 'osx' } },
     ]);
-    expect(rs.satisfies(LINUX)).toBe(false); // Rule 2 (osx) fails
-    expect(rs.satisfies(OSX)).toBe(false); // Rule 1 (linux) fails
+    expect(satisfiesRuleset(rs, LINUX)).toBe(false);
+    expect(satisfiesRuleset(rs, OSX)).toBe(false);
   });
 
   it('arch-only rule combined with name-only rule acts as AND', () => {
-    // Rule 1 allows x86_64, Rule 2 allows linux → only linux/x86_64 passes both
-    const rs = Ruleset.CODEC.decode([
-      { action: RuleAction.Allow, os: { arch: RuleOsArch.X86_64 } },
-      { action: RuleAction.Allow, os: { name: RuleOsName.Linux } },
+    const rs = RulesetSchema.parse([
+      { action: 'allow', os: { arch: 'x86_64' } },
+      { action: 'allow', os: { name: 'linux' } },
     ]);
-    expect(rs.satisfies(LINUX)).toBe(true); // LINUX is x86_64
-    expect(rs.satisfies(OSX)).toBe(false); // OSX is aarch64, fails Rule 1
+    expect(satisfiesRuleset(rs, LINUX)).toBe(true);
+    expect(satisfiesRuleset(rs, OSX)).toBe(false); // OSX is aarch64
   });
 });

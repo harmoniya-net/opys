@@ -21,10 +21,6 @@
     "test:int": "vitest run tests/integration"
   },
   "type": "module",
-  "dependencies": {
-    "@unifest/rules": "*",
-    "@unifest/core": "*"
-  },
   "devDependencies": {
     "vitest": "*"
   }

@@ -1,72 +1,62 @@
 import { describe, expect, it } from 'vitest';
 import {
-  Extract,
-  ExtractDump,
-  ExtractPick,
-  ExtractScan,
+  ExtractSchema,
+  encodeExtract,
+  extractPick,
+  extractDump,
+  extractScan,
 } from '../../lib/extract';
 
 describe('Extract codec', () => {
   it('single rule round-trips as object not array', () => {
-    const extract = new Extract([
-      new ExtractPick('README.md', 'docs/manual.txt'),
-    ]);
-
-    const encoded = Extract.CODEC.encode(extract);
-    // single rule → plain object, not wrapped in array
+    const rules = [extractPick('README.md', 'docs/manual.txt')];
+    const encoded = encodeExtract(rules);
     expect(Array.isArray(encoded)).toBe(false);
     expect(encoded).toMatchObject({
       file: 'README.md',
       into: 'docs/manual.txt',
     });
-
-    const decoded = Extract.CODEC.decode(encoded);
-    expect(decoded).toBeInstanceOf(Extract);
-    expect([...decoded]).toHaveLength(1);
-    expect([...decoded][0]).toBeInstanceOf(ExtractPick);
+    const decoded = ExtractSchema.parse(encoded);
+    expect(decoded).toHaveLength(1);
+    expect(decoded[0]!.kind).toBe('pick');
   });
 
   it('multiple rules round-trip as array', () => {
-    const extract = new Extract([
-      new ExtractPick('README.md', 'docs/manual.txt'),
-      new ExtractDump('dump/', undefined, undefined),
-    ]);
-
-    const encoded = Extract.CODEC.encode(extract);
+    const rules = [
+      extractPick('README.md', 'docs/manual.txt'),
+      extractDump('dump/'),
+    ];
+    const encoded = encodeExtract(rules);
     expect(Array.isArray(encoded)).toBe(true);
-    expect(encoded).toHaveLength(2);
-
-    const decoded = Extract.CODEC.decode(encoded);
-    expect([...decoded]).toHaveLength(2);
+    expect(ExtractSchema.parse(encoded)).toHaveLength(2);
   });
 
-  it('Dump rule includes clean field', () => {
-    const dump = new ExtractDump('natives/', undefined, ['META-INF/'], true);
-    const encoded = ExtractDump.CODEC.encode(dump);
+  it('Dump rule encodes clean field', () => {
+    const dump = extractDump('natives/', {
+      excludes: ['META-INF/'],
+      clean: true,
+    });
+    const encoded = encodeExtract([dump]);
     expect(encoded).toMatchObject({
       into: 'natives/',
       excludes: ['META-INF/'],
       clean: true,
     });
-
-    const decoded = ExtractDump.CODEC.decode(encoded);
-    expect(decoded.clean).toBe(true);
-    expect(decoded.excludes).toEqual(['META-INF/']);
   });
 
-  it('Dump rule clean defaults to false', () => {
-    const decoded = ExtractDump.CODEC.decode({ into: 'out/' });
-    expect(decoded.clean).toBe(false);
+  it('Dump rule clean defaults to undefined', () => {
+    const decoded = ExtractSchema.parse({ into: 'out/' });
+    expect(decoded[0]!.kind).toBe('dump');
+    if (decoded[0]!.kind === 'dump') expect(decoded[0]!.clean).toBeUndefined();
   });
 
   it('discriminates Pick / Scan / Dump by shape', () => {
-    const pickJson = { file: 'a.txt', into: 'b.txt' };
-    const scanJson = { matches: '**/*.so', into: 'libs/' };
-    const dumpJson = { into: 'dump/' };
-
-    expect(Extract.CODEC.decode(pickJson)).toBeInstanceOf(Extract);
-    expect([...Extract.CODEC.decode(pickJson)][0]).toBeInstanceOf(ExtractPick);
-    expect([...Extract.CODEC.decode(scanJson)][0]).toBeInstanceOf(ExtractScan);
-    expect([...Extract.CODEC.decode(dumpJson)][0]).toBeInstanceOf(ExtractDump);
+    expect(ExtractSchema.parse({ file: 'a.txt', into: 'b.txt' })[0]!.kind).toBe(
+      'pick',
+    );
+    expect(
+      ExtractSchema.parse({ matches: '**/*.so', into: 'libs/' })[0]!.kind,
+    ).toBe('scan');
+    expect(ExtractSchema.parse({ into: 'dump/' })[0]!.kind).toBe('dump');
   });
 });

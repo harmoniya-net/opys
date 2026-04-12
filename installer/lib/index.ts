@@ -1,6 +1,5 @@
 export {
   install,
-  resolveManifest,
   type InstallOptions,
   type InstallProgress,
   type ManifestSource,
