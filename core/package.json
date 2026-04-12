@@ -24,5 +24,8 @@
   "dependencies": {
     "@unifest/rules": "*",
     "smol-toml": "^1.3.4"
+  },
+  "publishConfig": {
+    "registry": "https://gitlab.com/api/v4/projects/81235310/packages/npm/"
   }
 }

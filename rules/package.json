@@ -19,5 +19,8 @@
     "build": "tsdown lib/index.ts --format esm,cjs --dts --clean",
     "test": "vitest run tests"
   },
-  "type": "module"
+  "type": "module",
+  "publishConfig": {
+    "registry": "https://gitlab.com/api/v4/projects/81235310/packages/npm/"
+  }
 }

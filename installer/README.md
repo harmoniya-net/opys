@@ -1,6 +1,6 @@
 # @unifest/installer
 
-Programmatic install and launch for [Unifest](../core/README.md) manifests.
+Programmatic install and launch for Unifest manifests. Downloads artifacts in parallel, verifies integrity, extracts natives, and spawns the JVM.
 
 ## Install
 
@@ -8,65 +8,80 @@ Programmatic install and launch for [Unifest](../core/README.md) manifests.
 bun add @unifest/installer @unifest/core
 ```
 
-## Usage
+## Manifest sources
 
 Both `install` and `launch` accept a **manifest source** as their first argument:
 
-| Source          | Example                                    |
-| --------------- | ------------------------------------------ |
-| File path       | `'unifest.json'`                           |
-| HTTPS URL       | `new URL('https://example.com/pack.json')` |
-| Parsed manifest | `Unifest` instance from `@unifest/core`    |
+| Value            | Example                                    |
+| ---------------- | ------------------------------------------ |
+| File path string | `'unifest.json'`                           |
+| HTTPS URL object | `new URL('https://example.com/pack.json')` |
+| Parsed `Unifest` | object returned by `resolveManifest`       |
 
 ---
 
-### `install(source, options?)`
+## `install(source, options?)`
 
-Downloads missing artifacts in parallel to a staging directory, then moves them
-to their final paths. Artifacts with an `extract` rule are unpacked afterward.
-Already-cached artifacts whose hash matches are skipped.
+Downloads missing artifacts to a staging directory, moves them to final paths, and extracts zips for artifacts with `extract` rules. Already-cached artifacts whose hash matches are skipped. Failed integrity checks are retried up to 3 times before throwing.
 
 ```ts
 import { install } from '@unifest/installer';
 
-// from a file path
 await install('unifest.json', {
-  vars: { root: '/opt/minecraft/1.20.1' },
-  concurrency: 64,
-  onProgress(fetched, total) {
-    process.stderr.write(`  ${fetched}/${total}\r`);
+  vars: {
+    root: '/opt/minecraft/1.20.1',
+    username: 'Player',
+    uuid: '...',
+    token: '...',
+  },
+  concurrency: 16,
+  onProgress(p) {
+    if (p.phase === 'download') {
+      process.stderr.write(`  ${p.fetched}/${p.total}\r`);
+    }
   },
 });
-
-// from a URL
-await install(new URL('https://example.com/pack.json'));
 ```
 
 **Options**
 
-| Option        | Type                       | Default       | Description                             |
-| ------------- | -------------------------- | ------------- | --------------------------------------- |
-| `platform`    | `SatisfiesOsOptions`       | auto-detected | Override OS/arch detection              |
-| `vars`        | `Record<string, string>`   | `{}`          | Extra vars (override manifest vars)     |
-| `concurrency` | `number`                   | `32`          | Max parallel downloads                  |
-| `onProgress`  | `(fetched, total) => void` | —             | Called every 50 files and at completion |
+| Option            | Type                           | Default | Description                        |
+| ----------------- | ------------------------------ | ------- | ---------------------------------- |
+| `platform`        | `OsOptions`                    | auto    | Override OS/arch detection         |
+| `vars`            | `Record<string, string>`       | `{}`    | Extra vars; override manifest vars |
+| `concurrency`     | `number`                       | `8`     | Max parallel downloads             |
+| `onProgress`      | `(p: InstallProgress) => void` | —       | Progress callback                  |
+| `verifyIntegrity` | `boolean`                      | `true`  | Skip hash checks if `false`        |
+
+**`InstallProgress`**
+
+```ts
+type InstallProgress =
+  | { phase: 'resolve' }
+  | { phase: 'download'; fetched: number; total: number; skipped: number }
+  | { phase: 'verify' }
+  | { phase: 'extract'; count: number };
+```
 
 ---
 
-### `launch(source, options?)`
+## `launch(source, options?)`
 
-Runs `install` then spawns the process described by the manifest's launch
-config. Returns the raw `ChildProcess` — the caller decides how to wait on it.
+Runs `install` then spawns the process described by the manifest's launch config. Returns a `ChildProcess` — the caller decides how to wait on it.
 
-Pass `install: false` to skip installation (e.g. when you know everything is
-already on disk).
+Pass `install: false` to skip installation.
 
 ```ts
 import { launch } from '@unifest/installer';
 
 const child = await launch('unifest.json', {
-  vars: { username: 'Player', uuid: '<uuid>', token: '<access-token>' },
-  install: { onProgress: (n, t) => console.log(`${n}/${t}`) },
+  vars: {
+    root: '/opt/minecraft/1.20.1',
+    username: 'Player',
+    uuid: '...',
+    token: '...',
+  },
+  install: { onProgress: (p) => console.log(p) },
 });
 
 await new Promise<void>((resolve, reject) => {
@@ -79,18 +94,18 @@ await new Promise<void>((resolve, reject) => {
 
 **Options**
 
-| Option     | Type                      | Default       | Description                            |
-| ---------- | ------------------------- | ------------- | -------------------------------------- |
-| `platform` | `SatisfiesOsOptions`      | auto-detected | Override OS/arch detection             |
-| `vars`     | `Record<string, string>`  | `{}`          | Extra vars, typically auth credentials |
-| `install`  | `InstallOptions \| false` | `{}`          | Install options, or `false` to skip    |
+| Option     | Type                      | Default | Description                            |
+| ---------- | ------------------------- | ------- | -------------------------------------- |
+| `platform` | `OsOptions`               | auto    | Override OS/arch detection             |
+| `vars`     | `Record<string, string>`  | `{}`    | Extra vars; typically auth credentials |
+| `install`  | `InstallOptions \| false` | `{}`    | Install options, or `false` to skip    |
+| `log`      | `(level, msg) => void`    | —       | Debug/warn logger for spawn details    |
 
 ---
 
-### `resolveManifest(source)`
+## `resolveManifest(source)`
 
-Resolves a manifest source to a `Unifest` instance. Useful if you need the
-parsed manifest before passing it to other APIs.
+Resolves any manifest source to a `Unifest` object.
 
 ```ts
 import { resolveManifest } from '@unifest/installer';
@@ -101,7 +116,23 @@ console.log(manifest.unifacts.length);
 
 ---
 
-### `currentPlatform()`
+## `currentPlatform()`
 
-Returns the `SatisfiesOsOptions` for the current host. Useful if you need to
-pass `platform` manually or inspect what would be detected.
+Returns the `OsOptions` for the current host.
+
+```ts
+import { currentPlatform } from '@unifest/installer';
+
+const platform = currentPlatform();
+// { name: 'linux', arch: 'x64', version: '...' }
+```
+
+---
+
+## Error types
+
+| Class             | When                                 |
+| ----------------- | ------------------------------------ |
+| `NetworkError`    | HTTP download failure                |
+| `IntegrityError`  | Hash mismatch after 3 retry attempts |
+| `ExtractionError` | ZIP extraction failure               |
