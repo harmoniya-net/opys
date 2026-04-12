@@ -28,7 +28,7 @@ stages:
 install:
   stage: install
   script:
-    - npm ci --omit=optional
+    - npm ci
   artifacts:
     expire_in: 1h
     paths:
