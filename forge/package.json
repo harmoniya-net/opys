@@ -10,7 +10,7 @@
     }
   },
   "scripts": {
-    "build": "tsdown lib/index.ts --format esm,cjs --dts --clean"
+    "build": "tsdown --config tsdown.config.ts"
   },
   "dependencies": {
     "@unifest/mc": "*",

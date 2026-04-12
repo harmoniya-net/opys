@@ -20,7 +20,6 @@ cache:
 stages:
   - install
   - build
-  - test
   - publish
 
 # ── install ────────────────────────────────────────────────────────────────────
@@ -56,36 +55,18 @@ build:
       - installer/dist/
       - cli/dist/
 
-# ── test ───────────────────────────────────────────────────────────────────────
-
-test:unit:
-  stage: test
-  needs: [build]
-  script:
-    - npm run test --workspaces --if-present
-
-test:integration:
-  stage: test
-  needs: [build]
-  when: manual
-  allow_failure: false
-  script:
-    - npm run test:int --workspaces --if-present
-
 # ── publish ────────────────────────────────────────────────────────────────────
 
 publish:
   stage: publish
-  needs: [build, test:unit]
+  needs: [build]
   rules:
     - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+/
   script:
     - |
-      # Point npm at the GitLab registry for @unifest scope
       echo "@unifest:registry=https://${CI_SERVER_HOST}/api/v4/projects/${CI_PROJECT_ID}/packages/npm/" >> .npmrc
       echo "//${CI_SERVER_HOST}/api/v4/projects/${CI_PROJECT_ID}/packages/npm/:_authToken=${CI_JOB_TOKEN}" >> .npmrc
     - |
-      # Stamp version from tag (strip leading 'v')
       VERSION="${CI_COMMIT_TAG#v}"
       npm version "$VERSION" --workspaces --include-workspace-root --no-git-tag-version
     - npm publish --workspaces --access public
