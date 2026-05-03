@@ -17,8 +17,6 @@ export interface FetchTask {
   finalPath: string;
 }
 
-const FETCH_TIMEOUT_MS = 30_000;
-
 async function fetchOne(
   task: FetchTask,
   vars: Record<string, string>,
@@ -30,9 +28,7 @@ async function fetchOne(
 
   if (isSourceUrl(src)) {
     const url = interpolate(src.url, vars);
-    const res = await fetch(url, {
-      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-    });
+    const res = await fetch(url);
     if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
     if (res.body) {
       await pipeline(
@@ -53,33 +49,27 @@ async function fetchOne(
   await rename(tmpPath, finalPath);
 }
 
-/** Run `fn` over `items` with at most `n` workers in parallel. */
-async function pool<T>(
-  items: T[],
-  n: number,
-  fn: (item: T) => Promise<void>,
-): Promise<void> {
-  let i = 0;
-  const workers = Array.from(
-    { length: Math.min(n, items.length) },
-    async () => {
-      while (i < items.length) {
-        const idx = i++;
-        await fn(items[idx]!);
-      }
-    },
-  );
-  await Promise.all(workers);
-}
-
 export async function fetchAll(
   tasks: FetchTask[],
   vars: Record<string, string>,
   concurrency: number,
   onDone?: (task: FetchTask) => void,
 ): Promise<void> {
-  await pool(tasks, concurrency, async (t) => {
-    await fetchOne(t, vars);
-    onDone?.(t);
-  });
+  // Largest-first: big files start early so workers stay saturated and
+  // small files don't queue behind a long tail. Unknown size sinks to the end.
+  const ordered = [...tasks].sort(
+    (a, b) => (b.artifact.size ?? -1) - (a.artifact.size ?? -1),
+  );
+
+  let i = 0;
+  const worker = async () => {
+    while (i < ordered.length) {
+      const task = ordered[i++]!;
+      await fetchOne(task, vars);
+      onDone?.(task);
+    }
+  };
+  await Promise.all(
+    Array.from({ length: Math.min(concurrency, ordered.length) }, worker),
+  );
 }

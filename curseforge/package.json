@@ -1,6 +1,6 @@
 {
   "name": "@torba/curseforge",
-  "version": "1.0.3",
+  "version": "1.0.5",
   "type": "module",
   "main": "./dist/index.js",
   "exports": {
