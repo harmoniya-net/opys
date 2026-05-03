@@ -1,7 +1,7 @@
 import { defineConfig } from 'tsdown';
 
 export default defineConfig({
-  entry: ['bin/unifest.ts'],
+  entry: ['bin/torba.ts'],
   format: 'esm',
   outDir: 'dist',
   clean: true,

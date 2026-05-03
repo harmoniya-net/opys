@@ -1,11 +1,10 @@
 {
-  "name": "@unifest/installer",
-  "version": "1.0.0",
+  "name": "@torba/installer",
+  "version": "1.0.3",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
   "exports": {
     ".": {
-      "types": "./lib/index.ts",
       "import": "./dist/index.mjs",
       "require": "./dist/index.cjs"
     }
@@ -21,17 +20,14 @@
   },
   "type": "module",
   "dependencies": {
-    "@unifest/core": "*",
-    "@unifest/rules": "*",
+    "@torba/core": "^1.0.1",
+    "@torba/rules": "^1.0.1",
     "fflate": "^0.8.2"
   },
   "devDependencies": {
-    "@unifest/mc": "*"
+    "@torba/minecraft": "*"
   },
   "peerDependencies": {
-    "zod": "*"
-  },
-  "publishConfig": {
-    "registry": "https://gitlab.com/api/v4/projects/81235310/packages/npm/"
+    "zod": "^4.0.0"
   }
 }

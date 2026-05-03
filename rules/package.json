@@ -1,10 +1,10 @@
 {
-  "name": "@unifest/rules",
-  "version": "1.0.0",
+  "name": "@torba/rules",
+  "version": "1.0.3",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
   "peerDependencies": {
-    "zod": "*"
+    "zod": "^4.0.0"
   },
   "exports": {
     ".": {
@@ -19,8 +19,5 @@
     "build": "tsdown lib/index.ts --format esm,cjs --dts --clean",
     "test": "vitest run tests"
   },
-  "type": "module",
-  "publishConfig": {
-    "registry": "https://gitlab.com/api/v4/projects/81235310/packages/npm/"
-  }
+  "type": "module"
 }

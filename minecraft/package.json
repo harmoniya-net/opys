@@ -1,30 +1,26 @@
 {
-  "name": "@unifest/minecraft",
-  "version": "1.0.0",
+  "name": "@torba/minecraft",
+  "version": "1.0.3",
+  "type": "module",
   "main": "./dist/index.js",
-  "module": "./dist/index.js",
-  "peerDependencies": {
-    "zod": "*"
-  },
   "exports": {
     ".": {
       "import": "./dist/index.mjs",
       "require": "./dist/index.cjs"
     }
   },
+  "scripts": {
+    "build": "tsdown lib/index.ts --format esm,cjs --dts --clean"
+  },
+  "dependencies": {
+    "@torba/mojang": "^1.0.1",
+    "@torba/core": "^1.0.1",
+    "@torba/rules": "^1.0.1"
+  },
+  "devDependencies": {
+    "tsdown": "*"
+  },
   "files": [
     "dist"
-  ],
-  "scripts": {
-    "build": "tsdown lib/index.ts --format esm,cjs --dts --clean",
-    "test": "vitest run tests/unit",
-    "test:int": "vitest run tests/integration"
-  },
-  "type": "module",
-  "devDependencies": {
-    "vitest": "*"
-  },
-  "publishConfig": {
-    "registry": "https://gitlab.com/api/v4/projects/81235310/packages/npm/"
-  }
+  ]
 }

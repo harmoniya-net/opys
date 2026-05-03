@@ -5,8 +5,8 @@ import {
   interpolate,
   resolvedArgs,
   resolvedEnvs,
-} from '@unifest/core';
-import type { OsOptions } from '@unifest/rules';
+} from '@torba/core';
+import type { OsOptions } from '@torba/rules';
 import { install, type InstallOptions } from './install';
 import { resolveManifest } from './phases/resolve';
 import type { ManifestSource } from './phases/resolve';

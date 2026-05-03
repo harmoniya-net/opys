@@ -1,33 +1,33 @@
-# @unifest/installer
+# @torba/installer
 
-Programmatic install and launch for Unifest manifests. Downloads artifacts in parallel, verifies integrity, extracts natives, and spawns the JVM.
+Programmatic install and launch for Torba manifests. Downloads artifacts in parallel, verifies integrity, extracts natives, and spawns the JVM.
 
 ## Install
 
 ```sh
-bun add @unifest/installer @unifest/core
+npm install @torba/installer @torba/core
 ```
 
 ## Manifest sources
 
 Both `install` and `launch` accept a **manifest source** as their first argument:
 
-| Value            | Example                                    |
-| ---------------- | ------------------------------------------ |
-| File path string | `'unifest.json'`                           |
-| HTTPS URL object | `new URL('https://example.com/pack.json')` |
-| Parsed `Unifest` | object returned by `resolveManifest`       |
+| Value             | Example                                    |
+| ----------------- | ------------------------------------------ |
+| File path string  | `'torba.json'`                             |
+| HTTPS URL object  | `new URL('https://example.com/pack.json')` |
+| Parsed `Manifest` | object returned by `resolveManifest`       |
 
 ---
 
 ## `install(source, options?)`
 
-Downloads missing artifacts to a staging directory, moves them to final paths, and extracts zips for artifacts with `extract` rules. Already-cached artifacts whose hash matches are skipped. Failed integrity checks are retried up to 3 times before throwing.
+Streams missing artifacts to `<finalPath>.partial` then renames them into place; extracts zips for artifacts with `extract` rules. Already-cached artifacts (path exists on disk) are skipped. A failed integrity check throws `IntegrityError` immediately.
 
 ```ts
-import { install } from '@unifest/installer';
+import { install } from '@torba/installer';
 
-await install('unifest.json', {
+await install('torba.json', {
   vars: {
     root: '/opt/minecraft/1.20.1',
     username: 'Player',
@@ -72,9 +72,9 @@ Runs `install` then spawns the process described by the manifest's launch config
 Pass `install: false` to skip installation.
 
 ```ts
-import { launch } from '@unifest/installer';
+import { launch } from '@torba/installer';
 
-const child = await launch('unifest.json', {
+const child = await launch('torba.json', {
   vars: {
     root: '/opt/minecraft/1.20.1',
     username: 'Player',
@@ -105,13 +105,13 @@ await new Promise<void>((resolve, reject) => {
 
 ## `resolveManifest(source)`
 
-Resolves any manifest source to a `Unifest` object.
+Resolves any manifest source to a `Manifest` object.
 
 ```ts
-import { resolveManifest } from '@unifest/installer';
+import { resolveManifest } from '@torba/installer';
 
-const manifest = await resolveManifest('unifest.json');
-console.log(manifest.unifacts.length);
+const manifest = await resolveManifest('torba.json');
+console.log(manifest.artifacts.length);
 ```
 
 ---
@@ -121,7 +121,7 @@ console.log(manifest.unifacts.length);
 Returns the `OsOptions` for the current host.
 
 ```ts
-import { currentPlatform } from '@unifest/installer';
+import { currentPlatform } from '@torba/installer';
 
 const platform = currentPlatform();
 // { name: 'linux', arch: 'x64', version: '...' }
@@ -131,8 +131,8 @@ const platform = currentPlatform();
 
 ## Error types
 
-| Class             | When                                 |
-| ----------------- | ------------------------------------ |
-| `NetworkError`    | HTTP download failure                |
-| `IntegrityError`  | Hash mismatch after 3 retry attempts |
-| `ExtractionError` | ZIP extraction failure               |
+| Class             | When                               |
+| ----------------- | ---------------------------------- |
+| `NetworkError`    | HTTP download failure              |
+| `IntegrityError`  | Hash mismatch on a downloaded file |
+| `ExtractionError` | ZIP extraction failure             |

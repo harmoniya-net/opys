@@ -1,68 +1,74 @@
-# @unifest/minecraft
+# @torba/minecraft
 
-Zero-binding Mojang JSON parsers. Parses Mojang version manifests and client JSONs into typed structures. No dependencies on other unipack packages.
+Bridge layer that converts Mojang version JSON into Manifest artifacts and launch config. Owns the Minecraft template and config helpers.
 
 ## Install
 
 ```sh
-bun add @unifest/minecraft zod
+npm install @torba/minecraft @torba/core @torba/rules zod
 ```
 
 ## API
 
-### Version manifest
+### `minecraft(options?)`
+
+Fetches the Mojang version manifest and a specific version (or latest), then returns a `MinecraftTemplate` ready to be merged into a Manifest config.
 
 ```ts
-import {
-  fetchVersionManifest,
-  findVersion,
-  latestRelease,
-} from '@unifest/minecraft';
+import { minecraft } from '@torba/minecraft';
 
-const manifest = await fetchVersionManifest();
+const template = await minecraft({ version: '1.20.1' });
+// or omit version for latest release
+const template = await minecraft();
 
-const version = findVersion(manifest, '1.20.1');
-const latest = latestRelease(manifest);
-
-console.log(latest.id); // e.g. '1.21.4'
-console.log(latest.url); // URL to the version JSON
+template.artifacts; // Artifact[] — client jar, libraries, asset index, asset objects
+template.vars; // ValDefs — all interpolation variables
+template.command; // Launch — main class + args
 ```
 
-### Client JSON
+### `clientToTemplate(client)`
+
+Low-level mapper if you already have a parsed `Client` from `@torba/mojang`.
 
 ```ts
-import { parseClient } from '@unifest/minecraft';
+import { fetchClient, clientToTemplate } from '@torba/minecraft';
 
-const res = await fetch(version.url);
-const client = parseClient(await res.json());
-
-client.id; // version string
-client.mainClass; // entry point class
-client.args.game; // game arguments
-client.args.jvm; // JVM arguments
-client.libraries; // library list with rules and artifact info
-client.assetIndex; // asset index reference
+const { client } = await fetchClient('1.20.1');
+const template = await clientToTemplate(client);
 ```
 
-### Asset manifest
+### `artifactScanner(options?)`
+
+Async generator that yields `Artifact` entries by scanning a local directory. Used in `torba.config.mjs` to include mod JARs or other local files.
 
 ```ts
-import { fetchAssetManifest } from '@unifest/minecraft';
+import { artifactScanner } from '@torba/minecraft';
 
-const assets = await fetchAssetManifest(client.assetIndex.url);
-// assets.objects: Record<string, { hash: string; size: number }>
+// yields Artifact for each file under mods/
+const scanner = artifactScanner({ dir: 'mods', into: '${root}/mods' });
 ```
 
-### Argument merging
+### Config helpers
+
+Re-exported from `@torba/core` for convenience:
 
 ```ts
-import { mergeArgs } from '@unifest/minecraft';
-
-// Merge vanilla args with a mod loader's overrides
-const merged = mergeArgs(client.args, forgeArgs);
+import { defineConfig, resolveConfig } from '@torba/minecraft';
 ```
 
-## Notes
+## Variable reference
 
-- This package is intentionally a leaf in the dependency graph — it has no unipack dependencies.
-- Use `@unifest/mc` to convert parsed Mojang types into Unifest artifacts.
+The template sets these vars (interpolatable with `${name}`):
+
+| Variable            | Default                            |
+| ------------------- | ---------------------------------- |
+| `root`              | `.`                                |
+| `version_name`      | Minecraft version id               |
+| `version_dir`       | `${root}/versions/${version_name}` |
+| `library_directory` | `${root}/libraries`                |
+| `natives_directory` | `${version_dir}/natives`           |
+| `assets_root`       | `${root}/assets`                   |
+| `game_directory`    | `${root}/`                         |
+| `username`          | (must be supplied at launch)       |
+| `uuid`              | (must be supplied at launch)       |
+| `token`             | (must be supplied at launch)       |

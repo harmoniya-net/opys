@@ -1,11 +1,11 @@
-# @unifest/rules
+# @torba/rules
 
 Pure platform and feature rule evaluation. No side effects, no I/O — just POJOs and functions.
 
 ## Install
 
 ```sh
-bun add @unifest/rules zod
+npm install @torba/rules zod
 ```
 
 ## Concepts
@@ -28,7 +28,7 @@ A **Ruleset** is an array of rules. All rules must be satisfied for the ruleset 
 Returns `true` if every rule in `ruleset` is satisfied for the given OS and feature set.
 
 ```ts
-import { satisfiesRuleset } from '@unifest/rules';
+import { satisfiesRuleset } from '@torba/rules';
 
 const passes = satisfiesRuleset([{ action: 'allow', os: { name: 'linux' } }], {
   name: 'linux',
@@ -52,7 +52,7 @@ Rules can be expressed as compact strings. Use `ShortRule` and `ShortRuleset` to
 | `'allow.features.is_demo_user'` | Allow when feature flag is set     |
 
 ```ts
-import { ShortRuleset, parseShortRuleset } from '@unifest/rules';
+import { ShortRuleset, parseShortRuleset } from '@torba/rules';
 
 const rules = ShortRuleset.decode(['allow.os.linux', 'disallow.os.windows']);
 const encoded = ShortRuleset.encode(rules);
@@ -62,7 +62,7 @@ const encoded = ShortRuleset.encode(rules);
 ### Ruleset helpers
 
 ```ts
-import { emptyRuleset, allowOsRuleset } from '@unifest/rules';
+import { emptyRuleset, allowOsRuleset } from '@torba/rules';
 
 emptyRuleset(); // []
 allowOsRuleset('linux'); // [{ action: 'allow', os: { name: 'linux' } }]
@@ -71,7 +71,7 @@ allowOsRuleset('linux'); // [{ action: 'allow', os: { name: 'linux' } }]
 ### Zod schemas
 
 ```ts
-import { RuleSchema, RulesetSchema } from '@unifest/rules';
+import { RuleSchema, RulesetSchema } from '@torba/rules';
 
 const rule = RuleSchema.parse({ action: 'allow', os: { name: 'osx' } });
 const rules = RulesetSchema.parse([...]);

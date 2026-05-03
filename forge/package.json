@@ -1,6 +1,6 @@
 {
-  "name": "@unifest/forge",
-  "version": "1.0.0",
+  "name": "@torba/forge",
+  "version": "1.0.3",
   "type": "module",
   "main": "./dist/index.js",
   "exports": {
@@ -10,20 +10,20 @@
     }
   },
   "scripts": {
-    "build": "tsdown --config tsdown.config.ts"
+    "build": "tsdown lib/index.ts --format esm,cjs --dts --clean"
   },
   "dependencies": {
-    "@unifest/mc": "*",
-    "@unifest/minecraft": "*",
-    "@unifest/core": "*"
+    "@torba/minecraft": "^1.0.1",
+    "@torba/mojang": "^1.0.1",
+    "@torba/core": "^1.0.1"
+  },
+  "peerDependencies": {
+    "zod": "^4.0.0"
   },
   "devDependencies": {
     "tsdown": "*"
   },
   "files": [
     "dist"
-  ],
-  "publishConfig": {
-    "registry": "https://gitlab.com/api/v4/projects/81235310/packages/npm/"
-  }
+  ]
 }

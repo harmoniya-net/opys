@@ -1,27 +1,18 @@
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { createHash } from 'node:crypto';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import {
-  skipIntegrity,
-  sha1Integrity,
-  sourceString,
-  exactSize,
-  emptyValDefs,
-  ofIntegrity,
-  type Unifact,
-  type Unifest,
-} from '@unifest/core';
+import { sourceString, type Artifact, type Manifest } from '@torba/core';
 import { install } from '../../lib/install';
 
 function sha1(content: string): string {
   return createHash('sha1').update(content).digest('hex');
 }
 
-function makeManifest(unifacts: Unifact[]): Unifest {
-  return { vars: emptyValDefs(), unifacts };
+function makeManifest(artifacts: Artifact[]): Manifest {
+  return { vars: {}, artifacts };
 }
 
 let tmpDir: string;
@@ -36,28 +27,26 @@ describe('install: string source', () => {
   it('writes string to final path', async () => {
     const content = 'hello world';
     const dest = join(tmpDir, 'test.txt');
-    const unifact: Unifact = {
+    const artifact: Artifact = {
       path: dest,
       source: sourceString(content),
-      size: exactSize(content.length),
+      size: content.length,
       rules: [],
-      integrity: skipIntegrity(),
     };
-    await install(makeManifest([unifact]));
+    await install(makeManifest([artifact]));
     expect(existsSync(dest)).toBe(true);
     expect(await readFile(dest, 'utf8')).toBe(content);
   });
 
   it('creates parent dirs', async () => {
     const dest = join(tmpDir, 'a', 'b', 'c', 'file.txt');
-    const unifact: Unifact = {
+    const artifact: Artifact = {
       path: dest,
       source: sourceString('nested'),
-      size: exactSize(6),
+      size: 6,
       rules: [],
-      integrity: skipIntegrity(),
     };
-    await install(makeManifest([unifact]));
+    await install(makeManifest([artifact]));
     expect(existsSync(dest)).toBe(true);
   });
 });
@@ -69,14 +58,14 @@ describe('install: integrity', () => {
     const { writeFile: wf } = await import('node:fs/promises');
     await wf(dest, content);
     let downloadEmitted = false;
-    const unifact: Unifact = {
+    const artifact: Artifact = {
       path: dest,
       source: sourceString(content),
-      size: exactSize(content.length),
+      size: content.length,
       rules: [],
-      integrity: sha1Integrity(sha1(content)),
+      integrity: { sha1: sha1(content) },
     };
-    await install(makeManifest([unifact]), {
+    await install(makeManifest([artifact]), {
       onProgress: (p) => {
         if (p.phase === 'download' && p.fetched > 0) downloadEmitted = true;
       },
@@ -86,14 +75,14 @@ describe('install: integrity', () => {
 
   it('throws on hash mismatch', async () => {
     const dest = join(tmpDir, 'bad.txt');
-    const unifact: Unifact = {
+    const artifact: Artifact = {
       path: dest,
       source: sourceString('content'),
-      size: exactSize(7),
+      size: 7,
       rules: [],
-      integrity: sha1Integrity('0000000000000000000000000000000000000000'),
+      integrity: { sha1: '0000000000000000000000000000000000000000' },
     };
-    await expect(install(makeManifest([unifact]))).rejects.toThrow(
+    await expect(install(makeManifest([artifact]))).rejects.toThrow(
       'Integrity check failed',
     );
   });
@@ -101,17 +90,17 @@ describe('install: integrity', () => {
   it.skip('accepts any hash in multi-hash integrity', async () => {
     const content = 'multi-hash';
     const dest = join(tmpDir, 'multi.txt');
-    const unifact: Unifact = {
+    const artifact: Artifact = {
       path: dest,
       source: sourceString(content),
-      size: exactSize(content.length),
+      size: content.length,
       rules: [],
-      integrity: ofIntegrity([
+      integrity: [
         { sha1: '0000000000000000000000000000000000000000' },
         { sha1: sha1(content) },
-      ]),
+      ],
     };
-    await install(makeManifest([unifact]));
+    await install(makeManifest([artifact]));
     expect(await readFile(dest, 'utf8')).toBe(content);
   });
 });

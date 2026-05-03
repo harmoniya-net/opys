@@ -1,9 +1,18 @@
-export * from './client/arguments';
-export * from './client/assets';
-export * from './client/client';
-export * from './client/downloads';
-export * from './client/java';
-export * from './client/libraries';
-export * from './client/logging';
-export * from './client/maven';
-export * from './version';
+export { artifactScanner, type ArtifactScannerOptions } from './scanner';
+export { userDataDir } from './paths';
+export {
+  minecraft,
+  clientToTemplate,
+  minecraftTemplate,
+  fetchClient,
+  type MinecraftTemplate,
+} from './template';
+export { buildClasspath, buildLaunch } from './mappers/launch';
+export {
+  defineConfig,
+  resolveConfig,
+  type TorbaConfig,
+  type TorbaConfigInput,
+  type TorbaConfigContext,
+  type ArtifactIterable,
+} from '@torba/core';

@@ -1,104 +1,85 @@
 import { createWriteStream } from 'node:fs';
-import { copyFile, mkdir, rename, unlink, writeFile } from 'node:fs/promises';
-import { dirname, join } from 'node:path';
+import { copyFile, mkdir, rename, writeFile } from 'node:fs/promises';
+import { dirname } from 'node:path';
 import { Readable } from 'node:stream';
+import type { ReadableStream as NodeReadableStream } from 'node:stream/web';
 import { pipeline } from 'node:stream/promises';
-import type { Unifact } from '@unifest/core';
+import type { Artifact } from '@torba/core';
 import {
   isSourceUrl,
   isSourceFile,
   isSourceString,
-  sizeBytes,
-} from '@unifest/core';
-import { interpolate } from '@unifest/core';
+  interpolate,
+} from '@torba/core';
 
 export interface FetchTask {
-  unifact: Unifact;
+  artifact: Artifact;
   finalPath: string;
-  tmpPath: string;
 }
 
-async function fetchToTmp(
-  unifact: Unifact,
-  tmpPath: string,
+const FETCH_TIMEOUT_MS = 30_000;
+
+async function fetchOne(
+  task: FetchTask,
   vars: Record<string, string>,
 ): Promise<void> {
-  const src = unifact.source;
+  const { artifact, finalPath } = task;
+  const src = artifact.source;
+  await mkdir(dirname(finalPath), { recursive: true });
+  const tmpPath = `${finalPath}.partial`;
+
   if (isSourceUrl(src)) {
     const url = interpolate(src.url, vars);
-    const res = await fetch(url, { signal: AbortSignal.timeout(30_000) });
+    const res = await fetch(url, {
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+    });
     if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
-    await mkdir(dirname(tmpPath), { recursive: true });
-    const ws = createWriteStream(tmpPath);
-    if (res.body) await pipeline(Readable.fromWeb(res.body), ws);
+    if (res.body) {
+      await pipeline(
+        Readable.fromWeb(res.body as unknown as NodeReadableStream),
+        createWriteStream(tmpPath),
+      );
+    } else {
+      await writeFile(tmpPath, '');
+    }
   } else if (isSourceFile(src)) {
-    const file = interpolate(src.file, vars);
-    await mkdir(dirname(tmpPath), { recursive: true });
-    const { readFile } = await import('node:fs/promises');
-    await writeFile(tmpPath, await readFile(file));
+    await copyFile(interpolate(src.file, vars), tmpPath);
   } else if (isSourceString(src)) {
-    await mkdir(dirname(tmpPath), { recursive: true });
     await writeFile(tmpPath, src.string);
   } else {
-    throw new Error(`Unsupported source for ${unifact.path}`);
+    throw new Error(`Unsupported source for ${artifact.path}`);
   }
+
+  await rename(tmpPath, finalPath);
 }
 
-/** rename with EXDEV fallback — /tmp and the final path may be on different devices. */
-async function renameCrossDevice(src: string, dst: string): Promise<void> {
-  try {
-    await rename(src, dst);
-  } catch (e: unknown) {
-    if ((e as NodeJS.ErrnoException).code !== 'EXDEV') throw e;
-    await copyFile(src, dst);
-    await unlink(src);
-  }
+/** Run `fn` over `items` with at most `n` workers in parallel. */
+async function pool<T>(
+  items: T[],
+  n: number,
+  fn: (item: T) => Promise<void>,
+): Promise<void> {
+  let i = 0;
+  const workers = Array.from(
+    { length: Math.min(n, items.length) },
+    async () => {
+      while (i < items.length) {
+        const idx = i++;
+        await fn(items[idx]!);
+      }
+    },
+  );
+  await Promise.all(workers);
 }
 
 export async function fetchAll(
   tasks: FetchTask[],
   vars: Record<string, string>,
   concurrency: number,
+  onDone?: (task: FetchTask) => void,
 ): Promise<void> {
-  const sem = new Semaphore(concurrency);
-  await Promise.all(
-    tasks.map((t) =>
-      sem.use(async () => {
-        await fetchToTmp(t.unifact, t.tmpPath, vars);
-        await mkdir(dirname(t.finalPath), { recursive: true });
-        await renameCrossDevice(t.tmpPath, t.finalPath);
-      }),
-    ),
-  );
-}
-
-class Semaphore {
-  private slots: number;
-  private queue: Array<() => void> = [];
-  constructor(private limit: number) {
-    this.slots = limit;
-  }
-  async acquire(): Promise<void> {
-    if (this.slots > 0) {
-      this.slots--;
-      return;
-    }
-    await new Promise<void>((r) => this.queue.push(r));
-  }
-  release(): void {
-    this.slots++;
-    const next = this.queue.shift();
-    if (next) {
-      this.slots--;
-      next();
-    }
-  }
-  async use<T>(fn: () => Promise<T>): Promise<T> {
-    await this.acquire();
-    try {
-      return await fn();
-    } finally {
-      this.release();
-    }
-  }
+  await pool(tasks, concurrency, async (t) => {
+    await fetchOne(t, vars);
+    onDone?.(t);
+  });
 }

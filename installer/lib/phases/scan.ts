@@ -1,11 +1,11 @@
 import { existsSync } from 'node:fs';
-import type { Unifact, Unifest } from '@unifest/core';
-import { filterUnifest, isSourceEmpty } from '@unifest/core';
-import { interpolate, resolveVars } from '@unifest/core';
-import type { OsOptions } from '@unifest/rules';
+import type { Artifact, Manifest } from '@torba/core';
+import { filterManifest } from '@torba/core';
+import { interpolate } from '@torba/core';
+import type { OsOptions } from '@torba/rules';
 
 export interface ScanTask {
-  unifact: Unifact;
+  artifact: Artifact;
   finalPath: string;
   idx: number;
 }
@@ -16,26 +16,22 @@ export interface ScanResult {
 }
 
 export function scan(
-  manifest: Unifest,
+  manifest: Manifest,
   vars: Record<string, string>,
   platform: OsOptions,
 ): ScanResult {
-  const applicable = filterUnifest(manifest, platform);
+  const applicable = filterManifest(manifest, platform);
   const tasks: ScanTask[] = [];
   let skipped = 0;
 
-  for (let i = 0; i < applicable.unifacts.length; i++) {
-    const u = applicable.unifacts[i]!;
-    if (isSourceEmpty(u.source)) {
-      skipped++;
-      continue;
-    }
+  for (let i = 0; i < applicable.artifacts.length; i++) {
+    const u = applicable.artifacts[i]!;
     const finalPath = interpolate(u.path, vars);
     if (existsSync(finalPath)) {
       skipped++;
       continue;
     }
-    tasks.push({ unifact: u, finalPath, idx: i });
+    tasks.push({ artifact: u, finalPath, idx: i });
   }
 
   return { tasks, skipped };

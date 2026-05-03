@@ -1,28 +1,33 @@
-# unifest
+# torba
 
 TypeScript monorepo for building and launching Minecraft client installations from declarative manifests.
 
 ## How it works
 
-1. **Write a config** (`unifest.config.mjs`) that describes which Minecraft version to install and any extra mods.
-2. **Run `unifest build`** — fetches Mojang metadata and writes a `unifest.json` manifest.
-3. **Run `unifest launch`** — installs every artifact listed in the manifest (skipping cached ones), then spawns the JVM.
+1. **Write a config** (`torba.config.mjs`) that describes which Minecraft version to install and any extra mods.
+2. **Run `torba build`** — fetches Mojang metadata and writes a `torba.json` manifest.
+3. **Run `torba launch`** — installs every artifact listed in the manifest (skipping cached ones), then spawns the JVM.
 
 ## Quick start
 
+Install the CLI globally and the runtime deps your config imports locally in your project:
+
 ```sh
-bun add -g @unifest/cli
+npm install -g @torba/cli
+npm install -D @torba/minecraft        # plus @torba/forge etc. as needed
 ```
 
-```js
-// unifest.config.mjs
-import { unifestConfig } from '@unifest/core';
-import { minecraft } from '@unifest/mc';
+The CLI is resolved globally, but `torba.config.mjs` is imported from your project — its `import { … } from '@torba/…'` statements resolve through your project's `node_modules`, like any other config-driven tool (Vite, Vitest, Webpack, etc.).
 
-export default unifestConfig(async () => {
+```js
+// torba.config.mjs
+import { defineConfig } from '@torba/core';
+import { minecraft } from '@torba/minecraft';
+
+export default defineConfig(async () => {
   const mc = await minecraft({ version: '1.20.1' });
   return {
-    output: 'unifest.json',
+    output: 'torba.json',
     artifacts: [mc.artifacts],
     vars: mc.vars,
     command: mc.command,
@@ -31,42 +36,42 @@ export default unifestConfig(async () => {
 ```
 
 ```sh
-unifest build                            # → unifest.json
-unifest launch --var username=Player --var uuid=<uuid> --var token=<token>
+torba build                            # → torba.json
+torba launch --var username=Player --var uuid=<uuid> --var token=<token>
 ```
 
 ## Packages
 
-| Package                            | Description                                                   |
-| ---------------------------------- | ------------------------------------------------------------- |
-| [`@unifest/rules`](rules/)         | Pure platform/feature rule evaluation                         |
-| [`@unifest/core`](core/)           | Data model — discriminated unions, schemas, factory functions |
-| [`@unifest/minecraft`](minecraft/) | Zero-binding Mojang JSON parsers                              |
-| [`@unifest/mc`](mc/)               | Converts Mojang types to Unifest artifacts and launch config  |
-| [`@unifest/forge`](forge/)         | Forge mod loader template builder                             |
-| [`@unifest/installer`](installer/) | Programmatic install and launch                               |
-| [`@unifest/cli`](cli/)             | `unifest` CLI entry point                                     |
+| Package                          | Description                                                   |
+| -------------------------------- | ------------------------------------------------------------- |
+| [`@torba/rules`](rules/)         | Pure platform/feature rule evaluation                         |
+| [`@torba/core`](core/)           | Data model — types, schemas, factory functions                |
+| [`@torba/mojang`](mojang/)       | Zero-binding Mojang JSON parsers                              |
+| [`@torba/minecraft`](minecraft/) | Converts Mojang types to Manifest artifacts and launch config |
+| [`@torba/forge`](forge/)         | Forge mod loader template builder                             |
+| [`@torba/installer`](installer/) | Programmatic install and launch                               |
+| [`@torba/cli`](cli/)             | `torba` CLI entry point                                       |
 
 ### Dependency graph
 
 ```
-cli → installer, mc, core
+cli       → installer, minecraft, core
 installer → core, rules
-mc → minecraft, core, rules
-core → rules
-minecraft → (zod only)
-rules → (zod only)
+minecraft → mojang, core, rules
+forge     → minecraft, mojang, core
+core      → rules
+mojang, rules → zod
 ```
 
 ## Manifest format
 
-A `unifest.json` (or `.toml`) describes:
+A `torba.json` describes:
 
 - **`vars`** — interpolation variables, optionally OS-conditional
-- **`unifacts`** — artifacts to download/copy/extract, each with source, integrity, extract rules, and platform rules
+- **`artifacts`** — artifacts to download/copy/extract, each with source, integrity, extract rules, and platform rules
 - **`launch`** — command, workdir, args, and env vars to spawn after installation
 
-See [`spec.md`](spec.md) for the full format specification.
+See [`API.md`](API.md) for the full public API and lifecycle.
 
 ## Development
 

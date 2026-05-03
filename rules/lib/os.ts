@@ -10,7 +10,7 @@ export interface OsOptions {
   arch: string;
 }
 
-/** Constraint on OS as it appears in Mojang/Unifest rule JSON. */
+/** Constraint on OS as it appears in Mojang/Manifest rule JSON. */
 export type OsConstraint =
   | { name: OsName; version: string }
   | { name: OsName }

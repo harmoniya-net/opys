@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
-import { isIntegritySkip } from '@unifest/core';
-import type { Integrity, HashEntry } from '@unifest/core';
+import { integrityHashes } from '@torba/core';
+import type { Integrity, HashEntry } from '@torba/core';
 
 export async function readBytes(path: string): Promise<Buffer> {
   return readFile(path);
@@ -29,11 +29,9 @@ async function verifyHashEntry(
 
 export async function verifyIntegrity(
   path: string,
-  integrity: Integrity,
+  integrity: Integrity | undefined,
 ): Promise<boolean> {
-  if (isIntegritySkip(integrity)) return true;
-  if (integrity.kind !== 'hashes') return true;
-  const entries = integrity.entries;
+  const entries = integrityHashes(integrity);
   if (entries.length === 0) return true;
   for (const entry of entries) {
     if (await verifyHashEntry(path, entry)) return true;

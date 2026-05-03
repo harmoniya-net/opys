@@ -4,21 +4,16 @@ import {
   clientToTemplate,
   buildClasspath,
   buildLaunch,
-} from '@unifest/mc';
-import {
-  concatValDefs,
-  type Unifact,
-  type ValDefs,
-  type Launch,
-} from '@unifest/core';
-import type { MojangArgValue, Arguments } from '@unifest/minecraft';
-import { mergeArgs } from '@unifest/minecraft';
+} from '@torba/minecraft';
+import type { Artifact, ValDefs, Launch } from '@torba/core';
+import type { MojangArgValue, Arguments } from '@torba/mojang';
+import { mergeArgs } from '@torba/mojang';
 import { parseForgeManifest } from './parser';
 
 /**
  * Forge version JSONs embed raw relative paths like `../libraries/` (relative to the
  * versions/<id>/ directory in a standard .minecraft layout). Rewrite them to the
- * unifest var equivalents so they resolve correctly regardless of working directory.
+ * torba var equivalents so they resolve correctly regardless of working directory.
  */
 function fixPath(s: string): string {
   return s.replace(/\.\.\/libraries\//g, '${library_directory}/');
@@ -71,7 +66,7 @@ export interface ForgeOptions {
 
 export interface ForgeTemplate {
   /** Vanilla MC artifacts. Forge artifacts come from artifactScanner in the config. */
-  artifacts: Unifact[];
+  artifacts: Artifact[];
   vars: ValDefs;
   command: Launch;
 }
@@ -101,8 +96,7 @@ export async function forge(options: ForgeOptions): Promise<ForgeTemplate> {
     '${version_dir}/client.jar',
   );
 
-  // concatValDefs last-wins: rebuilt classpath entries replace the vanilla ones
-  const vars = concatValDefs(mc.vars, classpathEntries);
+  const vars: ValDefs = { ...mc.vars, classpath: classpathEntries };
 
   const command = buildLaunch(forgeManifest.mainClass, merged.game, merged.jvm);
 

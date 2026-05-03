@@ -1,11 +1,11 @@
-# @unifest/core
+# @torba/core
 
-Data model for Unifest manifests. Discriminated unions, factory functions, Zod parsers, and encode/decode utilities. No I/O.
+Data model for Torba manifests. Types, factory functions, Zod parsers, and encode/decode utilities. No I/O.
 
 ## Install
 
 ```sh
-bun add @unifest/core @unifest/rules zod
+npm install @torba/core @torba/rules zod
 ```
 
 ## Types
@@ -48,37 +48,34 @@ ExtractSchema.parse(raw)          // always returns ExtractRule[]
 encodeExtract(rules)
 ```
 
-### `Unifact` — a single installable artifact
+### `Artifact` — a single installable artifact
 
 An artifact has a source, optional integrity/size checks, optional extract rules, and optional rulesets that gate it per platform or feature.
 
 ```ts
-import { UnifactSchema, encodeUnifact } from '@unifest/core';
+import { ArtifactSchema, encodeArtifact } from '@torba/core';
 
-const unifact = UnifactSchema.parse(raw);
-encodeUnifact(unifact);
+const artifact = ArtifactSchema.parse(raw);
+encodeArtifact(artifact);
 ```
 
-### `Unifest` — the manifest
+### `Manifest` — the manifest
 
 ```ts
-interface Unifest {
+interface Manifest {
   vars: ValDefs;
   launch?: Launch;
-  unifacts: ReadonlyArray<Unifact>;
+  artifacts: ReadonlyArray<Artifact>;
 }
 
-// Parse JSON or TOML string
-const manifest = await parseUnifest(jsonOrTomlString);
+// Parse JSON string
+const manifest = await parseManifest(jsonString);
 
 // Filter to current platform
-const filtered = filterUnifest(manifest, { name: 'linux', arch: 'x64' });
-
-// Merge two manifests (b wins on conflicts)
-const merged = mergeUnifest(a, b);
+const filtered = filterManifest(manifest, { name: 'linux', arch: 'x64' });
 
 // Encode back to JSON-serializable object
-encodeUnifest(manifest);
+encodeManifest(manifest);
 ```
 
 ### `ValDefs` — interpolation variables
@@ -91,7 +88,7 @@ import {
   encodeValDefs,
   resolveValDefs,
   resolveVars,
-} from '@unifest/core';
+} from '@torba/core';
 
 const defs = parseValDefs(raw);
 const flat = resolveValDefs(defs, platform); // pick OS-appropriate values
@@ -99,22 +96,22 @@ const vars = resolveVars(flat); // resolve ${ref} chains
 const result = interpolate('${root}/assets', vars);
 ```
 
-### `unifestConfig` — config file helper
+### `defineConfig` — config file helper
 
-Used as the default export in `unifest.config.mjs`:
+Used as the default export in `torba.config.mjs`:
 
 ```ts
-import { unifestConfig } from '@unifest/core';
+import { defineConfig } from '@torba/core';
 
-export default unifestConfig({
+export default defineConfig({
   artifacts: [...],
   vars: [...],
   command: { ... },
-  output: 'unifest.json',
+  output: 'torba.json',
 });
 
 // Or as a function for context-aware configs
-export default unifestConfig((ctx) => ({
+export default defineConfig((ctx) => ({
   artifacts: ctx.mode === 'build' ? [...] : [],
 }));
 ```

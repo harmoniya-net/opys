@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
-import type { Unifact, Integrity } from '@unifest/core';
-import { isIntegritySkip } from '@unifest/core';
+import type { Artifact, Integrity } from '@torba/core';
+import { integrityHashes } from '@torba/core';
 
 async function checkHash(
   path: string,
@@ -15,10 +15,9 @@ async function checkHash(
 
 export function verifyIntegrity(
   path: string,
-  integrity: Integrity,
+  integrity: Integrity | undefined,
 ): Promise<boolean> {
-  if (isIntegritySkip(integrity)) return Promise.resolve(true);
-  const entries = integrity.kind === 'hashes' ? integrity.entries : [];
+  const entries = integrityHashes(integrity);
   if (entries.length === 0) return Promise.resolve(true);
   return Promise.any(
     entries.map(async (e) => {
@@ -36,11 +35,11 @@ export function verifyIntegrity(
 }
 
 export async function verifyAll(
-  tasks: { finalPath: string; unifact: Unifact }[],
+  tasks: { finalPath: string; artifact: Artifact }[],
 ): Promise<string[]> {
   const results = await Promise.all(
-    tasks.map(async ({ finalPath, unifact }) => {
-      const ok = await verifyIntegrity(finalPath, unifact.integrity);
+    tasks.map(async ({ finalPath, artifact }) => {
+      const ok = await verifyIntegrity(finalPath, artifact.integrity);
       return ok ? null : finalPath;
     }),
   );

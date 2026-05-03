@@ -1,0 +1,27 @@
+{
+  "name": "@torba/curseforge",
+  "version": "1.0.3",
+  "type": "module",
+  "main": "./dist/index.js",
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "scripts": {
+    "build": "tsdown lib/index.ts --format esm,cjs --dts --clean"
+  },
+  "dependencies": {
+    "@torba/core": "^1.0.1"
+  },
+  "peerDependencies": {
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "tsdown": "*"
+  },
+  "files": [
+    "dist"
+  ]
+}

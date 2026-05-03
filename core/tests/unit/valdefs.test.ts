@@ -1,78 +1,63 @@
 import { describe, expect, it } from 'vitest';
 import {
-  parseValDef,
-  encodeValDef,
   parseValDefs,
+  encodeValDefs,
   resolveValDefs,
-  concatValDefs,
-  emptyValDefs,
-  type ValDef,
   type ValDefs,
 } from '../../lib/valdefs';
-import { allowOsRuleset, emptyRuleset } from '@unifest/rules';
+import { allowOsRuleset } from '@torba/rules';
 
 const LINUX = { name: 'linux', version: '', arch: 'x86_64' } as const;
 const WINDOWS = { name: 'windows', version: '10', arch: 'x86_64' } as const;
 
 describe('resolveValDefs', () => {
-  it('last matching entry wins for duplicate keys', () => {
-    const defs: ValDefs = [
-      ['cp', { value: 'first', rules: [] }],
-      ['cp', { value: 'second', rules: [] }],
-    ];
-    expect(resolveValDefs(defs, LINUX).cp).toBe('second');
+  it('flat string values pass through', () => {
+    const defs: ValDefs = { root: '.', name: 'torba' };
+    expect(resolveValDefs(defs, LINUX)).toEqual({ root: '.', name: 'torba' });
   });
 
-  it('platform-specific entry overrides unconditional one', () => {
-    const defs: ValDefs = [
-      ['sep', { value: ':', rules: [] }],
-      ['sep', { value: ';', rules: allowOsRuleset('windows') }],
-    ];
+  it('last matching arm wins', () => {
+    const defs: ValDefs = {
+      sep: [
+        { value: ':', rules: [] },
+        { value: ';', rules: allowOsRuleset('windows') },
+      ],
+    };
     expect(resolveValDefs(defs, WINDOWS).sep).toBe(';');
     expect(resolveValDefs(defs, LINUX).sep).toBe(':');
   });
 
-  it('entry whose rules do not satisfy is omitted', () => {
-    const defs: ValDefs = [
-      ['win_only', { value: 'yes', rules: allowOsRuleset('windows') }],
-    ];
+  it('arm whose rules do not satisfy is omitted when none match', () => {
+    const defs: ValDefs = {
+      win_only: [{ value: 'yes', rules: allowOsRuleset('windows') }],
+    };
     expect(resolveValDefs(defs, LINUX).win_only).toBeUndefined();
   });
 
   it('empty ValDefs resolves to empty object', () => {
-    expect(resolveValDefs(emptyValDefs(), LINUX)).toEqual({});
+    expect(resolveValDefs({}, LINUX)).toEqual({});
   });
 });
 
-describe('concatValDefs', () => {
-  it('concat with empty is identity', () => {
-    const defs: ValDefs = [['a', { value: '1', rules: [] }]];
-    expect(concatValDefs(defs, emptyValDefs()).length).toBe(1);
-    expect(concatValDefs(emptyValDefs(), defs).length).toBe(1);
+describe('parse / encode', () => {
+  it('string values round-trip', () => {
+    const raw = { root: '.', name: 'torba' };
+    expect(encodeValDefs(parseValDefs(raw))).toEqual(raw);
   });
 
-  it('later entries from other shadow earlier on same key', () => {
-    const a: ValDefs = [['k', { value: 'a', rules: [] }]];
-    const b: ValDefs = [['k', { value: 'b', rules: [] }]];
-    expect(resolveValDefs(concatValDefs(a, b), LINUX).k).toBe('b');
-  });
-});
-
-describe('parseValDef', () => {
-  it('string form decodes to unconditional ValDef', () => {
-    const def = parseValDef('hello');
-    expect(def.value).toBe('hello');
-    expect(def.rules.length).toBe(0);
+  it('arm arrays round-trip with shorthand rules', () => {
+    const raw = {
+      sep: [
+        { value: ';', rules: 'allow.os.windows' },
+        { value: ':', rules: 'allow.os.linux' },
+      ],
+    };
+    const decoded = parseValDefs(raw);
+    expect(encodeValDefs(decoded)).toEqual(raw);
   });
 
-  it('unconditional ValDef encodes to plain string', () => {
-    const def: ValDef = { value: 'hello', rules: [] };
-    expect(encodeValDef(def)).toBe('hello');
-  });
-
-  it('conditional ValDef encodes to object with rules', () => {
-    const def: ValDef = { value: 'val', rules: allowOsRuleset('linux') };
-    const encoded = encodeValDef(def);
-    expect(typeof encoded).toBe('object');
+  it('rule-less arms encode without rules key', () => {
+    const defs: ValDefs = { k: [{ value: 'v', rules: [] }] };
+    expect(encodeValDefs(defs)).toEqual({ k: [{ value: 'v' }] });
   });
 });

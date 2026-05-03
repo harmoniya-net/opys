@@ -9,10 +9,8 @@ describe('resolveVars', () => {
     });
   });
 
-  it('self-referential var resolves to empty string', () => {
-    // ${x} inside x's own template: resolved[key] ?? '' = ''
-    const result = resolveVars({ x: '${x}' });
-    expect(result.x).toBe('');
+  it('throws on self-reference (circular)', () => {
+    expect(() => resolveVars({ x: '${x}' })).toThrow('Circular');
   });
 
   it('throws on circular dependency', () => {

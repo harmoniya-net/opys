@@ -6,13 +6,10 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { zipSync, strToU8 } from 'fflate';
 import {
   sourceFile,
-  unknownSize,
-  skipIntegrity,
   extractDump,
-  emptyValDefs,
-  type Unifact,
-  type Unifest,
-} from '@unifest/core';
+  type Artifact,
+  type Manifest,
+} from '@torba/core';
 import { install } from '../../lib/install';
 
 function makeZip(files: Record<string, string>): Uint8Array {
@@ -23,8 +20,8 @@ function makeZip(files: Record<string, string>): Uint8Array {
   return zipSync(entries);
 }
 
-function makeManifest(unifacts: Unifact[]): Unifest {
-  return { vars: emptyValDefs(), unifacts };
+function makeManifest(artifacts: Artifact[]): Manifest {
+  return { vars: {}, artifacts };
 }
 
 let tmpDir: string;
@@ -43,16 +40,16 @@ describe('ExtractDump runtime', () => {
     await writeFile(sourceZip, zip);
     const targetDir = join(tmpDir, 'out');
 
-    const unifact: Unifact = {
+    const artifact: Artifact = {
       path: artifactPath,
       source: sourceFile(sourceZip),
-      size: unknownSize(),
+
       rules: [],
-      integrity: skipIntegrity(),
+
       extract: [extractDump(targetDir)],
     };
 
-    await install(makeManifest([unifact]));
+    await install(makeManifest([artifact]));
     expect(existsSync(join(targetDir, 'a.txt'))).toBe(true);
     expect(await readFile(join(targetDir, 'a.txt'), 'utf8')).toBe('hello');
     expect(existsSync(join(targetDir, 'sub/b.txt'))).toBe(true);
@@ -68,16 +65,16 @@ describe('ExtractDump runtime', () => {
     await writeFile(sourceZip, zip);
     const targetDir = join(tmpDir, 'out');
 
-    const unifact: Unifact = {
+    const artifact: Artifact = {
       path: artifactPath,
       source: sourceFile(sourceZip),
-      size: unknownSize(),
+
       rules: [],
-      integrity: skipIntegrity(),
+
       extract: [extractDump(targetDir, { excludes: ['META-INF/'] })],
     };
 
-    await install(makeManifest([unifact]));
+    await install(makeManifest([artifact]));
     expect(existsSync(join(targetDir, 'keep.txt'))).toBe(true);
     expect(existsSync(join(targetDir, 'META-INF/MANIFEST.MF'))).toBe(false);
   });
@@ -89,16 +86,16 @@ describe('ExtractDump runtime', () => {
     await writeFile(sourceZip, zip);
     const targetDir = join(tmpDir, 'out');
 
-    const unifact: Unifact = {
+    const artifact: Artifact = {
       path: artifactPath,
       source: sourceFile(sourceZip),
-      size: unknownSize(),
+
       rules: [],
-      integrity: skipIntegrity(),
+
       extract: [extractDump(targetDir, { includes: ['*.so'] })],
     };
 
-    await install(makeManifest([unifact]));
+    await install(makeManifest([artifact]));
     expect(existsSync(join(targetDir, 'foo.so'))).toBe(true);
     expect(existsSync(join(targetDir, 'readme.txt'))).toBe(false);
   });
@@ -114,16 +111,16 @@ describe('ExtractDump runtime', () => {
     const artifactPath = join(tmpDir, 'archive.zip');
     await writeFile(sourceZip, zip);
 
-    const unifact: Unifact = {
+    const artifact: Artifact = {
       path: artifactPath,
       source: sourceFile(sourceZip),
-      size: unknownSize(),
+
       rules: [],
-      integrity: skipIntegrity(),
+
       extract: [extractDump(targetDir, { clean: true })],
     };
 
-    await install(makeManifest([unifact]));
+    await install(makeManifest([artifact]));
     expect(existsSync(join(targetDir, 'stale.so'))).toBe(false);
     expect(existsSync(join(targetDir, 'fresh.so'))).toBe(true);
   });
@@ -134,16 +131,16 @@ describe('ExtractDump runtime', () => {
     await writeFile(artifactPath, zip);
     const targetDir = join(tmpDir, 'out');
 
-    const unifact: Unifact = {
+    const artifact: Artifact = {
       path: artifactPath,
       source: sourceFile(artifactPath),
-      size: unknownSize(),
+
       rules: [],
-      integrity: skipIntegrity(),
+
       extract: [extractDump(targetDir)],
     };
 
-    await install(makeManifest([unifact]));
+    await install(makeManifest([artifact]));
     expect(existsSync(join(targetDir, 'file.txt'))).toBe(false);
   });
 });

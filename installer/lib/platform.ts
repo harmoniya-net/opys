@@ -1,4 +1,4 @@
-import type { SatisfiesOsOptions } from '@unifest/rules';
+import type { SatisfiesOsOptions } from '@torba/rules';
 
 export function currentPlatform(
   platform: string = process.platform,

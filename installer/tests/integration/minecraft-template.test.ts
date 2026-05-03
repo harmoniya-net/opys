@@ -3,8 +3,8 @@ import { existsSync } from 'node:fs';
 import { mkdtemp, readdir, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { minecraft } from '@unifest/mc';
-import { Unifest } from '@unifest/core';
+import { minecraft } from '@torba/minecraft';
+import { Manifest } from '@torba/core';
 import { install } from '../../lib/install';
 
 const VERSION = '1.20.1';
@@ -24,12 +24,12 @@ describe.skip('Full Minecraft template installation', () => {
       tmpRoot = await mkdtemp(join(tmpdir(), 'unipack-int-'));
 
       const mc = await minecraft({ version: VERSION });
-      const unifest = new Unifest(mc.vars, mc.command, mc.artifacts);
+      const manifest = new Manifest(mc.vars, mc.command, mc.artifacts);
 
       const phases: string[] = [];
       let downloadTotal = 0;
 
-      await install(unifest, {
+      await install(manifest, {
         vars: { root: tmpRoot },
         verifyIntegrity: true,
         onProgress(p) {
@@ -93,12 +93,12 @@ describe.skip('Full Minecraft template installation', () => {
     expect(tmpRoot).toBeTruthy();
 
     const mc = await minecraft({ version: VERSION });
-    const unifest = new Unifest(mc.vars, mc.command, mc.artifacts);
+    const manifest = new Manifest(mc.vars, mc.command, mc.artifacts);
 
     let downloadTotal = 0;
     let skipped = 0;
 
-    await install(unifest, {
+    await install(manifest, {
       vars: { root: tmpRoot },
       verifyIntegrity: false,
       onProgress(p) {
@@ -117,11 +117,11 @@ describe.skip('Full Minecraft template installation', () => {
     expect(tmpRoot).toBeTruthy();
 
     const mc = await minecraft({ version: VERSION });
-    const unifest = new Unifest(mc.vars, mc.command, mc.artifacts);
+    const manifest = new Manifest(mc.vars, mc.command, mc.artifacts);
 
     // Should not throw — all files already on disk and intact
     await expect(
-      install(unifest, {
+      install(manifest, {
         vars: { root: tmpRoot },
         verifyIntegrity: true,
       }),

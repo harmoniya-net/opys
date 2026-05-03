@@ -4,71 +4,81 @@ import {
   satisfiesRuleset,
   parseShortRuleset,
   encodeShortRuleset,
-} from '@unifest/rules';
-import type { OsOptions } from '@unifest/rules';
+} from '@torba/rules';
+import type { OsOptions } from '@torba/rules';
 
-export interface ValDef {
+export interface ConditionalVal {
   readonly value: string;
   readonly rules: Ruleset;
 }
 
-const ValDefRawSchema = z.union([
+/**
+ * Variable definitions. A value is either a flat string or an ordered list of
+ * rule-conditional arms — last matching arm wins at resolve time.
+ */
+export type ValDefs = Readonly<
+  Record<string, string | readonly ConditionalVal[]>
+>;
+
+const ConditionalValRawSchema = z.object({
+  value: z.string(),
+  rules: z.any().optional(),
+});
+
+const ValDefsRawSchema = z.record(
   z.string(),
-  z.object({ value: z.string(), rules: z.any() }),
-]);
+  z.union([z.string(), z.array(ConditionalValRawSchema)]),
+);
 
-export function parseValDef(raw: z.infer<typeof ValDefRawSchema>): ValDef {
-  if (typeof raw === 'string') return { value: raw, rules: [] };
-  return {
-    value: raw.value,
-    rules: raw.rules ? parseShortRuleset(raw.rules) : [],
-  };
-}
-
-export function encodeValDef(d: ValDef): unknown {
-  if (d.rules.length === 0) return d.value;
-  return { value: d.value, rules: encodeShortRuleset(d.rules) };
-}
-
-/** Ordered list of [key, ValDef] entries — duplicate keys allowed, last match wins. */
-export type ValDefs = ReadonlyArray<readonly [string, ValDef]>;
-
-const ValDefsRawSchema = z.union([
-  z.array(z.tuple([z.string(), ValDefRawSchema])),
-  z.record(z.string(), ValDefRawSchema),
-]);
-
-export function parseValDefs(raw: z.infer<typeof ValDefsRawSchema>): ValDefs {
-  if (Array.isArray(raw)) {
-    return raw.map(([k, v]) => [k, parseValDef(v)] as const);
+export function parseValDefs(raw: unknown): ValDefs {
+  const parsed = ValDefsRawSchema.parse(raw);
+  const out: Record<string, string | ConditionalVal[]> = {};
+  for (const [key, val] of Object.entries(parsed)) {
+    if (typeof val === 'string') {
+      out[key] = val;
+    } else {
+      out[key] = val.map((arm) => ({
+        value: arm.value,
+        rules: arm.rules ? parseShortRuleset(arm.rules) : [],
+      }));
+    }
   }
-  return Object.entries(raw)
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([k, v]) => [k, parseValDef(v)] as const);
+  return out;
 }
 
 export function encodeValDefs(defs: ValDefs): unknown {
-  return defs.map(([k, v]) => [k, encodeValDef(v)]);
+  const out: Record<string, unknown> = {};
+  for (const [key, val] of Object.entries(defs)) {
+    if (typeof val === 'string') {
+      out[key] = val;
+    } else {
+      out[key] = val.map((arm) =>
+        arm.rules.length === 0
+          ? { value: arm.value }
+          : { value: arm.value, rules: encodeShortRuleset(arm.rules) },
+      );
+    }
+  }
+  return out;
 }
 
-/** Resolve ValDefs: for each key, last matching entry wins. */
+/** For each key: string → use as-is; arms → last matching arm wins. */
 export function resolveValDefs(
   defs: ValDefs,
   os: OsOptions,
   feats: string[] = [],
 ): Record<string, string> {
   const result: Record<string, string> = {};
-  for (const [key, def] of defs) {
-    if (satisfiesRuleset(def.rules, os, feats)) result[key] = def.value;
+  for (const [key, val] of Object.entries(defs)) {
+    if (typeof val === 'string') {
+      result[key] = val;
+      continue;
+    }
+    let chosen: string | undefined;
+    for (const arm of val) {
+      if (satisfiesRuleset(arm.rules, os, feats)) chosen = arm.value;
+    }
+    if (chosen !== undefined) result[key] = chosen;
   }
   return result;
 }
-
-/** Append entries from other (later entries shadow earlier on conflict). */
-export const concatValDefs = (a: ValDefs, b: ValDefs): ValDefs => [...a, ...b];
-
-export const emptyValDefs = (): ValDefs => [];
-
-/** Build a ValDefs from a plain record of unconditional string values. */
-export const valDefsFromRecord = (rec: Record<string, string>): ValDefs =>
-  Object.entries(rec).map(([k, v]) => [k, { value: v, rules: [] }] as const);

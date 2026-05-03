@@ -4,7 +4,7 @@ import {
   parseLibraries,
   type Arguments,
   type Library,
-} from '@unifest/minecraft';
+} from '@torba/mojang';
 
 const ForgeManifestRawSchema = z.object({
   id: z.string(),

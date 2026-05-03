@@ -1,16 +1,10 @@
 import { dirname, resolve } from 'node:path';
-import { install, launch, type InstallProgress } from '@unifest/installer';
-import type {
-  Unifest,
-  ArtifactIterable,
-  Unifact,
-  ValDefs,
-} from '@unifest/core';
-import { resolveConfig, emptyValDefs, encodeUnifest } from '@unifest/core';
-import type { ManifestSource } from '@unifest/installer';
+import { install, launch, type InstallProgress } from '@torba/installer';
+import type { Manifest, ArtifactIterable, Artifact } from '@torba/core';
+import { resolveConfig } from '@torba/core';
+import type { ManifestSource } from '@torba/installer';
 import { parseArgs } from '../args';
 import { UsageError } from '../errors';
-import { importConfig } from '../fs';
 import {
   renderProgress,
   ProgressWriter,
@@ -21,8 +15,8 @@ import type { Logger } from '../logger';
 
 async function collectArtifacts(
   sources: ArtifactIterable[],
-): Promise<Unifact[]> {
-  const out: Unifact[] = [];
+): Promise<Artifact[]> {
+  const out: Artifact[] = [];
   for (const src of sources) {
     for await (const a of src) out.push(a);
   }
@@ -33,14 +27,17 @@ export async function cmdLaunch(argv: string[], logger: Logger): Promise<void> {
   const args = parseArgs(argv, [
     { long: 'input', short: 'i', type: 'string' },
     { long: 'var', type: 'pairs' },
+    { long: 'mode', type: 'string' },
   ]);
-  const inputFile = args.getString('input') ?? 'unifest.config.mjs';
+  const inputFile = args.getString('input') ?? 'torba.config.mjs';
   const extraVars = args.getPairs('var');
+  const mode = args.getString('mode') ?? 'launch';
   const absConfig = resolve(inputFile);
   const configDir = dirname(absConfig);
 
-  const mod = await importConfig(absConfig);
-  const config = await resolveConfig(mod.default, { mode: 'launch' });
+  const mod = await import(absConfig);
+  if (!mod.default) throw new UsageError(`${inputFile}: no default export`);
+  const config = await resolveConfig(mod.default, { mode });
   const vars = { ...config.runClient?.vars, ...extraVars };
 
   let manifestSource: ManifestSource;
@@ -48,15 +45,12 @@ export async function cmdLaunch(argv: string[], logger: Logger): Promise<void> {
     logger.info('Building manifest...');
     const artifacts = await collectArtifacts(config.artifacts);
     logger.debug(`Collected ${artifacts.length} artifacts`);
-    const vs: ValDefs = Array.isArray(config.vars)
-      ? config.vars
-      : emptyValDefs();
-    const unifest: Unifest = {
-      vars: vs,
+    const manifest: Manifest = {
+      vars: config.vars ?? {},
       launch: config.command,
-      unifacts: artifacts,
+      artifacts: artifacts,
     };
-    manifestSource = unifest;
+    manifestSource = manifest;
   } else {
     if (!config.output) throw new UsageError('config.output required');
     manifestSource = resolve(configDir, config.output);

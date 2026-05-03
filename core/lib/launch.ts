@@ -4,8 +4,8 @@ import {
   encodeValset,
   resolveValset,
   type Valset,
-} from '@unifest/rules';
-import type { OsOptions } from '@unifest/rules';
+} from '@torba/rules';
+import type { OsOptions } from '@torba/rules';
 import {
   parseValDefs,
   encodeValDefs,
@@ -32,7 +32,7 @@ export function parseLaunch(raw: z.infer<typeof LaunchRawSchema>): Launch {
     command: raw.command,
     workdir: raw.workdir,
     args: raw.args ? parseValset(raw.args) : [],
-    envs: raw.envs ? parseValDefs(raw.envs) : [],
+    envs: raw.envs ? parseValDefs(raw.envs) : {},
   };
 }
 

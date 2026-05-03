@@ -1,4 +1,5 @@
-import { BAR_WIDTH } from './constants';
+const BAR_WIDTH = 24;
+const NON_TTY_INTERVAL_MS = 3_000;
 
 const FILLED = '█';
 const EMPTY = '░';
@@ -93,8 +94,6 @@ export function renderProgress(state: ProgressState): string[] {
 
   return [overall, ...fileLines];
 }
-
-import { NON_TTY_INTERVAL_MS } from './constants';
 
 export class ProgressWriter {
   private lastLines: string[] = [];

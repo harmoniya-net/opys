@@ -1,13 +1,13 @@
 import { mkdir, rm } from 'node:fs/promises';
 import { dirname } from 'node:path';
-import type { Unifact } from '@unifest/core';
-import { extractDump } from '@unifest/core';
-import { interpolate } from '@unifest/core';
+import type { Artifact } from '@torba/core';
+import { extractDump } from '@torba/core';
+import { interpolate } from '@torba/core';
 import { extractZip } from '../zip';
 
 export interface ExtractTask {
   finalPath: string;
-  unifact: Unifact;
+  artifact: Artifact;
 }
 
 export async function extractAll(
@@ -15,9 +15,9 @@ export async function extractAll(
   vars: Record<string, string>,
 ): Promise<void> {
   const cleaned = new Set<string>();
-  for (const { finalPath, unifact } of tasks) {
-    if (!unifact.extract) continue;
-    for (const rule of unifact.extract) {
+  for (const { finalPath, artifact } of tasks) {
+    if (!artifact.extract) continue;
+    for (const rule of artifact.extract) {
       if (rule.kind === 'dump') {
         const targetDir = interpolate(rule.into, vars);
         if (rule.clean && !cleaned.has(targetDir)) {

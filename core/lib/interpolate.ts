@@ -1,10 +1,6 @@
 /**
  * Variable interpolation for ${name} placeholders.
  *
- * Two-pass resolution:
- * 1. Self-references expand against the current accumulated value.
- * 2. All forward references are resolved recursively.
- *
  * Rules:
  * - \${ is an escaped literal ${
  * - ${name} with spaces or unclosed ${ are left as-is
@@ -44,14 +40,9 @@ export function resolveVars(vars: VarMap): VarMap {
     if (template === undefined) return `\${${key}}`;
 
     resolving.add(key);
-    // Substitute any references in the template
     const result = template.replace(PLACEHOLDER, (match, name?: string) => {
       if (match === '\\${') return '${';
       if (!name) return match;
-      if (name === key) {
-        // Self-reference: use current resolved value (empty string if not yet set)
-        return resolved[key] ?? '';
-      }
       return resolve(name);
     });
     resolving.delete(key);

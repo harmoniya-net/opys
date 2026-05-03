@@ -1,68 +1,63 @@
-# unifest CLI
+# torba CLI
 
 Command-line interface for building and launching Minecraft client installations from declarative manifests.
 
 ## Install
 
 ```sh
-bun add -g @unifest/cli
+npm install -g @torba/cli
 ```
 
-Or run directly:
+Or run directly without installing:
 
 ```sh
-bunx unifest <command>
+npx @torba/cli <command>
 ```
 
 ## Commands
 
-### `unifest build`
+### `torba build`
 
-Reads a JS config file, fetches Mojang metadata, and writes a `unifest.json` manifest.
+Reads a JS config file, fetches Mojang metadata, and writes a `torba.json` manifest.
 
 ```sh
-unifest build [--input unifest.config.mjs] [--output unifest.json]
+torba build [--input torba.config.mjs] [--output torba.json]
 ```
 
 | Flag       | Short | Default                | Description                       |
 | ---------- | ----- | ---------------------- | --------------------------------- |
-| `--input`  | `-i`  | `unifest.config.mjs`   | Path to the JS config file        |
+| `--input`  | `-i`  | `torba.config.mjs`     | Path to the JS config file        |
 | `--output` | `-o`  | value from config file | Output path for the manifest JSON |
 
 If `--output` is omitted and the config has no `output` field, the manifest is written to stdout.
 
-### `unifest install`
-
-Installs all artifacts described in a manifest without launching the game.
-
-```sh
-unifest install [manifest] [--var key=value ...]
-```
-
-### `unifest launch`
+### `torba launch`
 
 Installs missing artifacts and spawns the JVM.
 
 ```sh
-unifest launch [manifest] [--var key=value ...]
+torba launch [manifest] [--var key=value ...]
 ```
 
 Common vars to pass at launch: `username`, `uuid`, `token`.
 
-## Config file (`unifest.config.mjs`)
+## Config file (`torba.config.mjs`)
 
 ```js
-import { unifestConfig } from '@unifest/core';
-import { minecraft, artifactScanner } from '@unifest/mc';
+import { defineConfig, minecraft, artifactScanner } from '@torba/minecraft';
 
-export default unifestConfig(async () => {
+export default defineConfig(async () => {
   const mc = await minecraft({ version: '1.20.1' });
 
   return {
-    output: 'unifest.json',
+    output: 'torba.json',
     artifacts: [
       mc.artifacts,
-      artifactScanner({ dir: 'mods', into: '${root}/mods' }),
+      artifactScanner({
+        directory: 'mods',
+        url: 'https://cdn.example.com/mods/${path}',
+        path: '${root}/mods/${path}',
+      }),
     ],
     vars: mc.vars,
     command: mc.command,
