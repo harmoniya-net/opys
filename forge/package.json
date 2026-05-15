@@ -1,6 +1,6 @@
 {
   "name": "@torba/forge",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "type": "module",
   "main": "./dist/index.js",
   "exports": {
@@ -13,9 +13,9 @@
     "build": "tsdown lib/index.ts --format esm,cjs --dts --clean"
   },
   "dependencies": {
-    "@torba/minecraft": "^1.0.6",
-    "@torba/mojang": "^1.0.6",
-    "@torba/core": "^1.0.6"
+    "@torba/minecraft": "^1.0.7",
+    "@torba/mojang": "^1.0.7",
+    "@torba/core": "^1.0.7"
   },
   "peerDependencies": {
     "zod": "^4.0.0"

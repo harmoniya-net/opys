@@ -1,10 +1,10 @@
 {
   "name": "@torba/mojang",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
   "peerDependencies": {
-    "@torba/core": "^1.0.6",
+    "@torba/core": "^1.0.7",
     "zod": "^4.0.0"
   },
   "exports": {
