@@ -1,6 +1,6 @@
 {
   "name": "@torba/java",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "type": "module",
   "main": "./dist/index.js",
   "exports": {
@@ -13,8 +13,8 @@
     "build": "tsdown lib/index.ts --format esm,cjs --dts --clean"
   },
   "dependencies": {
-    "@torba/core": "^1.0.7",
-    "@torba/rules": "^1.0.7"
+    "@torba/core": "^1.0.8",
+    "@torba/rules": "^1.0.8"
   },
   "peerDependencies": {
     "zod": "^4.0.0"
