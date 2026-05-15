@@ -1,6 +1,6 @@
 {
   "name": "@torba/lwjgl3ify",
-  "version": "0.0.0",
+  "version": "1.0.6",
   "type": "module",
   "main": "./dist/index.js",
   "exports": {
@@ -13,9 +13,9 @@
     "build": "tsdown lib/index.ts --format esm,cjs --dts --clean"
   },
   "dependencies": {
-    "@torba/minecraft": "^1.0.1",
-    "@torba/mojang": "^1.0.1",
-    "@torba/core": "^1.0.1"
+    "@torba/minecraft": "^1.0.6",
+    "@torba/mojang": "^1.0.6",
+    "@torba/core": "^1.0.6"
   },
   "peerDependencies": {
     "zod": "^4.0.0"

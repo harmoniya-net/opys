@@ -1,6 +1,6 @@
 {
   "name": "@torba/authliberty",
-  "version": "0.0.0",
+  "version": "1.0.6",
   "type": "module",
   "main": "./dist/index.js",
   "exports": {
@@ -13,8 +13,8 @@
     "build": "tsdown lib/index.ts --format esm,cjs --dts --clean"
   },
   "dependencies": {
-    "@torba/core": "^1.0.1",
-    "@torba/rules": "^1.0.1"
+    "@torba/core": "^1.0.6",
+    "@torba/rules": "^1.0.6"
   },
   "peerDependencies": {
     "zod": "^4.0.0"
