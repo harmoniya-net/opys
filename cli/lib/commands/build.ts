@@ -1,5 +1,6 @@
 import { writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import {
   encodeManifest,
   resolveConfig,
@@ -34,7 +35,7 @@ export async function cmdBuild(argv: string[], logger: Logger): Promise<void> {
   const absConfig = resolve(inputFile);
   const configDir = dirname(absConfig);
 
-  const mod = await import(absConfig);
+  const mod = await import(pathToFileURL(absConfig).href);
   if (!mod.default) throw new UsageError(`${inputFile}: no default export`);
 
   const config = await resolveConfig(mod.default, { mode });

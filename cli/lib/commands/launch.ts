@@ -1,4 +1,5 @@
 import { dirname, resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { install, launch, type InstallProgress } from '@torba/installer';
 import type { Manifest, ArtifactIterable, Artifact } from '@torba/core';
 import { resolveConfig, validateManifest } from '@torba/core';
@@ -36,7 +37,7 @@ export async function cmdLaunch(argv: string[], logger: Logger): Promise<void> {
   const absConfig = resolve(inputFile);
   const configDir = dirname(absConfig);
 
-  const mod = await import(absConfig);
+  const mod = await import(pathToFileURL(absConfig).href);
   if (!mod.default) throw new UsageError(`${inputFile}: no default export`);
   const config = await resolveConfig(mod.default, { mode });
   const vars = { ...config.runClient?.vars, ...extraVars };
