@@ -1,0 +1,30 @@
+{
+  "name": "@torba/cleanroom",
+  "version": "0.0.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "scripts": {
+    "build": "tsdown lib/index.ts --format esm,cjs --dts --clean"
+  },
+  "dependencies": {
+    "@torba/minecraft": "^1.0.1",
+    "@torba/mojang": "^1.0.1",
+    "@torba/core": "^1.0.1",
+    "fflate": "^0.8.2"
+  },
+  "peerDependencies": {
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "tsdown": "*"
+  },
+  "files": [
+    "dist"
+  ]
+}

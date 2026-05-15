@@ -104,14 +104,18 @@ Used as the default export in `torba.config.mjs`:
 import { defineConfig } from '@torba/core';
 
 export default defineConfig({
-  artifacts: [...],
-  vars: [...],
-  command: { ... },
   output: 'torba.json',
+  manifest: {
+    artifacts: [...],
+    vars: [...],
+    launch: { ... },
+  },
 });
 
 // Or as a function for context-aware configs
 export default defineConfig((ctx) => ({
-  artifacts: ctx.mode === 'build' ? [...] : [],
+  manifest: {
+    artifacts: ctx.mode === 'build' ? [...] : [],
+  },
 }));
 ```

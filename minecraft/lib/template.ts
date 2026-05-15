@@ -1,4 +1,9 @@
-import type { Artifact, ValDefs, Launch } from '@torba/core';
+import {
+  fetchWithRetry,
+  type Artifact,
+  type ValDefs,
+  type Launch,
+} from '@torba/core';
 import {
   type Client,
   fetchAssetManifest,
@@ -7,7 +12,13 @@ import {
   findVersion,
   type Version,
 } from '@torba/mojang';
-import { allowOsRuleset, type OsOptions, parseValset } from '@torba/rules';
+import {
+  allowOsRuleset,
+  type OsOptions,
+  parseValset,
+  type Val,
+  type Valset,
+} from '@torba/rules';
 import { mapLibraries, libraryToArtifact } from './mappers/libraries';
 import { mapAssetIndex, mapAssetObjects } from './mappers/assets';
 import { mapClientJar } from './mappers/client';
@@ -16,10 +27,17 @@ import { buildClasspath, buildLaunch } from './mappers/launch';
 export interface MinecraftTemplate {
   artifacts: Artifact[];
   vars: ValDefs;
-  command: Launch;
+  /** Assembled Launch — drop straight into `manifest.launch`. */
+  launch: Launch;
+  /** JVM args alone, for composition (e.g. interleaving authliberty's `-javaagent`). */
+  jvmArgs: Valset;
+  /** Main class wrapped as a `Val` so it spreads into a `Valset`. Raw string at `mainClass.value[0]`. */
+  mainClass: Val;
+  /** Game args alone, for composition. */
+  gameArgs: Valset;
 }
 
-export async function minecraft(config?: {
+export async function resolveMinecraft(config?: {
   version?: string;
 }): Promise<MinecraftTemplate> {
   return minecraftTemplate(config?.version);
@@ -33,7 +51,7 @@ export async function minecraftTemplate(
     ? findVersion(manifest, versionId)
     : latestRelease(manifest);
   if (!version) throw new Error(`Version '${versionId ?? 'latest'}' not found`);
-  const res = await fetch(version.url);
+  const res = await fetchWithRetry(version.url);
   if (!res.ok)
     throw new Error(`Failed to fetch version JSON: ${res.statusText}`);
   const { parseClient } = await import('@torba/mojang');
@@ -49,7 +67,7 @@ export async function fetchClient(
     ? findVersion(manifest, versionId)
     : latestRelease(manifest);
   if (!version) throw new Error(`Version '${versionId ?? 'latest'}' not found`);
-  const res = await fetch(version.url);
+  const res = await fetchWithRetry(version.url);
   if (!res.ok)
     throw new Error(`Failed to fetch version JSON: ${res.statusText}`);
   const { parseClient } = await import('@torba/mojang');
@@ -103,13 +121,17 @@ export async function clientToTemplate(
       { value: ':', rules: allowOsRuleset('osx') },
     ],
     classpath: classpathEntries,
+    // Default to PATH-resolved `java`. Override `java_home` / `java_bin`
+    // (e.g. via @torba/java) to pin a specific runtime.
+    java_home: '',
+    java_bin: 'java',
   };
 
-  const launch = buildLaunch(
+  const parts = buildLaunch(
     client.mainClass,
     client.args.game,
     client.args.jvm,
   );
 
-  return { artifacts: artifacts, vars, command: launch };
+  return { artifacts, vars, ...parts };
 }

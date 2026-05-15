@@ -15,16 +15,18 @@ interface TemplateInputs {
 }
 
 function vanillaTemplate({ name, version }: TemplateInputs): string {
-  return `import { defineConfig, minecraft, userDataDir } from '@torba/minecraft';
+  return `import { defineConfig, resolveMinecraft, userDataDir } from '@torba/minecraft';
 
 export default defineConfig(async () => {
-  const mc = await minecraft({ version: '${version}' });
+  const mc = await resolveMinecraft({ version: '${version}' });
 
   return {
     output: 'torba.json',
-    artifacts: [mc.artifacts],
-    vars: mc.vars,
-    command: mc.command,
+    manifest: {
+      artifacts: [mc.artifacts],
+      vars: mc.vars,
+      launch: mc.launch,
+    },
     runClient: {
       vars: {
         root: userDataDir('${name}'),
@@ -40,19 +42,21 @@ export default defineConfig(async () => {
 
 function forgeTemplate({ name, version }: TemplateInputs): string {
   return `import { defineConfig, userDataDir } from '@torba/minecraft';
-import { forge } from '@torba/forge';
+import { resolveForge } from '@torba/forge';
 
 export default defineConfig(async () => {
-  const fr = await forge({
+  const fr = await resolveForge({
     version: '${version}',
     manifest: './forge-manifest.json', // path to the forge version JSON on disk
   });
 
   return {
     output: 'torba.json',
-    artifacts: [fr.artifacts],
-    vars: fr.vars,
-    command: fr.command,
+    manifest: {
+      artifacts: [fr.artifacts],
+      vars: fr.vars,
+      launch: fr.launch,
+    },
     runClient: {
       vars: {
         root: userDataDir('${name}'),

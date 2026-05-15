@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { fetchWithRetry } from '@torba/core';
 
 export interface AssetObject {
   readonly hash: string;
@@ -41,7 +42,7 @@ export const assetPath = (hash: string): string =>
 
 /** Fetch and parse the asset manifest from the given URL. Throws on HTTP error. */
 export async function fetchAssetManifest(url: string): Promise<AssetManifest> {
-  const res = await fetch(url);
+  const res = await fetchWithRetry(url);
   if (!res.ok) {
     throw new Error(`Failed to fetch asset manifest ${url}: ${res.statusText}`);
   }

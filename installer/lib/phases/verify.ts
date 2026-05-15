@@ -5,7 +5,7 @@ import { integrityHashes } from '@torba/core';
 
 async function checkHash(
   path: string,
-  algo: 'sha1' | 'sha256',
+  algo: 'sha1' | 'sha256' | 'md5',
   expected: string,
 ): Promise<boolean> {
   const hash = createHash(algo);
@@ -27,6 +27,10 @@ export function verifyIntegrity(
       }
       if ('sha256' in e) {
         const ok = await checkHash(path, 'sha256', e.sha256);
+        if (ok) return true;
+      }
+      if ('md5' in e) {
+        const ok = await checkHash(path, 'md5', e.md5);
         if (ok) return true;
       }
       return false;

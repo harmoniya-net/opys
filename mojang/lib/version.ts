@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { fetchWithRetry } from '@torba/core';
 
 export class VersionFetchError extends Error {
   readonly kind = 'version-fetch' as const;
@@ -40,7 +41,7 @@ export interface VersionManifest {
 export async function fetchVersionManifest(
   url = VERSION_MANIFEST_URL,
 ): Promise<VersionManifest> {
-  const response = await fetch(url);
+  const response = await fetchWithRetry(url);
   if (!response.ok) {
     throw new VersionFetchError(
       url,

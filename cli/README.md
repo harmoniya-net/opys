@@ -44,23 +44,29 @@ Common vars to pass at launch: `username`, `uuid`, `token`.
 ## Config file (`torba.config.mjs`)
 
 ```js
-import { defineConfig, minecraft, artifactScanner } from '@torba/minecraft';
+import {
+  defineConfig,
+  resolveMinecraft,
+  artifactScanner,
+} from '@torba/minecraft';
 
 export default defineConfig(async () => {
-  const mc = await minecraft({ version: '1.20.1' });
+  const mc = await resolveMinecraft({ version: '1.20.1' });
 
   return {
     output: 'torba.json',
-    artifacts: [
-      mc.artifacts,
-      artifactScanner({
-        directory: 'mods',
-        url: 'https://cdn.example.com/mods/${path}',
-        path: '${root}/mods/${path}',
-      }),
-    ],
-    vars: mc.vars,
-    command: mc.command,
+    manifest: {
+      artifacts: [
+        mc.artifacts,
+        artifactScanner({
+          directory: 'mods',
+          url: 'https://cdn.example.com/mods/${path}',
+          path: '${root}/mods/${path}',
+        }),
+      ],
+      vars: mc.vars,
+      launch: mc.launch,
+    },
   };
 });
 ```

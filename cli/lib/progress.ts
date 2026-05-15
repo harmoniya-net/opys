@@ -39,7 +39,7 @@ function formatBytes(bytes: number): string {
   return `${bytes} B`;
 }
 
-function basename(path: string): string {
+export function basename(path: string): string {
   return path.replace(/\\/g, '/').split('/').at(-1) ?? path;
 }
 

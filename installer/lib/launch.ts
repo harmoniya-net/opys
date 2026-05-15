@@ -15,6 +15,8 @@ import { currentPlatform } from './platform';
 export interface LaunchOptions {
   platform?: OsOptions;
   vars?: Record<string, string>;
+  /** Override the manifest's `command.workdir`. Interpolated with vars. */
+  cwd?: string;
   install?: InstallOptions | false;
   log?: (level: 'debug' | 'warn', msg: string) => void;
 }
@@ -38,7 +40,7 @@ export async function launch(
   const vars = resolveVars(flatVars);
 
   const command = interpolate(config.command, vars);
-  const workdir = interpolate(config.workdir, vars);
+  const workdir = interpolate(options.cwd ?? config.workdir, vars);
   const args = resolvedArgs(config, platform).map((a) => interpolate(a, vars));
   const rawEnvs = resolvedEnvs(config, platform);
   const envs: Record<string, string> = {};

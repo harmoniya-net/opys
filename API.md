@@ -35,7 +35,7 @@ The config function reads `mode` and chooses sources accordingly. Nothing in the
 
 ### Install pipeline (`@torba/installer`)
 
-`resolveManifest` → `scan` (filter by platform/rules, decide what's missing) → `fetchAll` (parallel, default `concurrency: 8`; streams to `<finalPath>.partial` then renames atomically) → `verifyAll` (sha1/sha256, single attempt; on mismatch throws `IntegrityError`) → `extractAll` (only for newly fetched, archive-typed artifacts).
+`resolveManifest` → `scan` (filter by platform/rules, decide what's missing) → `fetchAll` (parallel, default `concurrency: 8`; streams to `<finalPath>.partial` then renames atomically) → `verifyAll` (sha1/sha256/md5, single attempt; on mismatch throws `IntegrityError`) → `extractAll` (only for newly fetched, archive-typed artifacts).
 
 Progress events emitted via `onProgress`:
 
@@ -73,7 +73,11 @@ Identity helper for type inference. Accepts a config object or a function `(ctx)
 ```ts
 export default defineConfig(async ({ mode }) => {
   // ...
-  return { output, artifacts, vars, command, runClient };
+  return {
+    output,
+    manifest: { artifacts, vars, launch },
+    runClient,
+  };
 });
 ```
 
@@ -93,10 +97,18 @@ Authors branch on `mode` to pick `source: 'url'` vs `source: 'file'` for `artifa
 ```ts
 interface TorbaConfig {
   output?: string; // default manifest output path (relative to config dir)
+  manifest?: TorbaManifestConfig;
+  runClient?: {
+    workdir?: string; // cwd for the launched process; overrides `manifest.launch.workdir`
+    vars?: Record<string, string>; // defaults for `torba launch --var`
+  };
+}
+
+interface TorbaManifestConfig {
   artifacts?: ArtifactIterable[]; // each entry drained in order; last-wins dedup by path
   vars?: ValDefs; // record of vars; supports OS rule arms
-  command?: Launch; // launch command/workdir/args/envs
-  runClient?: { vars?: Record<string, string> }; // defaults for `torba launch --var`
+  launch?: Launch; // launch command/workdir/args/envs
+  restrict?: string[]; // globs whose matching files must be in artifacts[]; orphans swept after install
 }
 
 type ArtifactIterable = Iterable<Artifact> | AsyncIterable<Artifact>;
@@ -128,7 +140,7 @@ Composition is plain JS — `{ ...mc.vars, classpath: forgeClasspath }` to overr
 Factory functions exported from `@torba/core`:
 
 - **Source**: `sourceUrl(url)`, `sourceFile(path)`, `sourceString(s)`
-- **Integrity**: bare `{ sha1 }` / `{ sha256 }`, or an array of those. Omit the field to skip verification.
+- **Integrity**: bare `{ sha1 }` / `{ sha256 }` / `{ md5 }`, or an array of those. Omit the field to skip verification.
 - **Extract**: `extractPick(file, into)`, `extractScan(matches, into, opts?)`, `extractDump(into, opts?)`
 
 An `Artifact` is:
@@ -144,17 +156,17 @@ interface Artifact {
   extract?: ExtractRule[]; // pick | scan | dump
 }
 
-type HashEntry = { sha1: string } | { sha256: string };
+type HashEntry = { sha1: string } | { sha256: string } | { md5: string };
 ```
 
 ### Author-supplied artifact streams
 
-`@torba/minecraft` and `@torba/forge` expose template builders that return `{ artifacts, vars, command }`:
+`@torba/minecraft` and `@torba/forge` expose template builders that return `{ artifacts, vars, launch, jvmArgs, mainClass, gameArgs }`:
 
 - **`minecraft({ version? })`** / **`minecraftTemplate(versionId?)`** — vanilla Mojang client + libraries + assets
 - **`fetchClient(versionId?)`** — `{ version, client }` for lower-level use
 - **`clientToTemplate(client)`** — convert a parsed Mojang `Client`
-- **`forge({ version, manifest })`** — vanilla MC + Forge mod loader, with classpath/module-path separation
+- **`forge({ version, source?, forgeWrapper? })`** — Forge support. Resolves a Forge build via fuckforge (`version` accepts `'1.20.1'`, `'1.20.1-latest|recommended|best'`, or a full build ID like `'1.20.1-47.4.20'`) and branches on the build's era. Processor era (1.13+) emits vanilla MC + Forge runtime libs + installer + ForgeWrapper, and patched/SRG/extra jars are produced on-device on first launch by ForgeWrapper. Legacy era (1.7–1.12) emits vanilla MC + Forge runtime libs (Forge universal included) and launches via `net.minecraft.launchwrapper.Launch`; no installer, no ForgeWrapper. Pre-1.7 (`jarmod`/`ancient`) eras are not yet supported and throw a clear error. No EULA-restricted bytes are redistributed in any era.
 - **`artifactScanner({ directory, url, path?, hash?, source?, overrides? })`** — async generator over a directory tree
   - `url` — fetch URL template (supports `${path}`, `${dir}`, `${filename}` placeholders)
   - `path` — destination path template, parallel to `url`. Defaults to `${path}` (file's relative path)
@@ -165,22 +177,21 @@ Standard config pattern:
 
 ```js
 export default defineConfig(async ({ mode }) => {
-  const fr = await forge({
-    version: '1.20.1',
-    manifest: '/path/to/forge.json',
-  });
+  const fr = await resolveForge({ version: '1.20.1' });
   return {
     output: 'torba.json',
-    artifacts: [
-      fr.artifacts,
-      artifactScanner({
-        directory: './mods',
-        url: 'https://cdn/...',
-        source: mode === 'launch' ? 'file' : 'url',
-      }),
-    ],
-    vars: fr.vars,
-    command: fr.command,
+    manifest: {
+      artifacts: [
+        fr.artifacts,
+        artifactScanner({
+          directory: './mods',
+          url: 'https://cdn/...',
+          source: mode === 'launch' ? 'file' : 'url',
+        }),
+      ],
+      vars: fr.vars,
+      launch: fr.launch,
+    },
     runClient: { vars: { root, username: 'Player', uuid: '', token: '' } },
   };
 });
@@ -209,6 +220,7 @@ interface InstallOptions {
 interface LaunchOptions {
   platform?: OsOptions;
   vars?: Record<string, string>;
+  cwd?: string;                       // overrides manifest's `launch.workdir`; vars-interpolated
   install?: InstallOptions | false;
   log?: (level: 'debug' | 'warn', msg: string) => void;
 }
@@ -222,11 +234,13 @@ Integrity failure is fatal on first occurrence — no retry/redownload loop. If 
 
 - `Manifest`, `ManifestSchema`, `parseManifest` (JSON only), `encodeManifest`
 - `filterManifest(u, os, feats?)`
+- `validateManifest(u)` — surfaces config typos (undefined args, malformed envs) before they reach the rules engine
 - `Artifact`, `ArtifactSchema`, `encodeArtifact`, `deduplicateArtifacts`, `artifactApplies`
 - Subtypes: `Source`, `Integrity`/`HashEntry`, `ExtractRule` (`Pick`/`Scan`/`Dump`), `Launch`, `ValDefs`/`ConditionalVal`
 - Vars: `parseValDefs`, `encodeValDefs`, `resolveValDefs`, `integrityHashes`
 - Interpolation: `resolveVars(map)` (two-pass; throws on cycles), `interpolate(template, vars)`
 - Launch: `parseLaunch`, `encodeLaunch`, `LaunchSchema`, `resolvedArgs`, `resolvedEnvs`
+- Restrict: `Manifest.restrict?: string[]` — globs (with `${var}` interpolation) for directories whose files must come from `artifacts[]`. After install + extract, orphans are swept and empty subdirs pruned. Glob syntax: `*`, `**`, `?`, `{a,b}`. Auto-ignores `.torba-extracted` markers and `.cache/` archive dirs.
 
 ## Other packages
 

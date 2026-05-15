@@ -1,7 +1,7 @@
 import { dirname, resolve } from 'node:path';
 import { install, launch, type InstallProgress } from '@torba/installer';
 import type { Manifest, ArtifactIterable, Artifact } from '@torba/core';
-import { resolveConfig } from '@torba/core';
+import { resolveConfig, validateManifest } from '@torba/core';
 import type { ManifestSource } from '@torba/installer';
 import { parseArgs } from '../args';
 import { UsageError } from '../errors';
@@ -10,6 +10,7 @@ import {
   ProgressWriter,
   initialProgress,
   elapsed,
+  basename,
 } from '../progress';
 import type { Logger } from '../logger';
 
@@ -41,15 +42,19 @@ export async function cmdLaunch(argv: string[], logger: Logger): Promise<void> {
   const vars = { ...config.runClient?.vars, ...extraVars };
 
   let manifestSource: ManifestSource;
-  if (config.artifacts?.length) {
+  if (config.manifest?.artifacts?.length) {
     logger.info('Building manifest...');
-    const artifacts = await collectArtifacts(config.artifacts);
+    const artifacts = await collectArtifacts(config.manifest.artifacts);
     logger.debug(`Collected ${artifacts.length} artifacts`);
     const manifest: Manifest = {
-      vars: config.vars ?? {},
-      launch: config.command,
+      vars: config.manifest.vars ?? {},
+      launch: config.manifest.launch,
       artifacts: artifacts,
+      ...(config.manifest.restrict
+        ? { restrict: config.manifest.restrict }
+        : {}),
     };
+    validateManifest(manifest);
     manifestSource = manifest;
   } else {
     if (!config.output) throw new UsageError('config.output required');
@@ -61,18 +66,45 @@ export async function cmdLaunch(argv: string[], logger: Logger): Promise<void> {
   logger.setProgressWriter(pw);
   logger.info('Installing...');
 
+  const active = new Map<
+    string,
+    { name: string; bytes: number; total: number }
+  >();
+  const state = initialProgress(0, t0);
+  let lastRender = 0;
+  const render = (force = false) => {
+    const now = Date.now();
+    if (!force && now - lastRender < 80) return;
+    lastRender = now;
+    state.active = [...active.values()];
+    pw.update(renderProgress(state));
+  };
+
   await install(manifestSource, {
     vars,
     onProgress(p: InstallProgress) {
       switch (p.phase) {
-        case 'download': {
-          if (p.fetched > 0) {
-            const state = initialProgress(p.total, t0);
-            state.fetched = p.fetched;
-            pw.update(renderProgress(state));
+        case 'download':
+          state.total = p.total;
+          state.fetched = p.fetched;
+          render(true);
+          break;
+        case 'download:start':
+          active.set(p.path, { name: p.path, bytes: 0, total: p.total });
+          render();
+          break;
+        case 'download:bytes': {
+          const entry = active.get(p.path);
+          if (entry) {
+            entry.bytes = p.bytes;
+            render();
           }
           break;
         }
+        case 'download:done':
+          active.delete(p.path);
+          pw.log(`  ✓ ${basename(p.path)}`);
+          break;
         case 'verify':
           pw.finish();
           pw.log(' Verifying...');
@@ -81,6 +113,9 @@ export async function cmdLaunch(argv: string[], logger: Logger): Promise<void> {
           pw.log(
             ` Extracting ${p.count} archive${p.count === 1 ? '' : 's'}...`,
           );
+          break;
+        case 'sweep':
+          pw.log(` Swept ${p.removed} stale file${p.removed === 1 ? '' : 's'}`);
           break;
       }
     },
@@ -91,6 +126,7 @@ export async function cmdLaunch(argv: string[], logger: Logger): Promise<void> {
   logger.info('Launching...');
   const child = await launch(manifestSource, {
     vars,
+    cwd: config.runClient?.dir,
     install: false,
     log: logger.installerLog(),
   });

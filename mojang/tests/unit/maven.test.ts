@@ -43,6 +43,17 @@ describe('parseMaven / encodeMaven', () => {
       isNativeMaven(parseMaven('org.lwjgl:lwjgl:3.3.1:natives-linux')),
     ).toBe(true);
     expect(isNativeMaven(parseMaven('org.lwjgl:lwjgl:3.3.1'))).toBe(false);
+    // Non-native libraries with "native" in the artifactId must not be
+    // classified as natives — otherwise their whole jar gets dumped into
+    // the natives directory and wipes real LWJGL .so files.
+    expect(
+      isNativeMaven(
+        parseMaven('io.netty:netty-transport-native-unix-common:4.1.97.Final'),
+      ),
+    ).toBe(false);
+    expect(isNativeMaven(parseMaven('org.jline:jline-native:3.21.0'))).toBe(
+      false,
+    );
   });
 
   test('invalid format throws', () => {

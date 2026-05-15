@@ -1,10 +1,28 @@
-import type { Valset, OsOptions } from '@torba/rules';
+import type { Val, Valset, OsOptions } from '@torba/rules';
 import { parseValset, resolveValset, allowOsRuleset } from '@torba/rules';
 import type { MojangArgValue } from '@torba/mojang';
 import type { Launch, ConditionalVal } from '@torba/core';
 
 export function mojangArgsToValset(args: MojangArgValue[]): Valset {
   return parseValset(args as unknown[]);
+}
+
+/**
+ * Decomposed parts of a Minecraft `Launch` config. `launch` is the
+ * assembled `Launch` (drop straight into `manifest.launch`); the
+ * remaining fields expose the JVM args, main class, and game args
+ * separately so callers can interleave their own JVM args (e.g. from
+ * `@torba/authliberty`) before the main class.
+ *
+ * `mainClass` is exposed as a `Val` so it slots directly into a
+ * `Valset` between `jvmArgs` and `gameArgs`. Use `mainClass.value[0]`
+ * for the raw class name.
+ */
+export interface LaunchParts {
+  launch: Launch;
+  jvmArgs: Valset;
+  mainClass: Val;
+  gameArgs: Valset;
 }
 
 export function buildClasspath(
@@ -47,14 +65,17 @@ export function buildLaunch(
   mainClass: string,
   gameArgs: MojangArgValue[],
   jvmArgs: MojangArgValue[],
-): Launch {
-  const allArgs = [...jvmArgs, mainClass, ...gameArgs];
-  return {
-    command: 'java',
+): LaunchParts {
+  const jvm = mojangArgsToValset(jvmArgs);
+  const game = mojangArgsToValset(gameArgs);
+  const main: Val = { rules: [], value: [mainClass] };
+  const launch: Launch = {
+    command: '${java_bin}',
     workdir: './',
-    args: mojangArgsToValset(allArgs),
+    args: [...jvm, main, ...game],
     envs: {},
   };
+  return { launch, jvmArgs: jvm, mainClass: main, gameArgs: game };
 }
 
 export function resolveLaunchArgs(

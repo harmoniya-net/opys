@@ -115,11 +115,19 @@ main().catch((err) => {
       process.stderr.write(`  caused by: ${err.cause.message}\n`);
     process.exit(4);
   }
-  // Fallback — unexpected internal error
+  // Fallback — unexpected internal error. Include the full stack so we
+  // can pinpoint torba bugs vs config issues without needing to re-run
+  // under a debugger. Set TORBA_QUIET=1 to suppress the stack.
   const msg = err instanceof Error ? err.message : String(err);
   process.stderr.write(`Unexpected error: ${msg}\n`);
   if (err instanceof Error && err.cause instanceof Error) {
     process.stderr.write(`  caused by: ${err.cause.message}\n`);
+    if (err.cause.stack && !process.env.TORBA_QUIET) {
+      process.stderr.write(`${err.cause.stack}\n`);
+    }
+  }
+  if (err instanceof Error && err.stack && !process.env.TORBA_QUIET) {
+    process.stderr.write(`${err.stack}\n`);
   }
   process.exit(1);
 });

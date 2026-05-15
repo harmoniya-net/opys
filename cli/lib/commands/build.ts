@@ -4,6 +4,7 @@ import {
   encodeManifest,
   resolveConfig,
   deduplicateArtifacts,
+  validateManifest,
   type Artifact,
   type ArtifactIterable,
 } from '@torba/core';
@@ -39,14 +40,18 @@ export async function cmdBuild(argv: string[], logger: Logger): Promise<void> {
   const config = await resolveConfig(mod.default, { mode });
   logger.info('Building manifest...');
 
-  const artifacts = await collectArtifacts(config.artifacts ?? []);
+  const artifacts = await collectArtifacts(config.manifest?.artifacts ?? []);
   logger.debug(`Collected ${artifacts.length} artifacts`);
 
   const manifest = {
-    vars: config.vars ?? {},
-    launch: config.command,
+    vars: config.manifest?.vars ?? {},
+    launch: config.manifest?.launch,
     artifacts: artifacts,
+    ...(config.manifest?.restrict
+      ? { restrict: config.manifest.restrict }
+      : {}),
   };
+  validateManifest(manifest);
   const json = JSON.stringify(encodeManifest(manifest), null, 2) + '\n';
 
   const out = outputFile ?? config.output;

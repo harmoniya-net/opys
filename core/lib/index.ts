@@ -7,3 +7,4 @@ export * from './launch';
 export * from './artifact';
 export * from './manifest';
 export * from './config';
+export * from './fetch';

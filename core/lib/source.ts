@@ -3,19 +3,22 @@ import { z } from 'zod';
 export type Source =
   | { readonly kind: 'url'; readonly url: string }
   | { readonly kind: 'file'; readonly file: string }
-  | { readonly kind: 'string'; readonly string: string };
+  | { readonly kind: 'string'; readonly string: string }
+  | { readonly kind: 'bytes'; readonly bytes: string };
 
 const SourceRawSchema = z.union([
   z.object({ url: z.string() }),
   z.object({ file: z.string() }),
   z.object({ string: z.string() }),
+  z.object({ bytes: z.string() }),
 ]);
 
 export const SourceSchema: z.ZodType<Source> = SourceRawSchema.transform(
   (raw): Source => {
     if ('url' in raw) return { kind: 'url', url: raw.url };
     if ('file' in raw) return { kind: 'file', file: raw.file };
-    return { kind: 'string', string: raw.string };
+    if ('string' in raw) return { kind: 'string', string: raw.string };
+    return { kind: 'bytes', bytes: raw.bytes };
   },
 ) as unknown as z.ZodType<Source>;
 
@@ -31,6 +34,10 @@ export const sourceString = (string: string): Source => ({
   kind: 'string',
   string,
 });
+export const sourceBytes = (bytes: Uint8Array): Source => ({
+  kind: 'bytes',
+  bytes: Buffer.from(bytes).toString('base64'),
+});
 
 // Type guards
 export const isSourceUrl = (s: Source): s is Extract<Source, { kind: 'url' }> =>
@@ -41,3 +48,6 @@ export const isSourceFile = (
 export const isSourceString = (
   s: Source,
 ): s is Extract<Source, { kind: 'string' }> => s.kind === 'string';
+export const isSourceBytes = (
+  s: Source,
+): s is Extract<Source, { kind: 'bytes' }> => s.kind === 'bytes';

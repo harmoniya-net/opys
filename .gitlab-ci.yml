@@ -20,7 +20,6 @@ cache:
 stages:
   - install
   - build
-  - publish
 
 # ── install ────────────────────────────────────────────────────────────────────
 
@@ -54,21 +53,3 @@ build:
       - forge/dist/
       - installer/dist/
       - cli/dist/
-
-# ── publish ────────────────────────────────────────────────────────────────────
-
-publish:
-  stage: publish
-  needs: [build]
-  rules:
-    - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+/
-  script:
-    # Auth: use CI_JOB_TOKEN for the GitLab package registry
-    - |
-      echo "@unifest:registry=https://${CI_SERVER_HOST}/api/v4/projects/${CI_PROJECT_ID}/packages/npm/" >> .npmrc
-      echo "//${CI_SERVER_HOST}/api/v4/projects/${CI_PROJECT_ID}/packages/npm/:_authToken=${CI_JOB_TOKEN}" >> .npmrc
-    # Stamp version from tag across all workspaces (private ones are skipped at publish)
-    - |
-      VERSION="${CI_COMMIT_TAG#v}"
-      npm version "$VERSION" --workspaces --no-git-tag-version
-    - npm publish --workspaces

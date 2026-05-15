@@ -1,10 +1,9 @@
 export {
-  curseforge,
+  resolveCurseforge,
   type CurseForgeOptions,
-  type CurseForgeFile,
   type CurseForgeFileInfo,
+  type CurseForgeFileRef,
   type CurseForgePath,
-  type CurseForgeTemplate,
 } from './template';
 export {
   parseCurseForgeManifest,

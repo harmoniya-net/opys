@@ -3,7 +3,7 @@ import { existsSync } from 'node:fs';
 import { mkdtemp, readdir, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { minecraft } from '@torba/minecraft';
+import { resolveMinecraft } from '@torba/minecraft';
 import { Manifest } from '@torba/core';
 import { install } from '../../lib/install';
 
@@ -19,12 +19,12 @@ describe.skip('Full Minecraft template installation', () => {
   });
 
   test(
-    'minecraft() → install() downloads and verifies all artifacts',
+    'resolveMinecraft() → install() downloads and verifies all artifacts',
     async () => {
       tmpRoot = await mkdtemp(join(tmpdir(), 'unipack-int-'));
 
-      const mc = await minecraft({ version: VERSION });
-      const manifest = new Manifest(mc.vars, mc.command, mc.artifacts);
+      const mc = await resolveMinecraft({ version: VERSION });
+      const manifest = new Manifest(mc.vars, mc.launch, mc.artifacts);
 
       const phases: string[] = [];
       let downloadTotal = 0;
@@ -92,8 +92,8 @@ describe.skip('Full Minecraft template installation', () => {
     // tmpRoot is already populated by the previous test
     expect(tmpRoot).toBeTruthy();
 
-    const mc = await minecraft({ version: VERSION });
-    const manifest = new Manifest(mc.vars, mc.command, mc.artifacts);
+    const mc = await resolveMinecraft({ version: VERSION });
+    const manifest = new Manifest(mc.vars, mc.launch, mc.artifacts);
 
     let downloadTotal = 0;
     let skipped = 0;
@@ -116,8 +116,8 @@ describe.skip('Full Minecraft template installation', () => {
   test('integrity verification passes on all installed files', async () => {
     expect(tmpRoot).toBeTruthy();
 
-    const mc = await minecraft({ version: VERSION });
-    const manifest = new Manifest(mc.vars, mc.command, mc.artifacts);
+    const mc = await resolveMinecraft({ version: VERSION });
+    const manifest = new Manifest(mc.vars, mc.launch, mc.artifacts);
 
     // Should not throw — all files already on disk and intact
     await expect(

@@ -4,6 +4,7 @@
   "main": "./dist/index.js",
   "module": "./dist/index.js",
   "peerDependencies": {
+    "@torba/core": "*",
     "zod": "^4.0.0"
   },
   "exports": {

@@ -10,20 +10,23 @@ npm install @torba/minecraft @torba/core @torba/rules zod
 
 ## API
 
-### `minecraft(options?)`
+### `resolveMinecraft(options?)`
 
 Fetches the Mojang version manifest and a specific version (or latest), then returns a `MinecraftTemplate` ready to be merged into a Manifest config.
 
 ```ts
-import { minecraft } from '@torba/minecraft';
+import { resolveMinecraft } from '@torba/minecraft';
 
-const template = await minecraft({ version: '1.20.1' });
+const template = await resolveMinecraft({ version: '1.20.1' });
 // or omit version for latest release
-const template = await minecraft();
+const template = await resolveMinecraft();
 
 template.artifacts; // Artifact[] — client jar, libraries, asset index, asset objects
 template.vars; // ValDefs — all interpolation variables
-template.command; // Launch — main class + args
+template.launch; // Launch — assembled (main class + args), drop into manifest.launch
+template.jvmArgs; // Valset — JVM args alone, for composition
+template.mainClass; // Val — main class wrapped (raw at .value[0])
+template.gameArgs; // Valset — game args alone, for composition
 ```
 
 ### `clientToTemplate(client)`

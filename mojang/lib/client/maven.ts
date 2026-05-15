@@ -43,9 +43,7 @@ export function encodeMaven(c: MavenCoord): string {
 }
 
 export function isNativeMaven(c: MavenCoord): boolean {
-  return !!(
-    c.classifier?.includes('native') || c.artifactId.includes('native')
-  );
+  return !!c.classifier?.startsWith('natives');
 }
 
 export const MavenSchema = z.string().transform(parseMaven);

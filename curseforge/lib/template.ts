@@ -1,5 +1,5 @@
 import type { Artifact, HashEntry } from '@torba/core';
-import { sourceUrl } from '@torba/core';
+import { sourceUrl, fetchWithRetry } from '@torba/core';
 
 const CURSEFORGE_API = 'https://api.curseforge.com/v1';
 const FILES_BATCH_SIZE = 200;
@@ -14,7 +14,7 @@ interface CFFile {
   downloadUrl: string | null;
 }
 
-/** Info passed to the per-file `path` callback. */
+/** Info passed to the `path` callback. */
 export interface CurseForgeFileInfo {
   /** Original filename as published on CurseForge, e.g. `jei-1.20.1-forge-15.21.1.5.jar`. */
   filename: string;
@@ -28,27 +28,28 @@ export interface CurseForgeFileInfo {
 
 export type CurseForgePath = (info: CurseForgeFileInfo) => string;
 
-export interface CurseForgeFile {
-  /** CurseForge file ID. */
-  fileId: number;
-  /** Install path for this file. May include torba install-time vars like `${root}`. */
-  path: CurseForgePath;
-}
+/**
+ * A CurseForge file reference. Either a numeric file ID, or the file's
+ * CurseForge URL (`https://www.curseforge.com/<...>/files/<id>`) — the
+ * trailing numeric segment is parsed out so configs can paste links
+ * verbatim.
+ */
+export type CurseForgeFileRef = number | string;
 
 export interface CurseForgeOptions {
   /**
-   * CurseForge API key. Create one at https://console.curseforge.com/#/api-keys.
-   * Used at build time only — the artifact URLs are public CDN links and
-   * downloads do not require the key.
+   * Install path callback, invoked once per file. May return a string
+   * containing torba install-time vars like `${root}` or
+   * `${game_directory}` — they get interpolated at install time.
    */
-  key: string;
-  /** Files to install. */
-  files: CurseForgeFile[];
-}
-
-export interface CurseForgeTemplate {
-  /** One artifact per resolved file, in the order given by `files`. */
-  artifacts: Artifact[];
+  path: CurseForgePath;
+  /**
+   * CurseForge API key (https://console.curseforge.com/#/api-keys).
+   * Consumed only at build time — the artifact URLs are public CDN
+   * links, so end users running `torba launch` against a built manifest
+   * do not need a key.
+   */
+  token: string;
 }
 
 /** Fallback CDN URL used when CurseForge omits `downloadUrl`. */
@@ -62,14 +63,30 @@ function pickSha1(file: CFFile): string | undefined {
   return file.hashes.find((h) => h.algo === 1)?.value;
 }
 
-async function fetchFiles(key: string, fileIds: number[]): Promise<CFFile[]> {
+/**
+ * Coerce a `CurseForgeFileRef` into a numeric file ID. Numbers pass through;
+ * strings must contain a `/files/<digits>` segment (the standard CurseForge
+ * file URL shape).
+ */
+function parseFileRef(ref: CurseForgeFileRef): number {
+  if (typeof ref === 'number') return ref;
+  const match = ref.match(/\/files\/(\d+)/);
+  if (!match) {
+    throw new Error(
+      `CurseForge file ref "${ref}" does not contain "/files/<id>" — expected a numeric ID or a CurseForge file URL.`,
+    );
+  }
+  return Number(match[1]);
+}
+
+async function fetchFiles(token: string, fileIds: number[]): Promise<CFFile[]> {
   const out: CFFile[] = [];
   for (let i = 0; i < fileIds.length; i += FILES_BATCH_SIZE) {
     const batch = fileIds.slice(i, i + FILES_BATCH_SIZE);
-    const res = await fetch(`${CURSEFORGE_API}/mods/files`, {
+    const res = await fetchWithRetry(`${CURSEFORGE_API}/mods/files`, {
       method: 'POST',
       headers: {
-        'x-api-key': key,
+        'x-api-key': token,
         accept: 'application/json',
         'content-type': 'application/json',
       },
@@ -86,23 +103,44 @@ async function fetchFiles(key: string, fileIds: number[]): Promise<CFFile[]> {
   return out;
 }
 
-export async function curseforge(
+/**
+ * Resolve CurseForge file refs into torba `Artifact`s sharing one install
+ * path. Call multiple times for different destinations (mods,
+ * resourcepacks, shaderpacks, …) and drop each result straight into your
+ * manifest's `artifacts` list.
+ *
+ * ```ts
+ * const mods = await resolveCurseforge(
+ *   {
+ *     path: (info) => '${game_directory}/mods/' + info.filename,
+ *     token: process.env.CURSEFORGE_API_KEY,
+ *   },
+ *   [
+ *     6307712,
+ *     'https://www.curseforge.com/minecraft/mc-mods/botania/files/2283837',
+ *   ],
+ * );
+ * // mods: Artifact[]
+ * ```
+ */
+export async function resolveCurseforge(
   options: CurseForgeOptions,
-): Promise<CurseForgeTemplate> {
-  const ids = options.files.map((f) => f.fileId);
-  const meta = await fetchFiles(options.key, ids);
+  files: CurseForgeFileRef[],
+): Promise<Artifact[]> {
+  const ids = files.map(parseFileRef);
+  const meta = await fetchFiles(options.token, ids);
   const byId = new Map(meta.map((m) => [m.id, m]));
 
   const artifacts: Artifact[] = [];
-  for (const entry of options.files) {
-    const file = byId.get(entry.fileId);
+  for (const fileId of ids) {
+    const file = byId.get(fileId);
     if (!file) {
       throw new Error(
-        `CurseForge API did not return metadata for file ${entry.fileId}`,
+        `CurseForge API did not return metadata for file ${fileId}`,
       );
     }
 
-    const path = entry.path({
+    const path = options.path({
       filename: file.fileName,
       fileId: file.id,
       projectId: file.modId,
@@ -122,5 +160,5 @@ export async function curseforge(
     });
   }
 
-  return { artifacts };
+  return artifacts;
 }

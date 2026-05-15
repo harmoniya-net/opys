@@ -13,22 +13,30 @@ npm install @torba/curseforge @torba/core zod
 ## Usage
 
 ```ts
-import { curseforge } from '@torba/curseforge';
+import { resolveCurseforge } from '@torba/curseforge';
 
-const cf = await curseforge({
-  key: process.env.CURSEFORGE_API_KEY!, // https://console.curseforge.com/#/api-keys
-  files: [
-    { fileId: 6307712, path: (info) => '${root}/mods/' + info.filename },
-    { fileId: 5678901, path: (info) => '${root}/mods/' + info.filename },
-    {
-      fileId: 1234567,
-      path: (info) => '${root}/resourcepacks/' + info.filename,
-    },
+const mods = await resolveCurseforge(
+  {
+    path: (info) => '${root}/mods/' + info.filename,
+    token: process.env.CURSEFORGE_API_KEY!, // https://console.curseforge.com/#/api-keys
+  },
+  [
+    6307712,
+    'https://www.curseforge.com/minecraft/mc-mods/botania/files/2283837',
   ],
-});
+);
 
-cf.artifacts; // Artifact[] — one per file, in input order
+// mods is Artifact[] — drop it straight into your manifest.artifacts list
 ```
+
+Files share a single install path per call — call `resolveCurseforge`
+multiple times for different destinations (mods, resourcepacks,
+shaderpacks, …) and concat the artifacts into your manifest.
+
+The first argument accepts either raw numeric file IDs or the file's
+CurseForge URL (anything containing `/files/<id>`). URLs are convenient
+for self-documenting configs — paste the link from the mod's CurseForge
+"Files" page and let torba parse the ID at build time.
 
 The `path` callback receives:
 
@@ -53,18 +61,18 @@ helper to bridge:
 
 ```ts
 import { readFile } from 'node:fs/promises';
-import { curseforge, parseCurseForgeManifest } from '@torba/curseforge';
+import { resolveCurseforge, parseCurseForgeManifest } from '@torba/curseforge';
 
 const m = parseCurseForgeManifest(
   JSON.parse(await readFile('./manifest.json', 'utf-8')),
 );
-const cf = await curseforge({
-  key: process.env.CURSEFORGE_API_KEY!,
-  files: m.files.map((f) => ({
-    fileId: f.fileID,
+const mods = await resolveCurseforge(
+  {
     path: (info) => '${root}/mods/' + info.filename,
-  })),
-});
+    token: process.env.CURSEFORGE_API_KEY!,
+  },
+  m.files.map((f) => f.fileID),
+);
 ```
 
 ## Notes

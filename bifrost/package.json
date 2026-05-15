@@ -1,0 +1,21 @@
+{
+  "name": "@torba/bifrost",
+  "version": "0.0.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "scripts": {
+    "build": "tsdown lib/index.ts --format esm,cjs --dts --clean"
+  },
+  "devDependencies": {
+    "tsdown": "*"
+  },
+  "files": [
+    "dist"
+  ]
+}

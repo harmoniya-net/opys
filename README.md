@@ -22,15 +22,17 @@ The CLI is resolved globally, but `torba.config.mjs` is imported from your proje
 ```js
 // torba.config.mjs
 import { defineConfig } from '@torba/core';
-import { minecraft } from '@torba/minecraft';
+import { resolveMinecraft } from '@torba/minecraft';
 
 export default defineConfig(async () => {
-  const mc = await minecraft({ version: '1.20.1' });
+  const mc = await resolveMinecraft({ version: '1.20.1' });
   return {
     output: 'torba.json',
-    artifacts: [mc.artifacts],
-    vars: mc.vars,
-    command: mc.command,
+    manifest: {
+      artifacts: [mc.artifacts],
+      vars: mc.vars,
+      launch: mc.launch,
+    },
   };
 });
 ```
