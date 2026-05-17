@@ -14,7 +14,7 @@ export function java(
     name: 'java',
     async build(ctx) {
       const t = await resolveJava({ version, ...opts });
-      ctx.log('java', `OpenJDK ${t.release.version}`);
+      ctx.log('java', `OpenJDK ${t.release.major}`);
       return {
         artifacts: t.artifacts,
         vars: t.vars,

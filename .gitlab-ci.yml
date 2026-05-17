@@ -12,14 +12,11 @@ cache:
   paths:
     - .cache/npm
     - node_modules/
-    - rules/node_modules/
-    - core/node_modules/
-    - minecraft/node_modules/
-    - installer/node_modules/
 
 stages:
   - install
   - build
+  - test
 
 # ── install ────────────────────────────────────────────────────────────────────
 
@@ -31,10 +28,6 @@ install:
     expire_in: 1h
     paths:
       - node_modules/
-      - rules/node_modules/
-      - core/node_modules/
-      - minecraft/node_modules/
-      - installer/node_modules/
 
 # ── build ──────────────────────────────────────────────────────────────────────
 
@@ -46,10 +39,12 @@ build:
   artifacts:
     expire_in: 1h
     paths:
-      - rules/dist/
-      - core/dist/
-      - minecraft/dist/
-      - mc/dist/
-      - forge/dist/
-      - installer/dist/
-      - cli/dist/
+      - "*/dist/"
+
+# ── test ───────────────────────────────────────────────────────────────────────
+
+test:
+  stage: test
+  needs: [install, build]
+  script:
+    - npm run test --workspaces --if-present
