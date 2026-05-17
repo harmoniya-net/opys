@@ -1,29 +1,41 @@
-export { artifactScanner, type ArtifactScannerOptions } from './scanner';
+// Plugin factories — the @torba/minecraft domain surface.
+export {
+  minecraft,
+  forge,
+  cleanroom,
+  lwjgl3ify,
+  authliberty,
+  curseforge,
+  artifactScanner,
+  type CurseforgePluginOptions,
+} from './plugins';
+
+// Helpers (not plugins).
 export { userDataDir } from './paths';
+export {
+  resolveBifrost as bifrost,
+  type BifrostOptions,
+  type BifrostAuth,
+} from './bifrost';
 export {
   resolveServerlist,
   type ServerEntry,
   type ServerlistOptions,
 } from './serverlist';
-export {
-  resolveMinecraft,
-  clientToTemplate,
-  minecraftTemplate,
-  fetchClient,
-  type MinecraftTemplate,
-} from './template';
-export {
-  buildClasspath,
-  buildLaunch,
-  type LaunchParts,
-} from './mappers/launch';
-export { libraryToArtifact, mapLibraries } from './mappers/libraries';
-export {
-  defineConfig,
-  resolveConfig,
-  type TorbaConfig,
-  type TorbaManifestConfig,
-  type TorbaConfigInput,
-  type TorbaConfigContext,
-  type ArtifactIterable,
-} from '@torba/core';
+
+// Option / template types for advanced use.
+export type { MinecraftTemplate } from './template';
+export type { ArtifactScannerOptions } from './scanner';
+export type { ForgeOptions, ForgeWrapperOptions } from './forge/index';
+export type { CleanroomOptions } from './cleanroom/index';
+export type { Lwjgl3ifyOptions } from './lwjgl3ify/index';
+export type {
+  AuthLibertyOptions,
+  AuthLibertyHosts,
+  AuthLibertyHostMap,
+} from './authliberty/index';
+export type {
+  CurseForgeOptions,
+  CurseForgeFileRef,
+  CurseForgePath,
+} from './curseforge/index';

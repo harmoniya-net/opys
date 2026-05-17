@@ -16,13 +16,7 @@
     "dev",
     "mojang",
     "minecraft",
-    "forge",
-    "cleanroom",
-    "lwjgl3ify",
-    "authliberty",
-    "bifrost",
     "java",
-    "curseforge",
     "runtime",
     "cli"
   ],

@@ -18,7 +18,7 @@ import {
   parseValset,
   type Val,
   type Valset,
-} from '@torba/mojang-rules';
+} from '@torba/core';
 import { mapLibraries, libraryToArtifact } from './mappers/libraries';
 import { mapAssetIndex, mapAssetObjects } from './mappers/assets';
 import { mapClientJar } from './mappers/client';

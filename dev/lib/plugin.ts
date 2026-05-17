@@ -1,4 +1,4 @@
-import type { Artifact, ValDefs, Valset } from '@torba/core';
+import type { Artifact, ValDefs, Val, Valset } from '@torba/core';
 
 /** Build-time context handed to every plugin's `build` hook. */
 export interface BuildContext {
@@ -14,7 +14,7 @@ export interface BuildContext {
  * Named launch fragments a plugin exposes for the config's `command`/`args`
  * accessor functions — e.g. `{ jvmArgs, mainClass, gameArgs }` or `{ bin }`.
  */
-export type LaunchGroups = Record<string, Valset | string>;
+export type LaunchGroups = Record<string, Valset | Val | string>;
 
 /** What a plugin's `build` hook returns. */
 export interface Contribution {

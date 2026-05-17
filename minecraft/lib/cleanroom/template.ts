@@ -5,7 +5,7 @@ import {
   buildClasspath,
   buildLaunch,
   mapLibraries,
-} from '@torba/minecraft';
+} from '../internal';
 import {
   type Artifact,
   type ValDefs,
@@ -14,7 +14,7 @@ import {
   extractScan,
   fetchWithRetry,
 } from '@torba/core';
-import type { Val, Valset } from '@torba/mojang-rules';
+import type { Val, Valset } from '@torba/core';
 import {
   parseArguments,
   parseLibraries,

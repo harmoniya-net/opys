@@ -1,7 +1,7 @@
 import type { Artifact } from '@torba/core';
 import { sourceUrl, extractDump } from '@torba/core';
 import type { Library } from '@torba/mojang';
-import { type Ruleset, parseShortRuleset } from '@torba/mojang-rules';
+import { type Ruleset, parseShortRuleset } from '@torba/core';
 
 export function libraryToArtifact(
   lib: Library,

@@ -10,15 +10,21 @@
     }
   },
   "scripts": {
-    "build": "tsdown lib/index.ts --format esm,cjs --dts --clean"
+    "build": "tsdown lib/index.ts --format esm,cjs --dts --clean",
+    "test": "vitest run tests/unit --passWithNoTests"
   },
   "dependencies": {
-    "@torba/mojang": "^1.0.9",
     "@torba/core": "^1.0.9",
-    "@torba/mojang-rules": "^1.0.9"
+    "@torba/dev": "^1.0.9",
+    "@torba/mojang": "^1.0.9",
+    "fflate": "^0.8.2"
+  },
+  "peerDependencies": {
+    "zod": "^4.0.0"
   },
   "devDependencies": {
-    "tsdown": "*"
+    "tsdown": "*",
+    "vitest": "*"
   },
   "files": [
     "dist"

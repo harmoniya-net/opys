@@ -1,4 +1,4 @@
-import { clientToTemplate } from '@torba/minecraft';
+import { clientToTemplate } from '../internal';
 import {
   type Artifact,
   type ValDefs,
@@ -7,7 +7,7 @@ import {
   sourceUrl,
   fetchWithRetry,
 } from '@torba/core';
-import type { Val, Valset } from '@torba/mojang-rules';
+import type { Val, Valset } from '@torba/core';
 import { parseClient, parseMaven, type MavenCoord } from '@torba/mojang';
 import {
   resolveLwjgl3ifyVersion,

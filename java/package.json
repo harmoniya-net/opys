@@ -14,7 +14,7 @@
   },
   "dependencies": {
     "@torba/core": "^1.0.9",
-    "@torba/mojang-rules": "^1.0.9"
+    "@torba/dev": "^1.0.9"
   },
   "peerDependencies": {
     "zod": "^4.0.0"

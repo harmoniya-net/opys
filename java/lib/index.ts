@@ -1,3 +1,4 @@
+export { java } from './plugin';
 export { resolveJava, type JavaOptions, type JavaTemplate } from './template';
 export {
   resolveOpenjdk,
