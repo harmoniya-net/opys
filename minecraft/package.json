@@ -1,6 +1,6 @@
 {
   "name": "@torba/minecraft",
-  "version": "1.0.9",
+  "version": "1.0.10",
   "type": "module",
   "main": "./dist/index.js",
   "exports": {
@@ -14,9 +14,9 @@
     "test": "vitest run tests/unit --passWithNoTests"
   },
   "dependencies": {
-    "@torba/core": "^1.0.9",
-    "@torba/dev": "^1.0.9",
-    "@torba/mojang": "^1.0.9",
+    "@torba/core": "^1.0.10",
+    "@torba/dev": "^1.0.10",
+    "@torba/mojang": "^1.0.10",
     "fflate": "^0.8.2"
   },
   "peerDependencies": {
