@@ -1,9 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
-  DiscoverySchema,
+  DiscoveryWireSchema,
+  decodeDiscovery,
   encodeDiscovery,
   type Discovery,
 } from '../../lib/discovery';
+
+const decode = (wire: unknown): Discovery =>
+  decodeDiscovery(DiscoveryWireSchema.parse(wire));
 
 describe('Discovery round-trips', () => {
   it('integrity header + url probes', () => {
@@ -13,12 +17,12 @@ describe('Discovery round-trips', () => {
         url: { sha256: '${url}.sha256' },
       },
     };
-    expect(DiscoverySchema.parse(encodeDiscovery(d))).toEqual(d);
+    expect(decode(encodeDiscovery(d))).toEqual(d);
   });
 
   it('size probe', () => {
     const d: Discovery = { size: { header: 'Content-Length' } };
-    expect(DiscoverySchema.parse(encodeDiscovery(d))).toEqual(d);
+    expect(decode(encodeDiscovery(d))).toEqual(d);
   });
 
   it('integrity and size together', () => {
@@ -26,11 +30,11 @@ describe('Discovery round-trips', () => {
       integrity: { url: { sha1: 'https://h/SHA1SUMS' } },
       size: { header: 'Content-Length' },
     };
-    expect(DiscoverySchema.parse(encodeDiscovery(d))).toEqual(d);
+    expect(decode(encodeDiscovery(d))).toEqual(d);
   });
 
   it('parses a discovery block from JSON', () => {
-    const parsed = DiscoverySchema.parse({
+    const parsed = decode({
       integrity: { url: { md5: 'https://h/file.md5' } },
     });
     expect(parsed).toEqual({
@@ -40,7 +44,7 @@ describe('Discovery round-trips', () => {
 
   it('rejects a hash ref with no algorithm', () => {
     expect(() =>
-      DiscoverySchema.parse({ integrity: { header: { sha512: 'X' } } }),
+      DiscoveryWireSchema.parse({ integrity: { header: { sha512: 'X' } } }),
     ).toThrow();
   });
 });

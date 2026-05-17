@@ -43,13 +43,14 @@ export interface Discovery {
   readonly size?: SizeProbes;
 }
 
-const HashRefSchema: z.ZodType<HashRef> = z.union([
+const HashRefSchema = z.union([
   z.object({ sha256: z.string() }),
   z.object({ sha1: z.string() }),
   z.object({ md5: z.string() }),
-]) as unknown as z.ZodType<HashRef>;
+]);
 
-export const DiscoverySchema: z.ZodType<Discovery> = z.object({
+/** Wire shape — structurally identical to `Discovery`; decode is the identity. */
+export const DiscoveryWireSchema = z.object({
   integrity: z
     .object({
       header: HashRefSchema.optional(),
@@ -61,20 +62,24 @@ export const DiscoverySchema: z.ZodType<Discovery> = z.object({
       header: z.string().optional(),
     })
     .optional(),
-}) as unknown as z.ZodType<Discovery>;
+});
+export type DiscoveryWire = z.infer<typeof DiscoveryWireSchema>;
 
-export function encodeDiscovery(d: Discovery): unknown {
-  const out: Record<string, unknown> = {};
+/** Total decode — the wire shape already matches the domain shape. */
+export function decodeDiscovery(raw: DiscoveryWire): Discovery {
+  return raw;
+}
+
+export function encodeDiscovery(d: Discovery): DiscoveryWire {
+  const out: DiscoveryWire = {};
   if (d.integrity) {
-    const i: Record<string, unknown> = {};
-    if (d.integrity.header) i.header = d.integrity.header;
-    if (d.integrity.url) i.url = d.integrity.url;
-    out.integrity = i;
+    out.integrity = {};
+    if (d.integrity.header) out.integrity.header = d.integrity.header;
+    if (d.integrity.url) out.integrity.url = d.integrity.url;
   }
   if (d.size) {
-    const s: Record<string, unknown> = {};
-    if (d.size.header) s.header = d.size.header;
-    out.size = s;
+    out.size = {};
+    if (d.size.header) out.size.header = d.size.header;
   }
   return out;
 }

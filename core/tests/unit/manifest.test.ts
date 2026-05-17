@@ -7,7 +7,7 @@ import {
 import { deduplicateArtifacts } from '../../lib/artifact';
 import type { Artifact } from '../../lib/artifact';
 import { sourceString } from '../../lib/source';
-import { type Launch, parseLaunch } from '../../lib/launch';
+import { type Launch, decodeLaunch } from '../../lib/launch';
 
 const LINUX = { name: 'linux', version: '', arch: 'x86_64' } as const;
 
@@ -20,7 +20,7 @@ function makeArtifact(path: string): Artifact {
 }
 
 function makeLaunch(command = 'java'): Launch {
-  return parseLaunch({ command, workdir: './', args: [], envs: {} });
+  return decodeLaunch({ command, workdir: './', args: [], envs: {} });
 }
 
 describe('parseManifest', () => {

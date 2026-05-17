@@ -3,12 +3,17 @@ import {
   sourceUrl,
   sourceFile,
   sourceString,
-  SourceSchema,
+  SourceWireSchema,
+  decodeSource,
   encodeSource,
   isSourceUrl,
   isSourceFile,
   isSourceString,
+  type Source,
 } from '../../lib/source';
+
+const roundTrip = (s: Source): Source =>
+  decodeSource(SourceWireSchema.parse(encodeSource(s)));
 
 describe('Source type guards', () => {
   it('sourceString discriminates correctly', () => {
@@ -29,21 +34,21 @@ describe('Source type guards', () => {
 describe('Source round-trips', () => {
   it('url', () => {
     const s = sourceUrl('https://example.com/file.jar');
-    expect(SourceSchema.parse(encodeSource(s))).toEqual(s);
+    expect(roundTrip(s)).toEqual(s);
   });
 
   it('file', () => {
     const s = sourceFile('/tmp/file.txt');
-    expect(SourceSchema.parse(encodeSource(s))).toEqual(s);
+    expect(roundTrip(s)).toEqual(s);
   });
 
   it('string', () => {
     const s = sourceString('hello');
-    expect(SourceSchema.parse(encodeSource(s))).toEqual(s);
+    expect(roundTrip(s)).toEqual(s);
   });
 
   it('empty string content', () => {
     const s = sourceString('');
-    expect(SourceSchema.parse(encodeSource(s))).toEqual(s);
+    expect(roundTrip(s)).toEqual(s);
   });
 });

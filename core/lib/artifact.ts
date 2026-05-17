@@ -6,10 +6,29 @@ import {
   parseShortRuleset,
 } from '@torba/mojang-rules';
 import type { OsOptions } from '@torba/mojang-rules';
-import { type Source, SourceSchema, encodeSource } from './source';
-import { type Integrity, IntegritySchema, encodeIntegrity } from './integrity';
-import { type Discovery, DiscoverySchema, encodeDiscovery } from './discovery';
-import { type ExtractRule, ExtractSchema, encodeExtract } from './extract';
+import {
+  type Source,
+  SourceWireSchema,
+  decodeSource,
+  encodeSource,
+} from './source';
+import {
+  type Integrity,
+  IntegrityWireSchema,
+  encodeIntegrity,
+} from './integrity';
+import {
+  type Discovery,
+  DiscoveryWireSchema,
+  decodeDiscovery,
+  encodeDiscovery,
+} from './discovery';
+import {
+  type ExtractRule,
+  ExtractWireSchema,
+  decodeExtract,
+  encodeExtract,
+} from './extract';
 
 export interface Artifact {
   readonly path: string;
@@ -28,36 +47,43 @@ export interface Artifact {
   readonly extract?: ExtractRule[];
 }
 
-const ArtifactRawSchema = z.object({
+/** Wire shape — `rules` carries shorthand until decoded. */
+export const ArtifactWireSchema = z.object({
   path: z.string(),
-  source: SourceSchema,
+  source: SourceWireSchema,
   size: z.number().int().nonnegative().optional(),
   rules: z.any().optional(),
-  integrity: IntegritySchema.optional(),
-  discovery: DiscoverySchema.optional(),
+  integrity: IntegrityWireSchema.optional(),
+  discovery: DiscoveryWireSchema.optional(),
   metadata: z.unknown().optional(),
-  extract: ExtractSchema.optional(),
+  extract: ExtractWireSchema.optional(),
 });
+export type ArtifactWire = z.infer<typeof ArtifactWireSchema>;
 
-export const ArtifactSchema: z.ZodType<Artifact> = ArtifactRawSchema.transform(
-  (raw): Artifact => ({
+/** Total decode — shorthand rules expand here, never in the schema. */
+export function decodeArtifact(raw: ArtifactWire): Artifact {
+  return {
     path: raw.path,
-    source: raw.source,
-    size: raw.size,
+    source: decodeSource(raw.source),
+    ...(raw.size !== undefined ? { size: raw.size } : {}),
     rules: raw.rules != null ? parseShortRuleset(raw.rules) : [],
-    integrity: raw.integrity,
-    discovery: raw.discovery,
-    metadata: raw.metadata,
-    extract: raw.extract,
-  }),
-) as unknown as z.ZodType<Artifact>;
+    ...(raw.integrity !== undefined ? { integrity: raw.integrity } : {}),
+    ...(raw.discovery !== undefined
+      ? { discovery: decodeDiscovery(raw.discovery) }
+      : {}),
+    ...(raw.metadata !== undefined ? { metadata: raw.metadata } : {}),
+    ...(raw.extract !== undefined
+      ? { extract: decodeExtract(raw.extract) }
+      : {}),
+  };
+}
 
-export function encodeArtifact(u: Artifact): unknown {
+export function encodeArtifact(u: Artifact): ArtifactWire {
   return {
     path: u.path,
     source: encodeSource(u.source),
     ...(u.size !== undefined ? { size: u.size } : {}),
-    rules: u.rules.length > 0 ? u.rules : undefined,
+    ...(u.rules.length > 0 ? { rules: u.rules } : {}),
     ...(u.integrity ? { integrity: encodeIntegrity(u.integrity) } : {}),
     ...(u.discovery ? { discovery: encodeDiscovery(u.discovery) } : {}),
     ...(u.metadata !== undefined ? { metadata: u.metadata } : {}),

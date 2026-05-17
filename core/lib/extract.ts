@@ -25,44 +25,73 @@ export interface ExtractDump {
 
 export type ExtractRule = ExtractPick | ExtractScan | ExtractDump;
 
-const ExtractRuleSchema = z.union([
-  z
-    .object({ file: z.string(), into: z.string() })
-    .transform((d): ExtractPick => ({ kind: 'pick', ...d })),
-  z
-    .object({
-      matches: z.string(),
-      into: z.string(),
-      strip: z.array(z.string()).optional(),
-      includes: z.array(z.string()).optional(),
-      excludes: z.array(z.string()).optional(),
-    })
-    .transform((d): ExtractScan => ({ kind: 'scan', ...d })),
-  z
-    .object({
-      into: z.string(),
-      clean: z.boolean().optional(),
-      includes: z.array(z.string()).optional(),
-      excludes: z.array(z.string()).optional(),
-    })
-    .transform((d): ExtractDump => ({ kind: 'dump', ...d })),
+const ExtractPickWire = z.object({ file: z.string(), into: z.string() });
+const ExtractScanWire = z.object({
+  matches: z.string(),
+  into: z.string(),
+  strip: z.array(z.string()).optional(),
+  includes: z.array(z.string()).optional(),
+  excludes: z.array(z.string()).optional(),
+});
+const ExtractDumpWire = z.object({
+  into: z.string(),
+  clean: z.boolean().optional(),
+  includes: z.array(z.string()).optional(),
+  excludes: z.array(z.string()).optional(),
+});
+
+const ExtractRuleWireSchema = z.union([
+  ExtractPickWire,
+  ExtractScanWire,
+  ExtractDumpWire,
 ]);
 
-/** Parses a single rule or an array of rules; always produces an array. */
-export const ExtractSchema: z.ZodType<ExtractRule[]> = z
-  .union([ExtractRuleSchema, z.array(ExtractRuleSchema)])
-  .transform((v): ExtractRule[] =>
-    Array.isArray(v) ? v : [v],
-  ) as unknown as z.ZodType<ExtractRule[]>;
+/** Wire shape — a single rule or an array of rules. */
+export const ExtractWireSchema = z.union([
+  ExtractRuleWireSchema,
+  z.array(ExtractRuleWireSchema),
+]);
+type ExtractRuleWire = z.infer<typeof ExtractRuleWireSchema>;
+export type ExtractWire = z.infer<typeof ExtractWireSchema>;
 
-export function encodeExtractRule(rule: ExtractRule): unknown {
-  const { kind, ...rest } = rule;
-  return rest;
+function decodeExtractRule(raw: ExtractRuleWire): ExtractRule {
+  if ('file' in raw) return { kind: 'pick', ...raw };
+  if ('matches' in raw) return { kind: 'scan', ...raw };
+  return { kind: 'dump', ...raw };
 }
 
-export function encodeExtract(rules: ExtractRule[]): unknown {
+/** Total decode — always produces an array of tagged rules. */
+export function decodeExtract(raw: ExtractWire): ExtractRule[] {
+  return Array.isArray(raw)
+    ? raw.map(decodeExtractRule)
+    : [decodeExtractRule(raw)];
+}
+
+function encodeExtractRule(rule: ExtractRule): ExtractRuleWire {
+  switch (rule.kind) {
+    case 'pick':
+      return { file: rule.file, into: rule.into };
+    case 'scan':
+      return {
+        matches: rule.matches,
+        into: rule.into,
+        ...(rule.strip ? { strip: rule.strip } : {}),
+        ...(rule.includes ? { includes: rule.includes } : {}),
+        ...(rule.excludes ? { excludes: rule.excludes } : {}),
+      };
+    case 'dump':
+      return {
+        into: rule.into,
+        ...(rule.clean !== undefined ? { clean: rule.clean } : {}),
+        ...(rule.includes ? { includes: rule.includes } : {}),
+        ...(rule.excludes ? { excludes: rule.excludes } : {}),
+      };
+  }
+}
+
+export function encodeExtract(rules: ExtractRule[]): ExtractWire {
   const encoded = rules.map(encodeExtractRule);
-  return encoded.length === 1 ? encoded[0] : encoded;
+  return encoded.length === 1 ? encoded[0]! : encoded;
 }
 
 // Factory functions

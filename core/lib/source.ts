@@ -13,27 +13,38 @@ export type Source =
    */
   | { readonly kind: 'pointer'; readonly pointer: string };
 
-const SourceRawSchema = z.union([
+/** Wire shape — what a `source` looks like in `torba.json`. */
+export const SourceWireSchema = z.union([
   z.object({ url: z.string() }),
   z.object({ file: z.string() }),
   z.object({ string: z.string() }),
   z.object({ bytes: z.string() }),
   z.object({ pointer: z.string() }),
 ]);
+export type SourceWire = z.infer<typeof SourceWireSchema>;
 
-export const SourceSchema: z.ZodType<Source> = SourceRawSchema.transform(
-  (raw): Source => {
-    if ('url' in raw) return { kind: 'url', url: raw.url };
-    if ('file' in raw) return { kind: 'file', file: raw.file };
-    if ('string' in raw) return { kind: 'string', string: raw.string };
-    if ('pointer' in raw) return { kind: 'pointer', pointer: raw.pointer };
-    return { kind: 'bytes', bytes: raw.bytes };
-  },
-) as unknown as z.ZodType<Source>;
+/** Total decode: every valid wire value maps to a domain `Source`. */
+export function decodeSource(raw: SourceWire): Source {
+  if ('url' in raw) return { kind: 'url', url: raw.url };
+  if ('file' in raw) return { kind: 'file', file: raw.file };
+  if ('string' in raw) return { kind: 'string', string: raw.string };
+  if ('pointer' in raw) return { kind: 'pointer', pointer: raw.pointer };
+  return { kind: 'bytes', bytes: raw.bytes };
+}
 
-export function encodeSource(source: Source): unknown {
-  const { kind, ...rest } = source;
-  return rest;
+export function encodeSource(source: Source): SourceWire {
+  switch (source.kind) {
+    case 'url':
+      return { url: source.url };
+    case 'file':
+      return { file: source.file };
+    case 'string':
+      return { string: source.string };
+    case 'bytes':
+      return { bytes: source.bytes };
+    case 'pointer':
+      return { pointer: source.pointer };
+  }
 }
 
 // Factory functions

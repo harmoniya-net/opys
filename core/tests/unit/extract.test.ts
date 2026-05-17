@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
-  ExtractSchema,
+  ExtractWireSchema,
+  decodeExtract,
   encodeExtract,
   extractPick,
   extractDump,
-  extractScan,
 } from '../../lib/extract';
+
+const decode = (wire: unknown) => decodeExtract(ExtractWireSchema.parse(wire));
 
 describe('Extract codec', () => {
   it('single rule round-trips as object not array', () => {
@@ -16,7 +18,7 @@ describe('Extract codec', () => {
       file: 'README.md',
       into: 'docs/manual.txt',
     });
-    const decoded = ExtractSchema.parse(encoded);
+    const decoded = decode(encoded);
     expect(decoded).toHaveLength(1);
     expect(decoded[0]!.kind).toBe('pick');
   });
@@ -28,7 +30,7 @@ describe('Extract codec', () => {
     ];
     const encoded = encodeExtract(rules);
     expect(Array.isArray(encoded)).toBe(true);
-    expect(ExtractSchema.parse(encoded)).toHaveLength(2);
+    expect(decode(encoded)).toHaveLength(2);
   });
 
   it('Dump rule encodes clean field', () => {
@@ -45,18 +47,14 @@ describe('Extract codec', () => {
   });
 
   it('Dump rule clean defaults to undefined', () => {
-    const decoded = ExtractSchema.parse({ into: 'out/' });
+    const decoded = decode({ into: 'out/' });
     expect(decoded[0]!.kind).toBe('dump');
     if (decoded[0]!.kind === 'dump') expect(decoded[0]!.clean).toBeUndefined();
   });
 
   it('discriminates Pick / Scan / Dump by shape', () => {
-    expect(ExtractSchema.parse({ file: 'a.txt', into: 'b.txt' })[0]!.kind).toBe(
-      'pick',
-    );
-    expect(
-      ExtractSchema.parse({ matches: '**/*.so', into: 'libs/' })[0]!.kind,
-    ).toBe('scan');
-    expect(ExtractSchema.parse({ into: 'dump/' })[0]!.kind).toBe('dump');
+    expect(decode({ file: 'a.txt', into: 'b.txt' })[0]!.kind).toBe('pick');
+    expect(decode({ matches: '**/*.so', into: 'libs/' })[0]!.kind).toBe('scan');
+    expect(decode({ into: 'dump/' })[0]!.kind).toBe('dump');
   });
 });

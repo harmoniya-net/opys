@@ -20,14 +20,17 @@ export interface Launch {
   readonly envs: ValDefs;
 }
 
-const LaunchRawSchema = z.object({
+/** Wire shape — `args`/`envs` carry shorthand rules until decoded. */
+export const LaunchWireSchema = z.object({
   command: z.string(),
   workdir: z.string(),
   args: z.any().optional(),
   envs: z.any().optional(),
 });
+export type LaunchWire = z.infer<typeof LaunchWireSchema>;
 
-export function parseLaunch(raw: z.infer<typeof LaunchRawSchema>): Launch {
+/** Total decode — normalizes `args`/`envs` to resolved rulesets. */
+export function decodeLaunch(raw: LaunchWire): Launch {
   return {
     command: raw.command,
     workdir: raw.workdir,
@@ -36,7 +39,7 @@ export function parseLaunch(raw: z.infer<typeof LaunchRawSchema>): Launch {
   };
 }
 
-export function encodeLaunch(launch: Launch): unknown {
+export function encodeLaunch(launch: Launch): LaunchWire {
   return {
     command: launch.command,
     workdir: launch.workdir,
@@ -44,10 +47,6 @@ export function encodeLaunch(launch: Launch): unknown {
     envs: encodeValDefs(launch.envs),
   };
 }
-
-export const LaunchSchema: z.ZodType<Launch> = LaunchRawSchema.transform(
-  parseLaunch,
-) as unknown as z.ZodType<Launch>;
 
 export function resolvedArgs(
   launch: Launch,

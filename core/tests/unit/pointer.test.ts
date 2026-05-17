@@ -1,16 +1,24 @@
 import { describe, expect, it } from 'vitest';
 import {
-  PointerDescriptorSchema,
+  PointerDescriptorWireSchema,
+  decodePointerDescriptor,
   encodePointerDescriptor,
   parsePointerDescriptor,
+  type PointerDescriptor,
 } from '../../lib/pointer';
 import {
-  SourceSchema,
+  SourceWireSchema,
+  decodeSource,
   encodeSource,
   isSourcePointer,
   sourcePointer,
   sourceUrl,
 } from '../../lib/source';
+
+const roundTripDescriptor = (d: PointerDescriptor): PointerDescriptor =>
+  decodePointerDescriptor(
+    PointerDescriptorWireSchema.parse(encodePointerDescriptor(d)),
+  );
 
 describe('pointer source', () => {
   it('discriminates correctly', () => {
@@ -22,31 +30,25 @@ describe('pointer source', () => {
     });
   });
 
-  it('round-trips through SourceSchema', () => {
+  it('round-trips through the source codec', () => {
     const s = sourcePointer('https://example.com/latest.json');
-    expect(SourceSchema.parse(encodeSource(s))).toEqual(s);
+    expect(decodeSource(SourceWireSchema.parse(encodeSource(s)))).toEqual(s);
   });
 });
 
 describe('PointerDescriptor', () => {
   it('round-trips with integrity and size', () => {
-    const d = {
+    const d: PointerDescriptor = {
       source: sourceUrl('https://cdn/lang-2.4.1.zip'),
-      integrity: { sha256: 'abc123' } as const,
+      integrity: { sha256: 'abc123' },
       size: 4096,
     };
-    expect(PointerDescriptorSchema.parse(encodePointerDescriptor(d))).toEqual(
-      d,
-    );
+    expect(roundTripDescriptor(d)).toEqual(d);
   });
 
   it('round-trips without optional fields', () => {
-    const d = { source: sourceUrl('https://cdn/lang.zip') };
-    expect(PointerDescriptorSchema.parse(encodePointerDescriptor(d))).toEqual({
-      source: d.source,
-      integrity: undefined,
-      size: undefined,
-    });
+    const d: PointerDescriptor = { source: sourceUrl('https://cdn/lang.zip') };
+    expect(roundTripDescriptor(d)).toEqual({ source: d.source });
   });
 
   it('parses a published JSON descriptor', () => {
