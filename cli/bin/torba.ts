@@ -2,11 +2,7 @@
 import { cmdBuild } from '../lib/commands/build';
 import { cmdInit } from '../lib/commands/init';
 import { cmdLaunch } from '../lib/commands/launch';
-import {
-  NetworkError,
-  IntegrityError,
-  ExtractionError,
-} from '@torba/installer';
+import { NetworkError, IntegrityError, ExtractionError } from '@torba/runtime';
 import { VersionFetchError } from '@torba/mojang';
 import { UsageError } from '../lib/errors';
 import { Logger, parseLogLevel, type LogLevel } from '../lib/logger';

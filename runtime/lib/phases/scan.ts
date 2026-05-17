@@ -2,7 +2,7 @@ import { existsSync } from 'node:fs';
 import type { Artifact, Manifest } from '@torba/core';
 import { filterManifest } from '@torba/core';
 import { interpolate } from '@torba/core';
-import type { OsOptions } from '@torba/mojang-rules';
+import type { OsOptions } from '@torba/core';
 
 export interface ScanTask {
   artifact: Artifact;

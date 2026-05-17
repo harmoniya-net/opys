@@ -1,9 +1,9 @@
 import { dirname, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { install, launch, type InstallProgress } from '@torba/installer';
+import { install, launch, type InstallProgress } from '@torba/runtime';
 import type { Manifest, ArtifactIterable, Artifact } from '@torba/core';
 import { resolveConfig, validateManifest } from '@torba/core';
-import type { ManifestSource } from '@torba/installer';
+import type { ManifestSource } from '@torba/runtime';
 import { parseArgs } from '../args';
 import { UsageError } from '../errors';
 import {

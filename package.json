@@ -22,7 +22,7 @@
     "bifrost",
     "java",
     "curseforge",
-    "installer",
+    "runtime",
     "cli"
   ],
   "devDependencies": {

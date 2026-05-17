@@ -1,4 +1,4 @@
-import type { SatisfiesOsOptions } from '@torba/mojang-rules';
+import type { SatisfiesOsOptions } from '@torba/core';
 
 export function currentPlatform(
   platform: string = process.platform,

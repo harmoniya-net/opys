@@ -7,7 +7,7 @@ import {
   type Artifact,
 } from '@torba/core';
 import { currentPlatform } from './platform';
-import type { OsOptions } from '@torba/mojang-rules';
+import type { OsOptions } from '@torba/core';
 import { resolveManifest, type ManifestSource } from './phases/resolve';
 import { resolvePointers } from './phases/resolve-pointers';
 import { resolveDiscovery } from './phases/resolve-discovery';
@@ -31,12 +31,9 @@ import { DEFAULT_CONCURRENCY } from './constants';
  * Detection is layered:
  *   1. Marker file (`<finalPath>.torba-extracted`) written by `extractAll`
  *      after every rule for an artifact has succeeded. Authoritative.
- *   2. Fallback for installs predating the marker: scan each rule's target.
- *      For `pick` we check the picked file. For `dump`/`scan` we look for
- *      any non-dotfile child — the archive cache (often `.cache/`) lives
- *      inside the extract target for some templates (`@torba/java`),
- *      so a plain "dir is empty" check would falsely satisfy on a download-
- *      only state where only the dotfile cache subdir exists.
+ *   2. Fallback when the marker is absent: scan each rule's target. For
+ *      `pick` we check the picked file; for `dump`/`scan` we look for any
+ *      non-dotfile child.
  */
 function extractIsPending(
   artifact: Artifact,

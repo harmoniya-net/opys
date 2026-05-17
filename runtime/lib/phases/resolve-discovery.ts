@@ -12,7 +12,7 @@ import {
   interpolate,
   isSourceUrl,
 } from '@torba/core';
-import type { OsOptions } from '@torba/mojang-rules';
+import type { OsOptions } from '@torba/core';
 import { NetworkError } from '../errors';
 import { verifyIntegrity } from './verify';
 

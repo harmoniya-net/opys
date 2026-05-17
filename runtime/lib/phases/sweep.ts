@@ -23,11 +23,7 @@ export interface SweepOptions {
  * restrict globs so we don't nuke our own state.
  */
 function isTorbaInternal(absPath: string): boolean {
-  if (absPath.endsWith(EXTRACT_MARKER_SUFFIX)) return true;
-  // Archive caches written by `@torba/java`-style templates that put
-  // their downloaded archive at `<targetDir>/.cache/<file>`. The cache
-  // dir is always sibling-named `.cache`.
-  return absPath.split(sep).some((seg) => seg === '.cache');
+  return absPath.endsWith(EXTRACT_MARKER_SUFFIX);
 }
 
 /**
@@ -113,9 +109,6 @@ async function sweepDir(
  * Recursively prune empty directories *under* `root` (bottom-up) but
  * never the root itself — restrict bases are user-declared install
  * targets and should stay around even when momentarily empty.
- *
- * `.cache/` dirs are skipped: torba's own archive cache lives there
- * and is expected to persist across installs.
  */
 async function pruneEmptyChildren(
   root: string,
@@ -129,7 +122,6 @@ async function pruneEmptyChildren(
   }
   for (const entry of entries) {
     if (!entry.isDirectory()) continue;
-    if (entry.name === '.cache') continue;
     const child = join(root, entry.name);
     await pruneEmptyChildren(child, removed);
     try {

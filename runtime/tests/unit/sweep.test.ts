@@ -83,16 +83,18 @@ describe('sweep', () => {
     expect(existsSync(join(dir, 'mods'))).toBe(true); // base preserved
   });
 
-  it('preserves torba bookkeeping files', async () => {
-    const archive = await touch('runtimes/jdk-17/.cache/openjdk.tar.gz');
+  it('keeps the extract marker; archives survive only as managed artifacts', async () => {
+    const archive = await touch('runtimes/jdk-17/openjdk.tar.gz');
     const marker = await touch(
-      `runtimes/jdk-17/.cache/openjdk.tar.gz${EXTRACT_MARKER_SUFFIX}`,
+      `runtimes/jdk-17/openjdk.tar.gz${EXTRACT_MARKER_SUFFIX}`,
     );
+    const orphan = await touch('runtimes/jdk-17/stale.tmp');
 
-    await sweep([`${dir}/runtimes/**/*`], {}, { managed: new Set() });
+    await sweep([`${dir}/runtimes/**/*`], {}, { managed: new Set([archive]) });
 
-    expect(existsSync(archive)).toBe(true); // .cache/ is auto-ignored
+    expect(existsSync(archive)).toBe(true); // a managed artifact path
     expect(existsSync(marker)).toBe(true); // marker suffix is auto-ignored
+    expect(existsSync(orphan)).toBe(false); // unmanaged → swept
   });
 
   it('interpolates ${var} in globs', async () => {
