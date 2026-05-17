@@ -1,10 +1,10 @@
 import { z } from 'zod';
-import type { MojangRule } from './libraries';
+import { type Ruleset, RuleSchema } from '@torba/core';
 
 /** Raw Mojang argument: a plain string or a conditional { rules, value } object. */
 export type MojangArgValue =
   | string
-  | { rules: MojangRule[]; value: string | string[] };
+  | { rules: Ruleset; value: string | string[] };
 
 export interface Arguments {
   readonly game: MojangArgValue[];
@@ -20,19 +20,10 @@ export const LEGACY_JVM_ARGS: MojangArgValue[] = [
   '${classpath}',
 ];
 
-const MojangRuleSchema = z.union([
-  z.object({
-    action: z.string(),
-    os: z.record(z.string(), z.string().optional()),
-  }),
-  z.object({ action: z.string(), features: z.record(z.string(), z.boolean()) }),
-  z.object({ action: z.string() }),
-]) as z.ZodType<MojangRule>;
-
 const MojangArgSchema: z.ZodType<MojangArgValue> = z.union([
   z.string(),
   z.object({
-    rules: z.array(MojangRuleSchema),
+    rules: z.array(RuleSchema),
     value: z.union([z.string(), z.array(z.string())]),
   }),
 ]);

@@ -86,7 +86,7 @@ export async function clientToTemplate(
   artifacts.push(...mapAssetObjects(manifest));
 
   const libPaths = client.libraries.map((l) => ({
-    rules: l.rules as unknown[],
+    rules: l.rules,
     artifactPath: `\${library_directory}/${l.artifact.path}`,
   }));
 

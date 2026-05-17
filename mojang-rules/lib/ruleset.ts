@@ -4,7 +4,7 @@ import type { OsOptions, OsName } from './os';
 
 export type Ruleset = Rule[];
 
-export const RulesetSchema: z.ZodType<Ruleset> = z.array(RuleSchema);
+export const RulesetSchema = z.array(RuleSchema);
 
 export function satisfiesRuleset(
   ruleset: Ruleset,

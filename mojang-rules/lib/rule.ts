@@ -18,11 +18,18 @@ export type Rule =
   | { action: RuleAction; features: FeatureConstraint }
   | { action: RuleAction };
 
-export const RuleSchema: z.ZodType<Rule> = z.union([
-  z.object({ action: z.string(), os: OsConstraintSchema }),
-  z.object({ action: z.string(), features: FeatureConstraintSchema }),
-  z.object({ action: z.string() }),
-]) as z.ZodType<Rule>;
+const RuleActionSchema = z.enum(['allow', 'disallow']);
+
+/**
+ * The single rule schema for the whole monorepo — used to parse rules out
+ * of Mojang version JSON, Forge recipes, and `torba.json` artifacts alike.
+ * `z.infer` of this is exactly `Rule`, so no cast is needed.
+ */
+export const RuleSchema = z.union([
+  z.object({ action: RuleActionSchema, os: OsConstraintSchema }),
+  z.object({ action: RuleActionSchema, features: FeatureConstraintSchema }),
+  z.object({ action: RuleActionSchema }),
+]);
 
 export function satisfiesRule(
   rule: Rule,

@@ -1,10 +1,10 @@
-import type { Val, Valset, OsOptions } from '@torba/core';
-import { parseValset, resolveValset, allowOsRuleset } from '@torba/core';
+import type { Val, Valset, OsOptions, Ruleset } from '@torba/core';
+import { parseValset, allowOsRuleset, satisfiesRuleset } from '@torba/core';
 import type { MojangArgValue } from '@torba/mojang';
 import type { Launch, ConditionalVal } from '@torba/core';
 
 export function mojangArgsToValset(args: MojangArgValue[]): Valset {
-  return parseValset(args as unknown[]);
+  return parseValset(args);
 }
 
 /**
@@ -26,7 +26,7 @@ export interface LaunchParts {
 }
 
 export function buildClasspath(
-  libs: { rules: unknown[]; artifactPath: string }[],
+  libs: { rules: Ruleset; artifactPath: string }[],
   clientJarPath: string,
 ): ConditionalVal[] {
   const platforms: { name: 'linux' | 'windows' | 'osx'; arch: string }[] = [
@@ -39,26 +39,12 @@ export function buildClasspath(
   for (const { name, arch } of platforms) {
     const os: OsOptions = { name, version: '', arch };
     const applicable = libs
-      .filter((l) => l.rules.length === 0 || satisfiesRulesImpl(l.rules, os))
+      .filter((l) => satisfiesRuleset(l.rules, os))
       .map((l) => l.artifactPath);
     const value = [clientJarPath, ...applicable].join('${classpath_separator}');
     arms.push({ value, rules: allowOsRuleset(name) });
   }
   return arms;
-}
-
-function satisfiesRulesImpl(rules: unknown[], os: OsOptions): boolean {
-  if (rules.length === 0) return true;
-  return rules.every((r: any) => {
-    const allow = r.action === 'allow';
-    if (r.os) {
-      const o = r.os;
-      if (o.name && o.name !== os.name) return !allow;
-      if (o.arch && o.arch !== os.arch) return !allow;
-      return allow;
-    }
-    return allow;
-  });
 }
 
 export function buildLaunch(
@@ -76,12 +62,4 @@ export function buildLaunch(
     envs: {},
   };
   return { launch, jvmArgs: jvm, mainClass: main, gameArgs: game };
-}
-
-export function resolveLaunchArgs(
-  launch: Launch,
-  os: OsOptions,
-  feats: string[] = [],
-): string[] {
-  return resolveValset(launch.args, os, feats);
 }

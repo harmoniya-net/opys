@@ -4,8 +4,8 @@ import {
   parseLibraries,
   type Arguments,
   type Library,
-  type MojangRule,
 } from '@torba/mojang';
+import { type Ruleset, RuleSchema } from '@torba/core';
 
 const LegacyRawSchema = z.object({
   type: z.literal('legacy'),
@@ -51,7 +51,7 @@ export interface LegacyLibrary {
   readonly name: string;
   readonly path: string;
   readonly url: string;
-  readonly rules: MojangRule[];
+  readonly rules: Ruleset;
   readonly sha1?: string;
   readonly md5?: string;
   readonly size?: number;
@@ -64,22 +64,9 @@ const LegacyArtifactSchema = z.object({
   size: z.number().optional(),
 });
 
-const LegacyRuleSchema = z.union([
-  z.object({
-    action: z.string(),
-    os: z.object({
-      name: z.string().optional(),
-      version: z.string().optional(),
-      arch: z.string().optional(),
-    }),
-  }),
-  z.object({ action: z.string(), features: z.record(z.string(), z.boolean()) }),
-  z.object({ action: z.string() }),
-]) as z.ZodType<MojangRule>;
-
 const LegacyLibRawSchema = z.object({
   name: z.string(),
-  rules: z.array(LegacyRuleSchema).default([]),
+  rules: z.array(RuleSchema).default([]),
   downloads: z
     .object({ artifact: LegacyArtifactSchema.optional() })
     .default({}),

@@ -194,11 +194,11 @@ async function buildLegacyTemplate(
   // Forge installer's generated version.json does. Legacy era doesn't use
   // the JVM module system, so no -p filtering.
   const forgeCp = recipe.libraries.map((l) => ({
-    rules: l.rules as unknown[],
+    rules: l.rules,
     artifactPath: `\${library_directory}/${l.path}`,
   }));
   const vanillaCp = client.libraries.map((l) => ({
-    rules: l.rules as unknown[],
+    rules: l.rules,
     artifactPath: `\${library_directory}/${l.artifact.path}`,
   }));
   const classpathEntries = buildClasspath(
@@ -302,7 +302,7 @@ async function buildProcessorTemplate(
   const libPaths = cpLibs
     .filter((l) => !onModulePath.has(l.artifact.path))
     .map((l) => ({
-      rules: l.rules as unknown[],
+      rules: l.rules,
       artifactPath: `\${library_directory}/${l.artifact.path}`,
     }));
   libPaths.push({ rules: [], artifactPath: forgeWrapperPath });

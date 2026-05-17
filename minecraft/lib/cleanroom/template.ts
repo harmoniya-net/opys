@@ -182,7 +182,7 @@ export async function resolveCleanroom(
   // no wrapper shim — Foundation does its own bootstrap.
   const cpLibs: Library[] = [...runtimeLibs, ...keptVanillaLibs];
   const libPaths = cpLibs.map((l) => ({
-    rules: l.rules as unknown[],
+    rules: l.rules,
     artifactPath: `\${library_directory}/${l.artifact.path}`,
   }));
   const classpathEntries = buildClasspath(

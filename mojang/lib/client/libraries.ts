@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { type Ruleset, RuleSchema, OsNameSchema } from '@torba/core';
 import { MavenName, MavenNameSchema } from './maven';
 
 export interface Artifact {
@@ -8,22 +9,10 @@ export interface Artifact {
   readonly url: string;
 }
 
-/**
- * Raw Mojang rule as it appears in version JSON.
- * Structurally compatible with @torba/mojang-rules Rule type.
- */
-export type MojangRuleAction = 'allow' | 'disallow';
-export type MojangRule =
-  | {
-      action: MojangRuleAction;
-      os: { name?: string; version?: string; arch?: string };
-    }
-  | { action: MojangRuleAction; features: Record<string, boolean> }
-  | { action: MojangRuleAction };
-
 export interface Library {
   readonly name: MavenName;
-  readonly rules: MojangRule[];
+  /** Mojang OS/feature rules — the shared `@torba/mojang-rules` format. */
+  readonly rules: Ruleset;
   readonly artifact: Artifact;
   readonly native: boolean;
 }
@@ -35,26 +24,13 @@ const ArtifactSchema = z.object({
   url: z.string(),
 });
 
-const MojangRuleSchema = z.union([
-  z.object({
-    action: z.string(),
-    os: z.object({
-      name: z.string().optional(),
-      version: z.string().optional(),
-      arch: z.string().optional(),
-    }),
-  }),
-  z.object({ action: z.string(), features: z.record(z.string(), z.boolean()) }),
-  z.object({ action: z.string() }),
-]) as z.ZodType<MojangRule>;
-
 const RawLibSchema = z.object({
   downloads: z.object({
     artifact: ArtifactSchema.optional(),
     classifiers: z.record(z.string(), ArtifactSchema).default({}),
   }),
   name: MavenNameSchema,
-  rules: z.array(MojangRuleSchema).default([]),
+  rules: z.array(RuleSchema).default([]),
   natives: z.record(z.string(), z.string()).default({}),
   extract: z.object({ exclude: z.array(z.string()) }).optional(),
 });
@@ -77,7 +53,9 @@ export function parseLibraries(raws: unknown[]): Library[] {
       if (artifact) {
         result.push({
           name: raw.name,
-          rules: [{ action: 'allow', os: { name: osName } }],
+          rules: [
+            { action: 'allow', os: { name: OsNameSchema.parse(osName) } },
+          ],
           artifact,
           native: true,
         });
