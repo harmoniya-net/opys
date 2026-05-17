@@ -21,9 +21,10 @@ plugin API, config shape, CLI flags — may break.
 ## 1. Package topology — 13 → 8
 
 ```
-@torba/mojang-rules   Mojang-standard rule format + Val/Valset.            leaf
+@torba/mojang-rules   Mojang-standard rule format (os/features/rule/      leaf
+                      ruleset).
 @torba/mojang         Mojang protocol parsers.                       → mojang-rules
-@torba/core           Manifest data model + torba rule shorthand.
+@torba/core           Manifest data model + torba shorthand + Val/Valset.
                       Reference impl of torba.json.                  → mojang-rules
 @torba/dev            Plugin SDK + defineConfig + build engine.            → core
 @torba/runtime        install + launch executor (was `installer`).         → core ONLY
@@ -39,11 +40,12 @@ Clean DAG, no cycles. Removed: `rules` (→ `mojang-rules`), and the standalone
 provisioning is its own concern).
 
 **Rule layering.** `mojang-rules` holds _only_ the Mojang-standard rule format
-(`{action, os, features}`) plus `Val`/`Valset`. The torba **shorthand**
-(`'osx'` → `[{action:'allow',os:{name:'osx'}}]`) is torba's own flavor — it
-lives in `core`. `mojang-rules` is consumed only by `mojang` and `core`; plugin
-authors get the rule surface (type, constructors, shorthand) re-exported from
-`core`.
+(`{action, os, features}`). The torba **shorthand**
+(`'osx'` → `[{action:'allow',os:{name:'osx'}}]`) and the rule-tagged-value
+primitive `Val`/`Valset` are torba's own flavor on top — they live in `core`
+(`val.ts`'s parser depends on shorthand, so the two move together).
+`mojang-rules` is consumed only by `mojang` and `core`; plugin authors get the
+full rule surface — standard rules, shorthand, `Val` — re-exported from `core`.
 
 Rules follow **parse, don't validate**. The manifest wire form of a rule-bearing
 field (`Artifact.rules`, etc.) accepts shorthand _or_ a full ruleset — and since
