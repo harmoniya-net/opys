@@ -19,6 +19,11 @@ export function scan(
   manifest: Manifest,
   vars: Record<string, string>,
   platform: OsOptions,
+  /**
+   * `artifact.path` templates to fetch unconditionally, even if the file
+   * already exists — pointer artifacts whose upstream has moved on.
+   */
+  force: ReadonlySet<string> = new Set(),
 ): ScanResult {
   const applicable = filterManifest(manifest, platform);
   const tasks: ScanTask[] = [];
@@ -27,7 +32,7 @@ export function scan(
   for (let i = 0; i < applicable.artifacts.length; i++) {
     const u = applicable.artifacts[i]!;
     const finalPath = interpolate(u.path, vars);
-    if (existsSync(finalPath)) {
+    if (!force.has(u.path) && existsSync(finalPath)) {
       skipped++;
       continue;
     }

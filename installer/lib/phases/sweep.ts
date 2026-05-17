@@ -1,8 +1,7 @@
 import { existsSync } from 'node:fs';
 import { readdir, rm, rmdir } from 'node:fs/promises';
 import { join, sep } from 'node:path';
-import { interpolate } from '@torba/core';
-import { globBase, globToRegex } from '../glob';
+import { interpolate, globBase, globToRegex } from '@torba/core';
 import { EXTRACT_MARKER_SUFFIX } from './extract';
 
 export interface SweepResult {

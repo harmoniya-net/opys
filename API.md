@@ -35,11 +35,12 @@ The config function reads `mode` and chooses sources accordingly. Nothing in the
 
 ### Install pipeline (`@torba/installer`)
 
-`resolveManifest` → `scan` (filter by platform/rules, decide what's missing) → `fetchAll` (parallel, default `concurrency: 8`; streams to `<finalPath>.partial` then renames atomically) → `verifyAll` (sha1/sha256/md5, single attempt; on mismatch throws `IntegrityError`) → `extractAll` (only for newly fetched, archive-typed artifacts).
+`resolveManifest` → `resolvePointers` (resolve `pointer` sources against their live descriptors; see [Pointer sources](#pointer-sources)) → `resolveDiscovery` (resolve each `discovery` block against the live upstream; see [Discovery](#discovery)) → `scan` (filter by platform/rules, decide what's missing) → `fetchAll` (parallel, default `concurrency: 8`; streams to `<finalPath>.partial` then renames atomically) → `verifyAll` (sha1/sha256/md5, single attempt; on mismatch throws `IntegrityError`) → `extractAll` (only for newly fetched, archive-typed artifacts).
 
 Progress events emitted via `onProgress`:
 
 - `{ phase: 'resolve' }`
+- `{ phase: 'pointer', resolved }` (only when the manifest has `pointer` sources)
 - `{ phase: 'download', fetched, total, skipped }` (aggregate)
 - `{ phase: 'download:done', path }` (per file)
 - `{ phase: 'verify' }`
@@ -139,7 +140,7 @@ Composition is plain JS — `{ ...mc.vars, classpath: forgeClasspath }` to overr
 
 Factory functions exported from `@torba/core`:
 
-- **Source**: `sourceUrl(url)`, `sourceFile(path)`, `sourceString(s)`
+- **Source**: `sourceUrl(url)`, `sourceFile(path)`, `sourceString(s)`, `sourcePointer(descriptorUrl)` (see [Pointer sources](#pointer-sources))
 - **Integrity**: bare `{ sha1 }` / `{ sha256 }` / `{ md5 }`, or an array of those. Omit the field to skip verification.
 - **Extract**: `extractPick(file, into)`, `extractScan(matches, into, opts?)`, `extractDump(into, opts?)`
 
@@ -148,16 +149,131 @@ An `Artifact` is:
 ```ts
 interface Artifact {
   path: string; // destination path (interpolated against vars at install)
-  source: Source; // url | file | string
+  source: Source; // url | file | string | bytes | pointer
   size?: number; // optional bytes
   rules: Ruleset; // OS/feature gates
   integrity?: HashEntry | HashEntry[]; // missing = skip
+  discovery?: Discovery; // discover integrity/size at install (see Discovery)
   metadata?: unknown;
   extract?: ExtractRule[]; // pick | scan | dump
 }
 
 type HashEntry = { sha1: string } | { sha256: string } | { md5: string };
 ```
+
+### Pointer sources
+
+Every other `Source` is static — once `torba build` writes the manifest, the
+artifact is pinned. A **pointer** source is indirection: `sourcePointer(url)`
+stores only the URL of a JSON **descriptor**, and the descriptor is fetched
+fresh on every install. Use it for content that evolves independently of the
+manifest — a translation pack repo that ships fixes, a mod that publishes a
+rolling "latest" build.
+
+```ts
+// in torba.config.mjs
+artifacts: [
+  [
+    {
+      path: '${game_directory}/resourcepacks/lang.zip',
+      source: sourcePointer('https://example.com/lang-pack/latest.json'),
+      rules: [],
+    },
+  ],
+];
+```
+
+The descriptor the maintainer publishes (and overwrites on each release):
+
+```json
+{
+  "source": { "url": "https://cdn.example.com/lang-pack-2.4.1.zip" },
+  "integrity": { "sha256": "…" },
+  "size": 1843200
+}
+```
+
+```ts
+interface PointerDescriptor {
+  source: Source; // the concrete source — may itself be another pointer (≤ 5 hops)
+  integrity?: Integrity; // verifies the artifact named above
+  size?: number;
+}
+```
+
+At install time `resolvePointers` fetches each descriptor, rewrites the
+artifact's `source` / `integrity` / `size` from it, then `scan` decides
+freshness by **hash**, not mere existence:
+
+- local file missing, or its hash ≠ the descriptor's `integrity` → re-download
+- hash still matches → skip (the tiny descriptor was the only fetch)
+- descriptor carries no `integrity` → always re-download (mutable, unpinnable)
+
+So a translation pack is always current, yet costs nothing when unchanged.
+
+**Trust model.** The descriptor itself is unverified (TLS aside) — its host
+controls the channel. But the artifact it names is still verified against the
+hash _in that freshly-fetched descriptor_. Omit `integrity` only for a fully
+trusted channel. Core exports `PointerDescriptorSchema`, `parsePointerDescriptor`,
+and `encodePointerDescriptor` for tooling that produces descriptors.
+
+### Discovery
+
+A `pointer` needs the upstream to publish a torba-shaped descriptor. For a
+plain 3rd-party `url` that you _don't_ control, an artifact's optional
+`discovery` block instead tells torba how to read the file's `integrity` and
+`size` from metadata the host **already** publishes — a sibling checksum file,
+a `SHA256SUMS` list, or an RFC 9530 digest header. It is resolved on every
+install; the discovered hash both verifies the download and decides freshness
+(matches the local copy → skip; differs → refetch).
+
+```ts
+interface Discovery {
+  integrity?: {
+    header?: HashRef; // read the hash from this response header
+    url?: HashRef; //    or fetch this URL and match the hash in its body
+  };
+  size?: { header?: string }; // read the byte count from this header
+}
+
+// A location keyed by algorithm — the key picks sha1/sha256/md5, the
+// string is *where* the hash lives (a header name or a URL), not the hash.
+type HashRef = { sha256: string } | { sha1: string } | { md5: string };
+```
+
+```jsonc
+{
+  "source": { "url": "https://host/pack.zip" },
+  "discovery": {
+    "integrity": {
+      "header": { "sha256": "Repr-Digest" },
+      "url": { "sha256": "${url}.sha256" },
+    },
+    "size": { "header": "Content-Length" },
+  },
+}
+```
+
+- **`integrity.header`** — one HEAD request; the named header is parsed for a
+  hash (hex, or RFC 9530 `algo=:base64:`).
+- **`integrity.url`** — fetched; a hash of the named algorithm is _matched out
+  of_ the body, so `sha256sum` output or a `SHA256SUMS` list works (a list is
+  narrowed to the line bearing the artifact's filename). `${url}` expands to
+  the artifact's own source URL; `${var}` interpolation applies.
+- **Precedence** — `header` is tried before `url` (it rides the HEAD that
+  `size` needs anyway; `url` costs an extra request). Supply either or both;
+  both means `url` is a fallback. If an `integrity` block resolves to nothing,
+  the install aborts.
+- **`size.header`** — read off the same shared HEAD; usually `Content-Length`.
+
+A discovered hash takes precedence over any literal `integrity` on the
+artifact. `discovery` is only valid on a `url` source.
+
+**Trust model.** A same-host checksum (sibling file or digest header) gives
+**transport** integrity — it catches truncation, CDN corruption, cache
+poisoning — not **supply-chain** integrity, since a malicious host serves
+both the file and its checksum. For that, pin a literal `integrity` at build
+time or curate a `pointer`. Core exports `DiscoverySchema` / `encodeDiscovery`.
 
 ### Author-supplied artifact streams
 
@@ -167,7 +283,7 @@ type HashEntry = { sha1: string } | { sha256: string } | { md5: string };
 - **`fetchClient(versionId?)`** — `{ version, client }` for lower-level use
 - **`clientToTemplate(client)`** — convert a parsed Mojang `Client`
 - **`forge({ version, source?, forgeWrapper? })`** — Forge support. Resolves a Forge build via fuckforge (`version` accepts `'1.20.1'`, `'1.20.1-latest|recommended|best'`, or a full build ID like `'1.20.1-47.4.20'`) and branches on the build's era. Processor era (1.13+) emits vanilla MC + Forge runtime libs + installer + ForgeWrapper, and patched/SRG/extra jars are produced on-device on first launch by ForgeWrapper. Legacy era (1.7–1.12) emits vanilla MC + Forge runtime libs (Forge universal included) and launches via `net.minecraft.launchwrapper.Launch`; no installer, no ForgeWrapper. Pre-1.7 (`jarmod`/`ancient`) eras are not yet supported and throw a clear error. No EULA-restricted bytes are redistributed in any era.
-- **`artifactScanner({ directory, url, path?, hash?, source?, overrides? })`** — async generator over a directory tree
+- **`artifactScanner({ directory, url, path?, hash?, source? })`** — async generator over a directory tree
   - `url` — fetch URL template (supports `${path}`, `${dir}`, `${filename}` placeholders)
   - `path` — destination path template, parallel to `url`. Defaults to `${path}` (file's relative path)
   - `source: 'url'` (default) — emits `sourceUrl` and computes hashes
@@ -196,6 +312,36 @@ export default defineConfig(async ({ mode }) => {
   };
 });
 ```
+
+### Composing artifact streams (`pipe`)
+
+`pipe(...sources)` opens an `ArtifactPipe` over one or more artifact sources —
+anything iterable or async-iterable (`Artifact[]`, generators, `artifactScanner`,
+a template's `artifacts`). Sources are concatenated in argument order, so the
+build's last-wins-by-`path` dedup still applies. Each op records a pure transform
+and returns a _new_ pipe — the chain is immutable.
+
+```js
+artifacts: [
+  pipe(fr.artifacts, artifactScanner({ directory: './mods', url: '...' }))
+    .exclude('**/realms*.jar')
+    .skipIntegrity('**/mods/*.jar'),
+];
+```
+
+- **`.exclude(selector)`** — drop every matched artifact.
+- **`.skipIntegrity(selector)`** — disable hash verification for matched
+  artifacts (clears both `integrity` and `discovery`).
+- **`.collect()`** — `Promise<Artifact[]>` when a materialized array is needed.
+
+An `ArtifactPipe` is itself an `AsyncIterable<Artifact>`, so it drops straight
+into `artifacts: [...]` with no `await`. Sources are drained exactly once
+(cached), so single-shot generators survive repeated iteration.
+
+A **`Selector`** is `string | string[] | ((artifact: Artifact) => boolean)`.
+Strings are globs (`*`, `**`, `?`, `{a,b}`) matched against `artifact.path`;
+an array is OR. The predicate form is the escape hatch for matching on source
+kind, size, metadata, etc. A zero-match selector is a silent no-op.
 
 ## Programmatic API — `@torba/installer`
 
@@ -237,6 +383,10 @@ Integrity failure is fatal on first occurrence — no retry/redownload loop. If 
 - `validateManifest(u)` — surfaces config typos (undefined args, malformed envs) before they reach the rules engine
 - `Artifact`, `ArtifactSchema`, `encodeArtifact`, `deduplicateArtifacts`, `artifactApplies`
 - Subtypes: `Source`, `Integrity`/`HashEntry`, `ExtractRule` (`Pick`/`Scan`/`Dump`), `Launch`, `ValDefs`/`ConditionalVal`
+- Pointer: `PointerDescriptor`, `PointerDescriptorSchema`, `parsePointerDescriptor`, `encodePointerDescriptor` (see [Pointer sources](#pointer-sources))
+- Discovery: `Discovery`, `HashRef`, `DiscoverySchema`, `encodeDiscovery` (see [Discovery](#discovery))
+- Pipe: `pipe`, `ArtifactPipe`, `Selector` (see [Composing artifact streams](#composing-artifact-streams-pipe))
+- Glob: `globToRegex`, `globBase` — shared glob → `RegExp` compiler (`*`, `**`, `?`, `{a,b}`)
 - Vars: `parseValDefs`, `encodeValDefs`, `resolveValDefs`, `integrityHashes`
 - Interpolation: `resolveVars(map)` (two-pass; throws on cycles), `interpolate(template, vars)`
 - Launch: `parseLaunch`, `encodeLaunch`, `LaunchSchema`, `resolvedArgs`, `resolvedEnvs`

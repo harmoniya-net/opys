@@ -2,14 +2,6 @@ import type { Artifact } from './artifact';
 import type { Launch } from './launch';
 import type { ValDefs } from './valdefs';
 
-export interface OverrideConfig {
-  path: string;
-  url?: string;
-  hashes?: Array<{ sha1: string } | { sha256: string }>;
-  extraHashes?: Array<{ sha1: string } | { sha256: string }>;
-  exclude?: boolean;
-}
-
 export interface TorbaConfigContext {
   /** User-provided value via `--mode`. Defaults to the CLI command name when omitted. */
   mode: string;

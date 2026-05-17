@@ -9,6 +9,8 @@ import {
 import { currentPlatform } from './platform';
 import type { OsOptions } from '@torba/rules';
 import { resolveManifest, type ManifestSource } from './phases/resolve';
+import { resolvePointers } from './phases/resolve-pointers';
+import { resolveDiscovery } from './phases/resolve-discovery';
 import { scan } from './phases/scan';
 import { fetchAll, type FetchTask } from './phases/fetch';
 import { verifyAll } from './phases/verify';
@@ -63,6 +65,7 @@ function extractIsPending(
 export type { ManifestSource } from './phases/resolve';
 export type InstallProgress =
   | { phase: 'resolve' }
+  | { phase: 'pointer'; resolved: number }
   | { phase: 'download'; fetched: number; total: number; skipped: number }
   | { phase: 'download:start'; path: string; total: number }
   | { phase: 'download:bytes'; path: string; bytes: number }
@@ -92,11 +95,26 @@ export async function install(
   const platform = options.platform ?? currentPlatform();
 
   onProgress?.({ phase: 'resolve' });
-  const manifest = await resolveManifest(source);
-  const flatVars = { ...resolveValDefs(manifest.vars, platform), ...extraVars };
+  const baseManifest = await resolveManifest(source);
+  const flatVars = {
+    ...resolveValDefs(baseManifest.vars, platform),
+    ...extraVars,
+  };
   const vars = resolveVars(flatVars);
 
-  const { tasks, skipped } = scan(manifest, vars, platform);
+  // Resolve `pointer` sources against their live descriptors, then resolve
+  // each `discovery` block against the live upstream — so the pipeline below
+  // only deals with concrete sources, hashes and sizes. Both phases report
+  // artifacts whose cached copy is stale via their `refetch` sets.
+  const pointers = await resolvePointers(baseManifest, vars, platform);
+  if (pointers.resolved > 0) {
+    onProgress?.({ phase: 'pointer', resolved: pointers.resolved });
+  }
+  const discovered = await resolveDiscovery(pointers.manifest, vars, platform);
+  const manifest = discovered.manifest;
+  const refetch = new Set([...pointers.refetch, ...discovered.refetch]);
+
+  const { tasks, skipped } = scan(manifest, vars, platform, refetch);
   const fresh = new Set<string>();
 
   const fetchTasks: FetchTask[] = tasks.map((t) => ({

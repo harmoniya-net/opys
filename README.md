@@ -70,7 +70,7 @@ mojang, rules → zod
 A `torba.json` describes:
 
 - **`vars`** — interpolation variables, optionally OS-conditional
-- **`artifacts`** — artifacts to download/copy/extract, each with source, integrity, extract rules, and platform rules
+- **`artifacts`** — artifacts to download/copy/extract, each with source, integrity, extract rules, and platform rules. An artifact can track an evolving upstream (e.g. an always-latest translation pack): a [`pointer`](API.md#pointer-sources) source resolves a torba descriptor at install time, or a [`discovery`](API.md#discovery) block reads integrity/size from metadata a plain 3rd-party host already publishes
 - **`launch`** — command, workdir, args, and env vars to spawn after installation
 
 See [`API.md`](API.md) for the full public API and lifecycle.

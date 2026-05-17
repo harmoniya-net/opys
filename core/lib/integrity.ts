@@ -26,3 +26,5 @@ export function integrityHashes(i: Integrity | undefined): HashEntry[] {
   if (i === undefined) return [];
   return Array.isArray(i) ? i : [i];
 }
+
+export type HashAlgo = 'sha1' | 'sha256' | 'md5';

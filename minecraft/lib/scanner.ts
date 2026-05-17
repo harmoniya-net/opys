@@ -1,10 +1,9 @@
 import { createHash } from 'node:crypto';
 import { readFile, readdir, stat } from 'node:fs/promises';
 import { basename, dirname, join, relative } from 'node:path';
-import type { Artifact, HashEntry, Integrity } from '@torba/core';
+import type { Artifact, Integrity } from '@torba/core';
 import { sourceFile, sourceUrl } from '@torba/core';
 import { interpolate } from '@torba/core';
-import type { OverrideConfig } from '@torba/core';
 
 export interface ArtifactScannerOptions {
   directory: string;
@@ -21,15 +20,6 @@ export interface ArtifactScannerOptions {
    * 'file' → emit sourceFile pointing at the local copy; skip hashing entirely
    */
   source?: 'url' | 'file';
-  overrides?: OverrideConfig[];
-}
-
-function globMatches(pattern: string, path: string): boolean {
-  const re = pattern
-    .replace(/[.+^${}()|[\]\\*]/g, '\\$&')
-    .replace(/\\\*\\\*/g, '.*')
-    .replace(/\\\*/g, '[^/]*');
-  return new RegExp(`^${re}$`).test(path);
 }
 
 interface FileEntry {
@@ -71,14 +61,10 @@ export async function* artifactScanner(
 ): AsyncGenerator<Artifact> {
   const algo = options.hash ?? 'sha1';
   const pathTemplate = options.path ?? '${path}';
-  const overrides = options.overrides ?? [];
   const sourceKind = options.source ?? 'url';
   const files = await walkDir(options.directory);
 
   for (const file of files) {
-    const override = overrides.find((o) => globMatches(o.path, file.rel));
-    if (override?.exclude) continue;
-
     const d = dirname(file.rel);
     const vars = {
       path: file.rel,
@@ -95,18 +81,9 @@ export async function* artifactScanner(
       source = sourceFile(file.abs);
       // trust local file by path — skip hash computation
     } else {
-      source = sourceUrl(interpolate(override?.url ?? options.url, vars));
-      if (override?.hashes?.length) {
-        integrity = override.hashes as HashEntry[];
-      } else {
-        const digest = await hashFile(file.abs, algo);
-        const computed: HashEntry =
-          algo === 'sha1' ? { sha1: digest } : { sha256: digest };
-        const entries = override?.extraHashes
-          ? [computed, ...(override.extraHashes as HashEntry[])]
-          : [computed];
-        integrity = entries.length === 1 ? entries[0] : entries;
-      }
+      source = sourceUrl(interpolate(options.url, vars));
+      const digest = await hashFile(file.abs, algo);
+      integrity = algo === 'sha1' ? { sha1: digest } : { sha256: digest };
     }
 
     yield {

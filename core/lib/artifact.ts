@@ -8,6 +8,7 @@ import {
 import type { OsOptions } from '@torba/rules';
 import { type Source, SourceSchema, encodeSource } from './source';
 import { type Integrity, IntegritySchema, encodeIntegrity } from './integrity';
+import { type Discovery, DiscoverySchema, encodeDiscovery } from './discovery';
 import { type ExtractRule, ExtractSchema, encodeExtract } from './extract';
 
 export interface Artifact {
@@ -16,6 +17,13 @@ export interface Artifact {
   readonly size?: number;
   readonly rules: Ruleset;
   readonly integrity?: Integrity;
+  /**
+   * How to discover `integrity` / `size` at install time when they can't be
+   * baked in — for a `url` source tracking a moving 3rd-party file. Resolved
+   * before download; a discovered hash takes precedence over any literal
+   * `integrity` above.
+   */
+  readonly discovery?: Discovery;
   readonly metadata?: unknown;
   readonly extract?: ExtractRule[];
 }
@@ -26,6 +34,7 @@ const ArtifactRawSchema = z.object({
   size: z.number().int().nonnegative().optional(),
   rules: z.any().optional(),
   integrity: IntegritySchema.optional(),
+  discovery: DiscoverySchema.optional(),
   metadata: z.unknown().optional(),
   extract: ExtractSchema.optional(),
 });
@@ -37,6 +46,7 @@ export const ArtifactSchema: z.ZodType<Artifact> = ArtifactRawSchema.transform(
     size: raw.size,
     rules: raw.rules != null ? parseShortRuleset(raw.rules) : [],
     integrity: raw.integrity,
+    discovery: raw.discovery,
     metadata: raw.metadata,
     extract: raw.extract,
   }),
@@ -49,6 +59,7 @@ export function encodeArtifact(u: Artifact): unknown {
     ...(u.size !== undefined ? { size: u.size } : {}),
     rules: u.rules.length > 0 ? u.rules : undefined,
     ...(u.integrity ? { integrity: encodeIntegrity(u.integrity) } : {}),
+    ...(u.discovery ? { discovery: encodeDiscovery(u.discovery) } : {}),
     ...(u.metadata !== undefined ? { metadata: u.metadata } : {}),
     ...(u.extract ? { extract: encodeExtract(u.extract) } : {}),
   };
