@@ -2,18 +2,34 @@ import { createHash } from 'node:crypto';
 import { readFile, readdir, stat } from 'node:fs/promises';
 import { basename, dirname, join, relative } from 'node:path';
 import type { Artifact, Integrity } from '@torba/core';
-import { sourceFile, sourceUrl } from '@torba/core';
-import { interpolate } from '@torba/core';
+import { sourceFile, sourceUrl, interpolate } from '@torba/core';
+
+/** A file discovered by {@link artifactScanner}, passed to `path`/`url` functions. */
+export interface ScannedFile {
+  /** Path relative to `directory`, POSIX separators. */
+  readonly rel: string;
+  /** Directory portion of `rel` (`''` at the root). */
+  readonly dir: string;
+  /** Final path segment. */
+  readonly filename: string;
+  /** Absolute path on the build machine. */
+  readonly abs: string;
+}
+
+/**
+ * A `path` / `url` value: either a template string — interpolating the
+ * per-file placeholders `${rel}` / `${dir}` / `${filename}` (and `${path}`,
+ * a legacy alias of `${rel}`), with any other `${var}` left for install —
+ * or a `(file) => string` function.
+ */
+export type ScanTemplate = string | ((file: ScannedFile) => string);
 
 export interface ArtifactScannerOptions {
   directory: string;
-  /** URL template for fetching. Supports `${path}`, `${dir}`, `${filename}`. */
-  url: string;
-  /**
-   * Destination path template for installing. Supports the same placeholders as `url`.
-   * Defaults to `${path}` (use the file's relative path verbatim).
-   */
-  path?: string;
+  /** URL for fetching each file — template string or `(file) => string`. */
+  url: ScanTemplate;
+  /** Destination path — template or function. Defaults to the file's `rel`. */
+  path?: ScanTemplate;
   hash?: 'sha1' | 'sha256';
   /**
    * 'url'  → emit sourceUrl + computed hash (default)
@@ -56,24 +72,36 @@ async function hashFile(
     .digest('hex');
 }
 
+function applyTemplate(tpl: ScanTemplate, file: ScannedFile): string {
+  if (typeof tpl === 'function') return tpl(file);
+  return interpolate(tpl, {
+    rel: file.rel,
+    path: file.rel, // legacy alias of ${rel}
+    dir: file.dir,
+    filename: file.filename,
+    abs: file.abs,
+  });
+}
+
 export async function* artifactScanner(
   options: ArtifactScannerOptions,
 ): AsyncGenerator<Artifact> {
   const algo = options.hash ?? 'sha1';
-  const pathTemplate = options.path ?? '${path}';
   const sourceKind = options.source ?? 'url';
   const files = await walkDir(options.directory);
 
   for (const file of files) {
     const d = dirname(file.rel);
-    const vars = {
-      path: file.rel,
-      abs: file.abs,
-      filename: basename(file.rel),
+    const scanned: ScannedFile = {
+      rel: file.rel,
       dir: d === '.' ? '' : d,
+      filename: basename(file.rel),
+      abs: file.abs,
     };
 
-    const artifactPath = interpolate(pathTemplate, vars);
+    const artifactPath = options.path
+      ? applyTemplate(options.path, scanned)
+      : file.rel;
 
     let integrity: Integrity | undefined;
     let source;
@@ -81,7 +109,7 @@ export async function* artifactScanner(
       source = sourceFile(file.abs);
       // trust local file by path — skip hash computation
     } else {
-      source = sourceUrl(interpolate(options.url, vars));
+      source = sourceUrl(applyTemplate(options.url, scanned));
       const digest = await hashFile(file.abs, algo);
       integrity = algo === 'sha1' ? { sha1: digest } : { sha256: digest };
     }

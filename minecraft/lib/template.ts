@@ -121,10 +121,6 @@ export async function clientToTemplate(
       { value: ':', rules: allowOsRuleset('osx') },
     ],
     classpath: classpathEntries,
-    // Default to PATH-resolved `java`. Override `java_home` / `java_bin`
-    // (e.g. via @torba/java) to pin a specific runtime.
-    java_home: '',
-    java_bin: 'java',
   };
 
   const parts = buildLaunch(
