@@ -15,57 +15,55 @@ interface TemplateInputs {
 }
 
 function vanillaTemplate({ name, version }: TemplateInputs): string {
-  return `import { defineConfig, resolveMinecraft, userDataDir } from '@torba/minecraft';
+  return `import { defineConfig } from '@torba/dev';
+import { minecraft, userDataDir } from '@torba/minecraft';
 
-export default defineConfig(async () => {
-  const mc = await resolveMinecraft({ version: '${version}' });
-
-  return {
-    output: 'torba.json',
-    manifest: {
-      artifacts: [mc.artifacts],
-      vars: mc.vars,
-      launch: mc.launch,
+export default defineConfig({
+  output: 'torba.json',
+  plugins: [minecraft('${version}')],
+  manifest: {
+    command: () => 'java',
+    args: ({ minecraft }) => [
+      minecraft.jvmArgs,
+      minecraft.mainClass,
+      minecraft.gameArgs,
+    ],
+    workdir: '\${game_directory}',
+    vars: { root: userDataDir('${name}') },
+  },
+  runClient: (manifest) => ({
+    vars: {
+      ...manifest.vars,
+      username: 'Player',
+      uuid: '00000000-0000-0000-0000-000000000000',
+      token: '',
     },
-    runClient: {
-      vars: {
-        root: userDataDir('${name}'),
-        username: 'Player',
-        uuid: '',
-        token: '',
-      },
-    },
-  };
+  }),
 });
 `;
 }
 
 function forgeTemplate({ name, version }: TemplateInputs): string {
-  return `import { defineConfig, userDataDir } from '@torba/minecraft';
-import { resolveForge } from '@torba/forge';
+  return `import { defineConfig } from '@torba/dev';
+import { forge, userDataDir } from '@torba/minecraft';
 
-export default defineConfig(async () => {
-  const fr = await resolveForge({
-    version: '${version}',
-    manifest: './forge-manifest.json', // path to the forge version JSON on disk
-  });
-
-  return {
-    output: 'torba.json',
-    manifest: {
-      artifacts: [fr.artifacts],
-      vars: fr.vars,
-      launch: fr.launch,
+export default defineConfig({
+  output: 'torba.json',
+  plugins: [forge('${version}-best')],
+  manifest: {
+    command: () => 'java',
+    args: ({ forge }) => [forge.jvmArgs, forge.mainClass, forge.gameArgs],
+    workdir: '\${game_directory}',
+    vars: { root: userDataDir('${name}') },
+  },
+  runClient: (manifest) => ({
+    vars: {
+      ...manifest.vars,
+      username: 'Player',
+      uuid: '00000000-0000-0000-0000-000000000000',
+      token: '',
     },
-    runClient: {
-      vars: {
-        root: userDataDir('${name}'),
-        username: 'Player',
-        uuid: '',
-        token: '',
-      },
-    },
-  };
+  }),
 });
 `;
 }
@@ -112,24 +110,13 @@ function runInstall(pm: PackageManager, packages: string[]): Promise<boolean> {
   });
 }
 
-function manualSteps(
-  packages: string[],
-  pm: PackageManager,
-  forge: boolean,
-): void {
+function manualSteps(packages: string[], pm: PackageManager): void {
   process.stdout.write(`${dim('Next steps:')}\n`);
   process.stdout.write(
     `  ${pm.name} ${pm.addCmd} ${pm.devFlag} ${packages.join(' ')}\n`,
   );
-  if (forge) {
-    process.stdout.write(
-      `  ${dim('# place the forge version JSON at ./forge-manifest.json')}\n`,
-    );
-  }
   process.stdout.write(`  torba build\n`);
-  process.stdout.write(
-    `  torba launch --var username=YourName --var uuid=<uuid> --var token=<token>\n`,
-  );
+  process.stdout.write(`  torba launch\n`);
 }
 
 function onCancel(): never {
@@ -247,9 +234,9 @@ export async function cmdInit(argv: string[], _logger: Logger): Promise<void> {
   }
 
   const inputs: TemplateInputs = {
-    name: cliName ?? answers.name,
-    version: cliVersion ?? answers.version,
-    forge: cliForge ?? answers.forge,
+    name: cliName ?? (answers.name as string),
+    version: cliVersion ?? (answers.version as string),
+    forge: cliForge ?? (answers.forge as boolean),
   };
 
   const content = inputs.forge
@@ -259,15 +246,13 @@ export async function cmdInit(argv: string[], _logger: Logger): Promise<void> {
 
   process.stdout.write(`\n${green('✓')} Wrote ${cyan(outputFile)}\n`);
 
-  const packages = inputs.forge
-    ? ['@torba/minecraft', '@torba/forge']
-    : ['@torba/minecraft'];
+  const packages = ['@torba/dev', '@torba/minecraft'];
 
   const wantsInstall = cliInstall
     ? true
     : cliNoInstall
       ? false
-      : (answers.install ?? false);
+      : ((answers.install as boolean | undefined) ?? false);
 
   const pm = detectPackageManager();
 
@@ -276,7 +261,7 @@ export async function cmdInit(argv: string[], _logger: Logger): Promise<void> {
       process.stdout.write(
         `\n${dim('No package.json found — skipping install.')}\n\n`,
       );
-      manualSteps(packages, pm, inputs.forge);
+      manualSteps(packages, pm);
       return;
     }
     const ok = await runInstall(pm, packages);
@@ -284,24 +269,17 @@ export async function cmdInit(argv: string[], _logger: Logger): Promise<void> {
       process.stdout.write(
         `\n${red('✖')} Install failed. Run it manually:\n\n`,
       );
-      manualSteps(packages, pm, inputs.forge);
+      manualSteps(packages, pm);
       return;
     }
     process.stdout.write(
       `\n${green('✓')} Installed ${packages.join(', ')}\n\n`,
     );
     process.stdout.write(`${dim('Next steps:')}\n`);
-    if (inputs.forge) {
-      process.stdout.write(
-        `  ${dim('# place the forge version JSON at ./forge-manifest.json')}\n`,
-      );
-    }
     process.stdout.write(`  torba build\n`);
-    process.stdout.write(
-      `  torba launch --var username=YourName --var uuid=<uuid> --var token=<token>\n`,
-    );
+    process.stdout.write(`  torba launch\n`);
   } else {
     process.stdout.write('\n');
-    manualSteps(packages, pm, inputs.forge);
+    manualSteps(packages, pm);
   }
 }

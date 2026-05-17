@@ -13,12 +13,11 @@ torba — declarative manifest toolkit
 USAGE
   torba init   [-o <torba.config.mjs>] [--name <n>] [--version <v>] [--forge] [--force] [--install|--no-install]
   torba build  [-i <torba.config.mjs>] [-o <out>] [--mode <m>]  Build manifest
-  torba launch [-i <torba.config.mjs>] [--var K=V] [--mode <m>]  Install and launch
+  torba launch [-i <torba.config.mjs>] [--mode <m>]  Install and launch
 
 OPTIONS
   -i, --input          Config file  (default: torba.config.mjs)
   -o, --output         Output file  (default: stdout for build; torba.config.mjs for init)
-  --var KEY=VAL        Override a manifest variable (repeatable; launch only)
   --mode <value>       Mode passed to config function (default: command name)
   --name <appName>     Application name for init (default: cwd basename)
   --version <mc>       Minecraft version for init (default: 1.20.1)

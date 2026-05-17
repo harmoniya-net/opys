@@ -14,10 +14,10 @@
   "type": "module",
   "dependencies": {
     "@torba/core": "^1.0.9",
+    "@torba/dev": "^1.0.9",
     "@torba/runtime": "^1.0.9",
     "@torba/minecraft": "^1.0.9",
     "@torba/mojang": "^1.0.9",
-    "@torba/mojang-rules": "^1.0.9",
     "kolorist": "^1.8.0",
     "prompts": "^2.4.2"
   },

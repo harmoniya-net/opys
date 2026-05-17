@@ -1,27 +1,11 @@
 import { writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import {
-  encodeManifest,
-  resolveConfig,
-  deduplicateArtifacts,
-  validateManifest,
-  type Artifact,
-  type ArtifactIterable,
-} from '@torba/core';
+import { encodeManifest } from '@torba/core';
+import { resolveConfig, buildManifest, type BuildContext } from '@torba/dev';
 import { parseArgs } from '../args';
 import { UsageError } from '../errors';
 import type { Logger } from '../logger';
-
-async function collectArtifacts(
-  sources: ArtifactIterable[],
-): Promise<Artifact[]> {
-  const out: Artifact[] = [];
-  for (const src of sources) {
-    for await (const a of src) out.push(a);
-  }
-  return deduplicateArtifacts(out);
-}
 
 export async function cmdBuild(argv: string[], logger: Logger): Promise<void> {
   const args = parseArgs(argv, [
@@ -39,20 +23,13 @@ export async function cmdBuild(argv: string[], logger: Logger): Promise<void> {
   if (!mod.default) throw new UsageError(`${inputFile}: no default export`);
 
   const config = await resolveConfig(mod.default, { mode });
-  logger.info('Building manifest...');
 
-  const artifacts = await collectArtifacts(config.manifest?.artifacts ?? []);
-  logger.debug(`Collected ${artifacts.length} artifacts`);
-
-  const manifest = {
-    vars: config.manifest?.vars ?? {},
-    launch: config.manifest?.launch,
-    artifacts: artifacts,
-    ...(config.manifest?.restrict
-      ? { restrict: config.manifest.restrict }
-      : {}),
+  const ctx: BuildContext = {
+    log: (scope, msg) => logger.info(`[${scope}] ${msg}`),
+    configDir,
+    mode,
   };
-  validateManifest(manifest);
+  const manifest = await buildManifest(config, ctx);
   const json = JSON.stringify(encodeManifest(manifest), null, 2) + '\n';
 
   const out = outputFile ?? config.output;

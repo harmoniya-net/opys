@@ -1,9 +1,9 @@
+import { readFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { install, launch, type InstallProgress } from '@torba/runtime';
-import type { Manifest, ArtifactIterable, Artifact } from '@torba/core';
-import { resolveConfig, validateManifest } from '@torba/core';
-import type { ManifestSource } from '@torba/runtime';
+import { parseManifest, type Manifest } from '@torba/core';
+import { resolveConfig } from '@torba/dev';
 import { parseArgs } from '../args';
 import { UsageError } from '../errors';
 import {
@@ -15,24 +15,12 @@ import {
 } from '../progress';
 import type { Logger } from '../logger';
 
-async function collectArtifacts(
-  sources: ArtifactIterable[],
-): Promise<Artifact[]> {
-  const out: Artifact[] = [];
-  for (const src of sources) {
-    for await (const a of src) out.push(a);
-  }
-  return out;
-}
-
 export async function cmdLaunch(argv: string[], logger: Logger): Promise<void> {
   const args = parseArgs(argv, [
     { long: 'input', short: 'i', type: 'string' },
-    { long: 'var', type: 'pairs' },
     { long: 'mode', type: 'string' },
   ]);
   const inputFile = args.getString('input') ?? 'torba.config.mjs';
-  const extraVars = args.getPairs('var');
   const mode = args.getString('mode') ?? 'launch';
   const absConfig = resolve(inputFile);
   const configDir = dirname(absConfig);
@@ -40,27 +28,20 @@ export async function cmdLaunch(argv: string[], logger: Logger): Promise<void> {
   const mod = await import(pathToFileURL(absConfig).href);
   if (!mod.default) throw new UsageError(`${inputFile}: no default export`);
   const config = await resolveConfig(mod.default, { mode });
-  const vars = { ...config.runClient?.vars, ...extraVars };
 
-  let manifestSource: ManifestSource;
-  if (config.manifest?.artifacts?.length) {
-    logger.info('Building manifest...');
-    const artifacts = await collectArtifacts(config.manifest.artifacts);
-    logger.debug(`Collected ${artifacts.length} artifacts`);
-    const manifest: Manifest = {
-      vars: config.manifest.vars ?? {},
-      launch: config.manifest.launch,
-      artifacts: artifacts,
-      ...(config.manifest.restrict
-        ? { restrict: config.manifest.restrict }
-        : {}),
-    };
-    validateManifest(manifest);
-    manifestSource = manifest;
-  } else {
-    if (!config.output) throw new UsageError('config.output required');
-    manifestSource = resolve(configDir, config.output);
+  if (!config.output) {
+    throw new UsageError('config.output is required to locate torba.json');
   }
+  // Launch reads the built manifest from disk — it never rebuilds.
+  const manifestPath = resolve(configDir, config.output);
+  const baseManifest = await parseManifest(
+    await readFile(manifestPath, 'utf8'),
+  );
+
+  // runClient is the launch-time manifest patch: a shallow per-field override.
+  const manifest: Manifest = config.runClient
+    ? { ...baseManifest, ...config.runClient(baseManifest) }
+    : baseManifest;
 
   const t0 = Date.now();
   const pw = new ProgressWriter(process.stderr.isTTY ?? false);
@@ -81,8 +62,7 @@ export async function cmdLaunch(argv: string[], logger: Logger): Promise<void> {
     pw.update(renderProgress(state));
   };
 
-  await install(manifestSource, {
-    vars,
+  await install(manifest, {
     onProgress(p: InstallProgress) {
       switch (p.phase) {
         case 'download':
@@ -125,9 +105,7 @@ export async function cmdLaunch(argv: string[], logger: Logger): Promise<void> {
   pw.finish();
   logger.info(` Ready in ${elapsed(t0)}`);
   logger.info('Launching...');
-  const child = await launch(manifestSource, {
-    vars,
-    cwd: config.runClient?.dir,
+  const child = await launch(manifest, {
     install: false,
     log: logger.installerLog(),
   });
