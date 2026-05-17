@@ -3,6 +3,7 @@ import { readFile, readdir, stat } from 'node:fs/promises';
 import { basename, dirname, join, relative } from 'node:path';
 import type { Artifact, Integrity } from '@torba/core';
 import { sourceFile, sourceUrl, interpolate } from '@torba/core';
+import type { ArtifactOverride } from '@torba/dev';
 
 /** A file discovered by {@link artifactScanner}, passed to `path`/`url` functions. */
 export interface ScannedFile {
@@ -36,6 +37,12 @@ export interface ArtifactScannerOptions {
    * 'file' → emit sourceFile pointing at the local copy; skip hashing entirely
    */
   source?: 'url' | 'file';
+  /**
+   * Per-selector patches applied to the scanned artifacts — exclude files,
+   * attach rulesets (OS / feature gates), or clear integrity. Applied by
+   * the `artifactScanner` plugin after the directory walk.
+   */
+  overrides?: ArtifactOverride[];
 }
 
 interface FileEntry {

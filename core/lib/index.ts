@@ -3,7 +3,6 @@ export * from './pointer';
 export * from './integrity';
 export * from './discovery';
 export * from './glob';
-export * from './filter';
 export * from './shorthand';
 export * from './val';
 export * from './extract';

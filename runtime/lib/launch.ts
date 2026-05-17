@@ -14,6 +14,11 @@ import { currentPlatform } from './platform';
 
 export interface LaunchOptions {
   platform?: OsOptions;
+  /**
+   * Active feature flags. Gate `allow.features.*` rules across launch args,
+   * vars, and (via the nested install) artifacts. Supplied programmatically.
+   */
+  features?: string[];
   vars?: Record<string, string>;
   /** Override the manifest's `command.workdir`. Interpolated with vars. */
   cwd?: string;
@@ -26,23 +31,38 @@ export async function launch(
   options: LaunchOptions = {},
 ): Promise<ChildProcess> {
   const manifest = await resolveManifest(source);
-  const { vars: extraVars = {}, install: installOpts = {}, log } = options;
+  const {
+    vars: extraVars = {},
+    install: installOpts = {},
+    log,
+    features = [],
+  } = options;
   const platform = options.platform ?? currentPlatform();
 
   if (installOpts !== false) {
-    await install(manifest, { platform, vars: extraVars, ...installOpts });
+    await install(manifest, {
+      platform,
+      features,
+      vars: extraVars,
+      ...installOpts,
+    });
   }
 
   const config = manifest.launch;
   if (!config) throw new Error('No launch config in manifest');
 
-  const flatVars = { ...resolveValDefs(manifest.vars, platform), ...extraVars };
+  const flatVars = {
+    ...resolveValDefs(manifest.vars, platform, features),
+    ...extraVars,
+  };
   const vars = resolveVars(flatVars);
 
   const command = interpolate(config.command, vars);
   const workdir = interpolate(options.cwd ?? config.workdir, vars);
-  const args = resolvedArgs(config, platform).map((a) => interpolate(a, vars));
-  const rawEnvs = resolvedEnvs(config, platform);
+  const args = resolvedArgs(config, platform, features).map((a) =>
+    interpolate(a, vars),
+  );
+  const rawEnvs = resolvedEnvs(config, platform, features);
   const envs: Record<string, string> = {};
   for (const [k, v] of Object.entries(rawEnvs)) {
     envs[k] = interpolate(v, vars);

@@ -19,13 +19,15 @@ export function scan(
   manifest: Manifest,
   vars: Record<string, string>,
   platform: OsOptions,
+  /** Active feature flags — gate `allow.features.*` artifact rules. */
+  feats: string[] = [],
   /**
    * `artifact.path` templates to fetch unconditionally, even if the file
    * already exists — pointer artifacts whose upstream has moved on.
    */
   force: ReadonlySet<string> = new Set(),
 ): ScanResult {
-  const applicable = filterManifest(manifest, platform);
+  const applicable = filterManifest(manifest, platform, feats);
   const tasks: ScanTask[] = [];
   let skipped = 0;
 

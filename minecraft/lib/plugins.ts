@@ -1,4 +1,9 @@
-import { definePlugin, type TorbaPlugin, type LaunchGroups } from '@torba/dev';
+import {
+  definePlugin,
+  applyOverrides,
+  type TorbaPlugin,
+  type LaunchGroups,
+} from '@torba/dev';
 import type { Artifact, Launch, Val, Valset } from '@torba/core';
 import { resolveMinecraft } from './template';
 import {
@@ -132,9 +137,15 @@ export function artifactScanner(options: ArtifactScannerOptions): TorbaPlugin {
   return definePlugin({
     name: 'artifactScanner',
     async build(ctx) {
-      const artifacts: Artifact[] = [];
-      for await (const a of scanDirectory(options)) artifacts.push(a);
-      ctx.log('artifactScanner', `scanned ${artifacts.length} file(s)`);
+      const scanned: Artifact[] = [];
+      for await (const a of scanDirectory(options)) scanned.push(a);
+      const artifacts = applyOverrides(scanned, options.overrides ?? []);
+      const dropped = scanned.length - artifacts.length;
+      ctx.log(
+        'artifactScanner',
+        `scanned ${scanned.length} file(s)` +
+          (dropped > 0 ? `, ${dropped} excluded` : ''),
+      );
       return { artifacts };
     },
   });

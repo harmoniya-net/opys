@@ -77,6 +77,8 @@ export interface InstallOptions {
   concurrency?: number;
   onProgress?: (p: InstallProgress) => void;
   verifyIntegrity?: boolean;
+  /** Active feature flags — gate `allow.features.*` artifact rules. */
+  features?: string[];
 }
 
 export async function install(
@@ -88,13 +90,14 @@ export async function install(
     concurrency = DEFAULT_CONCURRENCY,
     onProgress,
     verifyIntegrity = true,
+    features = [],
   } = options;
   const platform = options.platform ?? currentPlatform();
 
   onProgress?.({ phase: 'resolve' });
   const baseManifest = await resolveManifest(source);
   const flatVars = {
-    ...resolveValDefs(baseManifest.vars, platform),
+    ...resolveValDefs(baseManifest.vars, platform, features),
     ...extraVars,
   };
   const vars = resolveVars(flatVars);
@@ -111,7 +114,7 @@ export async function install(
   const manifest = discovered.manifest;
   const refetch = new Set([...pointers.refetch, ...discovered.refetch]);
 
-  const { tasks, skipped } = scan(manifest, vars, platform, refetch);
+  const { tasks, skipped } = scan(manifest, vars, platform, features, refetch);
   const fresh = new Set<string>();
 
   const fetchTasks: FetchTask[] = tasks.map((t) => ({
@@ -165,7 +168,7 @@ export async function install(
   // file is on disk. Schedule it if it's freshly downloaded OR if any of
   // its extract destinations are still missing — the latter recovers from
   // installs that crashed after download but before extract.
-  const applicable = filterManifest(manifest, platform).artifacts;
+  const applicable = filterManifest(manifest, platform, features).artifacts;
   const extractTasks: ExtractTask[] = [];
   for (const artifact of applicable) {
     if (!artifact.extract) continue;
