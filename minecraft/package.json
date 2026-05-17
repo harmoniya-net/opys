@@ -15,7 +15,7 @@
   "dependencies": {
     "@torba/mojang": "^1.0.9",
     "@torba/core": "^1.0.9",
-    "@torba/rules": "^1.0.9"
+    "@torba/mojang-rules": "^1.0.9"
   },
   "devDependencies": {
     "tsdown": "*"

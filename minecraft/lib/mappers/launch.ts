@@ -1,5 +1,9 @@
-import type { Val, Valset, OsOptions } from '@torba/rules';
-import { parseValset, resolveValset, allowOsRuleset } from '@torba/rules';
+import type { Val, Valset, OsOptions } from '@torba/mojang-rules';
+import {
+  parseValset,
+  resolveValset,
+  allowOsRuleset,
+} from '@torba/mojang-rules';
 import type { MojangArgValue } from '@torba/mojang';
 import type { Launch, ConditionalVal } from '@torba/core';
 

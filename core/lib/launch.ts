@@ -4,8 +4,8 @@ import {
   encodeValset,
   resolveValset,
   type Valset,
-} from '@torba/rules';
-import type { OsOptions } from '@torba/rules';
+} from '@torba/mojang-rules';
+import type { OsOptions } from '@torba/mojang-rules';
 import {
   parseValDefs,
   encodeValDefs,

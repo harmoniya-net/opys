@@ -1,5 +1,5 @@
 import { type Artifact, sourceUrl } from '@torba/core';
-import type { Val, Valset } from '@torba/rules';
+import type { Val, Valset } from '@torba/mojang-rules';
 import {
   resolveAuthLibertyVersion,
   type AuthLibertyRelease,

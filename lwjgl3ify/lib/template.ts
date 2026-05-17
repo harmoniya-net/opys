@@ -7,7 +7,7 @@ import {
   sourceUrl,
   fetchWithRetry,
 } from '@torba/core';
-import type { Val, Valset } from '@torba/rules';
+import type { Val, Valset } from '@torba/mojang-rules';
 import { parseClient, parseMaven, type MavenCoord } from '@torba/mojang';
 import {
   resolveLwjgl3ifyVersion,

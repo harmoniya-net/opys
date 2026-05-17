@@ -14,7 +14,7 @@ import {
   extractScan,
   fetchWithRetry,
 } from '@torba/core';
-import type { Val, Valset } from '@torba/rules';
+import type { Val, Valset } from '@torba/mojang-rules';
 import {
   parseArguments,
   parseLibraries,

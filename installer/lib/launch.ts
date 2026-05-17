@@ -6,7 +6,7 @@ import {
   resolvedArgs,
   resolvedEnvs,
 } from '@torba/core';
-import type { OsOptions } from '@torba/rules';
+import type { OsOptions } from '@torba/mojang-rules';
 import { install, type InstallOptions } from './install';
 import { resolveManifest } from './phases/resolve';
 import type { ManifestSource } from './phases/resolve';

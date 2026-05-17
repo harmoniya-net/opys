@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { OsOptions } from '@torba/rules';
+import type { OsOptions } from '@torba/mojang-rules';
 import { type Launch, LaunchSchema, encodeLaunch } from './launch';
 import {
   type Artifact,

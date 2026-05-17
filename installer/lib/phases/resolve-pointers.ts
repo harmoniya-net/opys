@@ -11,7 +11,7 @@ import {
   isSourcePointer,
   parsePointerDescriptor,
 } from '@torba/core';
-import type { OsOptions } from '@torba/rules';
+import type { OsOptions } from '@torba/mojang-rules';
 import { NetworkError } from '../errors';
 import { verifyIntegrity } from './verify';
 

@@ -21,7 +21,7 @@
   "type": "module",
   "dependencies": {
     "@torba/core": "^1.0.9",
-    "@torba/rules": "^1.0.9",
+    "@torba/mojang-rules": "^1.0.9",
     "fflate": "^0.8.2"
   },
   "devDependencies": {

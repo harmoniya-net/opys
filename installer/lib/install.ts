@@ -7,7 +7,7 @@ import {
   type Artifact,
 } from '@torba/core';
 import { currentPlatform } from './platform';
-import type { OsOptions } from '@torba/rules';
+import type { OsOptions } from '@torba/mojang-rules';
 import { resolveManifest, type ManifestSource } from './phases/resolve';
 import { resolvePointers } from './phases/resolve-pointers';
 import { resolveDiscovery } from './phases/resolve-discovery';

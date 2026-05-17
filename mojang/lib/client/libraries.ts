@@ -10,7 +10,7 @@ export interface Artifact {
 
 /**
  * Raw Mojang rule as it appears in version JSON.
- * Structurally compatible with @torba/rules Rule type.
+ * Structurally compatible with @torba/mojang-rules Rule type.
  */
 export type MojangRuleAction = 'allow' | 'disallow';
 export type MojangRule =

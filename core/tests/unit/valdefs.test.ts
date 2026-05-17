@@ -5,7 +5,7 @@ import {
   resolveValDefs,
   type ValDefs,
 } from '../../lib/valdefs';
-import { allowOsRuleset } from '@torba/rules';
+import { allowOsRuleset } from '@torba/mojang-rules';
 
 const LINUX = { name: 'linux', version: '', arch: 'x86_64' } as const;
 const WINDOWS = { name: 'windows', version: '10', arch: 'x86_64' } as const;

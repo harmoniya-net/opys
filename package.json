@@ -11,7 +11,7 @@
     "release": "node scripts/release.mjs"
   },
   "workspaces": [
-    "rules",
+    "mojang-rules",
     "core",
     "mojang",
     "minecraft",

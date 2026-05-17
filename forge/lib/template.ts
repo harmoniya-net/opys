@@ -12,7 +12,7 @@ import {
   sourceUrl,
   fetchWithRetry,
 } from '@torba/core';
-import type { Val, Valset } from '@torba/rules';
+import type { Val, Valset } from '@torba/mojang-rules';
 import type { MojangArgValue, Arguments, Library } from '@torba/mojang';
 import { mergeArgs, parseLibraries } from '@torba/mojang';
 import {

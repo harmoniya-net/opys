@@ -4,8 +4,8 @@ import {
   type Ruleset,
   satisfiesRuleset,
   parseShortRuleset,
-} from '@torba/rules';
-import type { OsOptions } from '@torba/rules';
+} from '@torba/mojang-rules';
+import type { OsOptions } from '@torba/mojang-rules';
 import { type Source, SourceSchema, encodeSource } from './source';
 import { type Integrity, IntegritySchema, encodeIntegrity } from './integrity';
 import { type Discovery, DiscoverySchema, encodeDiscovery } from './discovery';

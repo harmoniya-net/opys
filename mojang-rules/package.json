@@ -1,5 +1,5 @@
 {
-  "name": "@torba/rules",
+  "name": "@torba/mojang-rules",
   "version": "1.0.9",
   "main": "./dist/index.js",
   "module": "./dist/index.js",

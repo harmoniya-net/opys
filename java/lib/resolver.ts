@@ -13,7 +13,7 @@
  * with a real binary.
  */
 import { fetchWithRetry } from '@torba/core';
-import type { OsName, OsArch } from '@torba/rules';
+import type { OsName, OsArch } from '@torba/mojang-rules';
 
 const ADOPTIUM_BASE = 'https://api.adoptium.net/v3';
 const VENDOR = 'eclipse';

@@ -5,7 +5,7 @@ import {
   sourceUrl,
   extractDump,
 } from '@torba/core';
-import type { OsName, OsArch, Ruleset } from '@torba/rules';
+import type { OsName, OsArch, Ruleset } from '@torba/mojang-rules';
 import {
   resolveOpenjdk,
   type JavaPlatform,
