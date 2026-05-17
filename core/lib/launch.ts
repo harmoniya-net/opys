@@ -1,10 +1,5 @@
 import { z } from 'zod';
-import {
-  parseValset,
-  encodeValset,
-  resolveValset,
-  type Valset,
-} from '@torba/mojang-rules';
+import { parseValset, encodeValset, resolveValset, type Valset } from './val';
 import type { OsOptions } from '@torba/mojang-rules';
 import {
   parseValDefs,

@@ -1,7 +1,11 @@
 import { z } from 'zod';
-import { RulesetSchema, type Ruleset, satisfiesRuleset } from './ruleset';
+import {
+  RulesetSchema,
+  type Ruleset,
+  satisfiesRuleset,
+  type OsOptions,
+} from '@torba/mojang-rules';
 import { parseShortRuleset, encodeShortRuleset } from './shorthand';
-import type { OsOptions } from './os';
 
 export interface Val {
   readonly rules: Ruleset;

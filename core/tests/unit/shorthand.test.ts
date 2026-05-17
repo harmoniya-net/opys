@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { ShortRule, ShortRuleset } from '../lib';
+import { ShortRule, ShortRuleset } from '../../lib/shorthand';
 import { LINUX, OSX, WINDOWS_10, WINDOWS_7, help } from './fixtures';
 
 describe('ShortRule (single)', () => {

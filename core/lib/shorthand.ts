@@ -1,6 +1,9 @@
-import { OsNameSchema, OsArchSchema } from './os';
-import { type Rule } from './rule';
-import { type Ruleset } from './ruleset';
+import {
+  OsNameSchema,
+  OsArchSchema,
+  type Rule,
+  type Ruleset,
+} from '@torba/mojang-rules';
 
 type RawSingle = string | Rule;
 type RawRuleset = RawSingle | RawSingle[];

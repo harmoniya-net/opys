@@ -1,11 +1,7 @@
 import { z } from 'zod';
-import {
-  type Ruleset,
-  satisfiesRuleset,
-  parseShortRuleset,
-  encodeShortRuleset,
-} from '@torba/mojang-rules';
+import { type Ruleset, satisfiesRuleset } from '@torba/mojang-rules';
 import type { OsOptions } from '@torba/mojang-rules';
+import { parseShortRuleset, encodeShortRuleset } from './shorthand';
 
 export interface ConditionalVal {
   readonly value: string;

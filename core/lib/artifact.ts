@@ -1,11 +1,8 @@
 import { posix } from 'node:path';
 import { z } from 'zod';
-import {
-  type Ruleset,
-  satisfiesRuleset,
-  parseShortRuleset,
-} from '@torba/mojang-rules';
+import { type Ruleset, satisfiesRuleset } from '@torba/mojang-rules';
 import type { OsOptions } from '@torba/mojang-rules';
+import { parseShortRuleset } from './shorthand';
 import {
   type Source,
   SourceWireSchema,

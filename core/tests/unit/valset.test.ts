@@ -5,7 +5,7 @@ import {
   parseValset,
   encodeValset,
   resolveValset,
-} from '../lib';
+} from '../../lib/val';
 import { LINUX, OSX } from './fixtures';
 
 describe('Val', () => {
