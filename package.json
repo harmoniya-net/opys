@@ -13,6 +13,7 @@
   "workspaces": [
     "mojang-rules",
     "core",
+    "dev",
     "mojang",
     "minecraft",
     "forge",

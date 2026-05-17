@@ -3,14 +3,13 @@ export * from './pointer';
 export * from './integrity';
 export * from './discovery';
 export * from './glob';
-export * from './pipe';
+export * from './filter';
 export * from './extract';
 export * from './valdefs';
 export * from './interpolate';
 export * from './launch';
 export * from './artifact';
 export * from './manifest';
-export * from './config';
 export * from './fetch';
 // Re-export the rule surface so `@torba/runtime` and plugins depend on
 // `@torba/core` alone — `mojang-rules` stays an internal implementation detail.

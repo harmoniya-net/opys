@@ -1,0 +1,29 @@
+{
+  "name": "@torba/dev",
+  "version": "1.0.9",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsdown lib/index.ts --format esm,cjs --dts --clean",
+    "test": "vitest run tests/unit --passWithNoTests"
+  },
+  "type": "module",
+  "dependencies": {
+    "@torba/core": "^1.0.9"
+  },
+  "peerDependencies": {
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "vitest": "*"
+  }
+}
