@@ -60,8 +60,8 @@ The build side (`dev` + plugins) and the runtime side (`runtime`) are joined
 
 | Package                                | Description                                            |
 | -------------------------------------- | ------------------------------------------------------ |
-| [`@torba/mojang-rules`](mojang-rules/) | Mojang-standard rule format + `Val`/`Valset`           |
-| [`@torba/core`](core/)                 | Manifest data model — the frozen `torba.json` spec     |
+| [`@torba/mojang-rules`](mojang-rules/) | Mojang-standard rule format (os/features/rule/ruleset) |
+| [`@torba/core`](core/)                 | Manifest data model + shorthand + `Val` — frozen spec  |
 | [`@torba/dev`](dev/)                   | Plugin SDK + `defineConfig` + the build engine         |
 | [`@torba/mojang`](mojang/)             | Zero-binding Mojang JSON parsers                       |
 | [`@torba/minecraft`](minecraft/)       | Minecraft-domain plugins (minecraft/forge/curseforge…) |
