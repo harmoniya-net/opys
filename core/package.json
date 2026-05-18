@@ -17,11 +17,14 @@
   ],
   "scripts": {
     "build": "tsdown lib/index.ts --format esm,cjs --dts --clean",
-    "test": "vitest run tests/unit",
-    "test:int": "vitest run tests/integration"
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run tests/unit"
   },
   "type": "module",
   "dependencies": {
     "@torba/mojang-rules": "^1.0.10"
+  },
+  "engines": {
+    "node": ">=20"
   }
 }

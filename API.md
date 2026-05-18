@@ -161,7 +161,6 @@ on `@torba/core` alone.
 ## CLI — `@torba/cli`
 
 ```
-torba init   [-o <config>] [--name n] [--version v] [--forge] [--force]
 torba build  [-i <config>] [-o <out>] [--mode m]
 torba launch [-i <config>] [--mode m]
 ```

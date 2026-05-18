@@ -10,6 +10,14 @@
  * one DNS hiccup mid-`torba launch` aborts the whole config evaluation.
  */
 
+/**
+ * Default `User-Agent` for every torba HTTP request. The bare `undici`
+ * agent gets rejected or rate-limited by some CDNs and by the CurseForge
+ * API, so we identify ourselves. The patch component is omitted so the
+ * string doesn't churn against `package.json` on every release.
+ */
+export const TORBA_USER_AGENT = 'torba/1.0';
+
 export interface FetchRetryOptions {
   /** Total attempts including the first. Default 4 (so up to 3 retries). */
   attempts?: number;
@@ -115,10 +123,14 @@ export async function fetchWithRetry(
         : DEFAULT_RETRY_STATUSES;
   const signal = retry.signal ?? init.signal ?? undefined;
 
+  // Default the User-Agent without clobbering a caller-supplied one.
+  const headers = new Headers(init.headers);
+  if (!headers.has('user-agent')) headers.set('user-agent', TORBA_USER_AGENT);
+
   let lastErr: unknown;
   for (let attempt = 1; attempt <= attempts; attempt++) {
     try {
-      const res = await fetch(input, { ...init, signal });
+      const res = await fetch(input, { ...init, headers, signal });
       if (res.ok || attempt === attempts || !retryStatuses.has(res.status)) {
         return res;
       }

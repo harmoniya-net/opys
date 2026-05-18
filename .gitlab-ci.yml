@@ -41,7 +41,16 @@ build:
     paths:
       - "*/dist/"
 
+typecheck:
+  stage: build
+  needs: [install]
+  script:
+    - npm run typecheck --workspaces --if-present
+
 # ── test ───────────────────────────────────────────────────────────────────────
+#
+# Only unit tests run in CI. Integration tests (`npm run test:int`) need
+# network access and a CurseForge token — they are run locally.
 
 test:
   stage: test

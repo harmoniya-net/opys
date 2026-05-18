@@ -10,7 +10,10 @@
     }
   },
   "scripts": {
-    "build": "tsdown lib/index.ts --format esm,cjs --dts --clean"
+    "build": "tsdown lib/index.ts --format esm,cjs --dts --clean",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run tests/unit --passWithNoTests",
+    "test:int": "vitest run tests/integration --testTimeout=120000"
   },
   "dependencies": {
     "@torba/core": "^1.0.10",
@@ -20,9 +23,13 @@
     "zod": "^4.0.0"
   },
   "devDependencies": {
-    "tsdown": "*"
+    "tsdown": "*",
+    "vitest": "*"
   },
   "files": [
     "dist"
-  ]
+  ],
+  "engines": {
+    "node": ">=20"
+  }
 }

@@ -1,5 +1,5 @@
 import type { Manifest } from '@torba/core';
-import { parseManifest } from '@torba/core';
+import { parseManifest, TORBA_USER_AGENT } from '@torba/core';
 import { readFile } from 'node:fs/promises';
 import { NetworkError } from '../errors';
 
@@ -11,7 +11,9 @@ export async function resolveManifest(
   if (typeof source === 'object' && 'artifacts' in source)
     return source as Manifest;
   if (source instanceof URL) {
-    const res = await fetch(source.href);
+    const res = await fetch(source.href, {
+      headers: { 'user-agent': TORBA_USER_AGENT },
+    });
     if (!res.ok) {
       throw new NetworkError(
         source.href,

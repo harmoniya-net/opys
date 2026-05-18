@@ -14,7 +14,9 @@
   ],
   "scripts": {
     "build": "tsdown lib/index.ts --format esm,cjs --dts --clean",
-    "test": "vitest run tests/unit"
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run tests/unit",
+    "test:int": "vitest run tests/integration --testTimeout=120000"
   },
   "type": "module",
   "dependencies": {
@@ -23,5 +25,8 @@
   },
   "peerDependencies": {
     "zod": "^4.0.0"
+  },
+  "engines": {
+    "node": ">=20"
   }
 }

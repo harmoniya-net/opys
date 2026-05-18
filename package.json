@@ -5,6 +5,7 @@
   "scripts": {
     "format": "prettier --write .",
     "build": "npm run build --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "test:int": "npm run test:int --workspaces --if-present",
     "prepare": "husky",
@@ -36,5 +37,8 @@
   },
   "lint-staged": {
     "*.{ts,js,md}": "prettier --write"
+  },
+  "engines": {
+    "node": ">=20"
   }
 }

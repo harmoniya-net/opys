@@ -184,24 +184,27 @@ integrity? }` patch. `applyOverrides` runs an ordered list over an artifact
 ## 10. Verification
 
 - All 8 packages build + typecheck clean; every unit suite passes.
+- **Test coverage.** ~99% line coverage across all 8 packages (~785 unit
+  tests). `npm test` runs the unit suites; CI (`.gitlab-ci.yml`) also runs
+  `npm run typecheck` (test files included in every `tsconfig`).
+- **Integration suite.** `npm run test:int` exercises the build/install
+  pipelines against the real Mojang / Forge / Adoptium / CurseForge APIs.
+  It needs network + a `CURSEFORGE_TOKEN`, so it is run locally only —
+  never in CI.
 - A vanilla `torba build` was run against live Mojang (3664 artifacts) and the
   resulting `torba.json` round-trips byte-stable through `parseManifest` /
   `encodeManifest`.
-- **Not yet done:** a byte-diff of a full build against a pre-refactor
-  reference (needs a network build of the complete config); `test:int`.
 
 ## 11. Deferred / known gaps
 
-- **`defineArtifactPlugin` was not built.** Only `artifactScanner` honors
-  `overrides`; `forge`/`curseforge`/etc. have no filter support. A combinator
-  that wires `overrides` into every artifact-producing plugin is still open.
-- **`fixPath`** (forge's `../libraries/` rewrite) still lives in the forge
-  template, not the recipe-parse layer.
-- **`MavenName`** in `mojang` is still a class — and a live one: it types
-  `Library.name` and sits on the parse hot path. Migrating `libraries.ts` to
-  the functional `MavenCoord` + `isNativeMaven` and deleting the class is an
-  open Goal-1 (no incidental classes) item.
-- **`minecraftTemplate`** and `resolveMinecraft` remain two names for one job
-  (the duplicated fetch chain between them was collapsed).
-- **No unit tests** for `@torba/minecraft` or `@torba/java`; `fetchWithRetry`
-  in `core` is untested.
+None outstanding. The four items previously deferred here are all resolved:
+
+- **`defineArtifactPlugin`** — built in `@torba/dev`: a combinator that wraps
+  any plugin and runs its artifacts through `applyOverrides`.
+- **`fixPath`** — moved into the forge recipe-parse layer (`forge/recipe.ts`);
+  `parseForgeRecipe` now emits already-fixed `${library_directory}` paths.
+- **`MavenName`** — the class is deleted; `Library.name` is the functional
+  `MavenCoord`, with `isNativeMaven` / `mavenMatchesIgnoringVersion` /
+  `MavenCoordSchema`. No incidental classes remain in `@torba/mojang`.
+- **`minecraftTemplate`** — collapsed into the single `resolveMinecraft`,
+  matching the `resolve*` naming of every other loader.

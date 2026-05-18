@@ -9,7 +9,9 @@
   ],
   "scripts": {
     "build": "tsdown --config tsdown.config.ts",
-    "test": "vitest run tests --passWithNoTests"
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run tests/unit --passWithNoTests",
+    "test:int": "vitest run tests/integration --testTimeout=180000"
   },
   "type": "module",
   "dependencies": {
@@ -18,13 +20,12 @@
     "@torba/runtime": "^1.0.10",
     "@torba/minecraft": "^1.0.10",
     "@torba/mojang": "^1.0.10",
-    "kolorist": "^1.8.0",
-    "prompts": "^2.4.2"
-  },
-  "devDependencies": {
-    "@types/prompts": "^2.4.9"
+    "kolorist": "^1.8.0"
   },
   "peerDependencies": {
     "zod": "^4.0.0"
+  },
+  "engines": {
+    "node": ">=20"
   }
 }

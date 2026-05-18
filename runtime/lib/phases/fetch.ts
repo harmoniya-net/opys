@@ -11,6 +11,7 @@ import {
   isSourceString,
   isSourceBytes,
   interpolate,
+  TORBA_USER_AGENT,
 } from '@torba/core';
 import { NetworkError } from '../errors';
 
@@ -50,7 +51,9 @@ async function fetchOnce(
 
   if (isSourceUrl(src)) {
     const url = interpolate(src.url, vars);
-    const res = await fetch(url);
+    const res = await fetch(url, {
+      headers: { 'user-agent': TORBA_USER_AGENT },
+    });
     if (!res.ok) {
       throw new NetworkError(url, res.status, await res.text().catch(() => ''));
     }
