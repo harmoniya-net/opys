@@ -39,13 +39,7 @@ export interface MinecraftTemplate {
 export async function resolveMinecraft(config?: {
   version?: string;
 }): Promise<MinecraftTemplate> {
-  return minecraftTemplate(config?.version);
-}
-
-export async function minecraftTemplate(
-  versionId?: string,
-): Promise<MinecraftTemplate> {
-  const { client } = await fetchClient(versionId);
+  const { client } = await fetchClient(config?.version);
   return clientToTemplate(client);
 }
 

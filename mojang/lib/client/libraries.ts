@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { type Ruleset, RuleSchema, OsNameSchema } from '@torba/core';
-import { MavenName, MavenNameSchema } from './maven';
+import { type MavenCoord, MavenCoordSchema, isNativeMaven } from './maven';
 
 export interface Artifact {
   readonly path: string;
@@ -10,7 +10,7 @@ export interface Artifact {
 }
 
 export interface Library {
-  readonly name: MavenName;
+  readonly name: MavenCoord;
   /** Mojang OS/feature rules — the shared `@torba/mojang-rules` format. */
   readonly rules: Ruleset;
   readonly artifact: Artifact;
@@ -29,7 +29,7 @@ const RawLibSchema = z.object({
     artifact: ArtifactSchema.optional(),
     classifiers: z.record(z.string(), ArtifactSchema).default({}),
   }),
-  name: MavenNameSchema,
+  name: MavenCoordSchema,
   rules: z.array(RuleSchema).default([]),
   natives: z.record(z.string(), z.string()).default({}),
   extract: z.object({ exclude: z.array(z.string()) }).optional(),
@@ -44,7 +44,7 @@ export function parseLibraries(raws: unknown[]): Library[] {
         name: raw.name,
         rules: raw.rules,
         artifact: raw.downloads.artifact,
-        native: raw.name.isNative(),
+        native: isNativeMaven(raw.name),
       });
     }
     for (const [osName, classifierKey] of Object.entries(raw.natives)) {

@@ -4,8 +4,33 @@ import {
   parseLibraries,
   type Arguments,
   type Library,
+  type MojangArgValue,
 } from '@torba/mojang';
 import { type Ruleset, RuleSchema } from '@torba/core';
+
+/**
+ * Forge version JSONs sometimes embed raw `../libraries/` paths (relative to a
+ * `.minecraft/versions/<id>/` layout). Rewrite to the torba var equivalent.
+ */
+function fixPath(s: string): string {
+  return s.replace(/\.\.\/libraries\//g, '${library_directory}/');
+}
+
+function fixArg(arg: MojangArgValue): MojangArgValue {
+  if (typeof arg === 'string') return fixPath(arg);
+  const value = Array.isArray(arg.value)
+    ? arg.value.map(fixPath)
+    : fixPath(arg.value);
+  return { ...arg, value };
+}
+
+/**
+ * Rewrite raw `../libraries/` paths in a recipe's parsed args to the torba
+ * `${library_directory}` var. Only the JVM args carry such paths.
+ */
+function fixArgs(args: Arguments): Arguments {
+  return { ...args, jvm: args.jvm.map(fixArg) };
+}
 
 const LegacyRawSchema = z.object({
   type: z.literal('legacy'),
@@ -157,7 +182,7 @@ export function parseForgeRecipe(
       forge: data.forge,
       id: data.id,
       mainClass: data.mainClass,
-      args: parseArguments(data.minecraftArguments),
+      args: fixArgs(parseArguments(data.minecraftArguments)),
       libraries: parseLegacyLibraries(
         data.libraries,
         data.forge,
@@ -171,7 +196,7 @@ export function parseForgeRecipe(
       forge: data.forge,
       id: data.id,
       mainClass: data.mainClass,
-      args: parseArguments(data.arguments),
+      args: fixArgs(parseArguments(data.arguments)),
       libraries: parseLibraries(data.libraries),
     };
   }

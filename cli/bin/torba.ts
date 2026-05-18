@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 import { cmdBuild } from '../lib/commands/build';
-import { cmdInit } from '../lib/commands/init';
 import { cmdLaunch } from '../lib/commands/launch';
 import { NetworkError, IntegrityError, ExtractionError } from '@torba/runtime';
 import { VersionFetchError } from '@torba/mojang';
@@ -11,20 +10,13 @@ const USAGE = `\
 torba — declarative manifest toolkit
 
 USAGE
-  torba init   [-o <torba.config.mjs>] [--name <n>] [--version <v>] [--forge] [--force] [--install|--no-install]
   torba build  [-i <torba.config.mjs>] [-o <out>] [--mode <m>]  Build manifest
   torba launch [-i <torba.config.mjs>] [--mode <m>]  Install and launch
 
 OPTIONS
   -i, --input          Config file  (default: torba.config.mjs)
-  -o, --output         Output file  (default: stdout for build; torba.config.mjs for init)
+  -o, --output         Output file  (default: stdout for build)
   --mode <value>       Mode passed to config function (default: command name)
-  --name <appName>     Application name for init (default: cwd basename)
-  --version <mc>       Minecraft version for init (default: 1.20.1)
-  --forge              Scaffold a Forge config instead of vanilla (init only)
-  --force              Overwrite an existing config (init only)
-  --install            Auto-install runtime deps after init (skips prompt)
-  --no-install         Skip the install step (skips prompt)
   --log-level <level>  Log verbosity: silent|error|warn|info|debug  (default: info)
   -v                   Shorthand for --log-level debug
 
@@ -39,7 +31,6 @@ EXIT CODES
 type CommandHandler = (args: string[], logger: Logger) => Promise<void>;
 
 const COMMANDS: Record<string, CommandHandler> = {
-  init: cmdInit,
   build: cmdBuild,
   launch: cmdLaunch,
 };

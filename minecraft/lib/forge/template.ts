@@ -34,26 +34,6 @@ const DEFAULT_FORGE_WRAPPER = {
 const FORGE_WRAPPER_MAIN = 'io.github.zekerzhayard.forgewrapper.installer.Main';
 
 /**
- * Forge version JSONs sometimes embed raw `../libraries/` paths (relative to a
- * `.minecraft/versions/<id>/` layout). Rewrite to the torba var equivalent.
- */
-function fixPath(s: string): string {
-  return s.replace(/\.\.\/libraries\//g, '${library_directory}/');
-}
-
-function fixArg(arg: MojangArgValue): MojangArgValue {
-  if (typeof arg === 'string') return fixPath(arg);
-  const value = Array.isArray(arg.value)
-    ? arg.value.map(fixPath)
-    : fixPath(arg.value);
-  return { ...arg, value };
-}
-
-function normalizeForgeArgs(args: Arguments): Arguments {
-  return { ...args, jvm: args.jvm.map(fixArg) };
-}
-
-/**
  * Extract artifact paths on the Java module path (-p) from parsed args.
  * These jars must NOT appear on -cp or the JVM module system breaks.
  */
@@ -259,8 +239,9 @@ async function buildProcessorTemplate(
   const { client } = await fetchClient(indexEntry.id);
   const mc = await clientToTemplate(client);
 
-  // Forge's args APPEND to vanilla's args.
-  const merged = normalizeForgeArgs(mergeArgs(client.args, recipe.args));
+  // Forge's args APPEND to vanilla's args. Recipe paths are already fixed
+  // (`../libraries/` → `${library_directory}`) by the recipe parser.
+  const merged = mergeArgs(client.args, recipe.args);
   const onModulePath = modulePathArtifacts(merged);
 
   const installerPath = `\${library_directory}/net/minecraftforge/forge/${indexEntry.forge}/forge-${indexEntry.forge}-installer.jar`;

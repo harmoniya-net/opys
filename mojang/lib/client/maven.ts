@@ -46,51 +46,18 @@ export function isNativeMaven(c: MavenCoord): boolean {
   return !!c.classifier?.startsWith('natives');
 }
 
-// --- `MavenName` is still the live type of `Library.name` (see libraries.ts).
-// Migrating that to the functional `MavenCoord` + `isNativeMaven` is tracked
-// in REFACTOR.md §11. ---
-export class MavenName implements MavenCoord {
-  constructor(
-    public readonly groupId: string,
-    public readonly artifactId: string,
-    public readonly packaging?: string,
-    public readonly classifier?: string,
-    public readonly version?: string,
-  ) {}
-
-  static parse(value: string): MavenName {
-    const c = parseMaven(value);
-    return new MavenName(
-      c.groupId,
-      c.artifactId,
-      c.packaging,
-      c.classifier,
-      c.version,
-    );
-  }
-
-  isNative(): boolean {
-    return isNativeMaven(this);
-  }
-
-  matchesIgnoringVersion(other: MavenCoord): boolean {
-    return (
-      this.groupId === other.groupId &&
-      this.artifactId === other.artifactId &&
-      this.packaging === other.packaging &&
-      this.classifier === other.classifier
-    );
-  }
-
-  toString(): string {
-    return encodeMaven(this);
-  }
-
-  toJSON() {
-    return this.toString();
-  }
+/** Compare two coordinates on every field except {@link MavenCoord.version}. */
+export function mavenMatchesIgnoringVersion(
+  a: MavenCoord,
+  b: MavenCoord,
+): boolean {
+  return (
+    a.groupId === b.groupId &&
+    a.artifactId === b.artifactId &&
+    a.packaging === b.packaging &&
+    a.classifier === b.classifier
+  );
 }
 
-export const MavenNameSchema = z
-  .string()
-  .transform(MavenName.parse.bind(MavenName));
+/** Zod schema decoding a Maven coordinate string into a {@link MavenCoord}. */
+export const MavenCoordSchema = z.string().transform(parseMaven);
