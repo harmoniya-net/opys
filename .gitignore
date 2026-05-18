@@ -1,3 +1,7 @@
 node_modules
 dist/
 coverage/
+
+# build output — manifests produced by `torba build`
+output.json
+wizard.json

@@ -97,4 +97,4 @@ npm run test     # run unit tests
 npm run test:int # run integration tests
 ```
 
-See [`REFACTOR.md`](REFACTOR.md) for the architecture rationale.
+See [`CLAUDE.md`](CLAUDE.md) for the architecture, principles, and conventions.
