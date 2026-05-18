@@ -52,10 +52,11 @@ unknown>`, `art.url` indexed off an `unknown`, `coord as ResolvedCoord`, etc.
 
 ## LOW
 
-- **`serverlist.ts:13-58` — hand-rolled NBT encoder.** Correct and
+- [FIXED] **`serverlist.ts:13-58` — hand-rolled NBT encoder.** Correct and
   self-contained, but NBT is a standard format with mature libraries
   (`prismarine-nbt`, `nbtify`). Borderline — fine to keep if avoiding the
   dependency is a conscious choice; flagged so the choice is conscious.
+  Resolution: replaced with `nbtify` (75 → 42 lines).
 - [FIXED] **`mappers/assets.ts:8`, `mappers/client.ts:7`, `mappers/libraries.ts:7-9`
   — unused configurability parameters** (`assetsRootVar`, `versionDirVar`,
   `libraryDirVar`, `nativesDirVar`); every caller uses the default. Inline the

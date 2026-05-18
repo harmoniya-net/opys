@@ -19,7 +19,8 @@
     "@torba/core": "^1.0.10",
     "@torba/dev": "^1.0.10",
     "@torba/mojang": "^1.0.10",
-    "fflate": "^0.8.2"
+    "fflate": "^0.8.2",
+    "nbtify": "^2.2.0"
   },
   "peerDependencies": {
     "zod": "^4.0.0"

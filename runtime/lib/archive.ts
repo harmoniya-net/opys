@@ -3,6 +3,14 @@ import { dirname, join } from 'node:path';
 import { unzipSync } from 'fflate';
 import { isTarPath, readTarArchive, type TarEntry } from './tar';
 
+/**
+ * Match an archive entry name against an `extract`-rule pattern. This is a
+ * deliberately separate, smaller glob dialect from `@torba/core`'s
+ * `globToRegex` (which backs `restrict`): here a trailing `/` or `/*` means
+ * "this subtree" — `'META-INF/'` matches `META-INF/MANIFEST.MF`. The two
+ * dialects are intentionally NOT unified — each is the frozen semantics of
+ * its own manifest field (`extract` includes/excludes vs `restrict` globs).
+ */
 export function matchesGlob(name: string, pattern: string): boolean {
   if (pattern.endsWith('/*') || pattern.endsWith('/')) {
     const prefix = pattern.endsWith('/*') ? pattern.slice(0, -1) : pattern;

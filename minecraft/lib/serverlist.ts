@@ -1,4 +1,5 @@
 import { sourceBytes, type Artifact } from '@torba/core';
+import { write } from 'nbtify';
 
 export interface ServerEntry {
   name: string;
@@ -10,59 +11,26 @@ export interface ServerlistOptions {
   path?: string;
 }
 
-const TAG_END = 0;
-const TAG_STRING = 8;
-const TAG_LIST = 9;
-const TAG_COMPOUND = 10;
-
-function nbtString(value: string): Buffer {
-  const utf8 = Buffer.from(value, 'utf8');
-  const len = Buffer.alloc(2);
-  len.writeUInt16BE(utf8.length);
-  return Buffer.concat([len, utf8]);
+/** Encode `servers` as an uncompressed big-endian Java NBT `servers.dat` buffer. */
+async function encodeServersDat(servers: ServerEntry[]): Promise<Buffer> {
+  const root = {
+    servers: servers.map((entry) => ({ name: entry.name, ip: entry.ip })),
+  };
+  const bytes = await write(root, {
+    rootName: '',
+    endian: 'big',
+    compression: null,
+    bedrockLevel: false,
+  });
+  return Buffer.from(bytes);
 }
 
-function namedString(name: string, value: string): Buffer {
-  return Buffer.concat([
-    Buffer.from([TAG_STRING]),
-    nbtString(name),
-    nbtString(value),
-  ]);
-}
-
-function entryCompound(entry: ServerEntry): Buffer {
-  return Buffer.concat([
-    namedString('name', entry.name),
-    namedString('ip', entry.ip),
-    Buffer.from([TAG_END]),
-  ]);
-}
-
-function encodeServersDat(servers: ServerEntry[]): Buffer {
-  const count = Buffer.alloc(4);
-  count.writeInt32BE(servers.length);
-  const listPayload = Buffer.concat([
-    Buffer.from([TAG_COMPOUND]),
-    count,
-    ...servers.map(entryCompound),
-  ]);
-  const root = Buffer.concat([
-    Buffer.from([TAG_COMPOUND]),
-    nbtString(''),
-    Buffer.from([TAG_LIST]),
-    nbtString('servers'),
-    listPayload,
-    Buffer.from([TAG_END]),
-  ]);
-  return root;
-}
-
-export function resolveServerlist(
+export async function resolveServerlist(
   servers: ServerEntry[],
   options: ServerlistOptions = {},
-): Artifact[] {
+): Promise<Artifact[]> {
   const path = options.path ?? '${game_directory}/servers.dat';
-  const bytes = encodeServersDat(servers);
+  const bytes = await encodeServersDat(servers);
   return [
     {
       path,

@@ -24,13 +24,17 @@ Read-only code-quality audit, 2026-05-19. Findings only — nothing changed.
   the unified extractor for both zip _and_ tar (`readArchive` dispatches on
   `isTarPath`). Rename to `archive.ts`, and `extractZip`/`extractZipPick` to
   `extractArchive`/`extractArchivePick`.
-- **`lib/zip.ts:6-14` — hand-rolled `matchesGlob` duplicates a capability
+- [WONTFIX] **`lib/zip.ts:6-14` — hand-rolled `matchesGlob` duplicates a capability
   already in `@torba/core`.** `core` exports `globToRegex` (used by
   `sweep.ts`), but `zip.ts` reimplements a weaker matcher (only prefix/suffix
   `*`; no `**`, `?`, `{}`). Two glob dialects in one package is a real
   footgun — an `includes`/`excludes` pattern behaves differently in extract vs.
   restrict-sweep. Not justified by the dependency wall: `core` is the one
   allowed dependency and already has the better implementation. Use it.
+  Resolution: kept. The two dialects are the frozen semantics of two
+  different manifest fields — `extract` includes/excludes (trailing `/` =
+  subtree) vs `restrict` globs — so unifying them would change one field's
+  meaning. Documented the distinction in `archive.ts` instead.
 - [FIXED] **`lib/phases/scan.ts:7-11,41` — `ScanTask.idx` is a dead field.** Populated
   but never consumed (`install.ts` drops it when mapping to `FetchTask`); the
   only reader is `scan.test.ts`. Remove it.
