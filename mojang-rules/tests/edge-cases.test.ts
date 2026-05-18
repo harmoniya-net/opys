@@ -89,4 +89,19 @@ describe('Ruleset composed edge cases', () => {
     expect(satisfiesRuleset(rs, LINUX)).toBe(true);
     expect(satisfiesRuleset(rs, OSX)).toBe(false); // OSX is aarch64
   });
+
+  it('throws on an invalid OS version regex', () => {
+    expect(() => satisfiesOs({ version: '(' }, LINUX)).toThrow(
+      /Invalid OS version pattern/,
+    );
+  });
+
+  it('satisfiesOs ignores absent fields', () => {
+    expect(satisfiesOs({}, LINUX)).toBe(true);
+  });
+
+  it('satisfiesRule treats a bare allow/disallow with no constraints', () => {
+    expect(satisfiesRule({ action: 'allow' }, LINUX)).toBe(true);
+    expect(satisfiesRule({ action: 'disallow' }, LINUX)).toBe(false);
+  });
 });

@@ -1,5 +1,10 @@
 import { describe, expect, test } from 'vitest';
-import { RulesetSchema, emptyRuleset, satisfiesRuleset } from '../lib';
+import {
+  RulesetSchema,
+  emptyRuleset,
+  allowOsRuleset,
+  satisfiesRuleset,
+} from '../lib';
 import { LINUX, OSX, WINDOWS_10, WINDOWS_7, help } from './fixtures';
 
 describe('RuleSet', () => {
@@ -77,5 +82,12 @@ describe('RuleSet', () => {
 
   test('emptyRuleset helper', () => {
     expect(satisfiesRuleset(emptyRuleset(), LINUX)).toBe(true);
+  });
+
+  test('allowOsRuleset helper matches only the named OS', () => {
+    const rules = allowOsRuleset('windows');
+    expect(satisfiesRuleset(rules, WINDOWS_10)).toBe(true);
+    expect(satisfiesRuleset(rules, LINUX)).toBe(false);
+    expect(satisfiesRuleset(rules, OSX)).toBe(false);
   });
 });

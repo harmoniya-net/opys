@@ -60,4 +60,13 @@ describe('parse / encode', () => {
     const defs: ValDefs = { k: [{ value: 'v', rules: [] }] };
     expect(encodeValDefs(defs)).toEqual({ k: [{ value: 'v' }] });
   });
+
+  it('decodes an arm with no rules key as an empty ruleset', () => {
+    const decoded = parseValDefs({ k: [{ value: 'v' }] });
+    expect(decoded.k).toEqual([{ value: 'v', rules: [] }]);
+  });
+
+  it('rejects a non-object ValDefs', () => {
+    expect(() => parseValDefs(42)).toThrow();
+  });
 });

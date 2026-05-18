@@ -1,10 +1,10 @@
 import { describe, expect, test } from 'vitest';
 import {
-  MavenName,
-  MavenNameSchema,
+  MavenCoordSchema,
   parseMaven,
   encodeMaven,
   isNativeMaven,
+  mavenMatchesIgnoringVersion,
 } from '../../lib/client/maven';
 
 describe('parseMaven / encodeMaven', () => {
@@ -63,16 +63,54 @@ describe('parseMaven / encodeMaven', () => {
   });
 });
 
-describe('MavenName class (backward compat)', () => {
-  test('parse and toString roundtrip', () => {
-    const m = MavenName.parse('org.lwjgl:lwjgl:3.3.1');
-    expect(m.toString()).toBe('org.lwjgl:lwjgl:3.3.1');
-    expect(m).toBeInstanceOf(MavenName);
+describe('MavenCoordSchema', () => {
+  test('decodes a coordinate string into a MavenCoord', () => {
+    const m = MavenCoordSchema.parse('org.lwjgl:lwjgl:3.3.1');
+    expect(m.groupId).toBe('org.lwjgl');
+    expect(m.artifactId).toBe('lwjgl');
+    expect(m.version).toBe('3.3.1');
   });
 
-  test('MavenNameSchema decode', () => {
-    const m = MavenNameSchema.parse('org.lwjgl:lwjgl:3.3.1');
-    expect(m).toBeInstanceOf(MavenName);
-    expect(m.groupId).toBe('org.lwjgl');
+  test('round-trips back to the canonical string via encodeMaven', () => {
+    expect(encodeMaven(MavenCoordSchema.parse('org.lwjgl:lwjgl:3.3.1'))).toBe(
+      'org.lwjgl:lwjgl:3.3.1',
+    );
+  });
+
+  test('rejects invalid coordinate strings', () => {
+    expect(() => MavenCoordSchema.parse('one-part')).toThrow();
+  });
+});
+
+describe('mavenMatchesIgnoringVersion', () => {
+  test('compares every field but version', () => {
+    const base = parseMaven('org.lwjgl:lwjgl:3.3.1:natives-linux');
+    expect(
+      mavenMatchesIgnoringVersion(
+        base,
+        parseMaven('org.lwjgl:lwjgl:3.3.3:natives-linux'),
+      ),
+    ).toBe(true);
+    expect(
+      mavenMatchesIgnoringVersion(
+        base,
+        parseMaven('org.lwjgl:lwjgl:3.3.1:natives-windows'),
+      ),
+    ).toBe(false);
+    expect(
+      mavenMatchesIgnoringVersion(base, parseMaven('org.lwjgl:other:3.3.1')),
+    ).toBe(false);
+  });
+});
+
+describe('encodeMaven edge cases', () => {
+  test('two-part coordinate omits version', () => {
+    expect(encodeMaven({ groupId: 'g', artifactId: 'a' })).toBe('g:a');
+  });
+
+  test('packaging without classifier is dropped', () => {
+    expect(
+      encodeMaven({ groupId: 'g', artifactId: 'a', packaging: 'jar' }),
+    ).toBe('g:a');
   });
 });

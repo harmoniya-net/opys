@@ -4,10 +4,13 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { createHash } from 'node:crypto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { zipSync, strToU8 } from 'fflate';
 import {
+  sourceFile,
   sourcePointer,
   sourceString,
   sourceUrl,
+  extractPick,
   type Artifact,
   type Manifest,
 } from '@torba/core';
@@ -97,7 +100,7 @@ describe('install: integrity', () => {
     );
   });
 
-  it.skip('accepts any hash in multi-hash integrity', async () => {
+  it('accepts any hash in multi-hash integrity', async () => {
     const content = 'multi-hash';
     const dest = join(tmpDir, 'multi.txt');
     const artifact: Artifact = {
@@ -238,5 +241,52 @@ describe('install: discovery', () => {
     await expect(install(makeManifest([artifact]))).rejects.toThrow(
       'Integrity check failed',
     );
+  });
+});
+
+describe('install: restrict sweep', () => {
+  it('sweeps orphan files and reports the sweep phase', async () => {
+    const { mkdir, writeFile: wf } = await import('node:fs/promises');
+    const modsDir = join(tmpDir, 'mods');
+    await mkdir(modsDir, { recursive: true });
+    const orphan = join(modsDir, 'orphan.jar');
+    await wf(orphan, 'stale');
+
+    const keep = join(modsDir, 'keep.jar');
+    const manifest: Manifest = {
+      vars: {},
+      artifacts: [{ path: keep, source: sourceString('kept'), rules: [] }],
+      restrict: [`${modsDir}/**/*.jar`],
+    };
+    let swept = 0;
+    await install(manifest, {
+      onProgress: (p) => {
+        if (p.phase === 'sweep') swept = p.removed;
+      },
+    });
+    expect(existsSync(keep)).toBe(true);
+    expect(existsSync(orphan)).toBe(false);
+    expect(swept).toBe(1);
+  });
+});
+
+describe('install: extract pending detection', () => {
+  it('re-runs a pick extract when its destination is missing', async () => {
+    const zip = zipSync({ 'inner/data.txt': strToU8('picked payload') });
+    const archive = join(tmpDir, 'archive.zip');
+    const { writeFile: wf } = await import('node:fs/promises');
+    await wf(archive, zip);
+    const dest = join(tmpDir, 'extracted', 'data.txt');
+
+    const artifact: Artifact = {
+      path: archive,
+      source: sourceFile(archive),
+      rules: [],
+      extract: [extractPick('inner/data.txt', dest)],
+    };
+    // archive already on disk → scan skips download; extractIsPending must
+    // still schedule the extract because `dest` is absent.
+    await install(makeManifest([artifact]));
+    expect(await readFile(dest, 'utf8')).toBe('picked payload');
   });
 });

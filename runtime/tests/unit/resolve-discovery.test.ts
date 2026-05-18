@@ -283,4 +283,96 @@ describe('resolveDiscovery', () => {
       resolveDiscovery(manifestOf([artifact]), {}, PLATFORM),
     ).rejects.toThrow(/HTTP 404/);
   });
+
+  it('discovers a sha1 hash from a response header', async () => {
+    const hex = createHash('sha1').update('sha1 pack').digest('hex');
+    stubFetch({
+      [`HEAD ${ARTIFACT_URL}`]: { headers: { 'x-sha1': hex } },
+    });
+    const artifact = urlArtifact({
+      discovery: { integrity: { header: { sha1: 'X-Sha1' } } },
+    });
+    const { manifest } = await resolveDiscovery(
+      manifestOf([artifact]),
+      {},
+      PLATFORM,
+    );
+    expect(manifest.artifacts[0]!.integrity).toEqual({ sha1: hex });
+  });
+
+  it('discovers an md5 hash from a sibling checksum URL', async () => {
+    const hex = createHash('md5').update('md5 pack').digest('hex');
+    stubFetch({ [`GET ${ARTIFACT_URL}.md5`]: { body: `${hex}  pack.zip` } });
+    const artifact = urlArtifact({
+      discovery: { integrity: { url: { md5: '${url}.md5' } } },
+    });
+    const { manifest } = await resolveDiscovery(
+      manifestOf([artifact]),
+      {},
+      PLATFORM,
+    );
+    expect(manifest.artifacts[0]!.integrity).toEqual({ md5: hex });
+  });
+
+  it('throws a NetworkError when a HEAD probe fails', async () => {
+    stubFetch({ [`HEAD ${ARTIFACT_URL}`]: { status: 500 } });
+    const artifact = urlArtifact({
+      discovery: { size: { header: 'Content-Length' } },
+    });
+    await expect(
+      resolveDiscovery(manifestOf([artifact]), {}, PLATFORM),
+    ).rejects.toThrow(/HTTP 500/);
+  });
+
+  it('ignores a non-numeric Content-Length header', async () => {
+    stubFetch({
+      [`HEAD ${ARTIFACT_URL}`]: { headers: { 'content-length': 'huge' } },
+    });
+    const artifact = urlArtifact({
+      discovery: { size: { header: 'Content-Length' } },
+    });
+    const { manifest } = await resolveDiscovery(
+      manifestOf([artifact]),
+      {},
+      PLATFORM,
+    );
+    expect(manifest.artifacts[0]!.size).toBeUndefined();
+  });
+
+  it('skips discovery on an artifact excluded by its rules', async () => {
+    const artifact = urlArtifact({
+      rules: [{ action: 'disallow' }],
+      discovery: { integrity: { url: { sha256: '${url}.sha256' } } },
+    });
+    const { manifest, refetch } = await resolveDiscovery(
+      manifestOf([artifact]),
+      {},
+      PLATFORM,
+    );
+    expect(manifest.artifacts[0]).toEqual(artifact);
+    expect(refetch.size).toBe(0);
+  });
+
+  it('matches a checksum line when the artifact URL is not absolute', async () => {
+    const hex = sha256('relative pack');
+    vi.stubGlobal('fetch', async (input: string | URL) => {
+      const url = typeof input === 'string' ? input : input.href;
+      if (url === 'pack.zip.sha256') {
+        return new Response(`${hex}  pack.zip`, { status: 200 });
+      }
+      return new Response('not found', { status: 404 });
+    });
+    const artifact: Artifact = {
+      path: join(tmpDir, 'pack.zip'),
+      source: sourceUrl('pack.zip'),
+      rules: [],
+      discovery: { integrity: { url: { sha256: '${url}.sha256' } } },
+    };
+    const { manifest } = await resolveDiscovery(
+      manifestOf([artifact]),
+      {},
+      PLATFORM,
+    );
+    expect(manifest.artifacts[0]!.integrity).toEqual({ sha256: hex });
+  });
 });

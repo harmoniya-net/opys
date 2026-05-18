@@ -7,10 +7,14 @@ import { zipSync, strToU8, gzipSync } from 'fflate';
 import {
   sourceFile,
   extractDump,
+  extractScan,
+  extractPick,
   type Artifact,
   type Manifest,
 } from '@torba/core';
 import { install } from '../../lib/install';
+import { extractAll, EXTRACT_MARKER_SUFFIX } from '../../lib/phases/extract';
+import { ExtractionError } from '../../lib/errors';
 
 function makeTarGz(
   files: Array<{ name: string; content: string; mode?: number }>,
@@ -248,5 +252,111 @@ describe('ExtractDump runtime', () => {
     await install(makeManifest([artifact]));
     // extractIsPending kicked in: dest was missing so install re-extracted.
     expect(existsSync(join(targetDir, 'file.txt'))).toBe(true);
+  });
+});
+
+describe('extractAll', () => {
+  it('handles a pick rule, copying a single entry out', async () => {
+    const archive = join(tmpDir, 'a.zip');
+    await writeFile(archive, makeZip({ 'inner/config.json': '{"ok":1}' }));
+    const dest = join(tmpDir, 'config.json');
+    await extractAll(
+      [
+        {
+          finalPath: archive,
+          artifact: {
+            path: archive,
+            source: sourceFile(archive),
+            rules: [],
+            extract: [extractPick('inner/config.json', dest)],
+          },
+        },
+      ],
+      {},
+    );
+    expect(await readFile(dest, 'utf8')).toBe('{"ok":1}');
+    expect(existsSync(`${archive}${EXTRACT_MARKER_SUFFIX}`)).toBe(true);
+  });
+
+  it('handles a scan rule with a strip prefix', async () => {
+    const archive = join(tmpDir, 'a.zip');
+    await writeFile(
+      archive,
+      makeZip({ 'jdk/lib/x.so': 'NATIVE', 'jdk/readme.txt': 'docs' }),
+    );
+    const out = join(tmpDir, 'natives');
+    await extractAll(
+      [
+        {
+          finalPath: archive,
+          artifact: {
+            path: archive,
+            source: sourceFile(archive),
+            rules: [],
+            extract: [extractScan('jdk/lib/*', out, { strip: ['jdk/lib/'] })],
+          },
+        },
+      ],
+      {},
+    );
+    expect(existsSync(join(out, 'x.so'))).toBe(true);
+    expect(existsSync(join(out, 'readme.txt'))).toBe(false);
+  });
+
+  it('interpolates ${var} in rule destinations', async () => {
+    const archive = join(tmpDir, 'a.zip');
+    await writeFile(archive, makeZip({ 'f.txt': 'V' }));
+    await extractAll(
+      [
+        {
+          finalPath: archive,
+          artifact: {
+            path: archive,
+            source: sourceFile(archive),
+            rules: [],
+            extract: [extractDump('${root}/dumped')],
+          },
+        },
+      ],
+      { root: tmpDir },
+    );
+    expect(existsSync(join(tmpDir, 'dumped', 'f.txt'))).toBe(true);
+  });
+
+  it('skips artifacts with no extract rules', async () => {
+    const archive = join(tmpDir, 'a.zip');
+    await writeFile(archive, makeZip({ 'f.txt': 'V' }));
+    await extractAll(
+      [
+        {
+          finalPath: archive,
+          artifact: { path: archive, source: sourceFile(archive), rules: [] },
+        },
+      ],
+      {},
+    );
+    expect(existsSync(`${archive}${EXTRACT_MARKER_SUFFIX}`)).toBe(false);
+  });
+
+  it('wraps a failing rule in an ExtractionError naming the artifact', async () => {
+    const archive = join(tmpDir, 'a.zip');
+    await writeFile(archive, makeZip({ 'present.txt': 'V' }));
+    const err = await extractAll(
+      [
+        {
+          finalPath: archive,
+          artifact: {
+            path: 'mods/broken.zip',
+            source: sourceFile(archive),
+            rules: [],
+            extract: [extractPick('absent.txt', join(tmpDir, 'out'))],
+          },
+        },
+      ],
+      {},
+    ).catch((e) => e);
+    expect(err).toBeInstanceOf(ExtractionError);
+    expect(err.artifactPath).toBe('mods/broken.zip');
+    expect(err.cause).toBeInstanceOf(Error);
   });
 });

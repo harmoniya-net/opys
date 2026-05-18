@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { parseLibraries } from '../../lib/client/libraries';
+import { encodeMaven } from '../../lib/client/maven';
 
 describe('parseLibraries', () => {
   test('simple library without natives', () => {
@@ -17,7 +18,7 @@ describe('parseLibraries', () => {
       },
     ]);
     expect(libs).toHaveLength(1);
-    expect(libs[0]!.name.toString()).toBe('com.google.code.gson:gson:2.10.1');
+    expect(encodeMaven(libs[0]!.name)).toBe('com.google.code.gson:gson:2.10.1');
     expect(libs[0]!.rules).toHaveLength(0);
     expect(libs[0]!.native).toBe(false);
   });
@@ -68,6 +69,29 @@ describe('parseLibraries', () => {
     );
     expect(linuxNative).toBeDefined();
     expect(linuxNative!.native).toBe(true);
+  });
+
+  test('skips a natives entry with no matching classifier download', () => {
+    const libs = parseLibraries([
+      {
+        name: 'org.lwjgl:lwjgl:3.3.1',
+        downloads: {
+          classifiers: {
+            'natives-linux': {
+              path: 'org/lwjgl/lwjgl/3.3.1/lwjgl-3.3.1-natives-linux.jar',
+              sha1: '3dfaac0d31cf26733989c9354964646700810777',
+              size: 78152,
+              url: 'https://libraries.minecraft.net/lwjgl-natives-linux.jar',
+            },
+          },
+          // declares a windows native, but no windows classifier exists
+          natives: { linux: 'natives-linux', windows: 'natives-windows' },
+        },
+        natives: { linux: 'natives-linux', windows: 'natives-windows' },
+      },
+    ]);
+    expect(libs).toHaveLength(1);
+    expect(libs[0]!.native).toBe(true);
   });
 
   test('arch replacement in classifier key', () => {

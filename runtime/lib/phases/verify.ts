@@ -19,6 +19,9 @@ export function verifyIntegrity(
 ): Promise<boolean> {
   const entries = integrityHashes(integrity);
   if (entries.length === 0) return Promise.resolve(true);
+  // `Promise.any` resolves on the first *fulfillment* — so a non-matching
+  // entry must reject, not return `false`, or it could win the race and
+  // mask a sibling entry that does match.
   return Promise.any(
     entries.map(async (e) => {
       if ('sha1' in e) {
@@ -33,7 +36,7 @@ export function verifyIntegrity(
         const ok = await checkHash(path, 'md5', e.md5);
         if (ok) return true;
       }
-      return false;
+      throw new Error('no matching hash');
     }),
   ).catch(() => false);
 }

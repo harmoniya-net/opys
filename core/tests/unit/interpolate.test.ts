@@ -50,4 +50,18 @@ describe('resolveVars', () => {
     const result = resolveVars({ a: 'foo', b: '${a}/bar', c: '${b}/baz' });
     expect(result.c).toBe('foo/bar/baz');
   });
+
+  it('unescapes \\${ within a resolved var template', () => {
+    expect(resolveVars({ a: '\\${literal}' }).a).toBe('${literal}');
+  });
+
+  it('leaves a spaced placeholder inside a var template untouched', () => {
+    expect(resolveVars({ a: '${ spaced }' }).a).toBe('${ spaced }');
+  });
+
+  it('preserves the placeholder when a var value is nullish', () => {
+    expect(interpolate('${x}', { x: undefined as unknown as string })).toBe(
+      '${x}',
+    );
+  });
 });

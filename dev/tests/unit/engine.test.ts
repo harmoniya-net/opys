@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { sourceUrl } from '@torba/core';
+import { sourceUrl, type Artifact } from '@torba/core';
 import { buildManifest } from '../../lib/engine';
 import type { TorbaConfig } from '../../lib/config';
 import type { BuildContext, Contribution, TorbaPlugin } from '../../lib/plugin';
@@ -34,7 +34,7 @@ describe('buildManifest', () => {
       ],
       manifest: {
         command: ({ extra }) => extra!.bin as string,
-        args: ({ base }) => [base!.jvmArgs, base!.mainClass],
+        args: ({ base }) => [base!.jvmArgs!, base!.mainClass!],
         workdir: '${root}',
       },
     };
@@ -82,5 +82,94 @@ describe('buildManifest', () => {
       mode: '',
     });
     expect(logs.some((l) => l.includes("var 'x'"))).toBe(true);
+  });
+
+  it('does not warn when a plugin re-sets its own var', async () => {
+    const logs: string[] = [];
+    const config: TorbaConfig = {
+      plugins: [fakePlugin('a', { vars: { x: '1' } })],
+      manifest: { command: () => 'java', args: () => [] },
+    };
+    await buildManifest(config, {
+      log: (_s, msg) => logs.push(msg),
+      configDir: '/tmp',
+      mode: '',
+    });
+    expect(logs.some((l) => l.includes("var 'x'"))).toBe(false);
+  });
+
+  it('flattens a bare Val arg item and dedupes artifacts', async () => {
+    const dup: Artifact = {
+      path: 'same.jar',
+      source: sourceUrl('http://x/1'),
+      rules: [],
+    };
+    const config: TorbaConfig = {
+      plugins: [
+        fakePlugin('p', {
+          artifacts: [dup, { ...dup, source: sourceUrl('http://x/2') }],
+          launch: { single: { rules: [], value: ['-flag'] } },
+        }),
+      ],
+      manifest: {
+        command: () => 'java',
+        args: ({ p }) => [p!.single!, 'tail'],
+      },
+    };
+    const m = await buildManifest(config, ctx);
+    expect(m.artifacts).toHaveLength(1);
+    expect(m.artifacts[0]!.source).toEqual(sourceUrl('http://x/2'));
+    expect(m.launch?.args).toEqual([
+      { rules: [], value: ['-flag'] },
+      { rules: [], value: ['tail'] },
+    ]);
+  });
+
+  it('resolves workdir and envs from accessor functions', async () => {
+    const config: TorbaConfig = {
+      plugins: [fakePlugin('p', { launch: { dir: '/srv' } })],
+      manifest: {
+        command: () => 'java',
+        args: () => [],
+        workdir: ({ p }) => p!.dir as string,
+        envs: ({ p }) => ({ HOME: p!.dir as string }),
+      },
+    };
+    const m = await buildManifest(config, ctx);
+    expect(m.launch?.workdir).toBe('/srv');
+    expect(m.launch?.envs).toEqual({ HOME: '/srv' });
+  });
+
+  it('defaults workdir to "." and envs to {} when omitted', async () => {
+    const config: TorbaConfig = {
+      plugins: [],
+      manifest: { command: () => 'java', args: () => [] },
+    };
+    const m = await buildManifest(config, ctx);
+    expect(m.launch?.workdir).toBe('.');
+    expect(m.launch?.envs).toEqual({});
+  });
+
+  it('accepts a literal envs object and emits restrict', async () => {
+    const config: TorbaConfig = {
+      plugins: [],
+      manifest: {
+        command: () => 'java',
+        args: () => [],
+        envs: { KEY: 'val' },
+        restrict: ['mods/**'],
+      },
+    };
+    const m = await buildManifest(config, ctx);
+    expect(m.launch?.envs).toEqual({ KEY: 'val' });
+    expect(m.restrict).toEqual(['mods/**']);
+  });
+
+  it('omits restrict when the config provides an empty list', async () => {
+    const config: TorbaConfig = {
+      plugins: [],
+      manifest: { command: () => 'java', args: () => [], restrict: [] },
+    };
+    expect((await buildManifest(config, ctx)).restrict).toBeUndefined();
   });
 });

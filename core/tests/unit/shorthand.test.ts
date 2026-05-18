@@ -53,6 +53,27 @@ describe('ShortRule (single)', () => {
       'missing feature name',
     );
   });
+
+  test('throws on an unknown action', () => {
+    expect(() => ShortRule.decode('maybe.os.linux')).toThrow(
+      "Unknown action 'maybe'",
+    );
+  });
+
+  test('throws on missing arch', () => {
+    expect(() => ShortRule.decode('allow.arch')).toThrow('missing arch');
+  });
+
+  test('passes a rule object through unchanged', () => {
+    const rule = { action: 'allow' as const, os: { name: 'linux' as const } };
+    expect(ShortRule.decode(rule)).toEqual(rule);
+  });
+
+  test('encodes a multi-feature rule to its bare action', () => {
+    expect(
+      ShortRule.encode({ action: 'allow', features: { a: true, b: true } }),
+    ).toBe('allow');
+  });
 });
 
 describe('ShortRuleset', () => {

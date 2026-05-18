@@ -47,4 +47,16 @@ describe('Discovery round-trips', () => {
       DiscoveryWireSchema.parse({ integrity: { header: { sha512: 'X' } } }),
     ).toThrow();
   });
+
+  it('encodes an empty integrity block', () => {
+    expect(encodeDiscovery({ integrity: {} })).toEqual({ integrity: {} });
+  });
+
+  it('encodes a size block without a header', () => {
+    expect(encodeDiscovery({ size: {} })).toEqual({ size: {} });
+  });
+
+  it('encodes an empty discovery as an empty object', () => {
+    expect(encodeDiscovery({})).toEqual({});
+  });
 });

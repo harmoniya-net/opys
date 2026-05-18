@@ -4,6 +4,7 @@ import {
   decodeExtract,
   encodeExtract,
   extractPick,
+  extractScan,
   extractDump,
 } from '../../lib/extract';
 
@@ -56,5 +57,28 @@ describe('Extract codec', () => {
     expect(decode({ file: 'a.txt', into: 'b.txt' })[0]!.kind).toBe('pick');
     expect(decode({ matches: '**/*.so', into: 'libs/' })[0]!.kind).toBe('scan');
     expect(decode({ into: 'dump/' })[0]!.kind).toBe('dump');
+  });
+
+  it('Scan rule encodes strip / includes / excludes', () => {
+    const scan = extractScan('**/*.so', 'natives/', {
+      strip: ['lib/'],
+      includes: ['*.so'],
+      excludes: ['*.txt'],
+    });
+    expect(scan.kind).toBe('scan');
+    const encoded = encodeExtract([scan]);
+    expect(encoded).toMatchObject({
+      matches: '**/*.so',
+      into: 'natives/',
+      strip: ['lib/'],
+      includes: ['*.so'],
+      excludes: ['*.txt'],
+    });
+    expect(decode(encoded)[0]!.kind).toBe('scan');
+  });
+
+  it('Scan rule round-trips with no options', () => {
+    const encoded = encodeExtract([extractScan('*.jar', 'mods/')]);
+    expect(encoded).toEqual({ matches: '*.jar', into: 'mods/' });
   });
 });

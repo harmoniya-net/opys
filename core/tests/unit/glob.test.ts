@@ -53,6 +53,17 @@ describe('globToRegex', () => {
     expect(matches('mods/a+b.jar', 'mods/a+b.jar')).toBe(true);
     expect(matches('mods/(x).jar', 'mods/(x).jar')).toBe(true);
   });
+
+  it('bare ** matches across separators', () => {
+    expect(matches('a**b', 'ab')).toBe(true);
+    expect(matches('a**b', 'a/x/y/b')).toBe(true);
+    expect(matches('a**b', 'a/x/yb')).toBe(true);
+  });
+
+  it('treats an unclosed brace as a literal {', () => {
+    expect(matches('mods/{ab', 'mods/{ab')).toBe(true);
+    expect(matches('mods/{ab', 'mods/ab')).toBe(false);
+  });
 });
 
 describe('globBase', () => {

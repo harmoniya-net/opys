@@ -30,6 +30,12 @@ describe('Val', () => {
     expect(val.value).toEqual(['a', 'b']);
   });
 
+  test('decode object with no rules → empty ruleset', () => {
+    const val = parseVal({ rules: undefined, value: 'x' });
+    expect(val.rules).toEqual([]);
+    expect(val.value).toEqual(['x']);
+  });
+
   test('roundtrip shorthand', () => {
     const parsed = parseVal('shorthand');
     const encoded = encodeVal(parsed);
