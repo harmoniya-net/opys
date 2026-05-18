@@ -32,7 +32,7 @@ interface NormalizedEntry {
 async function readArchive(archivePath: string): Promise<NormalizedEntry[]> {
   const data = new Uint8Array(await readFile(archivePath));
   if (isTarPath(archivePath)) {
-    return readTarArchive(archivePath, data).map(toNormalized);
+    return (await readTarArchive(archivePath, data)).map(toNormalized);
   }
   const files = unzipSync(data);
   const entries: NormalizedEntry[] = [];

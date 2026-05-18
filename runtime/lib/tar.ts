@@ -1,19 +1,20 @@
 /**
- * Minimal tar reader. Supports:
+ * Tar reader built on the `tar-stream` library. Supports:
  *
- *   - Regular files (typeflag `0` or `\0`)
- *   - Directories (typeflag `5`) — skipped (mkdir is implicit on file write)
- *   - Symlinks (typeflag `2`) — emitted as `linkTarget` entries
- *   - USTAR `prefix` field — concatenated with `name` to extend the path budget to ~256 chars
- *   - PAX extended headers (typeflag `x`/`g`) — skipped
+ *   - Regular files — emitted as `file` entries with content + mode
+ *   - Directories — skipped (mkdir is implicit on file write)
+ *   - Symlinks — emitted as `linkTarget` entries
+ *   - USTAR `prefix` field — `tar-stream` joins it into `header.name` for us
+ *   - PAX extended / GNU long-name headers — handled internally by `tar-stream`
  *
- * Other typeflags (block/char devices, FIFOs, GNU long-name extensions)
- * are intentionally skipped with a warning rather than throwing —
- * they don't appear in the OpenJDK distributions we care about, and
- * silently ignoring keeps the path open for future archive shapes.
+ * Other entry types (block/char devices, FIFOs, hardlinks) are
+ * intentionally skipped rather than throwing — they don't appear in the
+ * OpenJDK distributions we care about, and silently ignoring keeps the
+ * path open for future archive shapes.
  */
 
 import { gunzipSync } from 'fflate';
+import tarStream from 'tar-stream';
 
 export interface TarFileEntry {
   readonly kind: 'file';
@@ -31,64 +32,59 @@ export interface TarSymlinkEntry {
 
 export type TarEntry = TarFileEntry | TarSymlinkEntry;
 
-const BLOCK_SIZE = 512;
-const decoder = new TextDecoder('utf-8');
-
-function readCString(buf: Uint8Array, offset: number, maxLen: number): string {
-  let end = offset;
-  const limit = Math.min(offset + maxLen, buf.length);
-  while (end < limit && buf[end] !== 0) end++;
-  return decoder.decode(buf.subarray(offset, end));
-}
-
-function parseOctal(buf: Uint8Array, offset: number, maxLen: number): number {
-  const s = readCString(buf, offset, maxLen).trim();
-  if (!s) return 0;
-  const n = parseInt(s, 8);
-  return Number.isFinite(n) ? n : 0;
-}
-
 /**
- * Iterate tar entries from raw bytes. Stops at the first all-zero
- * header block (tar's archive-end marker).
+ * Parse raw (already-decompressed) tar bytes into a list of entries.
+ * Stream-driven via `tar-stream`, hence async.
  */
-export function* readTar(data: Uint8Array): Iterable<TarEntry> {
-  let off = 0;
-  while (off + BLOCK_SIZE <= data.length) {
-    const header = data.subarray(off, off + BLOCK_SIZE);
-    // End-of-archive: a block of zeros.
-    let allZero = true;
-    for (let i = 0; i < BLOCK_SIZE; i++) {
-      if (header[i] !== 0) {
-        allZero = false;
-        break;
+export function readTar(data: Uint8Array): Promise<TarEntry[]> {
+  return new Promise<TarEntry[]>((resolve, reject) => {
+    const entries: TarEntry[] = [];
+    const extract = tarStream.extract();
+
+    extract.on('entry', (header, stream, next) => {
+      const name = header.name;
+
+      if (header.type === 'symlink') {
+        entries.push({
+          kind: 'symlink',
+          name,
+          linkTarget: header.linkname ?? '',
+        });
+        // Symlink entries have no body, but drain defensively.
+        stream.on('end', next);
+        stream.on('error', reject);
+        stream.resume();
+        return;
       }
-    }
-    if (allZero) break;
 
-    const nameRaw = readCString(header, 0, 100);
-    const mode = parseOctal(header, 100, 8);
-    const size = parseOctal(header, 124, 12);
-    const typeflag = String.fromCharCode(header[156] || 0x30);
-    const linkname = readCString(header, 157, 100);
-    const prefix = readCString(header, 345, 155);
-    const fullName = prefix ? `${prefix}/${nameRaw}` : nameRaw;
+      if (header.type === 'file') {
+        const chunks: Buffer[] = [];
+        stream.on('data', (chunk: Buffer) => chunks.push(chunk));
+        stream.on('error', reject);
+        stream.on('end', () => {
+          const content = new Uint8Array(Buffer.concat(chunks));
+          entries.push({
+            kind: 'file',
+            name,
+            content,
+            mode: header.mode ?? 0,
+          });
+          next();
+        });
+        return;
+      }
 
-    off += BLOCK_SIZE;
-    const dataLen = size;
-    const padded = Math.ceil(dataLen / BLOCK_SIZE) * BLOCK_SIZE;
+      // Directories and any other entry type: skip, but still drain.
+      stream.on('end', next);
+      stream.on('error', reject);
+      stream.resume();
+    });
 
-    if (typeflag === '0' || typeflag === '\0') {
-      const content = data.slice(off, off + dataLen);
-      yield { kind: 'file', name: fullName, content, mode };
-    } else if (typeflag === '2') {
-      yield { kind: 'symlink', name: fullName, linkTarget: linkname };
-    }
-    // typeflag '5' (directory), 'x'/'g' (pax), 'L'/'K' (gnu) and others
-    // intentionally fall through — we still advance `off` past the data.
+    extract.on('error', reject);
+    extract.on('finish', () => resolve(entries));
 
-    off += padded;
-  }
+    extract.end(Buffer.from(data));
+  });
 }
 
 /** Detect tar.gz/.tgz/.tar from a path. */
@@ -100,14 +96,17 @@ export function isTarPath(path: string): boolean {
 
 /**
  * Read a tar (or gzipped tar) archive into a list of entries.
- * Decompresses gzip in-memory via fflate.
+ * Decompresses gzip in-memory via fflate — `tar-stream` does not gunzip.
  */
-export function readTarArchive(path: string, data: Uint8Array): TarEntry[] {
+export function readTarArchive(
+  path: string,
+  data: Uint8Array,
+): Promise<TarEntry[]> {
   let bytes: Uint8Array;
   if (path.endsWith('.tar.gz') || path.endsWith('.tgz')) {
     bytes = gunzipSync(data);
   } else {
     bytes = data;
   }
-  return [...readTar(bytes)];
+  return readTar(bytes);
 }

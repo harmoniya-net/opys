@@ -25,9 +25,9 @@ describe('isTarPath', () => {
 });
 
 describe('readTar', () => {
-  it('reads regular file entries with content and mode', () => {
+  it('reads regular file entries with content and mode', async () => {
     const tar = buildTar([{ name: 'a.txt', content: 'hello', mode: 0o755 }]);
-    const entries = [...readTar(tar)] as TarFileEntry[];
+    const entries = (await readTar(tar)) as TarFileEntry[];
     expect(entries).toHaveLength(1);
     expect(entries[0]!.kind).toBe('file');
     expect(entries[0]!.name).toBe('a.txt');
@@ -35,62 +35,62 @@ describe('readTar', () => {
     expect(entries[0]!.mode & 0o777).toBe(0o755);
   });
 
-  it('reads symlink entries', () => {
+  it('reads symlink entries', async () => {
     const tar = buildTar([
       { name: 'link', typeflag: '2', linkname: 'target/file' },
     ]);
-    const entries = [...readTar(tar)] as TarSymlinkEntry[];
+    const entries = (await readTar(tar)) as TarSymlinkEntry[];
     expect(entries[0]!.kind).toBe('symlink');
     expect(entries[0]!.linkTarget).toBe('target/file');
   });
 
-  it('skips directory and pax-header entries', () => {
+  it('skips directory and pax-header entries', async () => {
     const tar = buildTar([
       { name: 'dir/', typeflag: '5' },
       { name: 'pax', typeflag: 'x', content: 'junk' },
       { name: 'real.txt', content: 'kept' },
     ]);
-    const entries = [...readTar(tar)];
+    const entries = await readTar(tar);
     expect(entries.map((e) => e.name)).toEqual(['real.txt']);
   });
 
-  it('joins the USTAR prefix with the name', () => {
+  it('joins the USTAR prefix with the name', async () => {
     const tar = buildTar([
       { name: 'file.txt', content: 'x', prefix: 'deep/nested/path' },
     ]);
-    expect([...readTar(tar)][0]!.name).toBe('deep/nested/path/file.txt');
+    expect((await readTar(tar))[0]!.name).toBe('deep/nested/path/file.txt');
   });
 
-  it('stops at the end-of-archive zero block', () => {
+  it('stops at the end-of-archive zero block', async () => {
     const tar = buildTar([{ name: 'a', content: '1' }]);
-    expect([...readTar(tar)]).toHaveLength(1);
+    expect(await readTar(tar)).toHaveLength(1);
   });
 
-  it('reads multiple entries in order', () => {
+  it('reads multiple entries in order', async () => {
     const tar = buildTar([
       { name: 'a', content: 'one' },
       { name: 'b', content: 'two' },
     ]);
-    expect([...readTar(tar)].map((e) => e.name)).toEqual(['a', 'b']);
+    expect((await readTar(tar)).map((e) => e.name)).toEqual(['a', 'b']);
   });
 });
 
 describe('readTarArchive', () => {
-  it('reads a plain .tar archive', () => {
+  it('reads a plain .tar archive', async () => {
     const tar = buildTar([{ name: 'a.txt', content: 'plain' }]);
-    const entries = readTarArchive('x.tar', tar) as TarFileEntry[];
+    const entries = (await readTarArchive('x.tar', tar)) as TarFileEntry[];
     expect(text(entries[0]!.content)).toBe('plain');
   });
 
-  it('decompresses a .tar.gz archive', () => {
+  it('decompresses a .tar.gz archive', async () => {
     const gz = gzipSync(buildTar([{ name: 'a.txt', content: 'zipped' }]));
-    const entries = readTarArchive('x.tar.gz', gz) as TarFileEntry[];
+    const entries = (await readTarArchive('x.tar.gz', gz)) as TarFileEntry[];
     expect(text(entries[0]!.content)).toBe('zipped');
   });
 
-  it('decompresses a .tgz archive', () => {
+  it('decompresses a .tgz archive', async () => {
     const gz = gzipSync(buildTar([{ name: 'a.txt', content: 'tgz' }]));
-    const entries = readTarArchive('x.tgz', gz) as TarFileEntry[];
+    const entries = (await readTarArchive('x.tgz', gz)) as TarFileEntry[];
     expect(text(entries[0]!.content)).toBe('tgz');
   });
 });
