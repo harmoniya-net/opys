@@ -3,7 +3,8 @@ import { readFile, readdir, stat } from 'node:fs/promises';
 import { basename, dirname, join, relative } from 'node:path';
 import type { Artifact, Integrity } from '@torba/core';
 import { sourceFile, sourceUrl, interpolate } from '@torba/core';
-import type { ArtifactOverride } from '@torba/dev';
+import { definePlugin, type TorbaPlugin } from './plugin';
+import { applyOverrides, type ArtifactOverride } from './overrides';
 
 /** A file discovered by {@link artifactScanner}, passed to `path`/`url` functions. */
 export interface ScannedFile {
@@ -19,13 +20,13 @@ export interface ScannedFile {
 
 /**
  * A `path` / `url` value: either a template string — interpolating the
- * per-file placeholders `${rel}` / `${dir}` / `${filename}` (and `${path}`,
- * a legacy alias of `${rel}`), with any other `${var}` left for install —
- * or a `(file) => string` function.
+ * per-file placeholders `${rel}` / `${dir}` / `${filename}`, with any other
+ * `${var}` left for install — or a `(file) => string` function.
  */
 export type ScanTemplate = string | ((file: ScannedFile) => string);
 
 export interface ArtifactScannerOptions {
+  /** Directory to scan. */
   directory: string;
   /** URL for fetching each file — template string or `(file) => string`. */
   url: ScanTemplate;
@@ -39,8 +40,7 @@ export interface ArtifactScannerOptions {
   source?: 'url' | 'file';
   /**
    * Per-selector patches applied to the scanned artifacts — exclude files,
-   * attach rulesets (OS / feature gates), or clear integrity. Applied by
-   * the `artifactScanner` plugin after the directory walk.
+   * attach rulesets (OS / feature gates), or clear integrity.
    */
   overrides?: ArtifactOverride[];
 }
@@ -83,14 +83,13 @@ function applyTemplate(tpl: ScanTemplate, file: ScannedFile): string {
   if (typeof tpl === 'function') return tpl(file);
   return interpolate(tpl, {
     rel: file.rel,
-    path: file.rel, // legacy alias of ${rel}
     dir: file.dir,
     filename: file.filename,
     abs: file.abs,
   });
 }
 
-export async function* artifactScanner(
+async function* scanDirectory(
   options: ArtifactScannerOptions,
 ): AsyncGenerator<Artifact> {
   const algo = options.hash ?? 'sha1';
@@ -129,4 +128,23 @@ export async function* artifactScanner(
       integrity,
     };
   }
+}
+
+/** Scan a local directory tree into artifacts — a generic build-time plugin. */
+export function artifactScanner(options: ArtifactScannerOptions): TorbaPlugin {
+  return definePlugin({
+    name: 'artifactScanner',
+    async build(ctx) {
+      const scanned: Artifact[] = [];
+      for await (const a of scanDirectory(options)) scanned.push(a);
+      const artifacts = applyOverrides(scanned, options.overrides ?? []);
+      const dropped = scanned.length - artifacts.length;
+      ctx.log(
+        'artifactScanner',
+        `scanned ${scanned.length} file(s)` +
+          (dropped > 0 ? `, ${dropped} excluded` : ''),
+      );
+      return { artifacts };
+    },
+  });
 }

@@ -77,24 +77,36 @@ interface Contribution {
 
 A plugin is pure to construct — `forge('1.20.1-best')` does zero I/O; all
 network/fs work happens inside `build`, which the engine drives.
-`definePlugin` is an identity helper for authoring one.
+`definePlugin` is an identity helper for authoring one. `@torba/dev` also
+exports the build engine (`buildManifest`), the artifact-override mechanism
+(`ArtifactOverride` / `applyOverrides` — a `{ match, exclude?, rules?,
+integrity? }` patch — and the `Selector` type), and the `userDataDir` helper.
 
-## Plugins — `@torba/minecraft` / `@torba/java`
+## Plugins
+
+Minecraft-domain plugins — `@torba/minecraft`:
 
 - **`minecraft(version?)`** — vanilla client + libraries + assets.
 - **`forge(version, opts?)`** — Forge (1.7–1.12 legacy + 1.13+ processor eras).
 - **`cleanroom(version, opts?)`** — a 1.12.2 Forge variant.
 - **`lwjgl3ify(version, opts?)`** — a 1.7.10 Forge variant on LWJGL3.
-- **`java(version, opts?)`** (`@torba/java`) — provisions an OpenJDK runtime;
-  solely owns the `java_home`/`java_bin` vars, exposes `bin` as a launch group.
 - **`curseforge({ token, path, files })`** — mod files from the CurseForge API.
 - **`authliberty(version, opts?)`** — an authlib-injector `-javaagent`.
-- **`artifactScanner({ directory, path, url, source, … })`** — scans a local
-  directory tree into artifacts.
 
-Helpers (not plugins): **`bifrost({ privateKey, username, uuid })`** — mints an
-Ed25519 JWT; call it inside `runClient`. **`userDataDir(name)`** — an
-OS-appropriate data directory.
+JVM runtime — `@torba/java`:
+
+- **`java(version, opts?)`** — provisions an OpenJDK runtime; solely owns the
+  `java_home` / `java_bin` / `java_runtime_dir` vars, exposes `bin` as a
+  launch group.
+
+Generic, domain-agnostic — `@torba/dev`:
+
+- **`artifactScanner({ directory, path, url, source, overrides? })`** — scans a
+  local directory tree into artifacts.
+
+Helpers (not plugins): **`bifrost({ privateKey, username, uuid })`**
+(`@torba/minecraft`) — mints an Ed25519 JWT; call it inside `runClient`.
+**`userDataDir(name)`** (`@torba/dev`) — an OS-appropriate data directory.
 
 ## Manifest data model — `@torba/core`
 
@@ -109,7 +121,6 @@ type (`string | string[] → string[]`, rule shorthand → full `Ruleset`, …).
 - Subtypes: `Source`, `Integrity`/`HashEntry`, `ExtractRule` (`Pick`/`Scan`/`Dump`), `Launch`, `ValDefs`/`ConditionalVal`
 - Pointer: `PointerDescriptor`, `PointerDescriptorWireSchema`, `parsePointerDescriptor`, `encodePointerDescriptor`
 - Discovery: `Discovery`, `HashRef`, `DiscoveryWireSchema`, `decodeDiscovery`, `encodeDiscovery`
-- Filters: `Selector`, `ArtifactFilters`, `applyFilters`
 - Source/Extract factories: `sourceUrl`/`sourceFile`/`sourceString`/`sourcePointer`, `extractPick`/`extractScan`/`extractDump`
 - Glob: `globToRegex`, `globBase`
 - Vars / interpolation: `parseValDefs`, `resolveValDefs`, `resolveVars`, `interpolate`

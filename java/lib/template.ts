@@ -81,8 +81,12 @@ export async function resolveJava(options: JavaOptions): Promise<JavaTemplate> {
     apiBase: options.apiBase,
   } satisfies ResolveOpenjdkOptions);
 
-  const javaRoot = `\${root}/runtimes/jdk-${release.major}`;
-  const archiveDir = `${javaRoot}/.cache`;
+  // JDK runtimes install under the `java_runtime_dir` var (default
+  // `${root}/runtimes`) — override it in the config's `vars` to relocate.
+  // Archives download directly into it: a sibling of, never nested inside,
+  // the extract target, so no `.cache` special-casing is needed.
+  const javaRoot = `\${java_runtime_dir}/jdk-${release.major}`;
+  const archiveDir = `\${java_runtime_dir}`;
   const extractInto = javaRoot;
 
   const artifacts: Artifact[] = release.binaries.map((b) => ({
@@ -115,6 +119,7 @@ export async function resolveJava(options: JavaOptions): Promise<JavaTemplate> {
   }
 
   const vars: ValDefs = {
+    java_runtime_dir: '${root}/runtimes',
     java_home: javaHomeArms,
     java_bin: javaBinArms,
   };

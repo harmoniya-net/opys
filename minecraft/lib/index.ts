@@ -6,12 +6,10 @@ export {
   lwjgl3ify,
   authliberty,
   curseforge,
-  artifactScanner,
   type CurseforgePluginOptions,
 } from './plugins';
 
 // Helpers (not plugins).
-export { userDataDir } from './paths';
 export {
   resolveBifrost as bifrost,
   type BifrostOptions,
@@ -25,7 +23,6 @@ export {
 
 // Option / template types for advanced use.
 export type { MinecraftTemplate } from './template';
-export type { ArtifactScannerOptions } from './scanner';
 export type { ForgeOptions, ForgeWrapperOptions } from './forge/index';
 export type { CleanroomOptions } from './cleanroom/index';
 export type { Lwjgl3ifyOptions } from './lwjgl3ify/index';

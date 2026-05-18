@@ -6,7 +6,6 @@ export {
 } from './template';
 export {
   resolveForgeVersion,
-  fetchForgeManifestJson,
   type ForgeIndexEntry,
   type ForgeFile,
 } from './resolver';

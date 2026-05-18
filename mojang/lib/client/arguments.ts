@@ -20,7 +20,7 @@ export const LEGACY_JVM_ARGS: MojangArgValue[] = [
   '${classpath}',
 ];
 
-const MojangArgSchema: z.ZodType<MojangArgValue> = z.union([
+const MojangArgSchema = z.union([
   z.string(),
   z.object({
     rules: z.array(RuleSchema),

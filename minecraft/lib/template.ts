@@ -1,8 +1,12 @@
 import {
   fetchWithRetry,
+  allowOsRuleset,
   type Artifact,
   type ValDefs,
   type Launch,
+  type Val,
+  type Valset,
+  type ConditionalVal,
 } from '@torba/core';
 import {
   type Client,
@@ -12,14 +16,7 @@ import {
   findVersion,
   type Version,
 } from '@torba/mojang';
-import {
-  allowOsRuleset,
-  type OsOptions,
-  parseValset,
-  type Val,
-  type Valset,
-} from '@torba/core';
-import { mapLibraries, libraryToArtifact } from './mappers/libraries';
+import { mapLibraries } from './mappers/libraries';
 import { mapAssetIndex, mapAssetObjects } from './mappers/assets';
 import { mapClientJar } from './mappers/client';
 import { buildClasspath, buildLaunch } from './mappers/launch';
@@ -27,9 +24,11 @@ import { buildClasspath, buildLaunch } from './mappers/launch';
 export interface MinecraftTemplate {
   artifacts: Artifact[];
   vars: ValDefs;
+  /** Per-OS classpath arms (also baked into `vars.classpath`). */
+  classpath: ConditionalVal[];
   /** Assembled Launch — drop straight into `manifest.launch`. */
   launch: Launch;
-  /** JVM args alone, for composition (e.g. interleaving authliberty's `-javaagent`). */
+  /** JVM args alone, for composition (e.g. interleaving an auth `-javaagent`). */
   jvmArgs: Valset;
   /** Main class wrapped as a `Val` so it spreads into a `Valset`. Raw string at `mainClass.value[0]`. */
   mainClass: Val;
@@ -46,16 +45,7 @@ export async function resolveMinecraft(config?: {
 export async function minecraftTemplate(
   versionId?: string,
 ): Promise<MinecraftTemplate> {
-  const manifest = await fetchVersionManifest();
-  const version = versionId
-    ? findVersion(manifest, versionId)
-    : latestRelease(manifest);
-  if (!version) throw new Error(`Version '${versionId ?? 'latest'}' not found`);
-  const res = await fetchWithRetry(version.url);
-  if (!res.ok)
-    throw new Error(`Failed to fetch version JSON: ${res.statusText}`);
-  const { parseClient } = await import('@torba/mojang');
-  const client = parseClient(await res.json());
+  const { client } = await fetchClient(versionId);
   return clientToTemplate(client);
 }
 
@@ -90,10 +80,7 @@ export async function clientToTemplate(
     artifactPath: `\${library_directory}/${l.artifact.path}`,
   }));
 
-  const classpathEntries = buildClasspath(
-    libPaths,
-    '\${version_dir}/client.jar',
-  );
+  const classpath = buildClasspath(libPaths, '\${version_dir}/client.jar');
 
   const vars: ValDefs = {
     root: '.',
@@ -120,7 +107,7 @@ export async function clientToTemplate(
       { value: ':', rules: allowOsRuleset('linux') },
       { value: ':', rules: allowOsRuleset('osx') },
     ],
-    classpath: classpathEntries,
+    classpath,
   };
 
   const parts = buildLaunch(
@@ -129,5 +116,5 @@ export async function clientToTemplate(
     client.args.jvm,
   );
 
-  return { artifacts, vars, ...parts };
+  return { artifacts, vars, classpath, ...parts };
 }

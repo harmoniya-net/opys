@@ -1,7 +1,6 @@
-import { mkdir, writeFile, symlink, chmod } from 'node:fs/promises';
+import { mkdir, writeFile, symlink, chmod, readFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { unzipSync } from 'fflate';
-import { readBytes } from './fs';
 import { isTarPath, readTarArchive, type TarEntry } from './tar';
 
 export function matchesGlob(name: string, pattern: string): boolean {
@@ -23,7 +22,7 @@ interface NormalizedEntry {
 }
 
 async function readArchive(archivePath: string): Promise<NormalizedEntry[]> {
-  const data = new Uint8Array(await readBytes(archivePath));
+  const data = new Uint8Array(await readFile(archivePath));
   if (isTarPath(archivePath)) {
     return readTarArchive(archivePath, data).map(toNormalized);
   }

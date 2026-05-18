@@ -1,6 +1,6 @@
 /**
  * Tiny glob → RegExp converter. Supports the subset torba uses across
- * `restrict` sweeping and `pipe` artifact selectors:
+ * `restrict` sweeping and artifact selectors:
  *
  *   `*`        — any sequence of non-separator chars
  *   `**`       — any sequence of chars including separators (zero or more

@@ -273,17 +273,14 @@ function patchLibraries(rawLibraries: unknown): unknown[] {
  * extend each one with the same set of lib paths (repo libs have no rules).
  */
 function augmentClasspath(
-  base: ConditionalVal[] | undefined,
+  base: ConditionalVal[],
   repoLibs: RepoLib[],
-): ConditionalVal[] | undefined {
-  if (!base || repoLibs.length === 0) return base;
+): ConditionalVal[] {
+  if (repoLibs.length === 0) return base;
   const suffix = repoLibs
     .map((l) => `\${classpath_separator}\${library_directory}/${l.path}`)
     .join('');
-  return base.map((arm) => {
-    if (typeof arm === 'string') return arm + suffix;
-    return { ...arm, value: arm.value + suffix };
-  });
+  return base.map((arm) => ({ ...arm, value: arm.value + suffix }));
 }
 
 /**
@@ -364,14 +361,11 @@ export async function resolveLwjgl3ify(
     });
   }
 
-  const augmentedCp = augmentClasspath(
-    mc.vars.classpath as ConditionalVal[] | undefined,
-    repoLibs,
-  );
+  const augmentedCp = augmentClasspath(mc.classpath, repoLibs);
 
   return {
     artifacts: [...mc.artifacts, ...repoArtifacts, ...modArtifacts],
-    vars: { ...mc.vars, classpath: augmentedCp ?? mc.vars.classpath },
+    vars: { ...mc.vars, classpath: augmentedCp },
     launch: mc.launch,
     jvmArgs: mc.jvmArgs,
     mainClass: mc.mainClass,

@@ -12,6 +12,7 @@ import {
   isSourceBytes,
   interpolate,
 } from '@torba/core';
+import { NetworkError } from '../errors';
 
 export interface FetchTask {
   artifact: Artifact;
@@ -50,9 +51,13 @@ async function fetchOnce(
   if (isSourceUrl(src)) {
     const url = interpolate(src.url, vars);
     const res = await fetch(url);
-    if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
+    if (!res.ok) {
+      throw new NetworkError(url, res.status, await res.text().catch(() => ''));
+    }
     if (res.body) {
       await pipeline(
+        // `fetch`'s body is a DOM ReadableStream; node's Readable.fromWeb
+        // wants the structurally-identical `node:stream/web` type.
         Readable.fromWeb(res.body as unknown as NodeReadableStream),
         counter(onBytes),
         createWriteStream(tmpPath),

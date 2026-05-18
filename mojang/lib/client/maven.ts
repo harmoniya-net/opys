@@ -46,9 +46,9 @@ export function isNativeMaven(c: MavenCoord): boolean {
   return !!c.classifier?.startsWith('natives');
 }
 
-export const MavenSchema = z.string().transform(parseMaven);
-
-// --- Backward-compat class kept for tests that use instanceof/methods ---
+// --- `MavenName` is still the live type of `Library.name` (see libraries.ts).
+// Migrating that to the functional `MavenCoord` + `isNativeMaven` is tracked
+// in REFACTOR.md §11. ---
 export class MavenName implements MavenCoord {
   constructor(
     public readonly groupId: string,

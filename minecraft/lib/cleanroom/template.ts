@@ -199,11 +199,7 @@ export async function resolveCleanroom(
     versionJson.minecraftArguments ?? versionJson.arguments ?? '',
   );
 
-  const parts = buildLaunch(
-    versionJson.mainClass,
-    args.game,
-    args.jvm as MojangArgValue[],
-  );
+  const parts = buildLaunch(versionJson.mainClass, args.game, args.jvm);
 
   // Drop the shadowed vanilla library artifacts from the download set too.
   // (mc.artifacts also carries client.jar, asset index, and asset objects —

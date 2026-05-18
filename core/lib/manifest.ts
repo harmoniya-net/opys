@@ -81,5 +81,6 @@ export function filterManifest(
     vars: u.vars,
     launch: u.launch,
     artifacts: u.artifacts.filter((a) => artifactApplies(a, os, feats)),
+    ...(u.restrict ? { restrict: u.restrict } : {}),
   };
 }

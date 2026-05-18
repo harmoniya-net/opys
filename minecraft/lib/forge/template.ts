@@ -143,7 +143,7 @@ export async function resolveForge(
 
   if (recipe.kind === 'unsupported') {
     throw new Error(
-      `Forge era '${recipe.type}' (Minecraft <1.7) is not yet supported by @torba/forge. ` +
+      `Forge era '${recipe.type}' (Minecraft <1.7) is not yet supported by @torba/minecraft. ` +
         `Only 'legacy' (1.7–1.12) and 'processor' (1.13+) builds are supported.`,
     );
   }

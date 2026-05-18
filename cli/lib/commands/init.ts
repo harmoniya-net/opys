@@ -15,8 +15,8 @@ interface TemplateInputs {
 }
 
 function vanillaTemplate({ name, version }: TemplateInputs): string {
-  return `import { defineConfig } from '@torba/dev';
-import { minecraft, userDataDir } from '@torba/minecraft';
+  return `import { defineConfig, userDataDir } from '@torba/dev';
+import { minecraft } from '@torba/minecraft';
 
 export default defineConfig({
   output: 'torba.json',
@@ -44,8 +44,8 @@ export default defineConfig({
 }
 
 function forgeTemplate({ name, version }: TemplateInputs): string {
-  return `import { defineConfig } from '@torba/dev';
-import { forge, userDataDir } from '@torba/minecraft';
+  return `import { defineConfig, userDataDir } from '@torba/dev';
+import { forge } from '@torba/minecraft';
 
 export default defineConfig({
   output: 'torba.json',

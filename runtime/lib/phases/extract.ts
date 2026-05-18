@@ -2,6 +2,7 @@ import { mkdir, rm, writeFile } from 'node:fs/promises';
 import type { Artifact } from '@torba/core';
 import { interpolate } from '@torba/core';
 import { extractZip, extractZipPick } from '../zip';
+import { ExtractionError } from '../errors';
 
 export interface ExtractTask {
   finalPath: string;
@@ -18,6 +19,21 @@ export async function extractAll(
   const cleaned = new Set<string>();
   for (const { finalPath, artifact } of tasks) {
     if (!artifact.extract) continue;
+    try {
+      await extractArtifact(finalPath, artifact, vars, cleaned);
+    } catch (err) {
+      throw new ExtractionError(artifact.path, { cause: err });
+    }
+  }
+}
+
+async function extractArtifact(
+  finalPath: string,
+  artifact: Artifact,
+  vars: Record<string, string>,
+  cleaned: Set<string>,
+): Promise<void> {
+  if (artifact.extract) {
     for (const rule of artifact.extract) {
       if (rule.kind === 'dump') {
         const targetDir = interpolate(rule.into, vars);
@@ -48,9 +64,9 @@ export async function extractAll(
         await extractZipPick(finalPath, rule.file, destPath);
       }
     }
-    // Marker is written only after every rule for this artifact has
-    // succeeded — a mid-extract crash leaves the marker absent so the
-    // next install retries.
-    await writeFile(`${finalPath}${EXTRACT_MARKER_SUFFIX}`, '');
   }
+  // Marker is written only after every rule for this artifact has
+  // succeeded — a mid-extract crash leaves the marker absent so the
+  // next install retries.
+  await writeFile(`${finalPath}${EXTRACT_MARKER_SUFFIX}`, '');
 }

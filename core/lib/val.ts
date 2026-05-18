@@ -35,7 +35,7 @@ export function encodeVal(val: Val): unknown {
 export type Valset = Val[];
 
 export function parseValset(raw: unknown[]): Valset {
-  return raw.map((item) => parseVal(item as z.infer<typeof ValRawSchema>));
+  return z.array(ValRawSchema).parse(raw).map(parseVal);
 }
 
 export function encodeValset(vs: Valset): unknown[] {

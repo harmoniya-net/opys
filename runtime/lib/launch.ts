@@ -20,7 +20,7 @@ export interface LaunchOptions {
    */
   features?: string[];
   vars?: Record<string, string>;
-  /** Override the manifest's `command.workdir`. Interpolated with vars. */
+  /** Override the manifest's `launch.workdir`. Interpolated with vars. */
   cwd?: string;
   install?: InstallOptions | false;
   log?: (level: 'debug' | 'warn', msg: string) => void;

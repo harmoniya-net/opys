@@ -97,8 +97,3 @@ export async function resolveForgeVersion(
 
   throw new Error(`Could not resolve Forge version '${input}' from ${base}`);
 }
-
-/** Fetch a JSON document from a URL. Exposed for callers that already have an entry URL. */
-export async function fetchForgeManifestJson(url: string): Promise<unknown> {
-  return fetchJson<unknown>(url);
-}

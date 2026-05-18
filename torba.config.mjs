@@ -1,13 +1,6 @@
 // @torba-preserve
-import { defineConfig } from '@torba/dev';
-import {
-  forge,
-  authliberty,
-  curseforge,
-  artifactScanner,
-  bifrost,
-  userDataDir,
-} from '@torba/minecraft';
+import { defineConfig, userDataDir, artifactScanner } from '@torba/dev';
+import { forge, authliberty, curseforge, bifrost } from '@torba/minecraft';
 import { java } from '@torba/java';
 
 export default defineConfig(({ mode }) => ({
@@ -168,8 +161,8 @@ export default defineConfig(({ mode }) => ({
     }),
     artifactScanner({
       directory: './wizard',
-      path: '${root}/wizard/${path}',
-      url: 'https://cdn.example.com/modpacks/client/public/wizard/${path}',
+      path: '${root}/wizard/${rel}',
+      url: 'https://cdn.example.com/modpacks/client/public/wizard/${rel}',
       hash: 'sha256',
       source: mode === 'launch' ? 'file' : 'url',
     }),

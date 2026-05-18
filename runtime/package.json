@@ -14,17 +14,12 @@
   ],
   "scripts": {
     "build": "tsdown lib/index.ts --format esm,cjs --dts --clean",
-    "test": "vitest run tests/unit",
-    "test:int": "vitest run tests/integration",
-    "bench": "vitest bench tests/bench"
+    "test": "vitest run tests/unit"
   },
   "type": "module",
   "dependencies": {
     "@torba/core": "^1.0.10",
     "fflate": "^0.8.2"
-  },
-  "devDependencies": {
-    "@torba/minecraft": "^1.0.10"
   },
   "peerDependencies": {
     "zod": "^4.0.0"

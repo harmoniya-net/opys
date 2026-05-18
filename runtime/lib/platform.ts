@@ -1,9 +1,9 @@
-import type { SatisfiesOsOptions } from '@torba/core';
+import type { OsOptions } from '@torba/core';
 
 export function currentPlatform(
   platform: string = process.platform,
   arch: string = process.arch,
-): SatisfiesOsOptions {
+): OsOptions {
   return {
     name:
       platform === 'win32'
