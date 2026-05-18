@@ -2,14 +2,15 @@ import type { Artifact } from '@torba/core';
 import { sourceUrl, extractDump } from '@torba/core';
 import type { Library } from '@torba/mojang';
 
-export function libraryToArtifact(
-  lib: Library,
-  libraryDirVar = '${library_directory}',
-  nativesDirVar = '${natives_directory}',
-): Artifact {
-  const path = `${libraryDirVar}/${lib.artifact.path}`;
+export function libraryToArtifact(lib: Library): Artifact {
+  const path = `\${library_directory}/${lib.artifact.path}`;
   const extract = lib.native
-    ? [extractDump(nativesDirVar, { excludes: ['META-INF/'], clean: true })]
+    ? [
+        extractDump('${natives_directory}', {
+          excludes: ['META-INF/'],
+          clean: true,
+        }),
+      ]
     : undefined;
 
   return {
@@ -22,10 +23,6 @@ export function libraryToArtifact(
   };
 }
 
-export function mapLibraries(
-  libs: readonly Library[],
-  libraryDirVar?: string,
-  nativesDirVar?: string,
-): Artifact[] {
-  return libs.map((l) => libraryToArtifact(l, libraryDirVar, nativesDirVar));
+export function mapLibraries(libs: readonly Library[]): Artifact[] {
+  return libs.map((l) => libraryToArtifact(l));
 }

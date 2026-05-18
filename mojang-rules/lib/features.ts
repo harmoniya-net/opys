@@ -9,6 +9,6 @@ export function satisfiesFeatures(
   feats: string[],
 ): boolean {
   return Object.entries(constraint).every(
-    ([feature, should]) => feats.some((f) => f === feature) === should,
+    ([feature, should]) => feats.includes(feature) === should,
   );
 }

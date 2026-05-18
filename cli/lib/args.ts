@@ -1,7 +1,7 @@
 import { parseArgs as nodeParseArgs, type ParseArgsConfig } from 'node:util';
 import { UsageError } from './errors';
 
-type OptionType = 'string' | 'boolean';
+type OptionType = 'string';
 
 export interface FlagSpec {
   long: string;
@@ -11,8 +11,6 @@ export interface FlagSpec {
 
 export interface ParsedArgs {
   getString(flag: string): string | undefined;
-  getBoolean(flag: string): boolean;
-  readonly positional: readonly string[];
 }
 
 export function parseArgs(argv: string[], specs: FlagSpec[]): ParsedArgs {
@@ -38,7 +36,5 @@ export function parseArgs(argv: string[], specs: FlagSpec[]): ParsedArgs {
 
   return {
     getString: (flag) => parsed.values[flag] as string | undefined,
-    getBoolean: (flag) => parsed.values[flag] === true,
-    positional: parsed.positionals,
   };
 }

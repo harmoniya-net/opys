@@ -3,12 +3,9 @@ import { sourceUrl } from '@torba/core';
 import type { AssetManifest, AssetIndex } from '@torba/mojang';
 import { assetUrl, assetPath } from '@torba/mojang';
 
-export function mapAssetIndex(
-  index: AssetIndex,
-  assetsRootVar = '${assets_root}',
-): Artifact {
+export function mapAssetIndex(index: AssetIndex): Artifact {
   return {
-    path: `${assetsRootVar}/indexes/${index.id}.json`,
+    path: `\${assets_root}/indexes/${index.id}.json`,
     source: sourceUrl(index.url),
     size: index.size,
     rules: [],
@@ -16,12 +13,9 @@ export function mapAssetIndex(
   };
 }
 
-export function mapAssetObjects(
-  manifest: AssetManifest,
-  assetsRootVar = '${assets_root}',
-): Artifact[] {
+export function mapAssetObjects(manifest: AssetManifest): Artifact[] {
   return Object.entries(manifest.objects).map(([name, obj]) => ({
-    path: `${assetsRootVar}/objects/${assetPath(obj.hash)}`,
+    path: `\${assets_root}/objects/${assetPath(obj.hash)}`,
     source: sourceUrl(assetUrl(obj.hash)),
     size: obj.size,
     rules: [],

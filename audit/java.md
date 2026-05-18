@@ -8,7 +8,7 @@ None. No correctness bugs, no lying types, no incidental classes.
 
 ## MEDIUM
 
-- **`resolver.ts:232-234` — release-name tie-break comparator is over-clever
+- [FIXED] **`resolver.ts:232-234` — release-name tie-break comparator is over-clever
   and inverted.** `(a, b) => b[1] - a[1] || (a[0] < b[0] ? 1 : -1)` sorts by
   count descending, then breaks ties by name — but the string branch returns
   `1` when `a` is _smaller_, i.e. it sorts names descending so the
@@ -17,7 +17,7 @@ None. No correctness bugs, no lying types, no incidental classes.
   conventional `b[1] - a[1] || b[0].localeCompare(a[0])` with a one-line
   comment ("newest release name wins on a tie"). Note the assumption that
   Adoptium release names sort lexically by recency.
-- **`resolver.ts:146-156` — `commonQuery` sends an undocumented `heap_size:
+- [FIXED] **`resolver.ts:146-156` — `commonQuery` sends an undocumented `heap_size:
 'normal'`** (and `vendor=eclipse`). The file header documents `image_type`
   and `jvm_impl` as the query knobs but not these. Document them, or drop them
   if they are defaults. Also `commonQuery` is a vague name — `adoptiumQuery`
@@ -32,15 +32,15 @@ None. No correctness bugs, no lying types, no incidental classes.
 
 ## LOW
 
-- **`template.ts:88-90` — `archiveDir` and `extractInto` are single-use
+- [FIXED] **`template.ts:88-90` — `archiveDir` and `extractInto` are single-use
   aliases** (`'${java_runtime_dir}'` and `javaRoot`). Inline them.
-- **`template.ts:98` — `extractDump(extractInto, { excludes: [] })` passes a
+- [FIXED] **`template.ts:98` — `extractDump(extractInto, { excludes: [] })` passes a
   redundant empty `excludes`.** Drop the options object unless `[]` is
   semantically distinct from absent.
-- **`resolver.ts:135-144` / `:161` — the inline anonymous type
+- [FIXED] **`resolver.ts:135-144` / `:161` — the inline anonymous type
   `{ kind: 'major' | 'full'; raw: string }` is written twice.** Extract a
   named `type VersionInput`.
-- **`README.md` "Disk usage" note is stale** — it says the archive is left in
+- [FIXED] **`README.md` "Disk usage" note is stale** — it says the archive is left in
   `${root}/runtimes/jdk-<major>/.cache/`, but `template.ts:86-90` downloads the
   archive into `${java_runtime_dir}` as a sibling of the extract target with no
   `.cache` special-casing. Correct the note.

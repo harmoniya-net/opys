@@ -24,8 +24,4 @@ describe('mapClientJar', () => {
     expect(art.integrity).toEqual({ sha1: 'f'.repeat(40) });
     expect(art.rules).toEqual([]);
   });
-
-  it('honours a custom version-dir variable', () => {
-    expect(mapClientJar(client, '${vd}').path).toBe('${vd}/client.jar');
-  });
 });

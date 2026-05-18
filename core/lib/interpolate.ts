@@ -12,13 +12,18 @@ export type VarMap = Record<string, string>;
 
 const PLACEHOLDER = /\\\$\{|\$\{([^}\s]+)\}/g;
 
-function substitute(template: string, vars: VarMap): string {
+/**
+ * Replace ${name} placeholders in `template`, handling the `\${` escape.
+ * `lookup` maps a variable name to its replacement.
+ */
+function replacePlaceholders(
+  template: string,
+  lookup: (name: string) => string,
+): string {
   return template.replace(PLACEHOLDER, (match, name?: string) => {
     if (match === '\\${') return '${';
     if (!name) return match;
-    return Object.prototype.hasOwnProperty.call(vars, name)
-      ? (vars[name] ?? match)
-      : match;
+    return lookup(name);
   });
 }
 
@@ -40,11 +45,7 @@ export function resolveVars(vars: VarMap): VarMap {
     if (template === undefined) return `\${${key}}`;
 
     resolving.add(key);
-    const result = template.replace(PLACEHOLDER, (match, name?: string) => {
-      if (match === '\\${') return '${';
-      if (!name) return match;
-      return resolve(name);
-    });
+    const result = replacePlaceholders(template, resolve);
     resolving.delete(key);
     resolved[key] = result;
     return result;
@@ -61,5 +62,9 @@ export function resolveVars(vars: VarMap): VarMap {
  * Apply resolved vars to an arbitrary string.
  */
 export function interpolate(template: string, vars: VarMap): string {
-  return substitute(template, vars);
+  return replacePlaceholders(template, (name) =>
+    Object.prototype.hasOwnProperty.call(vars, name)
+      ? (vars[name] ?? `\${${name}}`)
+      : `\${${name}}`,
+  );
 }

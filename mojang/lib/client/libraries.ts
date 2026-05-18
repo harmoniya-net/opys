@@ -48,6 +48,8 @@ export function parseLibraries(raws: unknown[]): Library[] {
       });
     }
     for (const [osName, classifierKey] of Object.entries(raw.natives)) {
+      // Intentional: only the legacy `ca.weblite:java-objc-bridge` classifier
+      // uses the `{arch}` placeholder, and torba targets 64-bit exclusively.
       const key = classifierKey.replace('{arch}', '64');
       const artifact = raw.downloads.classifiers[key];
       if (artifact) {

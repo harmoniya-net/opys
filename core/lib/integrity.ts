@@ -18,6 +18,11 @@ export const IntegrityWireSchema = z.union([
 ]);
 export type IntegrityWire = z.infer<typeof IntegrityWireSchema>;
 
+/** Wire shape is identical to the domain shape, so decode is the identity. */
+export function decodeIntegrity(i: IntegrityWire): Integrity {
+  return i;
+}
+
 export function encodeIntegrity(i: Integrity): IntegrityWire {
   if (Array.isArray(i)) return i.length === 1 ? i[0]! : i;
   return i;

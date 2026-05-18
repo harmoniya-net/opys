@@ -19,11 +19,6 @@ describe('mapAssetIndex', () => {
     expect(art.integrity).toEqual({ sha1: 'a'.repeat(40) });
     expect(art.rules).toEqual([]);
   });
-
-  it('honours a custom assets-root variable', () => {
-    const art = mapAssetIndex(index, '${custom}');
-    expect(art.path).toBe('${custom}/indexes/5.json');
-  });
 });
 
 describe('mapAssetObjects', () => {
@@ -52,11 +47,6 @@ describe('mapAssetObjects', () => {
       { name: 'minecraft/sounds/foo.ogg' },
       { name: 'minecraft/lang/en.json' },
     ]);
-  });
-
-  it('honours a custom assets-root variable', () => {
-    const arts = mapAssetObjects(manifest, '${custom}');
-    expect(arts[0]!.path.startsWith('${custom}/objects/')).toBe(true);
   });
 
   it('returns an empty list for an empty manifest', () => {

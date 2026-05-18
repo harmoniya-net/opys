@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { matchesGlob } from '../../lib/zip';
+import { matchesGlob } from '../../lib/archive';
 
 describe('matchesGlob', () => {
   describe('exact match (no wildcards)', () => {

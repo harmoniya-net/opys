@@ -86,16 +86,14 @@ export async function resolveJava(options: JavaOptions): Promise<JavaTemplate> {
   // Archives download directly into it: a sibling of, never nested inside,
   // the extract target, so no `.cache` special-casing is needed.
   const javaRoot = `\${java_runtime_dir}/jdk-${release.major}`;
-  const archiveDir = `\${java_runtime_dir}`;
-  const extractInto = javaRoot;
 
   const artifacts: Artifact[] = release.binaries.map((b) => ({
-    path: `${archiveDir}/${b.filename}`,
+    path: `\${java_runtime_dir}/${b.filename}`,
     source: sourceUrl(b.url),
     size: b.size,
     rules: osArchRuleset(b.platform.os, b.platform.arch),
     integrity: { sha256: b.sha256 },
-    extract: [extractDump(extractInto, { excludes: [] })],
+    extract: [extractDump(javaRoot)],
   }));
 
   // `java_home` only varies by OS (Linux/Windows have no suffix; macOS

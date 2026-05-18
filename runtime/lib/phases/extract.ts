@@ -1,7 +1,7 @@
 import { mkdir, rm, writeFile } from 'node:fs/promises';
 import type { Artifact } from '@torba/core';
 import { interpolate } from '@torba/core';
-import { extractZip, extractZipPick } from '../zip';
+import { extractArchive, extractArchivePick } from '../archive';
 import { ExtractionError } from '../errors';
 
 export interface ExtractTask {
@@ -33,36 +33,35 @@ async function extractArtifact(
   vars: Record<string, string>,
   cleaned: Set<string>,
 ): Promise<void> {
-  if (artifact.extract) {
-    for (const rule of artifact.extract) {
-      if (rule.kind === 'dump') {
-        const targetDir = interpolate(rule.into, vars);
-        if (rule.clean && !cleaned.has(targetDir)) {
-          await rm(targetDir, { recursive: true, force: true });
-          cleaned.add(targetDir);
-        }
-        await mkdir(targetDir, { recursive: true });
-        await extractZip(
-          finalPath,
-          targetDir,
-          rule.includes,
-          rule.excludes ?? ['META-INF/'],
-        );
-      } else if (rule.kind === 'scan') {
-        const targetDir = interpolate(rule.into, vars);
-        await mkdir(targetDir, { recursive: true });
-        const includes = [rule.matches, ...(rule.includes ?? [])];
-        await extractZip(
-          finalPath,
-          targetDir,
-          includes,
-          rule.excludes,
-          rule.strip,
-        );
-      } else if (rule.kind === 'pick') {
-        const destPath = interpolate(rule.into, vars);
-        await extractZipPick(finalPath, rule.file, destPath);
+  // `extractAll` only calls this for artifacts that have extract rules.
+  for (const rule of artifact.extract ?? []) {
+    if (rule.kind === 'dump') {
+      const targetDir = interpolate(rule.into, vars);
+      if (rule.clean && !cleaned.has(targetDir)) {
+        await rm(targetDir, { recursive: true, force: true });
+        cleaned.add(targetDir);
       }
+      await mkdir(targetDir, { recursive: true });
+      await extractArchive(
+        finalPath,
+        targetDir,
+        rule.includes,
+        rule.excludes ?? ['META-INF/'],
+      );
+    } else if (rule.kind === 'scan') {
+      const targetDir = interpolate(rule.into, vars);
+      await mkdir(targetDir, { recursive: true });
+      const includes = [rule.matches, ...(rule.includes ?? [])];
+      await extractArchive(
+        finalPath,
+        targetDir,
+        includes,
+        rule.excludes,
+        rule.strip,
+      );
+    } else if (rule.kind === 'pick') {
+      const destPath = interpolate(rule.into, vars);
+      await extractArchivePick(finalPath, rule.file, destPath);
     }
   }
   // Marker is written only after every rule for this artifact has

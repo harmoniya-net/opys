@@ -12,7 +12,12 @@
  *   - 'prerelease'  → newest including prereleases
  */
 
-import { fetchWithRetry } from '@torba/core';
+import {
+  assetSha256,
+  listReleases,
+  type RawAsset,
+  type RawRelease,
+} from '../github';
 
 const DEFAULT_REPO = 'GTNewHorizons/lwjgl3ify';
 
@@ -43,51 +48,12 @@ export interface ResolveLwjgl3ifyOptions {
   token?: string;
 }
 
-interface RawAsset {
-  name: string;
-  size: number;
-  browser_download_url: string;
-  digest?: string;
-}
-
-interface RawRelease {
-  tag_name: string;
-  prerelease: boolean;
-  draft: boolean;
-  published_at: string;
-  assets: RawAsset[];
-}
-
-async function fetchReleases(
-  repo: string,
-  token: string | undefined,
-): Promise<RawRelease[]> {
-  const headers: Record<string, string> = {
-    Accept: 'application/vnd.github+json',
-    'X-GitHub-Api-Version': '2022-11-28',
-  };
-  if (token) headers.Authorization = `Bearer ${token}`;
-  const res = await fetchWithRetry(
-    `https://api.github.com/repos/${repo}/releases?per_page=100`,
-    { headers },
-  );
-  if (!res.ok) {
-    throw new Error(
-      `GitHub API ${res.status} ${res.statusText} listing ${repo} releases`,
-    );
-  }
-  return (await res.json()) as RawRelease[];
-}
-
 function toAsset(asset: RawAsset): Lwjgl3ifyAsset {
-  const sha256 = asset.digest?.startsWith('sha256:')
-    ? asset.digest.slice('sha256:'.length)
-    : undefined;
   return {
     name: asset.name,
     url: asset.browser_download_url,
     size: asset.size,
-    sha256,
+    sha256: assetSha256(asset),
   };
 }
 
@@ -120,7 +86,7 @@ export async function resolveLwjgl3ifyVersion(
   options: ResolveLwjgl3ifyOptions = {},
 ): Promise<Lwjgl3ifyRelease> {
   const repo = options.repo ?? DEFAULT_REPO;
-  const releases = (await fetchReleases(repo, options.token))
+  const releases = (await listReleases(repo, options.token))
     .filter((r) => !r.draft)
     .map(toRelease)
     .filter((r): r is Lwjgl3ifyRelease => r !== null);

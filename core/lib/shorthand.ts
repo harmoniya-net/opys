@@ -65,7 +65,7 @@ function encodeShortRule(rule: Rule): RawSingle {
 }
 
 function parseShortRuleset(raw: RawRuleset): Ruleset {
-  const arr: RawSingle[] = Array.isArray(raw) ? raw : [raw as RawSingle];
+  const arr: RawSingle[] = Array.isArray(raw) ? raw : [raw];
   return arr.map(parseShortRule);
 }
 
@@ -74,18 +74,6 @@ function encodeShortRuleset(ruleset: Ruleset): RawRuleset {
   if (encoded.length === 1) return encoded[0]!;
   return encoded;
 }
-
-/** Codec object for a single shorthand rule string or rule object. */
-export const ShortRule = {
-  decode: parseShortRule,
-  encode: encodeShortRule,
-};
-
-/** Codec object for a ruleset in shorthand form (string, object, or array). */
-export const ShortRuleset = {
-  decode: parseShortRuleset,
-  encode: encodeShortRuleset,
-};
 
 export {
   parseShortRule,

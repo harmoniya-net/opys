@@ -1,13 +1,16 @@
 import { writeFile } from 'node:fs/promises';
-import { dirname, resolve } from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { resolve } from 'node:path';
 import { encodeManifest } from '@torba/core';
-import { resolveConfig, buildManifest, type BuildContext } from '@torba/dev';
+import { buildManifest, type BuildContext } from '@torba/dev';
 import { parseArgs } from '../args';
-import { UsageError } from '../errors';
+import { loadConfig } from '../load-config';
 import type { Logger } from '../logger';
 
-export async function cmdBuild(argv: string[], logger: Logger): Promise<void> {
+export async function cmdBuild(
+  argv: string[],
+  logger: Logger,
+  command: string,
+): Promise<void> {
   const args = parseArgs(argv, [
     { long: 'input', short: 'i', type: 'string' },
     { long: 'output', short: 'o', type: 'string' },
@@ -15,14 +18,9 @@ export async function cmdBuild(argv: string[], logger: Logger): Promise<void> {
   ]);
   const inputFile = args.getString('input') ?? 'torba.config.mjs';
   const outputFile = args.getString('output');
-  const mode = args.getString('mode') ?? 'build';
-  const absConfig = resolve(inputFile);
-  const configDir = dirname(absConfig);
+  const mode = args.getString('mode') ?? command;
 
-  const mod = await import(pathToFileURL(absConfig).href);
-  if (!mod.default) throw new UsageError(`${inputFile}: no default export`);
-
-  const config = await resolveConfig(mod.default, { mode });
+  const { config, configDir } = await loadConfig(inputFile, mode);
 
   const ctx: BuildContext = {
     log: (scope, msg) => logger.info(`[${scope}] ${msg}`),

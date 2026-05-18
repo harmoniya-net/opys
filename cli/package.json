@@ -19,8 +19,7 @@
     "@torba/dev": "^1.0.10",
     "@torba/runtime": "^1.0.10",
     "@torba/minecraft": "^1.0.10",
-    "@torba/mojang": "^1.0.10",
-    "kolorist": "^1.8.0"
+    "@torba/mojang": "^1.0.10"
   },
   "peerDependencies": {
     "zod": "^4.0.0"

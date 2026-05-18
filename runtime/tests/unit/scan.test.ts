@@ -30,7 +30,6 @@ describe('scan', () => {
     const result = scan(manifest, {}, LINUX);
     expect(result.tasks).toHaveLength(2);
     expect(result.skipped).toBe(0);
-    expect(result.tasks[0]!.idx).toBe(0);
   });
 
   it('skips artifacts already present on disk', async () => {

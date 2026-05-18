@@ -4,7 +4,7 @@ Read-only code-quality audit, 2026-05-19. Findings only — nothing changed.
 
 ## HIGH
 
-- **`lwjgl3ify/resolver.ts:61-80`, `cleanroom/resolver.ts:55-74`,
+- [FIXED] **`lwjgl3ify/resolver.ts:61-80`, `cleanroom/resolver.ts:55-74`,
   `lwjgl3ify/template.ts:47-66` — three+ copies of GitHub release-listing
   logic.** `fetchReleases` is duplicated almost verbatim between
   `cleanroom/resolver.ts` and `lwjgl3ify/resolver.ts` (same headers, same
@@ -47,7 +47,7 @@ unknown>`, `art.url` indexed off an `unknown`, `coord as ResolvedCoord`, etc.
   Mojang library rules _do_ branch on arch (x86 / arm64 natives), so non-x64
   classpaths are silently wrong. Decide whether arch-specific classpaths are in
   scope: drop `arch` + document the x64-only assumption, or iterate arches.
-- **`mappers/launch.ts:6-8` — `mojangArgsToValset` is a one-line pass-through
+- [FIXED] **`mappers/launch.ts:6-8` — `mojangArgsToValset` is a one-line pass-through
   wrapper** over `parseValset`. Inline it at the two call sites.
 
 ## LOW
@@ -56,7 +56,7 @@ unknown>`, `art.url` indexed off an `unknown`, `coord as ResolvedCoord`, etc.
   self-contained, but NBT is a standard format with mature libraries
   (`prismarine-nbt`, `nbtify`). Borderline — fine to keep if avoiding the
   dependency is a conscious choice; flagged so the choice is conscious.
-- **`mappers/assets.ts:8`, `mappers/client.ts:7`, `mappers/libraries.ts:7-9`
+- [FIXED] **`mappers/assets.ts:8`, `mappers/client.ts:7`, `mappers/libraries.ts:7-9`
   — unused configurability parameters** (`assetsRootVar`, `versionDirVar`,
   `libraryDirVar`, `nativesDirVar`); every caller uses the default. Inline the
   `${…}` literals and drop the params.

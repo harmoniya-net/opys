@@ -137,7 +137,7 @@ describe('resolveJava — artifacts', () => {
     stubFetch(() => new Response(JSON.stringify([release(LINUX_X64)])));
     const t = await resolveJava({ version: '21', platforms: [LINUX_X64] });
     expect(t.artifacts[0]!.extract).toEqual([
-      { kind: 'dump', into: '${java_runtime_dir}/jdk-21', excludes: [] },
+      { kind: 'dump', into: '${java_runtime_dir}/jdk-21' },
     ]);
   });
 });

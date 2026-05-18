@@ -11,7 +11,7 @@
  *   - 'prerelease'  → newest including prereleases
  */
 
-import { fetchWithRetry } from '@torba/core';
+import { assetSha256, listReleases, type RawRelease } from '../github';
 
 const DEFAULT_REPO = 'CleanroomMC/Cleanroom';
 
@@ -39,40 +39,6 @@ export interface ResolveCleanroomOptions {
   token?: string;
 }
 
-interface RawRelease {
-  tag_name: string;
-  prerelease: boolean;
-  draft: boolean;
-  published_at: string;
-  assets: Array<{
-    name: string;
-    size: number;
-    browser_download_url: string;
-    digest?: string;
-  }>;
-}
-
-async function fetchReleases(
-  repo: string,
-  token: string | undefined,
-): Promise<RawRelease[]> {
-  const headers: Record<string, string> = {
-    Accept: 'application/vnd.github+json',
-    'X-GitHub-Api-Version': '2022-11-28',
-  };
-  if (token) headers.Authorization = `Bearer ${token}`;
-  const res = await fetchWithRetry(
-    `https://api.github.com/repos/${repo}/releases?per_page=100`,
-    { headers },
-  );
-  if (!res.ok) {
-    throw new Error(
-      `GitHub API ${res.status} ${res.statusText} listing ${repo} releases`,
-    );
-  }
-  return (await res.json()) as RawRelease[];
-}
-
 function findInstaller(release: RawRelease): {
   url: string;
   name: string;
@@ -83,16 +49,11 @@ function findInstaller(release: RawRelease): {
     (a) => /-installer\.jar$/.test(a.name) && !a.name.includes('-sources'),
   );
   if (!asset) return null;
-  // GitHub's `digest` field is `sha256:<hex>` when present (introduced
-  // 2024). Older releases may not have it.
-  const sha256 = asset.digest?.startsWith('sha256:')
-    ? asset.digest.slice('sha256:'.length)
-    : undefined;
   return {
     url: asset.browser_download_url,
     name: asset.name,
     size: asset.size,
-    sha256,
+    sha256: assetSha256(asset),
   };
 }
 
@@ -115,7 +76,7 @@ export async function resolveCleanroomVersion(
   options: ResolveCleanroomOptions = {},
 ): Promise<CleanroomRelease> {
   const repo = options.repo ?? DEFAULT_REPO;
-  const releases = (await fetchReleases(repo, options.token))
+  const releases = (await listReleases(repo, options.token))
     .filter((r) => !r.draft)
     .map(toRelease)
     .filter((r): r is CleanroomRelease => r !== null);

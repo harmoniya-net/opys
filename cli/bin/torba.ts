@@ -28,7 +28,11 @@ EXIT CODES
   4  Extraction failure
 `;
 
-type CommandHandler = (args: string[], logger: Logger) => Promise<void>;
+type CommandHandler = (
+  args: string[],
+  logger: Logger,
+  command: string,
+) => Promise<void>;
 
 const COMMANDS: Record<string, CommandHandler> = {
   build: cmdBuild,
@@ -74,7 +78,7 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  await handler(rest, logger);
+  await handler(rest, logger, command);
 }
 
 main().catch((err) => {

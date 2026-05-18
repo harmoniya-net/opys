@@ -16,7 +16,7 @@ None.
   `satisfiesRuleset`. Validate the `version` field is a compilable `RegExp` in
   `OsConstraintSchema` (`z.string().refine(…)` or `.transform` to a `RegExp`),
   so `satisfiesOs` can be total.
-- **`README.md:1,8,31,55,76` — README is for the wrong package.** It is titled
+- [FIXED] **`README.md:1,8,31,55,76` — README is for the wrong package.** It is titled
   `@torba/rules`, says `npm install @torba/rules`, and documents
   `ShortRule`/`ShortRuleset`/`parseShortRuleset` — which actually live in
   `core/lib/shorthand.ts`, not here. Rename to `@torba/mojang-rules`; drop the
@@ -24,7 +24,7 @@ None.
 
 ## LOW
 
-- **`lib/features.ts:11-13` — `feats.some(f => f === feature)` reinvents
+- [FIXED] **`lib/features.ts:11-13` — `feats.some(f => f === feature)` reinvents
   `Array.includes`.** `feats.includes(feature)` is the same thing, clearer.
 - **`lib/os.ts:43` — `RegExp` recompiled on every `satisfiesOs` call.** Inside
   `satisfiesRuleset` over many artifacts this recompiles the same pattern

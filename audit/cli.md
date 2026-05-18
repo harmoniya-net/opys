@@ -4,11 +4,11 @@ Read-only code-quality audit, 2026-05-19. Findings only — nothing changed.
 
 ## HIGH
 
-- **`package.json` — dead `kolorist` dependency.** `kolorist` is declared but
+- [FIXED] **`package.json` — dead `kolorist` dependency.** `kolorist` is declared but
   never imported anywhere in `lib/` or `bin/` — progress output uses raw
   `\x1b[…]` escapes (`progress.ts:108`) and the logger writes plain text. Drop
   the dependency, or use it (it would replace the hand-rolled escape codes).
-- **`lib/commands/build.ts:19-30` & `lib/commands/launch.ts:25-30` —
+- [FIXED] **`lib/commands/build.ts:19-30` & `lib/commands/launch.ts:25-30` —
   copy-pasted config loading.** Both commands independently do
   `resolve(inputFile)` → `dirname` → `import(pathToFileURL(...).href)` → check
   `mod.default` → `resolveConfig(mod.default, { mode })`. The single most
@@ -24,14 +24,14 @@ Read-only code-quality audit, 2026-05-19. Findings only — nothing changed.
   flags. Its only real value-add is mapping the thrown error to `UsageError` —
   one try/catch. Consider calling `node:util.parseArgs` directly with a small
   `parse` helper.
-- **`lib/args.ts:4,9,14,41` — `boolean` flag support is unused.** No command
+- [FIXED] **`lib/args.ts:4,9,14,41` — `boolean` flag support is unused.** No command
   declares a `type: 'boolean'` flag; `getBoolean` is called only from
   `args.test.ts`. Premature generality kept alive by tests. Remove until a
   boolean flag exists.
-- **`lib/args.ts:15` — `ParsedArgs.positional` is dead.** Neither `cmdBuild`
+- [FIXED] **`lib/args.ts:15` — `ParsedArgs.positional` is dead.** Neither `cmdBuild`
   nor `cmdLaunch` reads positionals (the command word is stripped in
   `torba.ts`). Unused surface area.
-- **`bin/torba.ts:19` vs `build.ts:18` / `launch.ts:24` — the `--mode` default
+- [FIXED] **`bin/torba.ts:19` vs `build.ts:18` / `launch.ts:24` — the `--mode` default
   is a lie split two ways.** USAGE says "default: command name", but the
   default is a hardcoded string literal in each command (`'build'`,
   `'launch'`). A rename silently desyncs. Pass the command name from the
@@ -53,7 +53,7 @@ Read-only code-quality audit, 2026-05-19. Findings only — nothing changed.
   a single stack usually suffices.
 - **`lib/progress.ts:12-15` — `formatSpeed` thresholds at 1000, `formatBytes`
   at 1024.** Cosmetic inconsistency.
-- **`lib/commands/launch.ts:57-63` — the `render` throttle constant `80` is a
+- [FIXED] **`lib/commands/launch.ts:57-63` — the `render` throttle constant `80` is a
   magic literal** inline, unlike `progress.ts` which names its constants.
   Promote to a named const.
 

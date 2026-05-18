@@ -47,6 +47,19 @@ function toNormalized(entry: TarEntry): NormalizedEntry {
   return { name: entry.name, kind: 'symlink', linkTarget: entry.linkTarget };
 }
 
+/**
+ * Preserve an archive entry's executable bit on the extracted file when
+ * set — Adoptium tar entries for `bin/java`, `bin/javac` etc. carry 0755.
+ */
+async function applyMode(
+  path: string,
+  mode: number | undefined,
+): Promise<void> {
+  if (mode && mode & 0o111) {
+    await chmod(path, mode & 0o777);
+  }
+}
+
 async function writeEntry(
   entry: NormalizedEntry,
   destDir: string,
@@ -56,11 +69,7 @@ async function writeEntry(
   await mkdir(dirname(dest), { recursive: true });
   if (entry.kind === 'file') {
     await writeFile(dest, entry.content!);
-    // Preserve the executable bit when present (Adoptium tar entries
-    // for `bin/java`, `bin/javac` etc. carry mode 0755).
-    if (entry.mode && entry.mode & 0o111) {
-      await chmod(dest, entry.mode & 0o777);
-    }
+    await applyMode(dest, entry.mode);
     return;
   }
   // Symlink. On Windows non-admin users can't symlink — fall back to a
@@ -84,7 +93,8 @@ async function writeEntry(
   }
 }
 
-export async function extractZip(
+/** Extract a zip or tar archive (dispatched on extension) into `targetDir`. */
+export async function extractArchive(
   archivePath: string,
   targetDir: string,
   includes: string[] | undefined,
@@ -111,7 +121,8 @@ export async function extractZip(
   await Promise.all(writes);
 }
 
-export async function extractZipPick(
+/** Extract a single named file entry from a zip or tar archive. */
+export async function extractArchivePick(
   archivePath: string,
   entryName: string,
   destPath: string,
@@ -123,7 +134,5 @@ export async function extractZipPick(
   }
   await mkdir(dirname(destPath), { recursive: true });
   await writeFile(destPath, found.content!);
-  if (found.mode && found.mode & 0o111) {
-    await chmod(destPath, found.mode & 0o777);
-  }
+  await applyMode(destPath, found.mode);
 }

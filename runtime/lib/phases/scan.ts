@@ -7,7 +7,6 @@ import type { OsOptions } from '@torba/core';
 export interface ScanTask {
   artifact: Artifact;
   finalPath: string;
-  idx: number;
 }
 
 export interface ScanResult {
@@ -31,14 +30,13 @@ export function scan(
   const tasks: ScanTask[] = [];
   let skipped = 0;
 
-  for (let i = 0; i < applicable.artifacts.length; i++) {
-    const u = applicable.artifacts[i]!;
+  for (const u of applicable.artifacts) {
     const finalPath = interpolate(u.path, vars);
     if (!force.has(u.path) && existsSync(finalPath)) {
       skipped++;
       continue;
     }
-    tasks.push({ artifact: u, finalPath, idx: i });
+    tasks.push({ artifact: u, finalPath });
   }
 
   return { tasks, skipped };

@@ -1,28 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import {
-  mojangArgsToValset,
-  buildClasspath,
-  buildLaunch,
-} from '../../lib/mappers/launch';
+import { buildClasspath, buildLaunch } from '../../lib/mappers/launch';
 import { allowOsRuleset } from '@torba/core';
-import type { MojangArgValue } from '@torba/mojang';
-
-describe('mojangArgsToValset', () => {
-  it('parses plain string args into a Valset', () => {
-    const vs = mojangArgsToValset(['-Xmx2G', '-XX:+UseG1GC']);
-    expect(vs).toHaveLength(2);
-    expect(vs[0]!.value).toEqual(['-Xmx2G']);
-  });
-
-  it('parses conditional args carrying rules', () => {
-    const arg: MojangArgValue = {
-      rules: allowOsRuleset('windows'),
-      value: '-XX:HeapDumpPath',
-    };
-    const vs = mojangArgsToValset([arg]);
-    expect(vs[0]!.rules.length).toBeGreaterThan(0);
-  });
-});
 
 describe('buildClasspath', () => {
   it('produces one conditional arm per platform', () => {

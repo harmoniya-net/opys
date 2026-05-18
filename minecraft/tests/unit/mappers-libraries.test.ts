@@ -65,12 +65,6 @@ describe('libraryToArtifact', () => {
       },
     ]);
   });
-
-  it('honours custom library- and natives-dir variables', () => {
-    const art = libraryToArtifact(lwjglNative, '${libs}', '${nat}');
-    expect(art.path.startsWith('${libs}/')).toBe(true);
-    expect(art.extract![0]).toMatchObject({ into: '${nat}' });
-  });
 });
 
 describe('mapLibraries', () => {
@@ -83,10 +77,5 @@ describe('mapLibraries', () => {
 
   it('returns an empty list for no libraries', () => {
     expect(mapLibraries([] as readonly Library[])).toEqual([]);
-  });
-
-  it('forwards custom dir variables', () => {
-    const arts = mapLibraries([gson], '${libs}');
-    expect(arts[0]!.path.startsWith('${libs}/')).toBe(true);
   });
 });

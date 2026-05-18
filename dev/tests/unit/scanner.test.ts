@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createHash } from 'node:crypto';
 import { mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { basename, dirname, join } from 'node:path';
 import { artifactScanner } from '../../lib/scanner';
 import type { BuildContext } from '../../lib/plugin';
 import type { Artifact } from '@torba/core';
@@ -141,5 +141,19 @@ describe('artifactScanner', () => {
     await symlink(join(dir, 'nowhere'), join(dir, 'dangling'));
     const arts = await run({ url: 'https://cdn/${rel}' });
     expect(arts.map((a) => a.path)).toEqual(['real.txt']);
+  });
+
+  it('resolves a relative directory against ctx.configDir', async () => {
+    await touch('a.txt', 'hello');
+    const plugin = artifactScanner({
+      directory: basename(dir),
+      url: 'https://cdn/${rel}',
+    });
+    const result = await plugin.build({
+      log: (_scope, msg) => logs.push(msg),
+      configDir: dirname(dir),
+      mode: '',
+    });
+    expect((result.artifacts ?? []).map((a) => a.path)).toEqual(['a.txt']);
   });
 });

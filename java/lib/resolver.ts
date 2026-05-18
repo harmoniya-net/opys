@@ -132,10 +132,10 @@ interface AdoptiumRelease {
   version_data: { major: number };
 }
 
-function normalizeInput(input: string): {
-  kind: 'major' | 'full';
-  raw: string;
-} {
+/** Normalized version input: a bare major, or a full Adoptium version. */
+type VersionInput = { kind: 'major' | 'full'; raw: string };
+
+function normalizeInput(input: string): VersionInput {
   let v = input.trim();
   if (v.startsWith('jdk-')) v = v.slice(4);
   v = v.replace(/-LTS$/, '');
@@ -143,12 +143,14 @@ function normalizeInput(input: string): {
   return { kind: 'full', raw: v };
 }
 
-function commonQuery(platform: JavaPlatform): string {
+function adoptiumQuery(platform: JavaPlatform): string {
   const params = new URLSearchParams({
     image_type: 'jdk',
     architecture: platform.adoptiumArch,
     os: platform.adoptiumOs,
     jvm_impl: 'hotspot',
+    // `heap_size=normal` excludes the `large` (huge-pages) variant;
+    // `vendor=eclipse` pins the distribution to Temurin.
     heap_size: 'normal',
     vendor: VENDOR,
   });
@@ -158,12 +160,12 @@ function commonQuery(platform: JavaPlatform): string {
 async function fetchPlatform(
   apiBase: string,
   platform: JavaPlatform,
-  version: { kind: 'major' | 'full'; raw: string },
+  version: VersionInput,
 ): Promise<{ release: AdoptiumRelease; binary: AdoptiumBinary } | null> {
   const path =
     version.kind === 'major'
-      ? `/assets/feature_releases/${version.raw}/ga?${commonQuery(platform)}&page_size=1&sort_order=DESC`
-      : `/assets/release_name/${VENDOR}/${encodeURIComponent(`jdk-${version.raw}`)}?${commonQuery(platform)}`;
+      ? `/assets/feature_releases/${version.raw}/ga?${adoptiumQuery(platform)}&page_size=1&sort_order=DESC`
+      : `/assets/release_name/${VENDOR}/${encodeURIComponent(`jdk-${version.raw}`)}?${adoptiumQuery(platform)}`;
 
   const url = `${apiBase}${path}`;
   const res = await fetchWithRetry(url, {
@@ -229,8 +231,9 @@ export async function resolveOpenjdk(
       (nameCounts.get(m.release.release_name) ?? 0) + 1,
     );
   }
+  // count desc, then newest/lexicographically-largest release name wins on a tie
   const releaseName = [...nameCounts.entries()].sort(
-    (a, b) => b[1] - a[1] || (a[0] < b[0] ? 1 : -1),
+    (a, b) => b[1] - a[1] || b[0].localeCompare(a[0]),
   )[0]![0];
 
   const consistent = matched.filter(

@@ -1,11 +1,11 @@
-# @torba/rules
+# @torba/mojang-rules
 
 Pure platform and feature rule evaluation. No side effects, no I/O — just POJOs and functions.
 
 ## Install
 
 ```sh
-npm install @torba/rules zod
+npm install @torba/mojang-rules zod
 ```
 
 ## Concepts
@@ -28,41 +28,22 @@ A **Ruleset** is an array of rules. All rules must be satisfied for the ruleset 
 Returns `true` if every rule in `ruleset` is satisfied for the given OS and feature set.
 
 ```ts
-import { satisfiesRuleset } from '@torba/rules';
+import { satisfiesRuleset } from '@torba/mojang-rules';
 
 const passes = satisfiesRuleset([{ action: 'allow', os: { name: 'linux' } }], {
   name: 'linux',
-  arch: 'x64',
+  version: '6.12',
+  arch: 'x86_64',
 });
 // true
 ```
 
-### Shorthand codec
-
-Rules can be expressed as compact strings. Use `ShortRule` and `ShortRuleset` to parse/encode them.
-
-| String                          | Meaning                            |
-| ------------------------------- | ---------------------------------- |
-| `'allow'`                       | Unconditional allow                |
-| `'disallow'`                    | Unconditional disallow             |
-| `'allow.os.linux'`              | Allow on Linux                     |
-| `'disallow.os.windows'`         | Disallow on Windows                |
-| `'allow.os.osx@10.5+'`          | Allow on macOS with version filter |
-| `'allow.arch.x86'`              | Allow on x86 architecture          |
-| `'allow.features.is_demo_user'` | Allow when feature flag is set     |
-
-```ts
-import { ShortRuleset, parseShortRuleset } from '@torba/rules';
-
-const rules = ShortRuleset.decode(['allow.os.linux', 'disallow.os.windows']);
-const encoded = ShortRuleset.encode(rules);
-// encoded: ['allow.os.linux', 'disallow.os.windows']
-```
+Compact "shorthand" parsing of rules lives in `@torba/core`.
 
 ### Ruleset helpers
 
 ```ts
-import { emptyRuleset, allowOsRuleset } from '@torba/rules';
+import { emptyRuleset, allowOsRuleset } from '@torba/mojang-rules';
 
 emptyRuleset(); // []
 allowOsRuleset('linux'); // [{ action: 'allow', os: { name: 'linux' } }]
@@ -71,7 +52,7 @@ allowOsRuleset('linux'); // [{ action: 'allow', os: { name: 'linux' } }]
 ### Zod schemas
 
 ```ts
-import { RuleSchema, RulesetSchema } from '@torba/rules';
+import { RuleSchema, RulesetSchema } from '@torba/mojang-rules';
 
 const rule = RuleSchema.parse({ action: 'allow', os: { name: 'osx' } });
 const rules = RulesetSchema.parse([...]);

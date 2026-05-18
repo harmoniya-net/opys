@@ -60,7 +60,7 @@ export function findVersion(
 }
 
 export function latestRelease(manifest: VersionManifest): Version {
-  const v = manifest.versions.find((v) => v.id === manifest.latest.release);
+  const v = findVersion(manifest, manifest.latest.release);
   if (!v) throw new Error('No release version found in manifest');
   return v;
 }

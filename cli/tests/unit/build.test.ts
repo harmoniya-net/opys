@@ -53,7 +53,7 @@ const BASE_CONFIG = `export default {
 describe('cmdBuild', () => {
   it('writes the manifest to the config-declared output file', async () => {
     await writeConfig('torba.config.mjs', BASE_CONFIG);
-    await cmdBuild(['-i', join(dir, 'torba.config.mjs')], logger);
+    await cmdBuild(['-i', join(dir, 'torba.config.mjs')], logger, 'build');
     const written = await readFile(join(dir, 'torba.json'), 'utf8');
     const manifest = JSON.parse(written);
     expect(manifest.artifacts).toHaveLength(1);
@@ -67,6 +67,7 @@ describe('cmdBuild', () => {
     await cmdBuild(
       ['-i', join(dir, 'torba.config.mjs'), '-o', 'custom.json'],
       logger,
+      'build',
     );
     const written = await readFile(join(dir, 'custom.json'), 'utf8');
     expect(JSON.parse(written).artifacts).toHaveLength(1);
@@ -83,7 +84,7 @@ describe('cmdBuild', () => {
       out.push(String(c));
       return true;
     });
-    await cmdBuild(['-i', join(dir, 'torba.config.mjs')], logger);
+    await cmdBuild(['-i', join(dir, 'torba.config.mjs')], logger, 'build');
     expect(out.join('')).toContain('"artifacts"');
   });
 
@@ -91,7 +92,7 @@ describe('cmdBuild', () => {
     await writeConfig('torba.config.mjs', BASE_CONFIG);
     const cwd = vi.spyOn(process, 'cwd').mockReturnValue(dir);
     try {
-      await cmdBuild([], logger);
+      await cmdBuild([], logger, 'build');
     } finally {
       cwd.mockRestore();
     }
@@ -113,6 +114,7 @@ describe('cmdBuild', () => {
     await cmdBuild(
       ['-i', join(dir, 'torba.config.mjs'), '--mode', 'staging'],
       logger,
+      'build',
     );
     const manifest = JSON.parse(await readFile(join(dir, 'mode.json'), 'utf8'));
     expect(JSON.stringify(manifest.launch.args)).toContain('staging');
@@ -121,7 +123,7 @@ describe('cmdBuild', () => {
   it('throws a UsageError when the config has no default export', async () => {
     await writeConfig('torba.config.mjs', 'export const notDefault = 1;');
     await expect(
-      cmdBuild(['-i', join(dir, 'torba.config.mjs')], logger),
+      cmdBuild(['-i', join(dir, 'torba.config.mjs')], logger, 'build'),
     ).rejects.toThrow(UsageError);
   });
 
@@ -129,7 +131,7 @@ describe('cmdBuild', () => {
     await writeConfig('torba.config.mjs', BASE_CONFIG);
     const spyLogger = new Logger('info');
     const info = vi.spyOn(spyLogger, 'info').mockImplementation(() => {});
-    await cmdBuild(['-i', join(dir, 'torba.config.mjs')], spyLogger);
+    await cmdBuild(['-i', join(dir, 'torba.config.mjs')], spyLogger, 'build');
     expect(info).toHaveBeenCalled();
     expect(info.mock.calls.some((c) => String(c[0]).includes('[torba]'))).toBe(
       true,

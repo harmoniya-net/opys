@@ -11,7 +11,11 @@ import { existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { zipSync } from 'fflate';
-import { matchesGlob, extractZip, extractZipPick } from '../../lib/zip';
+import {
+  matchesGlob,
+  extractArchive,
+  extractArchivePick,
+} from '../../lib/archive';
 import { buildTar } from '../helpers/tar-fixture';
 
 const enc = new TextEncoder();
@@ -75,11 +79,11 @@ describe('matchesGlob', () => {
   });
 });
 
-describe('extractZip', () => {
+describe('extractArchive', () => {
   it('extracts every file from a zip', async () => {
     const zip = await makeZip({ 'a.txt': 'A', 'sub/b.txt': 'B' });
     const out = join(dir, 'out');
-    await extractZip(zip, out, undefined, undefined);
+    await extractArchive(zip, out, undefined, undefined);
     expect(dec.decode(await readFile(join(out, 'a.txt')))).toBe('A');
     expect(dec.decode(await readFile(join(out, 'sub/b.txt')))).toBe('B');
   });
@@ -87,14 +91,14 @@ describe('extractZip', () => {
   it('skips directory entries in a zip', async () => {
     const zip = await makeZip({ 'dir/': '', 'dir/f.txt': 'F' });
     const out = join(dir, 'out');
-    await extractZip(zip, out, undefined, undefined);
+    await extractArchive(zip, out, undefined, undefined);
     expect(existsSync(join(out, 'dir/f.txt'))).toBe(true);
   });
 
   it('honors an includes filter', async () => {
     const zip = await makeZip({ 'keep.so': 'K', 'drop.txt': 'D' });
     const out = join(dir, 'out');
-    await extractZip(zip, out, ['*.so'], undefined);
+    await extractArchive(zip, out, ['*.so'], undefined);
     expect(existsSync(join(out, 'keep.so'))).toBe(true);
     expect(existsSync(join(out, 'drop.txt'))).toBe(false);
   });
@@ -102,7 +106,7 @@ describe('extractZip', () => {
   it('honors an excludes filter', async () => {
     const zip = await makeZip({ 'keep.txt': 'K', 'META-INF/x': 'M' });
     const out = join(dir, 'out');
-    await extractZip(zip, out, undefined, ['META-INF/']);
+    await extractArchive(zip, out, undefined, ['META-INF/']);
     expect(existsSync(join(out, 'keep.txt'))).toBe(true);
     expect(existsSync(join(out, 'META-INF/x'))).toBe(false);
   });
@@ -110,7 +114,7 @@ describe('extractZip', () => {
   it('strips a leading path prefix', async () => {
     const zip = await makeZip({ 'jdk-17/bin/java': 'J', 'other/x': 'O' });
     const out = join(dir, 'out');
-    await extractZip(zip, out, undefined, undefined, ['jdk-17/']);
+    await extractArchive(zip, out, undefined, undefined, ['jdk-17/']);
     expect(existsSync(join(out, 'bin/java'))).toBe(true);
     expect(existsSync(join(out, 'other/x'))).toBe(true); // no prefix → kept
   });
@@ -118,7 +122,7 @@ describe('extractZip', () => {
   it('drops an entry whose name is entirely the stripped prefix', async () => {
     const zip = await makeZip({ 'jdk-17/': '', 'jdk-17/f': 'F' });
     const out = join(dir, 'out');
-    await extractZip(zip, out, undefined, undefined, ['jdk-17/']);
+    await extractArchive(zip, out, undefined, undefined, ['jdk-17/']);
     expect(existsSync(join(out, 'f'))).toBe(true);
   });
 
@@ -127,7 +131,7 @@ describe('extractZip', () => {
       { name: 'bin/java', content: 'ELF', mode: 0o755 },
     ]);
     const out = join(dir, 'out');
-    await extractZip(tar, out, undefined, undefined);
+    await extractArchive(tar, out, undefined, undefined);
     const stat = await lstat(join(out, 'bin/java'));
     expect(stat.mode & 0o111).toBeTruthy();
   });
@@ -138,30 +142,30 @@ describe('extractZip', () => {
       { name: 'bin/link', typeflag: '2', linkname: 'java' },
     ]);
     const out = join(dir, 'out');
-    await extractZip(tar, out, undefined, undefined);
+    await extractArchive(tar, out, undefined, undefined);
     expect(await readlink(join(out, 'bin/link'))).toBe('java');
   });
 });
 
-describe('extractZipPick', () => {
+describe('extractArchivePick', () => {
   it('extracts a single named file', async () => {
     const zip = await makeZip({ 'inner/data.json': '{"v":1}', other: 'x' });
     const dest = join(dir, 'picked.json');
-    await extractZipPick(zip, 'inner/data.json', dest);
+    await extractArchivePick(zip, 'inner/data.json', dest);
     expect(dec.decode(await readFile(dest))).toBe('{"v":1}');
   });
 
   it('preserves the executable bit on a picked tar file', async () => {
     const tar = await makeTar([{ name: 'run.sh', content: '#!', mode: 0o755 }]);
     const dest = join(dir, 'run.sh');
-    await extractZipPick(tar, 'run.sh', dest);
+    await extractArchivePick(tar, 'run.sh', dest);
     expect((await lstat(dest)).mode & 0o111).toBeTruthy();
   });
 
   it('throws when the named entry is absent', async () => {
     const zip = await makeZip({ 'a.txt': 'A' });
     await expect(
-      extractZipPick(zip, 'missing.txt', join(dir, 'out')),
+      extractArchivePick(zip, 'missing.txt', join(dir, 'out')),
     ).rejects.toThrow(/no file entry/);
   });
 
@@ -169,8 +173,8 @@ describe('extractZipPick', () => {
     const tar = await makeTar([
       { name: 'link', typeflag: '2', linkname: 'elsewhere' },
     ]);
-    await expect(extractZipPick(tar, 'link', join(dir, 'out'))).rejects.toThrow(
-      /no file entry/,
-    );
+    await expect(
+      extractArchivePick(tar, 'link', join(dir, 'out')),
+    ).rejects.toThrow(/no file entry/);
   });
 });

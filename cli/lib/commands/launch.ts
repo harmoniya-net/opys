@@ -1,11 +1,10 @@
 import { readFile } from 'node:fs/promises';
-import { dirname, resolve } from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { resolve } from 'node:path';
 import { install, launch, type InstallProgress } from '@torba/runtime';
 import { parseManifest, type Manifest } from '@torba/core';
-import { resolveConfig } from '@torba/dev';
 import { parseArgs } from '../args';
 import { UsageError } from '../errors';
+import { loadConfig } from '../load-config';
 import {
   renderProgress,
   ProgressWriter,
@@ -15,19 +14,22 @@ import {
 } from '../progress';
 import type { Logger } from '../logger';
 
-export async function cmdLaunch(argv: string[], logger: Logger): Promise<void> {
+/** Minimum gap between progress redraws, in milliseconds. */
+const RENDER_THROTTLE_MS = 80;
+
+export async function cmdLaunch(
+  argv: string[],
+  logger: Logger,
+  command: string,
+): Promise<void> {
   const args = parseArgs(argv, [
     { long: 'input', short: 'i', type: 'string' },
     { long: 'mode', type: 'string' },
   ]);
   const inputFile = args.getString('input') ?? 'torba.config.mjs';
-  const mode = args.getString('mode') ?? 'launch';
-  const absConfig = resolve(inputFile);
-  const configDir = dirname(absConfig);
+  const mode = args.getString('mode') ?? command;
 
-  const mod = await import(pathToFileURL(absConfig).href);
-  if (!mod.default) throw new UsageError(`${inputFile}: no default export`);
-  const config = await resolveConfig(mod.default, { mode });
+  const { config, configDir } = await loadConfig(inputFile, mode);
 
   if (!config.output) {
     throw new UsageError('config.output is required to locate torba.json');
@@ -56,7 +58,7 @@ export async function cmdLaunch(argv: string[], logger: Logger): Promise<void> {
   let lastRender = 0;
   const render = (force = false) => {
     const now = Date.now();
-    if (!force && now - lastRender < 80) return;
+    if (!force && now - lastRender < RENDER_THROTTLE_MS) return;
     lastRender = now;
     state.active = [...active.values()];
     pw.update(renderProgress(state));

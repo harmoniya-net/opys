@@ -60,4 +60,4 @@ Every torba template returned by `@torba/minecraft` (and by any loader built on 
 
 - **Vendor**: only `openjdk` (Eclipse Temurin) is supported. Adding Liberica, Zulu, GraalVM is a matter of plugging in another resolver.
 - **macOS app bundles**: macOS Temurin tarballs ship as `.app` bundles with `Contents/MacOS/_CodeSignature/...`. `${java_home}` includes the `/Contents/Home` suffix automatically.
-- **Disk usage**: each JDK is ~200 MB compressed, ~500 MB extracted. The archive is left in `${root}/runtimes/jdk-<major>/.cache/` after install — delete the `.cache` folder to reclaim space.
+- **Disk usage**: each JDK is ~200 MB compressed, ~500 MB extracted. The archive is downloaded into `${root}/runtimes/` as a sibling of the `jdk-<major>/` extract target — delete the leftover `.tar.gz`/`.zip` archive there to reclaim space.

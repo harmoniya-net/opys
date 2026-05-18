@@ -14,6 +14,7 @@ import {
   type Lwjgl3ifyRelease,
   type ResolveLwjgl3ifyOptions,
 } from './resolver';
+import { assetSha256, listReleases, type RawRelease } from '../github';
 
 const UNIMIXINS_DEFAULT_REPO = 'LegacyModdingMC/UniMixins';
 
@@ -22,20 +23,6 @@ interface UnimixinsAsset {
   size: number;
   sha256?: string;
   filename: string;
-}
-
-interface RawGithubAsset {
-  name: string;
-  size: number;
-  browser_download_url: string;
-  digest?: string;
-}
-
-interface RawGithubRelease {
-  tag_name: string;
-  prerelease: boolean;
-  draft: boolean;
-  assets: RawGithubAsset[];
 }
 
 /**
@@ -49,23 +36,9 @@ async function resolveUnimixins(
   repo: string,
   token: string | undefined,
 ): Promise<UnimixinsAsset> {
-  const headers: Record<string, string> = {
-    Accept: 'application/vnd.github+json',
-    'X-GitHub-Api-Version': '2022-11-28',
-  };
-  if (token) headers.Authorization = `Bearer ${token}`;
-  const res = await fetchWithRetry(
-    `https://api.github.com/repos/${repo}/releases?per_page=100`,
-    { headers },
-  );
-  if (!res.ok) {
-    throw new Error(
-      `GitHub API ${res.status} ${res.statusText} listing ${repo} releases`,
-    );
-  }
-  const releases = (await res.json()) as RawGithubRelease[];
+  const releases = await listReleases(repo, token);
   const usable = releases.filter((r) => !r.draft);
-  let target: RawGithubRelease | undefined;
+  let target: RawRelease | undefined;
   if (version === 'latest') {
     target = usable.find((r) => !r.prerelease);
   } else if (version === 'prerelease') {
@@ -86,13 +59,10 @@ async function resolveUnimixins(
       `No \`+unimixins-all-1.7.10-*.jar\` asset on UniMixins release ${target.tag_name}`,
     );
   }
-  const sha256 = asset.digest?.startsWith('sha256:')
-    ? asset.digest.slice('sha256:'.length)
-    : undefined;
   return {
     url: asset.browser_download_url,
     size: asset.size,
-    sha256,
+    sha256: assetSha256(asset),
     filename: asset.name,
   };
 }

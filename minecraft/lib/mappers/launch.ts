@@ -3,10 +3,6 @@ import { parseValset, allowOsRuleset, satisfiesRuleset } from '@torba/core';
 import type { MojangArgValue } from '@torba/mojang';
 import type { Launch, ConditionalVal } from '@torba/core';
 
-export function mojangArgsToValset(args: MojangArgValue[]): Valset {
-  return parseValset(args);
-}
-
 /**
  * Decomposed parts of a Minecraft `Launch` config. `launch` is the
  * assembled `Launch` (drop straight into `manifest.launch`); the
@@ -52,8 +48,8 @@ export function buildLaunch(
   gameArgs: MojangArgValue[],
   jvmArgs: MojangArgValue[],
 ): LaunchParts {
-  const jvm = mojangArgsToValset(jvmArgs);
-  const game = mojangArgsToValset(gameArgs);
+  const jvm = parseValset(jvmArgs);
+  const game = parseValset(gameArgs);
   const main: Val = { rules: [], value: [mainClass] };
   const launch: Launch = {
     command: '${java_bin}',

@@ -48,7 +48,7 @@ export function mergeArgs(base: Arguments, patch: Arguments): Arguments {
 
 export function parseArguments(raw: unknown): Arguments {
   if (typeof raw === 'string') {
-    const game = raw.split(/\s+/).filter(Boolean) as MojangArgValue[];
+    const game = raw.split(/\s+/).filter(Boolean);
     return { game, jvm: LEGACY_JVM_ARGS, legacy: true };
   }
   const parsed = ArgumentsObjectSchema.parse(raw);

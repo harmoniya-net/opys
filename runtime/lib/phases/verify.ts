@@ -19,26 +19,18 @@ export function verifyIntegrity(
 ): Promise<boolean> {
   const entries = integrityHashes(integrity);
   if (entries.length === 0) return Promise.resolve(true);
-  // `Promise.any` resolves on the first *fulfillment* — so a non-matching
-  // entry must reject, not return `false`, or it could win the race and
-  // mask a sibling entry that does match.
-  return Promise.any(
-    entries.map(async (e) => {
-      if ('sha1' in e) {
-        const ok = await checkHash(path, 'sha1', e.sha1);
-        if (ok) return true;
-      }
-      if ('sha256' in e) {
-        const ok = await checkHash(path, 'sha256', e.sha256);
-        if (ok) return true;
-      }
-      if ('md5' in e) {
-        const ok = await checkHash(path, 'md5', e.md5);
-        if (ok) return true;
-      }
-      throw new Error('no matching hash');
+  // Each entry names exactly one algorithm; the file passes if any entry
+  // matches. A read error (e.g. missing file) resolves to `false`.
+  return Promise.all(
+    entries.map((e) => {
+      if ('sha1' in e) return checkHash(path, 'sha1', e.sha1);
+      if ('sha256' in e) return checkHash(path, 'sha256', e.sha256);
+      return checkHash(path, 'md5', e.md5);
     }),
-  ).catch(() => false);
+  ).then(
+    (results) => results.some(Boolean),
+    () => false,
+  );
 }
 
 export async function verifyAll(

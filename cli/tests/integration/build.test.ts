@@ -34,7 +34,7 @@ afterEach(async () => {
 describe('cli build — full stack (live: forge + java)', () => {
   it('builds a real manifest that round-trips through parseManifest', async () => {
     const out = join(dir, 'torba.json');
-    await cmdBuild(['-i', FIXTURE, '-o', out], logger);
+    await cmdBuild(['-i', FIXTURE, '-o', out], logger, 'build');
 
     const raw = await readFile(out, 'utf8');
     const manifest = await parseManifest(raw);
@@ -57,12 +57,12 @@ describe('cli build — full stack (live: forge + java)', () => {
 
   it('re-encodes byte-stably (encode→parse→encode is a fixpoint)', async () => {
     const out = join(dir, 'torba.json');
-    await cmdBuild(['-i', FIXTURE, '-o', out], logger);
+    await cmdBuild(['-i', FIXTURE, '-o', out], logger, 'build');
     const first = await readFile(out, 'utf8');
 
     const out2 = join(dir, 'torba2.json');
     // A second build of the same pinned inputs must be identical.
-    await cmdBuild(['-i', FIXTURE, '-o', out2], logger);
+    await cmdBuild(['-i', FIXTURE, '-o', out2], logger, 'build');
     expect(await readFile(out2, 'utf8')).toBe(first);
   });
 });

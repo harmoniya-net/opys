@@ -65,14 +65,14 @@ async function fixture(
 describe('cmdLaunch — happy path', () => {
   it('installs then launches the manifest', async () => {
     const cfg = await fixture();
-    await cmdLaunch(['-i', cfg], logger);
+    await cmdLaunch(['-i', cfg], logger, 'launch');
     expect(installMock).toHaveBeenCalledOnce();
     expect(launchMock).toHaveBeenCalledOnce();
   });
 
   it('passes install:false to launch so it never rebuilds', async () => {
     const cfg = await fixture();
-    await cmdLaunch(['-i', cfg], logger);
+    await cmdLaunch(['-i', cfg], logger, 'launch');
     expect(launchMock.mock.calls[0]![1]).toMatchObject({ install: false });
   });
 
@@ -84,7 +84,9 @@ describe('cmdLaunch — happy path', () => {
       return Promise.resolve(child);
     });
     const cfg = await fixture();
-    await expect(cmdLaunch(['-i', cfg], logger)).resolves.toBeUndefined();
+    await expect(
+      cmdLaunch(['-i', cfg], logger, 'launch'),
+    ).resolves.toBeUndefined();
   });
 
   it('defaults the input file to torba.config.mjs in cwd', async () => {
@@ -92,7 +94,7 @@ describe('cmdLaunch — happy path', () => {
     const origCwd = process.cwd();
     process.chdir(dir);
     try {
-      await cmdLaunch([], logger);
+      await cmdLaunch([], logger, 'launch');
     } finally {
       process.chdir(origCwd);
     }
@@ -107,7 +109,7 @@ describe('cmdLaunch — happy path', () => {
       runClient: (m) => ({ vars: { ...m.vars, username: 'Steve' } }),
     };`;
     const cfg = await fixture(patched);
-    await cmdLaunch(['-i', cfg], logger);
+    await cmdLaunch(['-i', cfg], logger, 'launch');
     const manifestArg = launchMock.mock.calls[0]![0];
     expect(manifestArg.vars.username).toBe('Steve');
   });
@@ -116,7 +118,9 @@ describe('cmdLaunch — happy path', () => {
 describe('cmdLaunch — error handling', () => {
   it('throws a UsageError when the config has no default export', async () => {
     const cfg = await fixture('export const x = 1;');
-    await expect(cmdLaunch(['-i', cfg], logger)).rejects.toThrow(UsageError);
+    await expect(cmdLaunch(['-i', cfg], logger, 'launch')).rejects.toThrow(
+      UsageError,
+    );
   });
 
   it('throws a UsageError when config.output is absent', async () => {
@@ -125,7 +129,7 @@ describe('cmdLaunch — error handling', () => {
       manifest: { command: () => 'java', args: () => [], workdir: '.' },
     };`;
     const cfg = await fixture(noOutput, null);
-    await expect(cmdLaunch(['-i', cfg], logger)).rejects.toThrow(
+    await expect(cmdLaunch(['-i', cfg], logger, 'launch')).rejects.toThrow(
       /config.output is required/,
     );
   });
@@ -138,7 +142,9 @@ describe('cmdLaunch — error handling', () => {
       return Promise.resolve(child);
     });
     const cfg = await fixture();
-    await expect(cmdLaunch(['-i', cfg], logger)).rejects.toThrow(/exit 3/);
+    await expect(cmdLaunch(['-i', cfg], logger, 'launch')).rejects.toThrow(
+      /exit 3/,
+    );
   });
 
   it('rejects when the child emits an error event', async () => {
@@ -149,7 +155,9 @@ describe('cmdLaunch — error handling', () => {
       return Promise.resolve(child);
     });
     const cfg = await fixture();
-    await expect(cmdLaunch(['-i', cfg], logger)).rejects.toThrow(/boom/);
+    await expect(cmdLaunch(['-i', cfg], logger, 'launch')).rejects.toThrow(
+      /boom/,
+    );
   });
 });
 
@@ -170,7 +178,9 @@ describe('cmdLaunch — progress reporting', () => {
       onP({ phase: 'sweep', removed: 5 });
     });
     const cfg = await fixture();
-    await expect(cmdLaunch(['-i', cfg], logger)).resolves.toBeUndefined();
+    await expect(
+      cmdLaunch(['-i', cfg], logger, 'launch'),
+    ).resolves.toBeUndefined();
   });
 
   it('throttles non-forced progress renders', async () => {
@@ -181,6 +191,8 @@ describe('cmdLaunch — progress reporting', () => {
       onP({ phase: 'download:start', path: 'b.jar', total: 0 });
     });
     const cfg = await fixture();
-    await expect(cmdLaunch(['-i', cfg], logger)).resolves.toBeUndefined();
+    await expect(
+      cmdLaunch(['-i', cfg], logger, 'launch'),
+    ).resolves.toBeUndefined();
   });
 });

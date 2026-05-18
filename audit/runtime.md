@@ -20,7 +20,7 @@ Read-only code-quality audit, 2026-05-19. Findings only — nothing changed.
 
 ## MEDIUM
 
-- **`lib/zip.ts` (whole file) — the filename lies about contents.** `zip.ts` is
+- [FIXED] **`lib/zip.ts` (whole file) — the filename lies about contents.** `zip.ts` is
   the unified extractor for both zip _and_ tar (`readArchive` dispatches on
   `isTarPath`). Rename to `archive.ts`, and `extractZip`/`extractZipPick` to
   `extractArchive`/`extractArchivePick`.
@@ -31,7 +31,7 @@ Read-only code-quality audit, 2026-05-19. Findings only — nothing changed.
   footgun — an `includes`/`excludes` pattern behaves differently in extract vs.
   restrict-sweep. Not justified by the dependency wall: `core` is the one
   allowed dependency and already has the better implementation. Use it.
-- **`lib/phases/scan.ts:7-11,41` — `ScanTask.idx` is a dead field.** Populated
+- [FIXED] **`lib/phases/scan.ts:7-11,41` — `ScanTask.idx` is a dead field.** Populated
   but never consumed (`install.ts` drops it when mapping to `FetchTask`); the
   only reader is `scan.test.ts`. Remove it.
 - **`lib/install.ts:38-60` — extract-pending detection is split across
@@ -40,7 +40,7 @@ Read-only code-quality audit, 2026-05-19. Findings only — nothing changed.
   marker writing — three places reason about "is this artifact's work done".
   Move `extractIsPending` into `phases/extract.ts` so all extract-state
   reasoning sits in one module.
-- **`lib/phases/verify.ts:25-41` — `Promise.any` + throw-to-reject is a
+- [FIXED] **`lib/phases/verify.ts:25-41` — `Promise.any` + throw-to-reject is a
   clever-but-fragile way to express "any hash matches".** (The recent fix made
   it _correct_ — non-matching entries now reject — but the shape is still
   subtle.) A plain `Promise.all(...).then(r => r.some(Boolean))` is total and
@@ -52,7 +52,7 @@ Read-only code-quality audit, 2026-05-19. Findings only — nothing changed.
   and the buckets are only meaningful relative to the hard-coded default budget
   of 8 — `concurrency: 3` silently breaks the "huge runs alone" guarantee.
   Resolved by the HIGH finding.
-- **`lib/zip.ts:61-63,126-128` — executable-bit logic copy-pasted** between
+- [FIXED] **`lib/zip.ts:61-63,126-128` — executable-bit logic copy-pasted** between
   `writeEntry` and `extractZipPick`. Extract `applyMode(path, mode)`.
 - **`lib/install.ts:120-123,162` — `ScanTask` re-shaped into `{finalPath,
 artifact}` twice.** `FetchTask`, `ExtractTask`, and verify's inline param are
@@ -60,7 +60,7 @@ artifact}` twice.** `FetchTask`, `ExtractTask`, and verify's inline param are
 - **`lib/zip.ts:71-84` — manual structural narrowing of `unknown` for an error
   `code`.** Node provides `NodeJS.ErrnoException`; a typed `errCode(err)`
   helper would read cleaner (the pattern recurs in `sweep.ts`).
-- **`lib/phases/extract.ts:36` — redundant `if (artifact.extract)` guard.**
+- [FIXED] **`lib/phases/extract.ts:36` — redundant `if (artifact.extract)` guard.**
   `extractAll:21` already `continue`s when it is absent.
 
 ## Verdict
