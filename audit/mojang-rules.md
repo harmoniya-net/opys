@@ -1,6 +1,7 @@
 # Audit — `@torba/mojang-rules`
 
-Read-only code-quality audit, 2026-05-19. Findings only — nothing changed.
+Code-quality audit, 2026-05-19 — open items only (resolved findings removed;
+see git history).
 
 ## HIGH
 
@@ -16,24 +17,16 @@ None.
   `satisfiesRuleset`. Validate the `version` field is a compilable `RegExp` in
   `OsConstraintSchema` (`z.string().refine(…)` or `.transform` to a `RegExp`),
   so `satisfiesOs` can be total.
-- [FIXED] **`README.md:1,8,31,55,76` — README is for the wrong package.** It is titled
-  `@torba/rules`, says `npm install @torba/rules`, and documents
-  `ShortRule`/`ShortRuleset`/`parseShortRuleset` — which actually live in
-  `core/lib/shorthand.ts`, not here. Rename to `@torba/mojang-rules`; drop the
-  shorthand section (or note it lives in `@torba/core`).
 
 ## LOW
 
-- [FIXED] **`lib/features.ts:11-13` — `feats.some(f => f === feature)` reinvents
-  `Array.includes`.** `feats.includes(feature)` is the same thing, clearer.
 - **`lib/os.ts:43` — `RegExp` recompiled on every `satisfiesOs` call.** Inside
   `satisfiesRuleset` over many artifacts this recompiles the same pattern
   repeatedly. Disappears if the MEDIUM fix moves compilation to decode.
 - **`lib/os.ts:7-11` — `OsOptions.name`/`.arch` typed `string`, not
   `OsName`/`OsArch`.** A small lie that lets `satisfiesOs` compare against an
-  arbitrary string and silently never match. (The README example even passes
-  `arch: 'x64'`, not a valid `OsArch`.) Tighten the types and validate at the
-  `process.platform` boundary.
+  arbitrary string and silently never match. Tighten the types and validate at
+  the `process.platform` boundary.
 - **`lib/ruleset.ts:17,19` — `emptyRuleset()` and `allowOsRuleset` have thin
   justification.** `emptyRuleset()` returns a fresh `[]`; a literal is as
   clear. `allowOsRuleset` has one real caller path. Borderline premature API
@@ -45,9 +38,6 @@ None.
 
 ## Verdict
 
-Healthy. A genuinely small, functional, well-factored leaf package — pure
-predicates, one shared zod schema with no casts, sensible module split. The
-one real wart is `satisfiesOs` throwing on a bad version regex, violating the
-package's own totality contract; pushing regex validation into
-`OsConstraintSchema` fixes that and the per-call recompilation. The README is
-stale and points at a different package — user-facing documentation bug.
+Healthy. One open wart — `satisfiesOs` throws on a bad version regex; pushing
+regex validation into `OsConstraintSchema` would restore totality and remove
+the per-call recompilation.

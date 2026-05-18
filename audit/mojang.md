@@ -1,6 +1,7 @@
 # Audit — `@torba/mojang`
 
-Read-only code-quality audit, 2026-05-19. Findings only — nothing changed.
+Code-quality audit, 2026-05-19 — open items only (resolved findings removed;
+see git history).
 
 ## HIGH
 
@@ -26,13 +27,6 @@ Read-only code-quality audit, 2026-05-19. Findings only — nothing changed.
   missing-arguments wire defect, while every other failure path is a `ZodError`
   and the version module has a structured `VersionFetchError`. Use a typed
   error or a `.refine`.
-- [FIXED] **`lib/client/libraries.ts:50-51` — magic `'{arch}' → '64'` substitution**
-  with no 32-bit path. Probably fine in practice (only legacy
-  `java-objc-bridge` uses `{arch}`), but it is an undocumented assumption baked
-  into a string replace. Comment it, or reconsider whether the placeholder
-  handling earns its keep.
-- [FIXED] **`lib/client/arguments.ts:51` — redundant `as MojangArgValue[]` cast** on a
-  `string[]` (`string` is a member of the `MojangArgValue` union). Drop it.
 - **`lib/version.ts:36-39`, `lib/client/client.ts:9,18` — hand-written
   `interface`s duplicating zod schemas** where `z.infer` is used elsewhere
   (`logging.ts`, `VersionSchema`). `VersionManifest` / `ClientMetadata` /
@@ -40,9 +34,6 @@ Read-only code-quality audit, 2026-05-19. Findings only — nothing changed.
 
 ## LOW
 
-- [FIXED] **`lib/version.ts:55-66` — `findVersion` is a one-line `Array.find` wrapper,
-  and `latestRelease` re-implements the lookup** instead of calling
-  `findVersion`.
 - **`lib/version.ts:62-65` — `latestRelease` is exported but unused** (no
   consumer outside the package) and throws a bare `Error`. Drop it, or align
   it with the `VersionFetchError` style.
@@ -55,11 +46,7 @@ Read-only code-quality audit, 2026-05-19. Findings only — nothing changed.
 
 ## Verdict
 
-Good shape overall: small cohesive modules, clear boundaries, genuinely
-functional (the two `Error` subclasses are legitimate), zod schemas at every
-wire boundary, solid roundtrip/edge-case tests. The main real bug is
-`encodeMaven` being a lossy non-inverse of `parseMaven` while `MavenCoord`
-advertises `version` as optional — a type that lies. Secondary issues are
-stylistic inconsistency: mixed `z.infer` vs hand-written interfaces, mixed
-structured-vs-bare errors, and `client.ts` deferring its two hardest fields to
-`z.unknown()`. No overcomplication or reinvented wheels of note.
+Good shape. The one real bug is `encodeMaven` being a lossy non-inverse of
+`parseMaven` while `MavenCoord` advertises `version` as optional — a type that
+lies. The rest is stylistic consistency: `z.unknown()` deferral, mixed
+structured-vs-bare errors, hand-written interfaces vs `z.infer`.

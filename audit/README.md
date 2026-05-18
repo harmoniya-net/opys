@@ -5,63 +5,56 @@ reinvented wheels, messy code, and questionable design — judged against the
 project's functional-FP goals (pure functions, total transforms, no incidental
 classes, "parse, don't validate", clean module boundaries).
 
-**Nothing was changed.** These files are a findings backlog. One file per
-package; this index holds the summary and the cross-cutting themes.
+This is the **open** backlog. Resolved findings have been removed as they were
+fixed (see git history); one file per package below.
 
 ## Per-package files
 
-| File                               | Verdict                                                |
-| ---------------------------------- | ------------------------------------------------------ |
-| [core.md](core.md)                 | healthy — cosmetic items only                          |
-| [mojang-rules.md](mojang-rules.md) | healthy — one totality wart                            |
-| [mojang.md](mojang.md)             | good — one real bug (`encodeMaven`)                    |
-| [dev.md](dev.md)                   | good — one latent bug (`configDir`)                    |
-| [minecraft.md](minecraft.md)       | good — forge-family duplication + `lwjgl3ify/template` |
-| [java.md](java.md)                 | good — polish only                                     |
-| [runtime.md](runtime.md)           | good — download concurrency over-engineered            |
-| [cli.md](cli.md)                   | good — thin shell; dead dep + dup                      |
+| File                               | What's left                                  |
+| ---------------------------------- | -------------------------------------------- |
+| [core.md](core.md)                 | 2 cosmetic LOW items                         |
+| [mojang-rules.md](mojang-rules.md) | 1 totality wart (`satisfiesOs`) + polish     |
+| [mojang.md](mojang.md)             | 1 real bug (`encodeMaven`) + consistency     |
+| [dev.md](dev.md)                   | 3 LOW polish items                           |
+| [minecraft.md](minecraft.md)       | `lwjgl3ify/template` casts + forge-family    |
+| [java.md](java.md)                 | 2 low-stakes polish items                    |
+| [runtime.md](runtime.md)           | download concurrency over-engineered         |
+| [cli.md](cli.md)                   | `args.ts` wrapper + logger↔progress coupling |
 
-## HIGH-priority items
+## HIGH-priority items still open
 
-| Package     | Finding                                                                                      |
-| ----------- | -------------------------------------------------------------------------------------------- |
-| `mojang`    | `encodeMaven` is a lossy non-inverse of `parseMaven` (data loss, no error)                   |
-| `runtime`   | weighted-budget download concurrency is over-engineered (~70 lines)                          |
-| `runtime`   | `Budget` is the only incidental class left in the codebase                                   |
-| `minecraft` | GitHub release-listing logic triplicated across forge-family                                 |
-| `minecraft` | `lwjgl3ify/template.ts` abandons zod for `as Record<string,unknown>`                         |
-| `cli`       | dead `kolorist` dependency                                                                   |
-| `cli`       | config-loading copy-pasted verbatim across `build`/`launch`                                  |
-| `dev`       | `artifactScanner` resolves `directory` against `process.cwd()`, not `configDir` (latent bug) |
+| Package     | Finding                                                                    |
+| ----------- | -------------------------------------------------------------------------- |
+| `mojang`    | `encodeMaven` is a lossy non-inverse of `parseMaven` (data loss, no error) |
+| `runtime`   | weighted-budget download concurrency over-engineered (~70 lines)           |
+| `runtime`   | `Budget` is the only incidental class left in the codebase                 |
+| `minecraft` | `lwjgl3ify/template.ts` abandons zod for `as Record<string,unknown>`       |
 
-## Cross-cutting themes
-
-These show up in three or more packages and are best fixed as one pass each:
+## Cross-cutting themes still open
 
 - **"Parse, don't validate" applied unevenly.** `mojang/client.ts` punts
   `arguments`/`libraries` to `z.unknown()`; `minecraft` cleanroom/lwjgl3ify
-  parse installer JSON via `interface` + `as T`. The discipline is real but
-  not uniform.
+  parse installer JSON via `interface` + `as T`.
 - **Bare `Error` vs structured errors.** `mojang` throws a structured
   `VersionFetchError` in one fetcher and a bare `Error` in `parseClient` /
   `fetchAssetManifest` / `latestRelease`. Pick one.
 - **Hand-written interfaces vs `z.infer`.** `mojang` (`VersionManifest`,
   `Client`) and `minecraft` (four near-identical `*Template` interfaces) keep
   hand-maintained types beside schemas — drift risk.
-- **One-line passthrough wrappers.** `substitute` (core), `mojangArgsToValset`
-  (minecraft), `findVersion` (mojang) add a name and nothing else.
-- **Premature generality / dead surface.** `args.ts` boolean+positional
-  support (cli), unused `${var}` params in `minecraft/mappers/*`,
-  `ScanTask.idx` (runtime), `ArgItem` bare-`Val` arm (dev), `forgeWrapper`
-  options (minecraft).
-- **Two glob dialects.** `runtime/zip.ts` hand-rolls a weaker `matchesGlob`
-  while `core` already exports `globToRegex` — an `includes`/`excludes`
-  pattern behaves differently in extract vs. restrict-sweep.
+- **Speculative generality.** `ArgItem`'s bare-`Val` arm (`dev`) and the
+  `forgeWrapper` option (`minecraft`) carry surface no caller uses.
 
-## Cleared — deliberate, not problems
+## Resolved batches (for context)
 
-The hand-rolled **tar reader** (`runtime`), **glob→regex** and **fetch retry**
-(`core`), and **`userDataDir`** (`dev`) are all justified by the dependency
-wall (`@torba/runtime` depends on `@torba/core` alone). Auditors confirmed
-these are correct trade-offs, not reinvented wheels. `minecraft`'s hand-rolled
-NBT encoder is borderline — acceptable if avoiding the dependency is conscious.
+- The obvious, non-ambiguous findings across all 8 packages — fixed (commit
+  `9ac2f5b`).
+- Hand-rolled NBT encoder → `nbtify` (`minecraft`).
+- The two glob dialects (`runtime` `matchesGlob` vs `core` `globToRegex`) are
+  **deliberately kept** — each is the frozen semantics of a different manifest
+  field; documented in `archive.ts` rather than merged.
+
+## Notes — deliberate, not problems
+
+`core`'s hand-rolled glob→regex and fetch-retry, and `dev`'s `userDataDir`,
+are justified zero-dep choices for their packages. `@torba/runtime`'s tar
+reader is being moved onto `tar-stream`.
