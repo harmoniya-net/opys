@@ -1,6 +1,6 @@
 {
   "name": "@torba/core",
-  "version": "1.0.12",
+  "version": "1.0.13",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
   "peerDependencies": {
@@ -22,7 +22,7 @@
   },
   "type": "module",
   "dependencies": {
-    "@torba/mojang-rules": "^1.0.12"
+    "@torba/mojang-rules": "^1.0.13"
   },
   "engines": {
     "node": ">=20"

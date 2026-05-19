@@ -1,6 +1,6 @@
 {
   "name": "@torba/minecraft",
-  "version": "1.0.12",
+  "version": "1.0.13",
   "type": "module",
   "main": "./dist/index.js",
   "exports": {
@@ -16,9 +16,9 @@
     "test:int": "vitest run tests/integration --testTimeout=120000"
   },
   "dependencies": {
-    "@torba/core": "^1.0.12",
-    "@torba/dev": "^1.0.12",
-    "@torba/mojang": "^1.0.12",
+    "@torba/core": "^1.0.13",
+    "@torba/dev": "^1.0.13",
+    "@torba/mojang": "^1.0.13",
     "fflate": "^0.8.2",
     "nbtify": "^2.2.0"
   },
