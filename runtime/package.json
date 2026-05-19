@@ -1,6 +1,6 @@
 {
   "name": "@torba/runtime",
-  "version": "1.0.11",
+  "version": "1.0.12",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
   "exports": {
@@ -20,7 +20,7 @@
   },
   "type": "module",
   "dependencies": {
-    "@torba/core": "^1.0.11",
+    "@torba/core": "^1.0.12",
     "fflate": "^0.8.2",
     "tar-stream": "^2.2.0"
   },
