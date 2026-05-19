@@ -76,11 +76,11 @@ describe('java', () => {
     expect(result.launch).toEqual({ bin: '${java_bin}' });
   });
 
-  it('logs the resolved OpenJDK major version', async () => {
+  it('logs the resolved OpenJDK version', async () => {
     stubFetch();
     const { ctx, logs } = makeCtx();
     await java('21', { platforms: [LINUX_X64] }).build(ctx);
-    expect(logs).toEqual([{ scope: 'java', message: 'OpenJDK 21' }]);
+    expect(logs).toEqual([{ scope: 'java', message: 'OpenJDK 21.0.11+10' }]);
   });
 
   it('forwards options through to the resolver', async () => {

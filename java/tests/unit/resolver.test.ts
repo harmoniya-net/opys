@@ -121,9 +121,38 @@ describe('resolveOpenjdk — version input shapes', () => {
         : null,
     );
     await resolveOpenjdk('jdk-21.0.11+10', { platforms: [LINUX_X64] });
-    // The prefix is stripped then re-added — only one `jdk-` survives.
+    // A `jdk-`-prefixed input is already a release name — used verbatim.
     const url = String(fn.mock.calls[0]![0]);
+    expect(url).toContain('release_name/eclipse/jdk-21.0.11%2B10');
     expect(url).not.toContain('jdk-jdk-');
+  });
+
+  it('builds the hyphen-less jdk8u… release name for a Java 8 version', async () => {
+    const fn = stubFetch((url) =>
+      url.includes('/release_name/eclipse/')
+        ? new Response(JSON.stringify(release(LINUX_X64, 'jdk8u492-b09', 8)))
+        : null,
+    );
+    const result = await resolveOpenjdk('8u492-b09', {
+      platforms: [LINUX_X64],
+    });
+    expect(result.releaseName).toBe('jdk8u492-b09');
+    const url = String(fn.mock.calls[0]![0]);
+    // Java 8 names are `jdk8u…` — no hyphen after `jdk`, and no `jdk-jdk`.
+    expect(url).toContain('release_name/eclipse/jdk8u492-b09');
+    expect(url).not.toContain('jdk-8u');
+  });
+
+  it('accepts a full jdk8u… release name verbatim', async () => {
+    const fn = stubFetch((url) =>
+      url.includes('/release_name/eclipse/')
+        ? new Response(JSON.stringify(release(LINUX_X64, 'jdk8u492-b09', 8)))
+        : null,
+    );
+    await resolveOpenjdk('jdk8u492-b09', { platforms: [LINUX_X64] });
+    expect(String(fn.mock.calls[0]![0])).toContain(
+      'release_name/eclipse/jdk8u492-b09',
+    );
   });
 
   it('tolerates a -LTS suffix on the input version', async () => {

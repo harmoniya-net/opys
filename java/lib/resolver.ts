@@ -5,7 +5,11 @@
  * We use two endpoints depending on the version input shape:
  *
  *   - Major-only (`'21'`, `'17'`)  → `/feature_releases/<major>/ga` (latest GA)
- *   - Full version (`'21.0.11+10'`) → `/release_name/<vendor>/jdk-<v>` (exact)
+ *   - Full version                 → `/release_name/<vendor>/<release-name>`
+ *     (exact, pinned build). Adoptium release names differ by line — Java 8
+ *     is `jdk8u<update>-b<build>` (no hyphen), Java 9+ is `jdk-<version>`.
+ *     A full input is accepted bare (`'8u492-b09'`, `'21.0.13+11'`) or as a
+ *     complete release name (`'jdk8u492-b09'`, `'jdk-21.0.13+11'`).
  *
  * Each platform (os × arch) is queried separately with `image_type=jdk` and
  * `jvm_impl=hotspot`. Releases that don't ship a binary for a given platform
@@ -136,11 +140,14 @@ interface AdoptiumRelease {
 type VersionInput = { kind: 'major' | 'full'; raw: string };
 
 function normalizeInput(input: string): VersionInput {
-  let v = input.trim();
-  if (v.startsWith('jdk-')) v = v.slice(4);
-  v = v.replace(/-LTS$/, '');
+  const v = input.trim().replace(/-LTS$/, '');
   if (/^\d+$/.test(v)) return { kind: 'major', raw: v };
-  return { kind: 'full', raw: v };
+  // A `full` input resolves to an exact Adoptium release name. A value that
+  // already carries the `jdk` prefix is a complete release name; a bare
+  // version is prefixed to match — `jdk` (no hyphen) for the Java 8
+  // `8u…-b…` form, `jdk-` for the Java 9+ `<major>.<minor>.<patch>+<build>`.
+  if (v.startsWith('jdk')) return { kind: 'full', raw: v };
+  return { kind: 'full', raw: /^\d+u/.test(v) ? `jdk${v}` : `jdk-${v}` };
 }
 
 function adoptiumQuery(platform: JavaPlatform): string {
@@ -165,7 +172,7 @@ async function fetchPlatform(
   const path =
     version.kind === 'major'
       ? `/assets/feature_releases/${version.raw}/ga?${adoptiumQuery(platform)}&page_size=1&sort_order=DESC`
-      : `/assets/release_name/${VENDOR}/${encodeURIComponent(`jdk-${version.raw}`)}?${adoptiumQuery(platform)}`;
+      : `/assets/release_name/${VENDOR}/${encodeURIComponent(version.raw)}?${adoptiumQuery(platform)}`;
 
   const url = `${apiBase}${path}`;
   const res = await fetchWithRetry(url, {
