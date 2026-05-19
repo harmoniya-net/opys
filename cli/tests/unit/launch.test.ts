@@ -19,14 +19,8 @@ import { Logger } from '../../lib/logger';
 let dir = '';
 const logger = new Logger('silent');
 
-const MANIFEST = JSON.stringify({
-  vars: { root: '/games' },
-  launch: { command: 'java', workdir: '.', args: [], envs: {} },
-  artifacts: [],
-});
-
+// cmdLaunch builds the manifest in-memory from this config — no torba.json.
 const CONFIG = `export default {
-  output: 'torba.json',
   plugins: [],
   manifest: { command: () => 'java', args: () => [], workdir: '.' },
 };`;
@@ -50,24 +44,26 @@ afterEach(async () => {
   if (dir) await rm(dir, { recursive: true, force: true });
 });
 
-async function fixture(
-  config = CONFIG,
-  manifest: string | null = MANIFEST,
-): Promise<string> {
+/** Write a config file to the temp dir and return its path. */
+async function fixture(config = CONFIG): Promise<string> {
   const cfgPath = join(dir, 'torba.config.mjs');
   await writeFile(cfgPath, config, 'utf8');
-  if (manifest !== null) {
-    await writeFile(join(dir, 'torba.json'), manifest, 'utf8');
-  }
   return cfgPath;
 }
 
 describe('cmdLaunch — happy path', () => {
-  it('installs then launches the manifest', async () => {
+  it('builds the config, installs, then launches', async () => {
     const cfg = await fixture();
     await cmdLaunch(['-i', cfg], logger, 'launch');
     expect(installMock).toHaveBeenCalledOnce();
     expect(launchMock).toHaveBeenCalledOnce();
+  });
+
+  it('launches the in-memory built manifest (no torba.json needed)', async () => {
+    const cfg = await fixture();
+    await cmdLaunch(['-i', cfg], logger, 'launch');
+    const manifestArg = launchMock.mock.calls[0]![0];
+    expect(manifestArg.launch.command).toBe('java');
   });
 
   it('passes install:false to launch so it never rebuilds', async () => {
@@ -101,9 +97,8 @@ describe('cmdLaunch — happy path', () => {
     expect(launchMock).toHaveBeenCalledOnce();
   });
 
-  it('applies a runClient patch over the loaded manifest', async () => {
+  it('applies a runClient patch over the built manifest', async () => {
     const patched = `export default {
-      output: 'torba.json',
       plugins: [],
       manifest: { command: () => 'java', args: () => [], workdir: '.' },
       runClient: (m) => ({ vars: { ...m.vars, username: 'Steve' } }),
@@ -120,17 +115,6 @@ describe('cmdLaunch — error handling', () => {
     const cfg = await fixture('export const x = 1;');
     await expect(cmdLaunch(['-i', cfg], logger, 'launch')).rejects.toThrow(
       UsageError,
-    );
-  });
-
-  it('throws a UsageError when config.output is absent', async () => {
-    const noOutput = `export default {
-      plugins: [],
-      manifest: { command: () => 'java', args: () => [], workdir: '.' },
-    };`;
-    const cfg = await fixture(noOutput, null);
-    await expect(cmdLaunch(['-i', cfg], logger, 'launch')).rejects.toThrow(
-      /config.output is required/,
     );
   });
 

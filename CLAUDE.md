@@ -121,11 +121,13 @@ export default defineConfig(({ mode }) => ({
 - **`torba build`** — `resolveConfig` → run every plugin's `build(ctx)` in
   parallel → concat + dedup artifacts → merge vars → assemble `launch` via the
   author functions → `encodeManifest` → write.
-- **`torba launch`** — reads `torba.json` **from disk**; never rebuilds.
-  `runClient(manifest) => Partial<Manifest>` is an optional launch-time patch,
-  re-run every launch (so e.g. `bifrost` mints a fresh token); the result is a
-  shallow per-field override. `runClient` is CLI-side — `runtime` needs only
-  `torba.json`.
+- **`torba launch`** — builds the manifest in-memory from the config and
+  launches it directly; no `torba.json` round-trip. `runClient(manifest) =>
+Partial<Manifest>` is the launch-time patch, applied every launch (so e.g.
+  `bifrost` mints a fresh token) as a shallow per-field override. The
+  build/runtime wall holds — `cli` orchestrates `dev` + `runtime`, joined by
+  the in-memory `Manifest`; a _deployed_ launcher instead feeds
+  `@torba/runtime` a frozen, published `torba.json` with no `dev`.
 - The runtime install pipeline is phased: resolve → pointer → discovery → scan
   → fetch → verify → extract → sweep. Failure is a discriminated union —
   `NetworkError` / `IntegrityError` / `ExtractionError`.

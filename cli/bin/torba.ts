@@ -11,7 +11,7 @@ torba — declarative manifest toolkit
 
 USAGE
   torba build  [-i <torba.config.mjs>] [-o <out>] [--mode <m>]  Build manifest
-  torba launch [-i <torba.config.mjs>] [--mode <m>]  Install and launch
+  torba launch [-i <torba.config.mjs>] [--mode <m>]  Build, install, launch
 
 OPTIONS
   -i, --input          Config file  (default: torba.config.mjs)

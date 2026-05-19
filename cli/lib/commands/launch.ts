@@ -1,9 +1,7 @@
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
 import { install, launch, type InstallProgress } from '@torba/runtime';
-import { parseManifest, type Manifest } from '@torba/core';
+import type { Manifest } from '@torba/core';
+import { buildManifest, type BuildContext } from '@torba/dev';
 import { parseArgs } from '../args';
-import { UsageError } from '../errors';
 import { loadConfig } from '../load-config';
 import {
   renderProgress,
@@ -31,14 +29,15 @@ export async function cmdLaunch(
 
   const { config, configDir } = await loadConfig(inputFile, mode);
 
-  if (!config.output) {
-    throw new UsageError('config.output is required to locate torba.json');
-  }
-  // Launch reads the built manifest from disk — it never rebuilds.
-  const manifestPath = resolve(configDir, config.output);
-  const baseManifest = await parseManifest(
-    await readFile(manifestPath, 'utf8'),
-  );
+  // Build the manifest in-memory from the config and launch it directly —
+  // no torba.json round-trip. (`torba build` still writes a publishable
+  // manifest; a deployed launcher feeds `@torba/runtime` a frozen one.)
+  const ctx: BuildContext = {
+    log: (scope, msg) => logger.info(`[${scope}] ${msg}`),
+    configDir,
+    mode,
+  };
+  const baseManifest = await buildManifest(config, ctx);
 
   // runClient is the launch-time manifest patch: a shallow per-field override.
   const manifest: Manifest = config.runClient
