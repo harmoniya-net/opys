@@ -1,7 +1,13 @@
 # Audit — `@torba/core`
 
-Code-quality audit, 2026-05-19 — open items only (resolved findings removed;
-see git history).
+Code-quality audit, refreshed post-Rust-port — open items only (resolved
+findings removed; see git history).
+
+The decode/encode/resolve/filter/interpolate/glob behaviors that were
+previously the bulk of this package now live in the `torba-core` Rust
+crate. `core/lib/index.ts` is a thin shim: typed wrappers around the
+napi-rs binding plus hand-written sugar (factories, type guards,
+`parseShortRuleset`, `parseValset`, `deduplicateArtifacts`).
 
 ## HIGH
 
@@ -13,24 +19,26 @@ None.
 
 ## LOW
 
-- **`lib/artifact.ts:84` vs `:67` — inconsistent absent-field encode guards**
-  (`.length > 0` vs truthy vs `!== undefined`) repeated across
-  `manifest.ts` / `extract.ts` / `discovery.ts` / `pointer.ts`. Consistency
-  note — a shared `compact`/`omitUndefined` helper if this grows.
-- **`lib/val.ts` vs `lib/valdefs.ts` — two near-identical "rule-conditional
-  value" models** (`Val` list-valued, `ConditionalVal` scalar) with duplicated
-  parse/encode/resolve machinery. Defensible spec distinction — but it should
-  carry a comment explaining why they are kept separate.
+- **`lib/index.ts` — `parseShortRule` duplicates Rust shorthand parsing.**
+  The Rust binding's `satisfiesRuleset` accepts shorthand directly, so
+  the TS impl exists only for consumers that need expanded `Rule[]`
+  objects. Two reasonable futures: (a) expose `expand_short_ruleset`
+  from the binding and drop the TS impl, or (b) accept the duplication
+  with a comment that points at the Rust source as the canonical
+  definition of the shorthand grammar.
+- **`lib/index.ts` re-exports both `RuleSchema` (zod) and the codegen'd
+  binding types.** The zod schema is build-time-only (Forge recipe +
+  Mojang client parsers). When/if zod is dropped, those consumers need
+  an alternative validator. See `MIGRATION.md` "zod peer dependency".
 
 ## Notes (not findings)
 
-- Dep-light stance is deliberate and correct: `glob.ts` and `fetch.ts`
-  hand-roll glob→regex and retry rather than pulling `picomatch` / `p-retry`.
-  For a frozen spec package, the right call — both are well-scoped and tested.
-- `fetch.ts`'s `isTransientFetchError` casts are appropriate for untyped error
-  introspection. `artifact.ts metadata: unknown` is honest. `decodeDiscovery`
-  being the identity is correctly labelled.
+- `fetch.ts` (build-time HTTP retry) intentionally stays in `@torba/core`
+  rather than moving to `runtime` — the consumers (mojang/forge/java/
+  curseforge plugins) can't depend on `@torba/runtime` per the
+  build/runtime invariant.
 
 ## Verdict
 
-Healthy. Only two cosmetic LOW items remain.
+Healthy and small. The shim does what a shim should — no domain logic
+leaks past the napi boundary.

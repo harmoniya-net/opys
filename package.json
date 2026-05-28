@@ -19,9 +19,12 @@
     "minecraft",
     "java",
     "runtime",
-    "cli"
+    "cli",
+    "crates/torba-core-napi",
+    "crates/torba-runtime-napi"
   ],
   "devDependencies": {
+    "@napi-rs/cli": "^2.18.4",
     "@types/node": "^22.19.17",
     "@vitest/coverage-v8": "^4.1.6",
     "git-format-staged": "^4.0.1",

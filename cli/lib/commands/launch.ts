@@ -106,10 +106,7 @@ export async function cmdLaunch(
   pw.finish();
   logger.info(` Ready in ${elapsed(t0)}`);
   logger.info('Launching...');
-  const child = await launch(manifest, {
-    install: false,
-    log: logger.installerLog(),
-  });
+  const child = await launch(manifest, { install: false });
   logger.info(` PID ${child.pid}`);
   await new Promise<void>((res, rej) => {
     child.on('exit', (code) =>

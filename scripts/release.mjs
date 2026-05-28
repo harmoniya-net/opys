@@ -1,11 +1,15 @@
 #!/usr/bin/env node
-// Single-command release: bump every workspace to one shared version,
-// build, commit, tag, and publish. Run from the repo root.
+// Single-command release: bump every workspace (npm + cargo) to one shared
+// version, build, commit, tag, and publish. Run from the repo root.
 //
 //   npm run release          # patch bump  (default)
 //   npm run release minor    # minor bump
 //   npm run release major    # major bump
 //   npm run release 2.0.0    # explicit version
+//
+// npm and crates.io versions stay in lockstep. The two -napi crates are
+// `publish = false` so cargo skips them; they ship through their npm-side
+// `@torba/*-binding` packages, which carry the same version.
 
 import { execSync } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
@@ -35,10 +39,10 @@ const root = readJson('package.json');
 const version = nextVersion(root.version, process.argv[2] ?? 'patch');
 console.log(`Releasing ${root.version} -> ${version}\n`);
 
-// 2. Stamp the new version into the root and every workspace, and rewrite
-//    internal @torba/* dependency ranges so the packages stay in lockstep.
+// 2a. Stamp the new version into the root and every npm workspace, and
+//     rewrite internal @torba/* dependency ranges so they stay in lockstep.
 const DEP_FIELDS = ['dependencies', 'devDependencies', 'peerDependencies'];
-const stamp = (path) => {
+const stampJson = (path) => {
   const pkg = readJson(path);
   pkg.version = version;
   for (const field of DEP_FIELDS) {
@@ -49,17 +53,59 @@ const stamp = (path) => {
   writeJson(path, pkg);
 };
 
-stamp('package.json');
-for (const ws of root.workspaces) stamp(`${ws}/package.json`);
+stampJson('package.json');
+for (const ws of root.workspaces) stampJson(`${ws}/package.json`);
 
-// 3. Sync the lockfile, build, then commit + tag the release.
+// 2b. Stamp the same version into Cargo: the workspace `[workspace.package]`
+//     version (inherited by every crate via `version.workspace = true`) and
+//     every internal `torba-*` path-dep's `version = "..."` specifier.
+const stampCargoWorkspace = (path) => {
+  const txt = readFileSync(path, 'utf8');
+  // Replace the top-level `version = "..."` line. The `^` (with /m) anchors
+  // to a line start so we don't accidentally match `rust-version = ...` or
+  // the inline `version = "1"` inside `[workspace.dependencies]` entries.
+  const next = txt.replace(
+    /^(version\s*=\s*")[^"]+(")/m,
+    `$1${version}$2`,
+  );
+  if (next === txt) throw new Error(`could not stamp version in ${path}`);
+  writeFileSync(path, next);
+};
+const stampCargoCrate = (path) => {
+  const txt = readFileSync(path, 'utf8');
+  // Rewrite `version = "..."` only on lines that also declare a torba-* path dep.
+  const next = txt.replace(
+    /^(\s*torba-[a-z-]+\s*=\s*\{[^}]*?\bversion\s*=\s*")[^"]+(".*)$/gm,
+    `$1${version}$2`,
+  );
+  writeFileSync(path, next);
+};
+stampCargoWorkspace('Cargo.toml');
+for (const crate of [
+  'crates/torba-core',
+  'crates/torba-runtime',
+  'crates/torba-core-napi',
+  'crates/torba-runtime-napi',
+]) {
+  stampCargoCrate(`${crate}/Cargo.toml`);
+}
+
+// 3. Sync both lockfiles, build, then commit + tag the release.
 sh('npm install --package-lock-only');
+// `cargo build` refreshes Cargo.lock to the new workspace version and
+// verifies every crate still compiles after the path-dep version bumps.
+sh('cargo build --workspace --release');
 sh('npm run build --workspaces --if-present');
 sh('git add -A');
 sh(`git commit -m "release v${version}"`);
 sh(`git tag v${version}`);
 
-// 4. Publish every public workspace.
+// 4. Publish — npm workspaces first (parallel-safe), then crates.io in
+//    dependency order. cargo publish (since 1.66) waits for indexing
+//    between crates, so the next publish can resolve the previous one.
 sh('npm publish --workspaces --access public');
+sh('cargo publish -p torba-mojang-rules');
+sh('cargo publish -p torba-core');
+sh('cargo publish -p torba-runtime');
 
 console.log(`\nReleased v${version}`);

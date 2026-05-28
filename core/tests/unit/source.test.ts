@@ -1,84 +1,61 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, test } from 'vitest';
 import {
-  sourceUrl,
-  sourceFile,
-  sourceString,
-  sourceBytes,
-  sourcePointer,
-  SourceWireSchema,
-  decodeSource,
-  encodeSource,
-  isSourceUrl,
-  isSourceFile,
-  isSourceString,
   isSourceBytes,
+  isSourceFile,
   isSourcePointer,
-  type Source,
-} from '../../lib/source';
+  isSourceString,
+  isSourceUrl,
+  sourceBytes,
+  sourceFile,
+  sourcePointer,
+  sourceString,
+  sourceUrl,
+} from '../../lib';
 
-const roundTrip = (s: Source): Source =>
-  decodeSource(SourceWireSchema.parse(encodeSource(s)));
-
-describe('Source type guards', () => {
-  it('sourceString discriminates correctly', () => {
-    const s = sourceString('hello');
-    expect(isSourceString(s)).toBe(true);
-    expect(isSourceUrl(s)).toBe(false);
-    expect(isSourceFile(s)).toBe(false);
-  });
-
-  it('sourceUrl discriminates correctly', () => {
-    const s = sourceUrl('https://x.com');
+describe('Source factories', () => {
+  test('sourceUrl', () => {
+    const s = sourceUrl('https://a/x');
+    expect(s).toEqual({ kind: 'url', url: 'https://a/x' });
     expect(isSourceUrl(s)).toBe(true);
     expect(isSourceFile(s)).toBe(false);
-    expect(isSourceString(s)).toBe(false);
-  });
-});
-
-describe('Source round-trips', () => {
-  it('url', () => {
-    const s = sourceUrl('https://example.com/file.jar');
-    expect(roundTrip(s)).toEqual(s);
   });
 
-  it('file', () => {
-    const s = sourceFile('/tmp/file.txt');
-    expect(roundTrip(s)).toEqual(s);
+  test('sourceFile', () => {
+    const s = sourceFile('/tmp/x');
+    expect(s).toEqual({ kind: 'file', file: '/tmp/x' });
+    expect(isSourceFile(s)).toBe(true);
   });
 
-  it('string', () => {
-    const s = sourceString('hello');
-    expect(roundTrip(s)).toEqual(s);
+  test('sourceString', () => {
+    const s = sourceString('hi');
+    expect(s).toEqual({ kind: 'string', string: 'hi' });
+    expect(isSourceString(s)).toBe(true);
   });
 
-  it('empty string content', () => {
-    const s = sourceString('');
-    expect(roundTrip(s)).toEqual(s);
-  });
-
-  it('bytes', () => {
-    const s = sourceBytes(new Uint8Array([1, 2, 3, 255]));
-    expect(s.kind).toBe('bytes');
-    expect(roundTrip(s)).toEqual(s);
-  });
-
-  it('pointer', () => {
-    const s = sourcePointer('https://h/latest.json');
-    expect(roundTrip(s)).toEqual(s);
-  });
-});
-
-describe('bytes and pointer type guards', () => {
-  it('isSourceBytes discriminates correctly', () => {
-    const s = sourceBytes(new Uint8Array([0]));
-    expect(isSourceBytes(s)).toBe(true);
-    expect(isSourcePointer(s)).toBe(false);
-    expect(isSourceUrl(s)).toBe(false);
-  });
-
-  it('isSourcePointer discriminates correctly', () => {
-    const s = sourcePointer('https://h/p.json');
+  test('sourcePointer', () => {
+    const s = sourcePointer('forge:libraries.json');
+    expect(s).toEqual({ kind: 'pointer', pointer: 'forge:libraries.json' });
     expect(isSourcePointer(s)).toBe(true);
-    expect(isSourceBytes(s)).toBe(false);
+  });
+});
+
+describe('sourceBytes', () => {
+  test('base64-encodes the raw bytes', () => {
+    const bytes = new Uint8Array([72, 101, 108, 108, 111]); // "Hello"
+    const s = sourceBytes(bytes);
+    expect(s).toEqual({ kind: 'bytes', bytes: 'SGVsbG8=' });
+    expect(isSourceBytes(s)).toBe(true);
+  });
+
+  test('handles the empty buffer', () => {
+    expect(sourceBytes(new Uint8Array())).toEqual({ kind: 'bytes', bytes: '' });
+  });
+
+  test('round-trips through Buffer.from(…, "base64")', () => {
+    const original = new Uint8Array([0, 1, 2, 250, 255]);
+    const s = sourceBytes(original);
+    if (!isSourceBytes(s)) throw new Error('expected bytes-kind source');
+    const decoded = Uint8Array.from(Buffer.from(s.bytes, 'base64'));
+    expect(decoded).toEqual(original);
   });
 });

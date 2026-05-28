@@ -1,51 +1,39 @@
 # Audit — `@torba/runtime`
 
-Code-quality audit, 2026-05-19 — open items only (resolved findings removed;
-see git history).
+Code-quality audit, refreshed post-Rust-port — open items only (resolved
+findings removed; see git history).
+
+The install pipeline (resolve → pointer → discovery → scan → fetch →
+verify → extract → sweep) now lives in the `torba-runtime` Rust crate.
+`runtime/lib/index.ts` is a thin shim: typed wrappers around the napi-rs
+binding plus a Node `child_process.spawn` for `launch`, and a
+message-parsing `translateError` that rewraps `napi::Error` reasons into
+the legacy `NetworkError` / `IntegrityError` / `ExtractionError` classes.
 
 ## HIGH
 
-- **`lib/phases/fetch.ts:114-158` — weighted-budget download concurrency is
-  over-engineered for its payoff.** The `weight()` bucketing + the `Budget`
-  weighted-semaphore class + LPT-style largest-first sort total ~70 lines of
-  bespoke scheduling. A plain counting semaphore (N-at-a-time) downloads
-  concurrently just fine; the stated benefit ("a single fat jar isn't split
-  eight ways") is a micro-optimization — HTTP throughput is shared by the
-  OS/TCP regardless. Replace with a simple fixed-concurrency worker pool; drop
-  `weight`, `Budget`, and the LPT sort.
-- **`lib/phases/fetch.ts:128-158` — `Budget` is an incidental class holding
-  mutable state** (`used` + `waiters` with imperative `acquire`/`release`) —
-  the only `class` in the codebase, against the functional-refactor goal. If a
-  limiter is kept at all, a closure factory (`createLimiter(n)` returning
-  `run<T>(fn)`) is the idiomatic functional form. (Resolved together with the
-  finding above.)
+None.
 
 ## MEDIUM
 
-- **`lib/install.ts:38-60` — extract-pending detection is split across
-  phases.** `extractIsPending` re-implements an existence/emptiness scan inside
-  `install.ts`, separate from `scan`'s skip logic and from `extractAll`'s
-  marker writing — three places reason about "is this artifact's work done".
-  Move `extractIsPending` into `phases/extract.ts` so all extract-state
-  reasoning sits in one module.
+- **`lib/index.ts` — `translateError` parses error message strings.**
+  Regexes match on `"HTTP N downloading URL"` / `"Integrity check
+failed: …"` / `"Failed to extract X:"`. This is the compat shim until
+  Q10's structured-errors land on the Rust side. Any change to the
+  message format on either side silently breaks narrowing. The fix is
+  to have the napi crates throw typed errors with a `code` field; once
+  that's in, drop the regexes.
 
 ## LOW
 
-- **`lib/phases/fetch.ts:114-121` — `weight()`'s `1 * MB` is a no-op multiply**,
-  and the buckets are only meaningful relative to the hard-coded default budget
-  of 8 — `concurrency: 3` silently breaks the "huge runs alone" guarantee.
-  Resolved by the HIGH finding.
-- **`lib/install.ts:120-123,162` — `ScanTask` re-shaped into `{finalPath,
-artifact}` twice.** `FetchTask`, `ExtractTask`, and verify's inline param are
-  all structurally `{finalPath, artifact}`. Consider one shared `ArtifactTask`.
-- **`lib/archive.ts` — manual structural narrowing of `unknown` for an error
-  `code`.** Node provides `NodeJS.ErrnoException`; a typed `errCode(err)`
-  helper would read cleaner (the pattern recurs in `sweep.ts`).
+- **`lib/index.ts` — `InstallProgress` is a hand-typed discriminated
+  union over `phase`, but the Rust bridge codegen produces a flat
+  `ProgressEvent` with all fields optional.** The TS-side cast in
+  `install()` (`event as InstallProgress`) is the boundary marker.
+  Mostly fine; worth a thought if the Rust side ever changes the phase
+  vocabulary.
 
 ## Verdict
 
-Good health overall — genuinely functional in style, clean phase
-decomposition, error types a tidy discriminated union. The one standout is the
-download concurrency system (`weight`/`Budget`/LPT) — the only spot reaching
-for generic machinery a plain semaphore would cover, and the only incidental
-class left in the codebase.
+Small and predictable. Two follow-ups, both blocked on structured
+errors from the Rust side (Q10 in `MIGRATION.md`).
