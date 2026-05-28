@@ -1,6 +1,6 @@
 {
   "name": "@torba/runtime-binding",
-  "version": "0.1.0",
+  "version": "1.0.14",
   "private": true,
   "description": "napi-rs binary binding for @torba/runtime. Not consumed directly — re-exported by @torba/runtime.",
   "main": "index.js",

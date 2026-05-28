@@ -1,6 +1,6 @@
 {
   "name": "@torba/cli",
-  "version": "1.0.13",
+  "version": "1.0.14",
   "bin": {
     "torba": "dist/torba.mjs"
   },
@@ -15,11 +15,11 @@
   },
   "type": "module",
   "dependencies": {
-    "@torba/core": "^1.0.13",
-    "@torba/dev": "^1.0.13",
-    "@torba/runtime": "^1.0.13",
-    "@torba/minecraft": "^1.0.13",
-    "@torba/mojang": "^1.0.13"
+    "@torba/core": "^1.0.14",
+    "@torba/dev": "^1.0.14",
+    "@torba/runtime": "^1.0.14",
+    "@torba/minecraft": "^1.0.14",
+    "@torba/mojang": "^1.0.14"
   },
   "peerDependencies": {
     "zod": "^4.0.0"

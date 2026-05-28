@@ -9,8 +9,8 @@ homepage.workspace = true
 description = "torba install + launch executor. Consumes a frozen Manifest."
 
 [dependencies]
-torba-core = { path = "../torba-core", version = "0.1.0" }
-torba-mojang-rules = { path = "../torba-mojang-rules", version = "0.1.0" }
+torba-core = { path = "../torba-core", version = "1.0.14" }
+torba-mojang-rules = { path = "../torba-mojang-rules", version = "1.0.14" }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }

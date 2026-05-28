@@ -9,7 +9,7 @@ homepage.workspace = true
 description = "torba manifest data model + shorthand + Val/Valset. Reference implementation of torba.json."
 
 [dependencies]
-torba-mojang-rules = { path = "../torba-mojang-rules", version = "0.1.0" }
+torba-mojang-rules = { path = "../torba-mojang-rules", version = "1.0.14" }
 serde = { workspace = true }
 serde_json = { workspace = true }
 regex = { workspace = true }

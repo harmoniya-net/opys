@@ -1450,7 +1450,7 @@ dependencies = [
 
 [[package]]
 name = "torba-core"
-version = "0.1.0"
+version = "1.0.14"
 dependencies = [
  "base64",
  "indexmap",
@@ -1463,7 +1463,7 @@ dependencies = [
 
 [[package]]
 name = "torba-core-napi"
-version = "0.1.0"
+version = "1.0.14"
 dependencies = [
  "indexmap",
  "napi",
@@ -1477,7 +1477,7 @@ dependencies = [
 
 [[package]]
 name = "torba-mojang-rules"
-version = "0.1.0"
+version = "1.0.14"
 dependencies = [
  "regex",
  "serde",
@@ -1487,7 +1487,7 @@ dependencies = [
 
 [[package]]
 name = "torba-runtime"
-version = "0.1.0"
+version = "1.0.14"
 dependencies = [
  "base64",
  "bytes",
@@ -1514,7 +1514,7 @@ dependencies = [
 
 [[package]]
 name = "torba-runtime-napi"
-version = "0.1.0"
+version = "1.0.14"
 dependencies = [
  "indexmap",
  "napi",
