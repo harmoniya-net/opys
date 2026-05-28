@@ -9,29 +9,32 @@
 
 import { fetchWithRetry } from '@opys/core';
 
-export interface RawAsset {
+/** A single asset on a GitHub release, mirroring the `/releases` API shape. */
+export interface GitHubAsset {
   name: string;
   size: number;
   browser_download_url: string;
+  /** `sha256:<hex>` when present (introduced 2024); older releases lack it. */
   digest?: string;
 }
 
-export interface RawRelease {
+/** A single GitHub release entry from the `/releases` API. */
+export interface GitHubRelease {
   tag_name: string;
   prerelease: boolean;
   draft: boolean;
   published_at: string;
-  assets: RawAsset[];
+  assets: GitHubAsset[];
 }
 
 /**
  * List all releases for `repo` (`owner/name`), newest first. Fetches a
  * single page of up to 100 releases. `token` raises the rate limit.
  */
-export async function listReleases(
+export async function listGitHubReleases(
   repo: string,
   token?: string,
-): Promise<RawRelease[]> {
+): Promise<GitHubRelease[]> {
   const headers: Record<string, string> = {
     Accept: 'application/vnd.github+json',
     'X-GitHub-Api-Version': '2022-11-28',
@@ -46,14 +49,14 @@ export async function listReleases(
       `GitHub API ${res.status} ${res.statusText} listing ${repo} releases`,
     );
   }
-  return (await res.json()) as RawRelease[];
+  return (await res.json()) as GitHubRelease[];
 }
 
 /**
  * Extract the hex sha256 from an asset's `digest` field. GitHub's `digest`
  * is `sha256:<hex>` when present (introduced 2024); older releases lack it.
  */
-export function assetSha256(asset: RawAsset): string | undefined {
+export function gitHubAssetSha256(asset: GitHubAsset): string | undefined {
   return asset.digest?.startsWith('sha256:')
     ? asset.digest.slice('sha256:'.length)
     : undefined;

@@ -14,7 +14,11 @@ import {
   type Lwjgl3ifyRelease,
   type ResolveLwjgl3ifyOptions,
 } from './resolver';
-import { assetSha256, listReleases, type RawRelease } from '@opys/dev';
+import {
+  gitHubAssetSha256,
+  listGitHubReleases,
+  type GitHubRelease,
+} from '@opys/dev';
 
 const UNIMIXINS_DEFAULT_REPO = 'LegacyModdingMC/UniMixins';
 
@@ -36,9 +40,9 @@ async function resolveUnimixins(
   repo: string,
   token: string | undefined,
 ): Promise<UnimixinsAsset> {
-  const releases = await listReleases(repo, token);
+  const releases = await listGitHubReleases(repo, token);
   const usable = releases.filter((r) => !r.draft);
-  let target: RawRelease | undefined;
+  let target: GitHubRelease | undefined;
   if (version === 'latest') {
     target = usable.find((r) => !r.prerelease);
   } else if (version === 'prerelease') {
@@ -62,7 +66,7 @@ async function resolveUnimixins(
   return {
     url: asset.browser_download_url,
     size: asset.size,
-    sha256: assetSha256(asset),
+    sha256: gitHubAssetSha256(asset),
     filename: asset.name,
   };
 }

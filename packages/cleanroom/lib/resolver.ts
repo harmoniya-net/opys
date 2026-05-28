@@ -11,7 +11,11 @@
  *   - 'prerelease'  → newest including prereleases
  */
 
-import { assetSha256, listReleases, type RawRelease } from '@opys/dev';
+import {
+  gitHubAssetSha256,
+  listGitHubReleases,
+  type GitHubRelease,
+} from '@opys/dev';
 
 const DEFAULT_REPO = 'CleanroomMC/Cleanroom';
 
@@ -39,7 +43,7 @@ export interface ResolveCleanroomOptions {
   token?: string;
 }
 
-function findInstaller(release: RawRelease): {
+function findInstaller(release: GitHubRelease): {
   url: string;
   name: string;
   size: number;
@@ -53,11 +57,11 @@ function findInstaller(release: RawRelease): {
     url: asset.browser_download_url,
     name: asset.name,
     size: asset.size,
-    sha256: assetSha256(asset),
+    sha256: gitHubAssetSha256(asset),
   };
 }
 
-function toRelease(release: RawRelease): CleanroomRelease | null {
+function toRelease(release: GitHubRelease): CleanroomRelease | null {
   const installer = findInstaller(release);
   if (!installer) return null;
   return {
@@ -76,7 +80,7 @@ export async function resolveCleanroomVersion(
   options: ResolveCleanroomOptions = {},
 ): Promise<CleanroomRelease> {
   const repo = options.repo ?? DEFAULT_REPO;
-  const releases = (await listReleases(repo, options.token))
+  const releases = (await listGitHubReleases(repo, options.token))
     .filter((r) => !r.draft)
     .map(toRelease)
     .filter((r): r is CleanroomRelease => r !== null);

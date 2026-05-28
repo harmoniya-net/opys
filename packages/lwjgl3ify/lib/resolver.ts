@@ -13,10 +13,10 @@
  */
 
 import {
-  assetSha256,
-  listReleases,
-  type RawAsset,
-  type RawRelease,
+  gitHubAssetSha256,
+  listGitHubReleases,
+  type GitHubAsset,
+  type GitHubRelease,
 } from '@opys/dev';
 
 const DEFAULT_REPO = 'GTNewHorizons/lwjgl3ify';
@@ -48,12 +48,12 @@ export interface ResolveLwjgl3ifyOptions {
   token?: string;
 }
 
-function toAsset(asset: RawAsset): Lwjgl3ifyAsset {
+function toAsset(asset: GitHubAsset): Lwjgl3ifyAsset {
   return {
     name: asset.name,
     url: asset.browser_download_url,
     size: asset.size,
-    sha256: assetSha256(asset),
+    sha256: gitHubAssetSha256(asset),
   };
 }
 
@@ -62,12 +62,12 @@ function toAsset(asset: RawAsset): Lwjgl3ifyAsset {
  * `-sources`, `-api`, `-forgePatches`, etc. suffix). This is the jar that
  * carries the lwjgl3ify RFB plugin (`Pack200` redirect transformer).
  */
-function findModJar(release: RawRelease, tag: string): RawAsset | null {
+function findModJar(release: GitHubRelease, tag: string): GitHubAsset | null {
   const expected = `lwjgl3ify-${tag}.jar`;
   return release.assets.find((a) => a.name === expected) ?? null;
 }
 
-function toRelease(release: RawRelease): Lwjgl3ifyRelease | null {
+function toRelease(release: GitHubRelease): Lwjgl3ifyRelease | null {
   const versionJson = release.assets.find((a) => a.name === 'version.json');
   if (!versionJson) return null;
   const modJar = findModJar(release, release.tag_name);
@@ -86,7 +86,7 @@ export async function resolveLwjgl3ifyVersion(
   options: ResolveLwjgl3ifyOptions = {},
 ): Promise<Lwjgl3ifyRelease> {
   const repo = options.repo ?? DEFAULT_REPO;
-  const releases = (await listReleases(repo, options.token))
+  const releases = (await listGitHubReleases(repo, options.token))
     .filter((r) => !r.draft)
     .map(toRelease)
     .filter((r): r is Lwjgl3ifyRelease => r !== null);
