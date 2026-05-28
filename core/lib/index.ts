@@ -1,6 +1,6 @@
 /**
- * `@torba/core` — the frozen-manifest contract. Behaviors are backed by the
- * Rust `torba-core` crate (via napi-rs); domain types, factories and small
+ * `@lanka/core` — the frozen-manifest contract. Behaviors are backed by the
+ * Rust `lanka-core` crate (via napi-rs); domain types, factories and small
  * sugar helpers are hand-written TS.
  *
  * Strategy:
@@ -16,12 +16,12 @@
  */
 
 import { z } from 'zod';
-import * as napi from '@torba/core-binding';
+import * as napi from '@lanka/core-binding';
 
 // `fetchWithRetry` is a build-time HTTP utility (used by Mojang/Forge/Java
 // plugins). It's not part of the manifest contract, so it stays as TS —
-// build-time consumers can't reach into `@torba/runtime`, so it lives here.
-export { fetchWithRetry, TORBA_USER_AGENT } from './fetch';
+// build-time consumers can't reach into `@lanka/runtime`, so it lives here.
+export { fetchWithRetry, LANKA_USER_AGENT } from './fetch';
 export type { FetchRetryOptions } from './fetch';
 
 // `RuleSchema` is a zod schema typed to produce a domain `Rule`. Used by

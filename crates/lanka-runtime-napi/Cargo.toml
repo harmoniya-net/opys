@@ -1,0 +1,27 @@
+[package]
+name = "lanka-runtime-napi"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "napi-rs bindings for lanka-runtime. Produces @lanka/runtime's .node addon."
+# cdylib for npm consumption — not consumed by Rust callers, not on crates.io.
+publish = false
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+lanka-runtime = { path = "../lanka-runtime", version = "1.0.0" }
+lanka-core = { path = "../lanka-core", version = "1.0.0" }
+lanka-mojang-rules = { path = "../lanka-mojang-rules", version = "1.0.0" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+indexmap = { version = "2", features = ["serde"] }
+tokio = { version = "1", features = ["rt-multi-thread"] }
+
+napi = { version = "2", default-features = false, features = ["napi8", "tokio_rt", "serde-json"] }
+napi-derive = "2"
+
+[build-dependencies]
+napi-build = "2"

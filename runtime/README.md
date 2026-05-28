@@ -1,11 +1,11 @@
-# @torba/installer
+# @lanka/installer
 
-Programmatic install and launch for Torba manifests. Downloads artifacts in parallel, verifies integrity, extracts natives, and spawns the JVM.
+Programmatic install and launch for Lanka manifests. Downloads artifacts in parallel, verifies integrity, extracts natives, and spawns the JVM.
 
 ## Install
 
 ```sh
-npm install @torba/installer @torba/core
+npm install @lanka/installer @lanka/core
 ```
 
 ## Manifest sources
@@ -14,7 +14,7 @@ Both `install` and `launch` accept a **manifest source** as their first argument
 
 | Value             | Example                                    |
 | ----------------- | ------------------------------------------ |
-| File path string  | `'torba.json'`                             |
+| File path string  | `'lanka.json'`                             |
 | HTTPS URL object  | `new URL('https://example.com/pack.json')` |
 | Parsed `Manifest` | object returned by `resolveManifest`       |
 
@@ -25,9 +25,9 @@ Both `install` and `launch` accept a **manifest source** as their first argument
 Streams missing artifacts to `<finalPath>.partial` then renames them into place; extracts zips for artifacts with `extract` rules. Already-cached artifacts (path exists on disk) are skipped. A failed integrity check throws `IntegrityError` immediately.
 
 ```ts
-import { install } from '@torba/installer';
+import { install } from '@lanka/installer';
 
-await install('torba.json', {
+await install('lanka.json', {
   vars: {
     root: '/opt/minecraft/1.20.1',
     username: 'Player',
@@ -72,9 +72,9 @@ Runs `install` then spawns the process described by the manifest's launch config
 Pass `install: false` to skip installation.
 
 ```ts
-import { launch } from '@torba/installer';
+import { launch } from '@lanka/installer';
 
-const child = await launch('torba.json', {
+const child = await launch('lanka.json', {
   vars: {
     root: '/opt/minecraft/1.20.1',
     username: 'Player',
@@ -108,9 +108,9 @@ await new Promise<void>((resolve, reject) => {
 Resolves any manifest source to a `Manifest` object.
 
 ```ts
-import { resolveManifest } from '@torba/installer';
+import { resolveManifest } from '@lanka/installer';
 
-const manifest = await resolveManifest('torba.json');
+const manifest = await resolveManifest('lanka.json');
 console.log(manifest.artifacts.length);
 ```
 
@@ -121,7 +121,7 @@ console.log(manifest.artifacts.length);
 Returns the `OsOptions` for the current host.
 
 ```ts
-import { currentPlatform } from '@torba/installer';
+import { currentPlatform } from '@lanka/installer';
 
 const platform = currentPlatform();
 // { name: 'linux', arch: 'x64', version: '...' }

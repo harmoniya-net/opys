@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { fetchWithRetry } from '@torba/core';
+import { fetchWithRetry } from '@lanka/core';
 
 export interface AssetObject {
   readonly hash: string;

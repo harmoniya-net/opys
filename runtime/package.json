@@ -1,6 +1,6 @@
 {
-  "name": "@torba/runtime",
-  "version": "1.0.14",
+  "name": "@lanka/runtime",
+  "version": "1.0.0",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
   "exports": {
@@ -19,8 +19,8 @@
   },
   "type": "module",
   "dependencies": {
-    "@torba/core": "^1.0.14",
-    "@torba/runtime-binding": "^1.0.14"
+    "@lanka/core": "^1.0.0",
+    "@lanka/runtime-binding": "^1.0.0"
   },
   "engines": {
     "node": ">=20"

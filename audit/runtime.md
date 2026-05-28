@@ -1,10 +1,10 @@
-# Audit — `@torba/runtime`
+# Audit — `@lanka/runtime`
 
 Code-quality audit, refreshed post-Rust-port — open items only (resolved
 findings removed; see git history).
 
 The install pipeline (resolve → pointer → discovery → scan → fetch →
-verify → extract → sweep) now lives in the `torba-runtime` Rust crate.
+verify → extract → sweep) now lives in the `lanka-runtime` Rust crate.
 `runtime/lib/index.ts` is a thin shim: typed wrappers around the napi-rs
 binding plus a Node `child_process.spawn` for `launch`, and a
 message-parsing `translateError` that rewraps `napi::Error` reasons into

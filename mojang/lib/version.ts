@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { fetchWithRetry } from '@torba/core';
+import { fetchWithRetry } from '@lanka/core';
 
 export class VersionFetchError extends Error {
   readonly kind = 'version-fetch' as const;

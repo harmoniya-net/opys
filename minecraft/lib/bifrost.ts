@@ -1,6 +1,6 @@
 /**
  * Mint a [Bifrost](https://gitlab.com/harmoniya/bifrost)-compatible JWT
- * locally so torba's `runClient` can launch Minecraft against a self-hosted
+ * locally so lanka's `runClient` can launch Minecraft against a self-hosted
  * Yggdrasil server without going through the OAuth `/token` flow.
  *
  * Bifrost validates incoming bearer tokens with a single Ed25519 public key

@@ -1,6 +1,6 @@
 {
-  "name": "torba",
-  "version": "1.0.14",
+  "name": "lanka",
+  "version": "1.0.0",
   "private": true,
   "scripts": {
     "format": "prettier --write .",
@@ -20,8 +20,8 @@
     "java",
     "runtime",
     "cli",
-    "crates/torba-core-napi",
-    "crates/torba-runtime-napi"
+    "crates/lanka-core-napi",
+    "crates/lanka-runtime-napi"
   ],
   "devDependencies": {
     "@napi-rs/cli": "^2.18.4",

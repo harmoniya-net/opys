@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { mapAssetIndex, mapAssetObjects } from '../../lib/mappers/assets';
-import type { AssetIndex, AssetManifest } from '@torba/mojang';
+import type { AssetIndex, AssetManifest } from '@lanka/mojang';
 
 const index: AssetIndex = {
   id: '5',

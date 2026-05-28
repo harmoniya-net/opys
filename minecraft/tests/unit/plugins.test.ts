@@ -8,7 +8,7 @@ import {
   authliberty,
   curseforge,
 } from '../../lib/plugins';
-import type { BuildContext } from '@torba/dev';
+import type { BuildContext } from '@lanka/dev';
 import {
   ASSET_MANIFEST,
   VERSION_MANIFEST,

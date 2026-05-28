@@ -1,6 +1,6 @@
-import type { Artifact } from '@torba/core';
-import { sourceUrl, extractDump } from '@torba/core';
-import type { Library } from '@torba/mojang';
+import type { Artifact } from '@lanka/core';
+import { sourceUrl, extractDump } from '@lanka/core';
+import type { Library } from '@lanka/mojang';
 
 export function libraryToArtifact(lib: Library): Artifact {
   const path = `\${library_directory}/${lib.artifact.path}`;

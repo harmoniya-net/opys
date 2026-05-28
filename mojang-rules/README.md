@@ -1,11 +1,11 @@
-# @torba/mojang-rules
+# @lanka/mojang-rules
 
 Pure platform and feature rule evaluation. No side effects, no I/O — just POJOs and functions.
 
 ## Install
 
 ```sh
-npm install @torba/mojang-rules zod
+npm install @lanka/mojang-rules zod
 ```
 
 ## Concepts
@@ -28,7 +28,7 @@ A **Ruleset** is an array of rules. All rules must be satisfied for the ruleset 
 Returns `true` if every rule in `ruleset` is satisfied for the given OS and feature set.
 
 ```ts
-import { satisfiesRuleset } from '@torba/mojang-rules';
+import { satisfiesRuleset } from '@lanka/mojang-rules';
 
 const passes = satisfiesRuleset([{ action: 'allow', os: { name: 'linux' } }], {
   name: 'linux',
@@ -38,12 +38,12 @@ const passes = satisfiesRuleset([{ action: 'allow', os: { name: 'linux' } }], {
 // true
 ```
 
-Compact "shorthand" parsing of rules lives in `@torba/core`.
+Compact "shorthand" parsing of rules lives in `@lanka/core`.
 
 ### Ruleset helpers
 
 ```ts
-import { emptyRuleset, allowOsRuleset } from '@torba/mojang-rules';
+import { emptyRuleset, allowOsRuleset } from '@lanka/mojang-rules';
 
 emptyRuleset(); // []
 allowOsRuleset('linux'); // [{ action: 'allow', os: { name: 'linux' } }]
@@ -52,7 +52,7 @@ allowOsRuleset('linux'); // [{ action: 'allow', os: { name: 'linux' } }]
 ### Zod schemas
 
 ```ts
-import { RuleSchema, RulesetSchema } from '@torba/mojang-rules';
+import { RuleSchema, RulesetSchema } from '@lanka/mojang-rules';
 
 const rule = RuleSchema.parse({ action: 'allow', os: { name: 'osx' } });
 const rules = RulesetSchema.parse([...]);

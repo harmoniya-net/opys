@@ -3,7 +3,7 @@
  * Run with `npm run test:int`; excluded from the default `npm test`.
  */
 import { describe, expect, it } from 'vitest';
-import type { BuildContext } from '@torba/dev';
+import type { BuildContext } from '@lanka/dev';
 import { java, resolveOpenjdk } from '../../lib';
 
 const ctx: BuildContext = {

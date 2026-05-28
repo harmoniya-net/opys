@@ -1,4 +1,4 @@
-import { definePlugin, type TorbaPlugin } from '@torba/dev';
+import { definePlugin, type LankaPlugin } from '@lanka/dev';
 import { resolveJava, type JavaOptions } from './template';
 
 /**
@@ -9,7 +9,7 @@ import { resolveJava, type JavaOptions } from './template';
 export function java(
   version: string,
   opts: Omit<JavaOptions, 'version'> = {},
-): TorbaPlugin {
+): LankaPlugin {
   return definePlugin({
     name: 'java',
     async build(ctx) {

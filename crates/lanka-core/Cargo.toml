@@ -1,0 +1,21 @@
+[package]
+name = "lanka-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "lanka manifest data model + shorthand + Val/Valset. Reference implementation of lanka.json."
+
+[dependencies]
+lanka-mojang-rules = { path = "../lanka-mojang-rules", version = "1.0.0" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+regex = { workspace = true }
+thiserror = { workspace = true }
+base64 = "0.22"
+indexmap = { version = "2", features = ["serde"] }
+
+[dev-dependencies]
+serde_json = { workspace = true }

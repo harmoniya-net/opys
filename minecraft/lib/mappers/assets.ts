@@ -1,7 +1,7 @@
-import type { Artifact } from '@torba/core';
-import { sourceUrl } from '@torba/core';
-import type { AssetManifest, AssetIndex } from '@torba/mojang';
-import { assetUrl, assetPath } from '@torba/mojang';
+import type { Artifact } from '@lanka/core';
+import { sourceUrl } from '@lanka/core';
+import type { AssetManifest, AssetIndex } from '@lanka/mojang';
+import { assetUrl, assetPath } from '@lanka/mojang';
 
 export function mapAssetIndex(index: AssetIndex): Artifact {
   return {

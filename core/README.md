@@ -1,11 +1,11 @@
-# @torba/core
+# @lanka/core
 
-Data model for Torba manifests. Types, factory functions, Zod parsers, and encode/decode utilities. No I/O.
+Data model for Lanka manifests. Types, factory functions, Zod parsers, and encode/decode utilities. No I/O.
 
 ## Install
 
 ```sh
-npm install @torba/core @torba/rules zod
+npm install @lanka/core @lanka/rules zod
 ```
 
 ## Types
@@ -53,7 +53,7 @@ encodeExtract(rules)
 An artifact has a source, optional integrity/size checks, optional extract rules, and optional rulesets that gate it per platform or feature.
 
 ```ts
-import { ArtifactSchema, encodeArtifact } from '@torba/core';
+import { ArtifactSchema, encodeArtifact } from '@lanka/core';
 
 const artifact = ArtifactSchema.parse(raw);
 encodeArtifact(artifact);
@@ -88,7 +88,7 @@ import {
   encodeValDefs,
   resolveValDefs,
   resolveVars,
-} from '@torba/core';
+} from '@lanka/core';
 
 const defs = parseValDefs(raw);
 const flat = resolveValDefs(defs, platform); // pick OS-appropriate values
@@ -98,13 +98,13 @@ const result = interpolate('${root}/assets', vars);
 
 ### `defineConfig` — config file helper
 
-Used as the default export in `torba.config.mjs`:
+Used as the default export in `lanka.config.mjs`:
 
 ```ts
-import { defineConfig } from '@torba/core';
+import { defineConfig } from '@lanka/core';
 
 export default defineConfig({
-  output: 'torba.json',
+  output: 'lanka.json',
   manifest: {
     artifacts: [...],
     vars: [...],

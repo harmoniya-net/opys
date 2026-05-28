@@ -4,7 +4,7 @@ import {
   fetchClient,
   clientToTemplate,
 } from '../../lib/template';
-import { parseClient } from '@torba/mojang';
+import { parseClient } from '@lanka/mojang';
 import {
   ASSET_MANIFEST,
   VERSION_MANIFEST,

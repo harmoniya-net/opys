@@ -5,12 +5,12 @@ import {
   type Arguments,
   type Library,
   type MojangArgValue,
-} from '@torba/mojang';
-import { type Ruleset, RuleSchema } from '@torba/core';
+} from '@lanka/mojang';
+import { type Ruleset, RuleSchema } from '@lanka/core';
 
 /**
  * Forge version JSONs sometimes embed raw `../libraries/` paths (relative to a
- * `.minecraft/versions/<id>/` layout). Rewrite to the torba var equivalent.
+ * `.minecraft/versions/<id>/` layout). Rewrite to the lanka var equivalent.
  */
 function fixPath(s: string): string {
   return s.replace(/\.\.\/libraries\//g, '${library_directory}/');
@@ -25,7 +25,7 @@ function fixArg(arg: MojangArgValue): MojangArgValue {
 }
 
 /**
- * Rewrite raw `../libraries/` paths in a recipe's parsed args to the torba
+ * Rewrite raw `../libraries/` paths in a recipe's parsed args to the lanka
  * `${library_directory}` var. Only the JVM args carry such paths.
  */
 function fixArgs(args: Arguments): Arguments {

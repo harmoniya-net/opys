@@ -6,9 +6,9 @@ import {
   type ConditionalVal,
   sourceUrl,
   fetchWithRetry,
-} from '@torba/core';
-import type { Val, Valset } from '@torba/core';
-import { parseClient, parseMaven, type MavenCoord } from '@torba/mojang';
+} from '@lanka/core';
+import type { Val, Valset } from '@lanka/core';
+import { parseClient, parseMaven, type MavenCoord } from '@lanka/mojang';
 import {
   resolveLwjgl3ifyVersion,
   type Lwjgl3ifyRelease,
@@ -254,7 +254,7 @@ function augmentClasspath(
 }
 
 /**
- * Build a torba template that launches Minecraft 1.7.10 under lwjgl3ify
+ * Build a lanka template that launches Minecraft 1.7.10 under lwjgl3ify
  * (LWJGL 3 + modern Java runtime via RetroFuturaBootstrap, with Forge
  * 1.7.10's classes patched for Java 9+ compatibility).
  *

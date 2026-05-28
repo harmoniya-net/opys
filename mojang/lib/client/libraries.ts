@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { type Ruleset, RuleSchema, OsNameSchema } from '@torba/core';
+import { type Ruleset, RuleSchema, OsNameSchema } from '@lanka/core';
 import { type MavenCoord, MavenCoordSchema, isNativeMaven } from './maven';
 
 export interface Artifact {
@@ -11,7 +11,7 @@ export interface Artifact {
 
 export interface Library {
   readonly name: MavenCoord;
-  /** Mojang OS/feature rules — the shared `@torba/mojang-rules` format. */
+  /** Mojang OS/feature rules — the shared `@lanka/mojang-rules` format. */
   readonly rules: Ruleset;
   readonly artifact: Artifact;
   readonly native: boolean;
@@ -49,7 +49,7 @@ export function parseLibraries(raws: unknown[]): Library[] {
     }
     for (const [osName, classifierKey] of Object.entries(raw.natives)) {
       // Intentional: only the legacy `ca.weblite:java-objc-bridge` classifier
-      // uses the `{arch}` placeholder, and torba targets 64-bit exclusively.
+      // uses the `{arch}` placeholder, and lanka targets 64-bit exclusively.
       const key = classifierKey.replace('{arch}', '64');
       const artifact = raw.downloads.classifiers[key];
       if (artifact) {

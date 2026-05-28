@@ -1,10 +1,10 @@
 import { dirname, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { resolveConfig, type TorbaConfig } from '@torba/dev';
+import { resolveConfig, type LankaConfig } from '@lanka/dev';
 import { UsageError } from './errors';
 
 export interface LoadedConfig {
-  config: TorbaConfig;
+  config: LankaConfig;
   configDir: string;
 }
 

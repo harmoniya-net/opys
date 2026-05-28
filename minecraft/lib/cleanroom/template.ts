@@ -13,14 +13,14 @@ import {
   sourceUrl,
   extractScan,
   fetchWithRetry,
-} from '@torba/core';
-import type { Val, Valset } from '@torba/core';
+} from '@lanka/core';
+import type { Val, Valset } from '@lanka/core';
 import {
   parseArguments,
   parseLibraries,
   type Library,
   type MojangArgValue,
-} from '@torba/mojang';
+} from '@lanka/mojang';
 import {
   resolveCleanroomVersion,
   type CleanroomRelease,
@@ -91,7 +91,7 @@ function readJsonEntry<T>(zip: Record<string, Uint8Array>, name: string): T {
 }
 
 /**
- * Build a torba template that launches Minecraft with the Cleanroom loader.
+ * Build a lanka template that launches Minecraft with the Cleanroom loader.
  *
  * Cleanroom is structurally similar to legacy Forge: vanilla 1.12.2 + a custom
  * mainClass (`top.outlands.foundation.boot.Foundation`) + a legacy

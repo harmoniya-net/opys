@@ -3,7 +3,7 @@ import {
   type Ruleset,
   globToRegex,
   parseShortRuleset,
-} from '@torba/core';
+} from '@lanka/core';
 
 /**
  * Targets a subset of artifacts:

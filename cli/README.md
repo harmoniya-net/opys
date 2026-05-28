@@ -1,60 +1,60 @@
-# torba CLI
+# lanka CLI
 
 Command-line interface for building and launching Minecraft client installations from declarative manifests.
 
 ## Install
 
 ```sh
-npm install -g @torba/cli
+npm install -g @lanka/cli
 ```
 
 Or run directly without installing:
 
 ```sh
-npx @torba/cli <command>
+npx @lanka/cli <command>
 ```
 
 ## Commands
 
-### `torba build`
+### `lanka build`
 
-Reads a JS config file, fetches Mojang metadata, and writes a `torba.json` manifest.
+Reads a JS config file, fetches Mojang metadata, and writes a `lanka.json` manifest.
 
 ```sh
-torba build [--input torba.config.mjs] [--output torba.json]
+lanka build [--input lanka.config.mjs] [--output lanka.json]
 ```
 
 | Flag       | Short | Default                | Description                       |
 | ---------- | ----- | ---------------------- | --------------------------------- |
-| `--input`  | `-i`  | `torba.config.mjs`     | Path to the JS config file        |
+| `--input`  | `-i`  | `lanka.config.mjs`     | Path to the JS config file        |
 | `--output` | `-o`  | value from config file | Output path for the manifest JSON |
 
 If `--output` is omitted and the config has no `output` field, the manifest is written to stdout.
 
-### `torba launch`
+### `lanka launch`
 
 Installs missing artifacts and spawns the JVM.
 
 ```sh
-torba launch [manifest] [--var key=value ...]
+lanka launch [manifest] [--var key=value ...]
 ```
 
 Common vars to pass at launch: `username`, `uuid`, `token`.
 
-## Config file (`torba.config.mjs`)
+## Config file (`lanka.config.mjs`)
 
 ```js
 import {
   defineConfig,
   resolveMinecraft,
   artifactScanner,
-} from '@torba/minecraft';
+} from '@lanka/minecraft';
 
 export default defineConfig(async () => {
   const mc = await resolveMinecraft({ version: '1.20.1' });
 
   return {
-    output: 'torba.json',
+    output: 'lanka.json',
     manifest: {
       artifacts: [
         mc.artifacts,

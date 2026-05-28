@@ -14,7 +14,7 @@ import {
   type Manifest,
 } from '../../lib';
 
-describe('@torba/core — napi boundary smoke', () => {
+describe('@lanka/core — napi boundary smoke', () => {
   test('parseManifest decodes JSON', () => {
     const m = parseManifest(
       JSON.stringify({

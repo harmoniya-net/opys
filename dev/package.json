@@ -1,6 +1,6 @@
 {
-  "name": "@torba/dev",
-  "version": "1.0.14",
+  "name": "@lanka/dev",
+  "version": "1.0.0",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
   "exports": {
@@ -19,7 +19,7 @@
   },
   "type": "module",
   "dependencies": {
-    "@torba/core": "^1.0.14"
+    "@lanka/core": "^1.0.0"
   },
   "peerDependencies": {
     "zod": "^4.0.0"

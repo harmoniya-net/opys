@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { type Ruleset, RuleSchema } from '@torba/core';
+import { type Ruleset, RuleSchema } from '@lanka/core';
 
 /** Raw Mojang argument: a plain string or a conditional { rules, value } object. */
 export type MojangArgValue =

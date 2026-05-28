@@ -1,5 +1,5 @@
-import { definePlugin, type TorbaPlugin, type LaunchGroups } from '@torba/dev';
-import type { Launch, Val, Valset } from '@torba/core';
+import { definePlugin, type LankaPlugin, type LaunchGroups } from '@lanka/dev';
+import type { Launch, Val, Valset } from '@lanka/core';
 import { resolveMinecraft } from './template';
 import { resolveForge, type ForgeOptions } from './forge/index';
 import { resolveCleanroom, type CleanroomOptions } from './cleanroom/index';
@@ -33,7 +33,7 @@ function launchGroups(t: LoaderTemplate): LaunchGroups {
 }
 
 /** Vanilla Minecraft client + libraries + assets. */
-export function minecraft(version?: string): TorbaPlugin {
+export function minecraft(version?: string): LankaPlugin {
   return definePlugin({
     name: 'minecraft',
     async build(ctx) {
@@ -48,7 +48,7 @@ export function minecraft(version?: string): TorbaPlugin {
 export function forge(
   version: string,
   opts: Omit<ForgeOptions, 'version'> = {},
-): TorbaPlugin {
+): LankaPlugin {
   return definePlugin({
     name: 'forge',
     async build(ctx) {
@@ -63,7 +63,7 @@ export function forge(
 export function cleanroom(
   version: string,
   opts: Omit<CleanroomOptions, 'version'> = {},
-): TorbaPlugin {
+): LankaPlugin {
   return definePlugin({
     name: 'cleanroom',
     async build(ctx) {
@@ -78,7 +78,7 @@ export function cleanroom(
 export function lwjgl3ify(
   version: string,
   opts: Omit<Lwjgl3ifyOptions, 'version'> = {},
-): TorbaPlugin {
+): LankaPlugin {
   return definePlugin({
     name: 'lwjgl3ify',
     async build(ctx) {
@@ -93,7 +93,7 @@ export function lwjgl3ify(
 export function authliberty(
   version: string,
   opts: Omit<AuthLibertyOptions, 'version'> = {},
-): TorbaPlugin {
+): LankaPlugin {
   return definePlugin({
     name: 'authliberty',
     async build(ctx) {
@@ -111,7 +111,7 @@ export interface CurseforgePluginOptions extends CurseForgeOptions {
 }
 
 /** Mod files resolved from the CurseForge API. */
-export function curseforge(options: CurseforgePluginOptions): TorbaPlugin {
+export function curseforge(options: CurseforgePluginOptions): LankaPlugin {
   return definePlugin({
     name: 'curseforge',
     async build(ctx) {

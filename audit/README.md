@@ -1,4 +1,4 @@
-# torba code-quality audit — 2026-05-19
+# lanka code-quality audit — 2026-05-19
 
 Read-only audit of every package's `lib/`, hunting for overcomplication,
 reinvented wheels, messy code, and questionable design — judged against the
@@ -56,5 +56,5 @@ fixed (see git history); one file per package below.
 ## Notes — deliberate, not problems
 
 `core`'s hand-rolled glob→regex and fetch-retry, and `dev`'s `userDataDir`,
-are justified zero-dep choices for their packages. `@torba/runtime`'s tar
+are justified zero-dep choices for their packages. `@lanka/runtime`'s tar
 reader is being moved onto `tar-stream`.

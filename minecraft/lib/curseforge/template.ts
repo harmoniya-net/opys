@@ -1,5 +1,5 @@
-import type { Artifact, HashEntry } from '@torba/core';
-import { sourceUrl, fetchWithRetry } from '@torba/core';
+import type { Artifact, HashEntry } from '@lanka/core';
+import { sourceUrl, fetchWithRetry } from '@lanka/core';
 
 const CURSEFORGE_API = 'https://api.curseforge.com/v1';
 const FILES_BATCH_SIZE = 200;
@@ -39,14 +39,14 @@ export type CurseForgeFileRef = number | string;
 export interface CurseForgeOptions {
   /**
    * Install path callback, invoked once per file. May return a string
-   * containing torba install-time vars like `${root}` or
+   * containing lanka install-time vars like `${root}` or
    * `${game_directory}` — they get interpolated at install time.
    */
   path: CurseForgePath;
   /**
    * CurseForge API key (https://console.curseforge.com/#/api-keys).
    * Consumed only at build time — the artifact URLs are public CDN
-   * links, so end users running `torba launch` against a built manifest
+   * links, so end users running `lanka launch` against a built manifest
    * do not need a key.
    */
   token: string;
@@ -104,7 +104,7 @@ async function fetchFiles(token: string, fileIds: number[]): Promise<CFFile[]> {
 }
 
 /**
- * Resolve CurseForge file refs into torba `Artifact`s sharing one install
+ * Resolve CurseForge file refs into lanka `Artifact`s sharing one install
  * path. Call multiple times for different destinations (mods,
  * resourcepacks, shaderpacks, …) and drop each result straight into your
  * manifest's `artifacts` list.

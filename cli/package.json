@@ -1,8 +1,8 @@
 {
-  "name": "@torba/cli",
-  "version": "1.0.14",
+  "name": "@lanka/cli",
+  "version": "1.0.0",
   "bin": {
-    "torba": "dist/torba.mjs"
+    "lanka": "dist/lanka.mjs"
   },
   "files": [
     "dist"
@@ -15,11 +15,11 @@
   },
   "type": "module",
   "dependencies": {
-    "@torba/core": "^1.0.14",
-    "@torba/dev": "^1.0.14",
-    "@torba/runtime": "^1.0.14",
-    "@torba/minecraft": "^1.0.14",
-    "@torba/mojang": "^1.0.14"
+    "@lanka/core": "^1.0.0",
+    "@lanka/dev": "^1.0.0",
+    "@lanka/runtime": "^1.0.0",
+    "@lanka/minecraft": "^1.0.0",
+    "@lanka/mojang": "^1.0.0"
   },
   "peerDependencies": {
     "zod": "^4.0.0"

@@ -1,14 +1,14 @@
-import type { Val, Valset, OsOptions, Ruleset } from '@torba/core';
-import { parseValset, allowOsRuleset, satisfiesRuleset } from '@torba/core';
-import type { MojangArgValue } from '@torba/mojang';
-import type { Launch, ConditionalVal } from '@torba/core';
+import type { Val, Valset, OsOptions, Ruleset } from '@lanka/core';
+import { parseValset, allowOsRuleset, satisfiesRuleset } from '@lanka/core';
+import type { MojangArgValue } from '@lanka/mojang';
+import type { Launch, ConditionalVal } from '@lanka/core';
 
 /**
  * Decomposed parts of a Minecraft `Launch` config. `launch` is the
  * assembled `Launch` (drop straight into `manifest.launch`); the
  * remaining fields expose the JVM args, main class, and game args
  * separately so callers can interleave their own JVM args (e.g. from
- * `@torba/authliberty`) before the main class.
+ * `@lanka/authliberty`) before the main class.
  *
  * `mainClass` is exposed as a `Val` so it slots directly into a
  * `Valset` between `jvmArgs` and `gameArgs`. Use `mainClass.value[0]`

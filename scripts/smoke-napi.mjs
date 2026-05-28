@@ -11,8 +11,8 @@ import { join } from 'node:path';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const core = require('../crates/torba-core-napi/index.js');
-const runtime = require('../crates/torba-runtime-napi/index.js');
+const core = require('../crates/lanka-core-napi/index.js');
+const runtime = require('../crates/lanka-runtime-napi/index.js');
 
 let ok = 0;
 let fail = 0;
@@ -40,12 +40,12 @@ check('globBase strips wildcards', core.globBase('/x/y/**/*.jar') === '/x/y');
 
 const decoded = core.parseManifest(
   JSON.stringify({
-    vars: { root: '/tmp/torba' },
+    vars: { root: '/tmp/lanka' },
     artifacts: [{ path: '${root}/a.jar', source: { url: 'https://x' } }],
   }),
 );
 check('parseManifest yields the artifact', decoded.artifacts.length === 1);
-check('parseManifest preserves vars', decoded.vars.root === '/tmp/torba');
+check('parseManifest preserves vars', decoded.vars.root === '/tmp/lanka');
 
 const filtered = core.filterManifest(
   {
@@ -72,7 +72,7 @@ check(
 );
 
 console.log('\n— runtime —');
-const dir = mkdtempSync(join(tmpdir(), 'torba-napi-'));
+const dir = mkdtempSync(join(tmpdir(), 'lanka-napi-'));
 console.log(`  tmpdir: ${dir}`);
 const events = [];
 await runtime.install(

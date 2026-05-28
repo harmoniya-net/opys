@@ -1,4 +1,4 @@
-# Audit — `@torba/cli`
+# Audit — `@lanka/cli`
 
 Code-quality audit, 2026-05-19 — open items only (resolved findings removed;
 see git history).
@@ -12,7 +12,7 @@ None.
 - **`lib/args.ts` (whole file) — the wrapper earns little over `node:util`.**
   It wraps `node:util.parseArgs` in a `FlagSpec[]` → `ParsedArgs` adapter, but
   the flag set is tiny (`input`, `output`, `mode` — all strings) and
-  `extractGlobals` in `torba.ts` already bypasses the wrapper for the global
+  `extractGlobals` in `lanka.ts` already bypasses the wrapper for the global
   flags. Its only real value-add is mapping the thrown error to `UsageError` —
   one try/catch. Consider calling `node:util.parseArgs` directly with a small
   `parse` helper.
@@ -28,8 +28,8 @@ None.
 - **`lib/progress.ts:141-144` — `ProgressWriter.log` duplicates the "clear then
   write line" path that `Logger.emit` also does.** Route launch's `pw.log(...)`
   status messages through `logger.info` for one consistent path.
-- **`bin/torba.ts:104-118` — the fallback error handler prints two stacks**
-  (`err.cause.stack` then `err.stack`), each gated on `TORBA_QUIET`. Verbose;
+- **`bin/lanka.ts:104-118` — the fallback error handler prints two stacks**
+  (`err.cause.stack` then `err.stack`), each gated on `LANKA_QUIET`. Verbose;
   a single stack usually suffices.
 - **`lib/progress.ts:12-15` — `formatSpeed` thresholds at 1000, `formatBytes`
   at 1024.** Cosmetic inconsistency.

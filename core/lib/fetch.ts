@@ -7,16 +7,16 @@
  * Network-level retries cover the AggregateError ETIMEDOUT / ECONNRESET
  * / ENOTFOUND / EAI_AGAIN / ECONNREFUSED cases that node:undici reports
  * as `TypeError: fetch failed` with a populated `cause`. Without this
- * one DNS hiccup mid-`torba launch` aborts the whole config evaluation.
+ * one DNS hiccup mid-`lanka launch` aborts the whole config evaluation.
  */
 
 /**
- * Default `User-Agent` for every torba HTTP request. The bare `undici`
+ * Default `User-Agent` for every lanka HTTP request. The bare `undici`
  * agent gets rejected or rate-limited by some CDNs and by the CurseForge
  * API, so we identify ourselves. The patch component is omitted so the
  * string doesn't churn against `package.json` on every release.
  */
-export const TORBA_USER_AGENT = 'torba/1.0';
+export const LANKA_USER_AGENT = 'lanka/1.0';
 
 export interface FetchRetryOptions {
   /** Total attempts including the first. Default 4 (so up to 3 retries). */
@@ -125,7 +125,7 @@ export async function fetchWithRetry(
 
   // Default the User-Agent without clobbering a caller-supplied one.
   const headers = new Headers(init.headers);
-  if (!headers.has('user-agent')) headers.set('user-agent', TORBA_USER_AGENT);
+  if (!headers.has('user-agent')) headers.set('user-agent', LANKA_USER_AGENT);
 
   let lastErr: unknown;
   for (let attempt = 1; attempt <= attempts; attempt++) {

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { fetchWithRetry, TORBA_USER_AGENT } from '../../lib/fetch';
+import { fetchWithRetry, LANKA_USER_AGENT } from '../../lib/fetch';
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -14,9 +14,9 @@ const transient = (code: string) => {
   return err;
 };
 
-describe('TORBA_USER_AGENT', () => {
+describe('LANKA_USER_AGENT', () => {
   it('is a non-empty identifying string', () => {
-    expect(TORBA_USER_AGENT).toMatch(/^torba\//);
+    expect(LANKA_USER_AGENT).toMatch(/^lanka\//);
   });
 });
 
@@ -34,7 +34,7 @@ describe('fetchWithRetry', () => {
     vi.stubGlobal('fetch', fetchMock);
     await fetchWithRetry('https://x');
     const init = fetchMock.mock.calls[0]![1] as RequestInit;
-    expect(new Headers(init.headers).get('user-agent')).toBe(TORBA_USER_AGENT);
+    expect(new Headers(init.headers).get('user-agent')).toBe(LANKA_USER_AGENT);
   });
 
   it('does not clobber a caller-supplied User-Agent', async () => {

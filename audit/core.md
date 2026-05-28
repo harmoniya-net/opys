@@ -1,10 +1,10 @@
-# Audit — `@torba/core`
+# Audit — `@lanka/core`
 
 Code-quality audit, refreshed post-Rust-port — open items only (resolved
 findings removed; see git history).
 
 The decode/encode/resolve/filter/interpolate/glob behaviors that were
-previously the bulk of this package now live in the `torba-core` Rust
+previously the bulk of this package now live in the `lanka-core` Rust
 crate. `core/lib/index.ts` is a thin shim: typed wrappers around the
 napi-rs binding plus hand-written sugar (factories, type guards,
 `parseShortRuleset`, `parseValset`, `deduplicateArtifacts`).
@@ -33,9 +33,9 @@ None.
 
 ## Notes (not findings)
 
-- `fetch.ts` (build-time HTTP retry) intentionally stays in `@torba/core`
+- `fetch.ts` (build-time HTTP retry) intentionally stays in `@lanka/core`
   rather than moving to `runtime` — the consumers (mojang/forge/java/
-  curseforge plugins) can't depend on `@torba/runtime` per the
+  curseforge plugins) can't depend on `@lanka/runtime` per the
   build/runtime invariant.
 
 ## Verdict

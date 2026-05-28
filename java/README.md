@@ -1,18 +1,18 @@
-# @torba/java
+# @lanka/java
 
-OpenJDK runtime support for torba — auto-installs an [Eclipse Temurin](https://adoptium.net) JDK and exposes `${java_home}` and `${java_bin}` as standardized vars so loader templates can reference a portable Java binary.
+OpenJDK runtime support for lanka — auto-installs an [Eclipse Temurin](https://adoptium.net) JDK and exposes `${java_home}` and `${java_bin}` as standardized vars so loader templates can reference a portable Java binary.
 
 ## Install
 
 ```sh
-npm install @torba/java
+npm install @lanka/java
 ```
 
 ## Usage
 
 ```ts
-import { resolveJava } from '@torba/java';
-import { resolveLwjgl3ify } from '@torba/lwjgl3ify';
+import { resolveJava } from '@lanka/java';
+import { resolveLwjgl3ify } from '@lanka/lwjgl3ify';
 
 const lw = await resolveLwjgl3ify({ version: '3.0.16' });
 const jav = await resolveJava({ version: '21' });
@@ -50,11 +50,11 @@ resolveJava({
 4. Each artifact has an `extract: dump` rule pointing at `${root}/runtimes/jdk-<major>/`, so the JDK lands at `${root}/runtimes/jdk-<major>/jdk-<full>/`.
 5. Sets `java_home` (per OS — macOS gets the `/Contents/Home` suffix) and `java_bin` (`${java_home}/bin/java` on POSIX, `${java_home}/bin/java.exe` on Windows).
 
-`@torba/installer` extracts both `.zip` (Windows) and `.tar.gz` / `.tgz` (Linux/macOS) archives, preserving the executable bit on tar entries so `bin/java` stays runnable without a chmod step.
+`@lanka/installer` extracts both `.zip` (Windows) and `.tar.gz` / `.tgz` (Linux/macOS) archives, preserving the executable bit on tar entries so `bin/java` stays runnable without a chmod step.
 
 ## Standard `${java_home}` and `${java_bin}` vars
 
-Every torba template returned by `@torba/minecraft` (and by any loader built on it) now sets `launch.command = '${java_bin}'`, with `java_bin` defaulting to the literal `'java'` (PATH lookup). When you spread `@torba/java`'s vars over the loader's, the var resolves to the auto-installed JDK instead — without any change to the launch command.
+Every lanka template returned by `@lanka/minecraft` (and by any loader built on it) now sets `launch.command = '${java_bin}'`, with `java_bin` defaulting to the literal `'java'` (PATH lookup). When you spread `@lanka/java`'s vars over the loader's, the var resolves to the auto-installed JDK instead — without any change to the launch command.
 
 ## Notes
 

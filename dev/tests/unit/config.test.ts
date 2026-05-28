@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { defineConfig, resolveConfig } from '../../lib/config';
-import type { TorbaConfig } from '../../lib/config';
+import type { LankaConfig } from '../../lib/config';
 
-const base: TorbaConfig = {
+const base: LankaConfig = {
   plugins: [],
   manifest: { command: () => 'java', args: () => [] },
 };

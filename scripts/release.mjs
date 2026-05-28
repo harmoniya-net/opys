@@ -9,7 +9,7 @@
 //
 // npm and crates.io versions stay in lockstep. The two -napi crates are
 // `publish = false` so cargo skips them; they ship through their npm-side
-// `@torba/*-binding` packages, which carry the same version.
+// `@lanka/*-binding` packages, which carry the same version.
 
 import { execSync } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
@@ -40,14 +40,14 @@ const version = nextVersion(root.version, process.argv[2] ?? 'patch');
 console.log(`Releasing ${root.version} -> ${version}\n`);
 
 // 2a. Stamp the new version into the root and every npm workspace, and
-//     rewrite internal @torba/* dependency ranges so they stay in lockstep.
+//     rewrite internal @lanka/* dependency ranges so they stay in lockstep.
 const DEP_FIELDS = ['dependencies', 'devDependencies', 'peerDependencies'];
 const stampJson = (path) => {
   const pkg = readJson(path);
   pkg.version = version;
   for (const field of DEP_FIELDS) {
     for (const name of Object.keys(pkg[field] ?? {})) {
-      if (name.startsWith('@torba/')) pkg[field][name] = `^${version}`;
+      if (name.startsWith('@lanka/')) pkg[field][name] = `^${version}`;
     }
   }
   writeJson(path, pkg);
@@ -58,7 +58,7 @@ for (const ws of root.workspaces) stampJson(`${ws}/package.json`);
 
 // 2b. Stamp the same version into Cargo: the workspace `[workspace.package]`
 //     version (inherited by every crate via `version.workspace = true`) and
-//     every internal `torba-*` path-dep's `version = "..."` specifier.
+//     every internal `lanka-*` path-dep's `version = "..."` specifier.
 const stampCargoWorkspace = (path) => {
   const txt = readFileSync(path, 'utf8');
   // Replace the top-level `version = "..."` line. The `^` (with /m) anchors
@@ -73,19 +73,19 @@ const stampCargoWorkspace = (path) => {
 };
 const stampCargoCrate = (path) => {
   const txt = readFileSync(path, 'utf8');
-  // Rewrite `version = "..."` only on lines that also declare a torba-* path dep.
+  // Rewrite `version = "..."` only on lines that also declare a lanka-* path dep.
   const next = txt.replace(
-    /^(\s*torba-[a-z-]+\s*=\s*\{[^}]*?\bversion\s*=\s*")[^"]+(".*)$/gm,
+    /^(\s*lanka-[a-z-]+\s*=\s*\{[^}]*?\bversion\s*=\s*")[^"]+(".*)$/gm,
     `$1${version}$2`,
   );
   writeFileSync(path, next);
 };
 stampCargoWorkspace('Cargo.toml');
 for (const crate of [
-  'crates/torba-core',
-  'crates/torba-runtime',
-  'crates/torba-core-napi',
-  'crates/torba-runtime-napi',
+  'crates/lanka-core',
+  'crates/lanka-runtime',
+  'crates/lanka-core-napi',
+  'crates/lanka-runtime-napi',
 ]) {
   stampCargoCrate(`${crate}/Cargo.toml`);
 }
@@ -104,8 +104,8 @@ sh(`git tag v${version}`);
 //    dependency order. cargo publish (since 1.66) waits for indexing
 //    between crates, so the next publish can resolve the previous one.
 sh('npm publish --workspaces --access public');
-sh('cargo publish -p torba-mojang-rules');
-sh('cargo publish -p torba-core');
-sh('cargo publish -p torba-runtime');
+sh('cargo publish -p lanka-mojang-rules');
+sh('cargo publish -p lanka-core');
+sh('cargo publish -p lanka-runtime');
 
 console.log(`\nReleased v${version}`);

@@ -1,6 +1,6 @@
-import { install, launch, type InstallProgress } from '@torba/runtime';
-import type { Manifest } from '@torba/core';
-import { buildManifest, type BuildContext } from '@torba/dev';
+import { install, launch, type InstallProgress } from '@lanka/runtime';
+import type { Manifest } from '@lanka/core';
+import { buildManifest, type BuildContext } from '@lanka/dev';
 import { parseArgs } from '../args';
 import { loadConfig } from '../load-config';
 import {
@@ -24,14 +24,14 @@ export async function cmdLaunch(
     { long: 'input', short: 'i', type: 'string' },
     { long: 'mode', type: 'string' },
   ]);
-  const inputFile = args.getString('input') ?? 'torba.config.mjs';
+  const inputFile = args.getString('input') ?? 'lanka.config.mjs';
   const mode = args.getString('mode') ?? command;
 
   const { config, configDir } = await loadConfig(inputFile, mode);
 
   // Build the manifest in-memory from the config and launch it directly —
-  // no torba.json round-trip. (`torba build` still writes a publishable
-  // manifest; a deployed launcher feeds `@torba/runtime` a frozen one.)
+  // no lanka.json round-trip. (`lanka build` still writes a publishable
+  // manifest; a deployed launcher feeds `@lanka/runtime` a frozen one.)
   const ctx: BuildContext = {
     log: (scope, msg) => logger.info(`[${scope}] ${msg}`),
     configDir,

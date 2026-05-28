@@ -1,11 +1,11 @@
-# @torba/minecraft
+# @lanka/minecraft
 
 Bridge layer that converts Mojang version JSON into Manifest artifacts and launch config. Owns the Minecraft template and config helpers.
 
 ## Install
 
 ```sh
-npm install @torba/minecraft @torba/core @torba/rules zod
+npm install @lanka/minecraft @lanka/core @lanka/rules zod
 ```
 
 ## API
@@ -15,7 +15,7 @@ npm install @torba/minecraft @torba/core @torba/rules zod
 Fetches the Mojang version manifest and a specific version (or latest), then returns a `MinecraftTemplate` ready to be merged into a Manifest config.
 
 ```ts
-import { resolveMinecraft } from '@torba/minecraft';
+import { resolveMinecraft } from '@lanka/minecraft';
 
 const template = await resolveMinecraft({ version: '1.20.1' });
 // or omit version for latest release
@@ -31,10 +31,10 @@ template.gameArgs; // Valset — game args alone, for composition
 
 ### `clientToTemplate(client)`
 
-Low-level mapper if you already have a parsed `Client` from `@torba/mojang`.
+Low-level mapper if you already have a parsed `Client` from `@lanka/mojang`.
 
 ```ts
-import { fetchClient, clientToTemplate } from '@torba/minecraft';
+import { fetchClient, clientToTemplate } from '@lanka/minecraft';
 
 const { client } = await fetchClient('1.20.1');
 const template = await clientToTemplate(client);
@@ -42,10 +42,10 @@ const template = await clientToTemplate(client);
 
 ### `artifactScanner(options?)`
 
-Async generator that yields `Artifact` entries by scanning a local directory. Used in `torba.config.mjs` to include mod JARs or other local files.
+Async generator that yields `Artifact` entries by scanning a local directory. Used in `lanka.config.mjs` to include mod JARs or other local files.
 
 ```ts
-import { artifactScanner } from '@torba/minecraft';
+import { artifactScanner } from '@lanka/minecraft';
 
 // yields Artifact for each file under mods/
 const scanner = artifactScanner({ dir: 'mods', into: '${root}/mods' });
@@ -53,10 +53,10 @@ const scanner = artifactScanner({ dir: 'mods', into: '${root}/mods' });
 
 ### Config helpers
 
-Re-exported from `@torba/core` for convenience:
+Re-exported from `@lanka/core` for convenience:
 
 ```ts
-import { defineConfig, resolveConfig } from '@torba/minecraft';
+import { defineConfig, resolveConfig } from '@lanka/minecraft';
 ```
 
 ## Variable reference

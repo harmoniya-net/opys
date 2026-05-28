@@ -1,6 +1,6 @@
-import type { Artifact } from '@torba/core';
-import { sourceUrl } from '@torba/core';
-import type { Client } from '@torba/mojang';
+import type { Artifact } from '@lanka/core';
+import { sourceUrl } from '@lanka/core';
+import type { Client } from '@lanka/mojang';
 
 export function mapClientJar(client: Client): Artifact {
   return {

@@ -1,0 +1,45 @@
+[package]
+name = "lanka-runtime"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "lanka install + launch executor. Consumes a frozen Manifest."
+
+[dependencies]
+lanka-core = { path = "../lanka-core", version = "1.0.0" }
+lanka-mojang-rules = { path = "../lanka-mojang-rules", version = "1.0.0" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+regex = { workspace = true }
+indexmap = { version = "2", features = ["serde"] }
+
+# Async runtime
+tokio = { version = "1", features = [
+    "fs", "io-util", "macros", "process", "rt", "rt-multi-thread",
+    "sync", "time",
+] }
+futures = "0.3"
+
+# HTTP
+reqwest = { version = "0.12", default-features = false, features = [
+    "rustls-tls", "stream", "http2",
+] }
+bytes = "1"
+rand = "0.8"
+
+# Archives + hashing
+tar = "0.4"
+zip = { version = "2", default-features = false, features = ["deflate"] }
+flate2 = "1"
+sha1 = "0.10"
+sha2 = "0.10"
+md-5 = "0.10"
+hex = "0.4"
+base64 = "0.22"
+
+[dev-dependencies]
+tempfile = "3"

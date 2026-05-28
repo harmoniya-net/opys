@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { resolveJava } from '../../lib/template';
 import type { JavaPlatform } from '../../lib/resolver';
-import type { ConditionalVal } from '@torba/core';
+import type { ConditionalVal } from '@lanka/core';
 
 afterEach(() => vi.unstubAllGlobals());
 

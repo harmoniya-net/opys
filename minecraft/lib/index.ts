@@ -1,4 +1,4 @@
-// Plugin factories — the @torba/minecraft domain surface.
+// Plugin factories — the @lanka/minecraft domain surface.
 export {
   minecraft,
   forge,
