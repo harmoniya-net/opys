@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  cargo:
+    name: Cargo build + test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo build --workspace --locked
+      - run: cargo test --workspace --locked
+
+  node:
+    name: TS build + typecheck + test
+    runs-on: ubuntu-latest
+    needs: cargo
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      # Build the napi `.node` for the host (linux-x64-gnu) so the TS
+      # packages can `require` it during typecheck and test.
+      - run: npm run build --workspace=@lanka/core-binding --workspace=@lanka/runtime-binding
+      - run: npm run build --workspaces --if-present
+      - run: npm run typecheck
+      - run: npm test

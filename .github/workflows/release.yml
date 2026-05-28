@@ -1,0 +1,172 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+env:
+  CARGO_TERM_COLOR: always
+  DEBUG: napi:*
+  APP_NAME: lanka
+
+jobs:
+  # ─────────────────────────────────────────────────────────────
+  # 1. Cross-build the napi `.node` for every published target.
+  # ─────────────────────────────────────────────────────────────
+  build-napi:
+    name: napi (${{ matrix.target }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - host: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+          - host: ubuntu-latest
+            target: aarch64-unknown-linux-gnu
+          - host: macos-13
+            target: x86_64-apple-darwin
+          - host: macos-14
+            target: aarch64-apple-darwin
+          - host: windows-latest
+            target: x86_64-pc-windows-msvc
+    runs-on: ${{ matrix.host }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: napi-${{ matrix.target }}
+
+      # Cross-link for aarch64 Linux from x86_64 Ubuntu.
+      - name: Install aarch64 Linux toolchain
+        if: matrix.target == 'aarch64-unknown-linux-gnu'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu
+          echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
+
+      - run: npm ci --ignore-scripts
+
+      - name: Build @lanka/core-binding
+        run: npx napi build --platform --release --target ${{ matrix.target }}
+        working-directory: crates/lanka-core-napi
+
+      - name: Build @lanka/runtime-binding
+        run: npx napi build --platform --release --target ${{ matrix.target }}
+        working-directory: crates/lanka-runtime-napi
+
+      - name: Upload @lanka/core-binding artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: core-binding-${{ matrix.target }}
+          path: crates/lanka-core-napi/*.node
+          if-no-files-found: error
+
+      - name: Upload @lanka/runtime-binding artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: runtime-binding-${{ matrix.target }}
+          path: crates/lanka-runtime-napi/*.node
+          if-no-files-found: error
+
+  # ─────────────────────────────────────────────────────────────
+  # 2. Publish to npm: TS workspaces + per-platform napi packages.
+  # ─────────────────────────────────────────────────────────────
+  publish-npm:
+    name: Publish to npm
+    needs: build-napi
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          registry-url: https://registry.npmjs.org/
+
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - run: npm ci
+
+      # Pull every target's .node into its binding crate dir.
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: core-binding-*
+          path: crates/lanka-core-napi/artifacts
+          merge-multiple: true
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: runtime-binding-*
+          path: crates/lanka-runtime-napi/artifacts
+          merge-multiple: true
+
+      - name: Stage .node files for napi prepublish
+        run: |
+          mv crates/lanka-core-napi/artifacts/*.node crates/lanka-core-napi/
+          mv crates/lanka-runtime-napi/artifacts/*.node crates/lanka-runtime-napi/
+          ls crates/lanka-core-napi/
+          ls crates/lanka-runtime-napi/
+
+      # `napi prepublish` scaffolds per-platform npm subpackages
+      # (`@lanka/core-binding-linux-x64-gnu`, etc.) and publishes each
+      # alongside the loader package.
+      - name: Publish @lanka/core-binding (loader + platform sub-packages)
+        run: npx napi prepublish -t npm --skip-gh-release
+        working-directory: crates/lanka-core-napi
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish @lanka/runtime-binding (loader + platform sub-packages)
+        run: npx napi prepublish -t npm --skip-gh-release
+        working-directory: crates/lanka-runtime-napi
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      # Build TS workspaces against the freshly downloaded host .node so
+      # tsdown produces dist/ before npm publish runs.
+      - run: npm run build --workspaces --if-present
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish TS workspaces (@lanka/core, runtime, dev, …)
+        run: npm publish --workspaces --access public --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  # ─────────────────────────────────────────────────────────────
+  # 3. Publish to crates.io. Workspaces publish bottom-up.
+  # ─────────────────────────────────────────────────────────────
+  publish-crates:
+    name: Publish to crates.io
+    needs: publish-npm
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      # `cargo publish` since 1.66 waits for crates.io indexing between
+      # packages, so a sequential publish in dep order just works.
+      - run: cargo publish -p lanka-mojang-rules
+        env: { CARGO_REGISTRY_TOKEN: '${{ secrets.CARGO_REGISTRY_TOKEN }}' }
+      - run: cargo publish -p lanka-core
+        env: { CARGO_REGISTRY_TOKEN: '${{ secrets.CARGO_REGISTRY_TOKEN }}' }
+      - run: cargo publish -p lanka-runtime
+        env: { CARGO_REGISTRY_TOKEN: '${{ secrets.CARGO_REGISTRY_TOKEN }}' }

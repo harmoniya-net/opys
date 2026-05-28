@@ -90,7 +90,7 @@ for (const crate of [
   stampCargoCrate(`${crate}/Cargo.toml`);
 }
 
-// 3. Sync both lockfiles, build, then commit + tag the release.
+// 3. Sync both lockfiles, build to verify everything compiles, commit + tag.
 sh('npm install --package-lock-only');
 // `cargo build` refreshes Cargo.lock to the new workspace version and
 // verifies every crate still compiles after the path-dep version bumps.
@@ -100,12 +100,9 @@ sh('git add -A');
 sh(`git commit -m "release v${version}"`);
 sh(`git tag v${version}`);
 
-// 4. Publish — npm workspaces first (parallel-safe), then crates.io in
-//    dependency order. cargo publish (since 1.66) waits for indexing
-//    between crates, so the next publish can resolve the previous one.
-sh('npm publish --workspaces --access public');
-sh('cargo publish -p lanka-mojang-rules');
-sh('cargo publish -p lanka-core');
-sh('cargo publish -p lanka-runtime');
+// 4. Push the tag — `.github/workflows/release.yml` picks it up and runs
+//    the napi cross-build matrix + publishes to npm and crates.io. The
+//    secrets (NPM_TOKEN, CARGO_REGISTRY_TOKEN) live on the repo.
+sh('git push --follow-tags');
 
-console.log(`\nReleased v${version}`);
+console.log(`\nReleased v${version} — CI will publish from the tag.`);
