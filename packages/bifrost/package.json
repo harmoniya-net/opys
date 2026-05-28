@@ -1,0 +1,25 @@
+{
+  "name": "@opys/bifrost",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "scripts": {
+    "build": "tsdown lib/index.ts --format esm,cjs --dts --clean",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run tests/unit --passWithNoTests"
+  },
+  "devDependencies": {
+    "tsdown": "*",
+    "vitest": "*"
+  },
+  "files": ["dist"],
+  "engines": {
+    "node": ">=20"
+  }
+}

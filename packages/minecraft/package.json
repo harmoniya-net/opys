@@ -1,0 +1,40 @@
+{
+  "name": "@opys/minecraft",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "scripts": {
+    "build": "tsdown lib/index.ts --format esm,cjs --dts --clean",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run tests/unit --passWithNoTests",
+    "test:int": "vitest run tests/integration --testTimeout=120000"
+  },
+  "dependencies": {
+    "@opys/minecraft-vanilla": "^1.0.0",
+    "@opys/forge": "^1.0.0",
+    "@opys/cleanroom": "^1.0.0",
+    "@opys/lwjgl3ify": "^1.0.0",
+    "@opys/authliberty": "^1.0.0",
+    "@opys/curseforge": "^1.0.0",
+    "@opys/bifrost": "^1.0.0",
+    "@opys/minecraft-serverlist": "^1.0.0",
+    "@opys/java": "^1.0.0"
+  },
+  "devDependencies": {
+    "@opys/core": "^1.0.0",
+    "@opys/dev": "^1.0.0",
+    "@opys/mojang": "^1.0.0",
+    "tsdown": "*",
+    "vitest": "*"
+  },
+  "files": ["dist"],
+  "engines": {
+    "node": ">=20"
+  }
+}

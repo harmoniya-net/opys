@@ -1,0 +1,29 @@
+{
+  "name": "@opys/curseforge",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "scripts": {
+    "build": "tsdown lib/index.ts --format esm,cjs --dts --clean",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run tests/unit --passWithNoTests"
+  },
+  "dependencies": {
+    "@opys/core": "^1.0.0",
+    "@opys/dev": "^1.0.0"
+  },
+  "devDependencies": {
+    "tsdown": "*",
+    "vitest": "*"
+  },
+  "files": ["dist"],
+  "engines": {
+    "node": ">=20"
+  }
+}
