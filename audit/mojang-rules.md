@@ -1,4 +1,4 @@
-# Audit — `@lanka/mojang-rules`
+# Audit — `@opys/mojang-rules`
 
 Code-quality audit, 2026-05-19 — open items only (resolved findings removed;
 see git history).

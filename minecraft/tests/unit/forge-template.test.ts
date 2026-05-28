@@ -308,7 +308,7 @@ describe('resolveForge — processor era', () => {
     ]);
     const t = await resolveForge({ version: PROC_FORGE, source: SOURCE });
     const jvm = t.jvmArgs.flatMap((v) => v.value);
-    // the ../libraries/ prefix is rewritten to the lanka var
+    // the ../libraries/ prefix is rewritten to the opys var
     expect(
       jvm.some((a) => a.includes('${library_directory}/cpw/mods/foo.jar')),
     ).toBe(true);

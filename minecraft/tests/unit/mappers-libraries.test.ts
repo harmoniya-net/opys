@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { libraryToArtifact, mapLibraries } from '../../lib/mappers/libraries';
-import { parseLibraries, type Library } from '@lanka/mojang';
+import { parseLibraries, type Library } from '@opys/mojang';
 
 const gson = parseLibraries([
   {

@@ -21,31 +21,31 @@ describe('userDataDir', () => {
   it('uses %APPDATA% on Windows', () => {
     setPlatform('win32');
     process.env.APPDATA = '/fake/AppData/Roaming';
-    expect(userDataDir('lanka')).toBe('/fake/AppData/Roaming/lanka');
+    expect(userDataDir('opys')).toBe('/fake/AppData/Roaming/opys');
   });
 
   it('falls back to homedir on Windows when APPDATA is unset', () => {
     setPlatform('win32');
     delete process.env.APPDATA;
-    expect(userDataDir('lanka').startsWith(homedir())).toBe(true);
+    expect(userDataDir('opys').startsWith(homedir())).toBe(true);
   });
 
   it('uses Application Support on macOS', () => {
     setPlatform('darwin');
-    expect(userDataDir('lanka')).toBe(
-      `${homedir()}/Library/Application Support/lanka`,
+    expect(userDataDir('opys')).toBe(
+      `${homedir()}/Library/Application Support/opys`,
     );
   });
 
   it('uses XDG_DATA_HOME on Linux when set', () => {
     setPlatform('linux');
     process.env.XDG_DATA_HOME = '/custom/data';
-    expect(userDataDir('lanka')).toBe('/custom/data/lanka');
+    expect(userDataDir('opys')).toBe('/custom/data/opys');
   });
 
   it('falls back to ~/.local/share on Linux without XDG_DATA_HOME', () => {
     setPlatform('linux');
     delete process.env.XDG_DATA_HOME;
-    expect(userDataDir('lanka')).toBe(`${homedir()}/.local/share/lanka`);
+    expect(userDataDir('opys')).toBe(`${homedir()}/.local/share/opys`);
   });
 });

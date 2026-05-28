@@ -1,5 +1,5 @@
-import { type Artifact, sourceUrl } from '@lanka/core';
-import type { Val, Valset } from '@lanka/core';
+import { type Artifact, sourceUrl } from '@opys/core';
+import type { Val, Valset } from '@opys/core';
 import {
   resolveAuthLibertyVersion,
   type AuthLibertyRelease,
@@ -87,7 +87,7 @@ function val(value: string): Val {
 }
 
 /**
- * Build a lanka template fragment that loads AuthLiberty as a `-javaagent`
+ * Build a opys template fragment that loads AuthLiberty as a `-javaagent`
  * and points Mojang's auth/account/session/services hosts at the configured
  * replacements.
  *
@@ -96,7 +96,7 @@ function val(value: string): Val {
  * The `jvmArgs` Valset is meant to be spread into a loader template's
  * `command.args` — AuthLiberty has no main class, no classpath needs, and
  * doesn't interact with any loader's bootstrap, so it composes cleanly with
- * any of `@lanka/{minecraft,forge,cleanroom,lwjgl3ify}`.
+ * any of `@opys/{minecraft,forge,cleanroom,lwjgl3ify}`.
  */
 export async function resolveAuthliberty(
   options: AuthLibertyOptions,

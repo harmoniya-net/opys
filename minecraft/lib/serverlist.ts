@@ -1,4 +1,4 @@
-import { sourceBytes, type Artifact } from '@lanka/core';
+import { sourceBytes, type Artifact } from '@opys/core';
 import { write } from 'nbtify';
 
 export interface ServerEntry {

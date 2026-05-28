@@ -1,14 +1,14 @@
-import type { Val, Valset, OsOptions, Ruleset } from '@lanka/core';
-import { parseValset, allowOsRuleset, satisfiesRuleset } from '@lanka/core';
-import type { MojangArgValue } from '@lanka/mojang';
-import type { Launch, ConditionalVal } from '@lanka/core';
+import type { Val, Valset, OsOptions, Ruleset } from '@opys/core';
+import { parseValset, allowOsRuleset, satisfiesRuleset } from '@opys/core';
+import type { MojangArgValue } from '@opys/mojang';
+import type { Launch, ConditionalVal } from '@opys/core';
 
 /**
  * Decomposed parts of a Minecraft `Launch` config. `launch` is the
  * assembled `Launch` (drop straight into `manifest.launch`); the
  * remaining fields expose the JVM args, main class, and game args
  * separately so callers can interleave their own JVM args (e.g. from
- * `@lanka/authliberty`) before the main class.
+ * `@opys/authliberty`) before the main class.
  *
  * `mainClass` is exposed as a `Val` so it slots directly into a
  * `Valset` between `jvmArgs` and `gameArgs`. Use `mainClass.value[0]`

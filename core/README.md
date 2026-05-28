@@ -1,11 +1,11 @@
-# @lanka/core
+# @opys/core
 
-Data model for Lanka manifests. Types, factory functions, Zod parsers, and encode/decode utilities. No I/O.
+Data model for Opys manifests. Types, factory functions, Zod parsers, and encode/decode utilities. No I/O.
 
 ## Install
 
 ```sh
-npm install @lanka/core @lanka/rules zod
+npm install @opys/core @opys/rules zod
 ```
 
 ## Types
@@ -53,7 +53,7 @@ encodeExtract(rules)
 An artifact has a source, optional integrity/size checks, optional extract rules, and optional rulesets that gate it per platform or feature.
 
 ```ts
-import { ArtifactSchema, encodeArtifact } from '@lanka/core';
+import { ArtifactSchema, encodeArtifact } from '@opys/core';
 
 const artifact = ArtifactSchema.parse(raw);
 encodeArtifact(artifact);
@@ -88,7 +88,7 @@ import {
   encodeValDefs,
   resolveValDefs,
   resolveVars,
-} from '@lanka/core';
+} from '@opys/core';
 
 const defs = parseValDefs(raw);
 const flat = resolveValDefs(defs, platform); // pick OS-appropriate values
@@ -98,13 +98,13 @@ const result = interpolate('${root}/assets', vars);
 
 ### `defineConfig` — config file helper
 
-Used as the default export in `lanka.config.mjs`:
+Used as the default export in `opys.config.mjs`:
 
 ```ts
-import { defineConfig } from '@lanka/core';
+import { defineConfig } from '@opys/core';
 
 export default defineConfig({
-  output: 'lanka.json',
+  output: 'opys.json',
   manifest: {
     artifacts: [...],
     vars: [...],

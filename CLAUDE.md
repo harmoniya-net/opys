@@ -1,7 +1,7 @@
-# lanka
+# opys
 
 A declarative toolkit that **builds** and **launches** Minecraft installations
-from a frozen `lanka.json` manifest. A config (`lanka.config.mjs`) composes
+from a frozen `opys.json` manifest. A config (`opys.config.mjs`) composes
 plugins into a manifest at build time; the runtime installs and launches it.
 
 This file is the architecture of record — principles, structure, conventions.
@@ -25,7 +25,7 @@ Treat every claim here as auditable against the code.
 
 ## Hard constraint
 
-**The `lanka.json` manifest format is frozen.** `@lanka/core`'s public schemas
+**The `opys.json` manifest format is frozen.** `@opys/core`'s public schemas
 _are_ the contract — a non-TypeScript reimplementation would reimplement
 exactly `core`. Package layout, plugin API, config shape, and CLI flags may all
 change; the manifest wire format may not.
@@ -35,37 +35,37 @@ change; the manifest wire format may not.
 Eight packages, a clean DAG, no cycles:
 
 ```
-@lanka/mojang-rules  Mojang-standard rule format (os / features / rule / ruleset).  leaf
-@lanka/mojang        Mojang protocol parsers (version JSON, libraries, assets, …).  → core
-@lanka/core          Manifest data model + lanka shorthand + Val/Valset.
-                     The reference implementation of lanka.json.           → mojang-rules
-@lanka/dev           Build SDK: defineConfig, the build engine, the plugin contract,
+@opys/mojang-rules  Mojang-standard rule format (os / features / rule / ruleset).  leaf
+@opys/mojang        Mojang protocol parsers (version JSON, libraries, assets, …).  → core
+@opys/core          Manifest data model + opys shorthand + Val/Valset.
+                     The reference implementation of opys.json.           → mojang-rules
+@opys/dev           Build SDK: defineConfig, the build engine, the plugin contract,
                      artifact overrides, artifactScanner, userDataDir.             → core
-@lanka/runtime       install + launch executor.                              → core ONLY
-@lanka/minecraft     Minecraft-domain plugins — minecraft / forge / cleanroom /
+@opys/runtime       install + launch executor.                              → core ONLY
+@opys/minecraft     Minecraft-domain plugins — minecraft / forge / cleanroom /
                      lwjgl3ify / curseforge / authliberty — + bifrost / serverlist
                      helpers.                                         → dev, core, mojang
-@lanka/java          OpenJDK (Adoptium) provisioning plugin.                  → dev, core
-@lanka/cli           the `lanka` binary.                 → dev, runtime, minecraft, java
+@opys/java          OpenJDK (Adoptium) provisioning plugin.                  → dev, core
+@opys/cli           the `opys` binary.                 → dev, runtime, minecraft, java
 ```
 
 ### Invariants
 
 - **`core` is the frozen manifest spec.** Its schemas are the contract.
-- **`runtime` depends on `core` alone** among `@lanka/*` — verified: `runtime/lib`
-  imports only `@lanka/core`, a few tiny third-party libs (`fflate`,
+- **`runtime` depends on `core` alone** among `@opys/*` — verified: `runtime/lib`
+  imports only `@opys/core`, a few tiny third-party libs (`fflate`,
   `tar-stream`), and `node:`. It is a clean reimplementation target.
 - **`dev` and `runtime` never see each other.** `core` is the only plank across
-  the build-time / runtime wall; they are joined solely by `lanka.json`.
+  the build-time / runtime wall; they are joined solely by `opys.json`.
 - **One rule schema, one evaluator** — `RuleSchema` + `satisfiesRuleset`,
   monorepo-wide. `mojang-rules` holds only the Mojang-standard format; the
-  lanka **shorthand** (`'osx'` → `[{action:'allow',os:{name:'osx'}}]`) and the
-  rule-tagged-value primitives `Val`/`Valset` are lanka's own flavor, in `core`.
+  opys **shorthand** (`'osx'` → `[{action:'allow',os:{name:'osx'}}]`) and the
+  rule-tagged-value primitives `Val`/`Valset` are opys's own flavor, in `core`.
 
 ## Plugin model — bundler-style
 
 ```ts
-interface LankaPlugin {
+interface OpysPlugin {
   name: string;
   build(ctx: BuildContext): Promise<Contribution> | Contribution;
 }
@@ -96,7 +96,7 @@ export default defineConfig(({ mode }) => ({
   // runClient runs on the LAUNCH machine, every launch — the only correct
   // place for machine-specific paths. `userDataDir()` resolves the *build*
   // machine's home dir, so it must NEVER go in `manifest.vars` (baked into
-  // lanka.json); it belongs here.
+  // opys.json); it belongs here.
   runClient: (manifest) => ({
     vars: { ...manifest.vars, root: userDataDir('my-pack') },
   }),
@@ -107,27 +107,27 @@ export default defineConfig(({ mode }) => ({
 - The engine merges artifacts (concat + last-wins dedup by normalized path) and
   vars (plugin-list order, last-wins, **warns** on plugin-vs-plugin collision).
   `manifest.vars` is the silent override layer — but it is baked into
-  `lanka.json`, so it takes build-time constants only, never machine-specific
+  `opys.json`, so it takes build-time constants only, never machine-specific
   paths (those go in `runClient`).
 - `command` / `args` / `workdir` / `envs` are author functions over a
   `PluginMap` keyed by plugin `name`. The author owns arg order — there is no
   role-based default.
 - **One var, one owner.** e.g. only the `java` plugin emits
   `java_home` / `java_bin` / `java_runtime_dir`.
-- `mode` is a build-time-only `ctx` value (`lanka build --mode X`).
+- `mode` is a build-time-only `ctx` value (`opys build --mode X`).
 
 ## Build & launch
 
-- **`lanka build`** — `resolveConfig` → run every plugin's `build(ctx)` in
+- **`opys build`** — `resolveConfig` → run every plugin's `build(ctx)` in
   parallel → concat + dedup artifacts → merge vars → assemble `launch` via the
   author functions → `encodeManifest` → write.
-- **`lanka launch`** — builds the manifest in-memory from the config and
-  launches it directly; no `lanka.json` round-trip. `runClient(manifest) =>
+- **`opys launch`** — builds the manifest in-memory from the config and
+  launches it directly; no `opys.json` round-trip. `runClient(manifest) =>
 Partial<Manifest>` is the launch-time patch, applied every launch (so e.g.
   `bifrost` mints a fresh token) as a shallow per-field override. The
   build/runtime wall holds — `cli` orchestrates `dev` + `runtime`, joined by
   the in-memory `Manifest`; a _deployed_ launcher instead feeds
-  `@lanka/runtime` a frozen, published `lanka.json` with no `dev`.
+  `@opys/runtime` a frozen, published `opys.json` with no `dev`.
 - The runtime install pipeline is phased: resolve → pointer → discovery → scan
   → fetch → verify → extract → sweep. Failure is a discriminated union —
   `NetworkError` / `IntegrityError` / `ExtractionError`.

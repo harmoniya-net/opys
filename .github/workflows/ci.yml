@@ -35,7 +35,7 @@ jobs:
       - run: npm ci
       # Build the napi `.node` for the host (linux-x64-gnu) so the TS
       # packages can `require` it during typecheck and test.
-      - run: npm run build --workspace=@lanka/core-binding --workspace=@lanka/runtime-binding
+      - run: npm run build --workspace=@opys/core-binding --workspace=@opys/runtime-binding
       - run: npm run build --workspaces --if-present
       - run: npm run typecheck
       - run: npm test

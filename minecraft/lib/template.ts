@@ -7,7 +7,7 @@ import {
   type Val,
   type Valset,
   type ConditionalVal,
-} from '@lanka/core';
+} from '@opys/core';
 import {
   type Client,
   fetchAssetManifest,
@@ -15,7 +15,7 @@ import {
   fetchVersionManifest,
   findVersion,
   type Version,
-} from '@lanka/mojang';
+} from '@opys/mojang';
 import { mapLibraries } from './mappers/libraries';
 import { mapAssetIndex, mapAssetObjects } from './mappers/assets';
 import { mapClientJar } from './mappers/client';
@@ -54,7 +54,7 @@ export async function fetchClient(
   const res = await fetchWithRetry(version.url);
   if (!res.ok)
     throw new Error(`Failed to fetch version JSON: ${res.statusText}`);
-  const { parseClient } = await import('@lanka/mojang');
+  const { parseClient } = await import('@opys/mojang');
   return { version, client: parseClient(await res.json()) };
 }
 
@@ -78,7 +78,7 @@ export async function clientToTemplate(
 
   const vars: ValDefs = {
     root: '.',
-    launcher_name: 'lanka',
+    launcher_name: 'opys',
     launcher_version: '0.1',
     version_type: client.metadata.type,
     version_name: client.id,

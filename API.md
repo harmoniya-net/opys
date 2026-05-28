@@ -1,37 +1,37 @@
 # Public API & Lifecycle
 
-lanka builds and runs Minecraft installations from a declarative `lanka.json`
+opys builds and runs Minecraft installations from a declarative `opys.json`
 manifest. The build side is a **plugin engine**; the runtime side is a dumb
-manifest executor. The two are joined only by the frozen `lanka.json` format.
+manifest executor. The two are joined only by the frozen `opys.json` format.
 
 ## Lifecycle
 
-### `lanka build [-i config] [-o out] [--mode m]`
+### `opys build [-i config] [-o out] [--mode m]`
 
-1. `import(config)` — load `lanka.config.mjs`.
+1. `import(config)` — load `opys.config.mjs`.
 2. `resolveConfig(default, { mode })` — invoke the function form, if any.
-3. `buildManifest(config, ctx)` (`@lanka/dev`):
+3. `buildManifest(config, ctx)` (`@opys/dev`):
    - run every plugin's `build(ctx)` hook **in parallel** → `Contribution[]`
    - concat artifacts (plugin order, then `manifest.artifacts`), dedup last-wins by `posix.normalize(path)`
    - merge vars (plugin order, last wins; warn on plugin-vs-plugin collision), then layer `manifest.vars`
    - assemble `launch` from the `command`/`args`/`workdir`/`envs` accessor functions
 4. `encodeManifest` → JSON → write to `-o`, `config.output`, or stdout.
 
-### `lanka launch [-i config] [--mode m]`
+### `opys launch [-i config] [--mode m]`
 
 1. Load the config, `resolveConfig`.
-2. Read `lanka.json` **from disk** (`config.output`) — launch never rebuilds.
+2. Read `opys.json` **from disk** (`config.output`) — launch never rebuilds.
 3. Apply the `runClient` patch: `{ ...manifest, ...runClient(manifest) }`.
-4. `install(manifest)` then `launch(manifest, { install: false })` (`@lanka/runtime`).
+4. `install(manifest)` then `launch(manifest, { install: false })` (`@opys/runtime`).
 
-## Config — `@lanka/dev`
+## Config — `@opys/dev`
 
 ```ts
-import { defineConfig } from '@lanka/dev';
+import { defineConfig } from '@opys/dev';
 
 export default defineConfig(({ mode }) => ({
-  output: 'lanka.json',
-  plugins: [ /* LankaPlugin[] */ ],
+  output: 'opys.json',
+  plugins: [ /* OpysPlugin[] */ ],
   manifest: {
     command: (plugins) => string,
     args:    (plugins) => (Valset | Val | string)[],
@@ -49,15 +49,15 @@ export default defineConfig(({ mode }) => ({
   `{ artifacts, vars, launch }` contribution.
 - **`command`/`args`** — author functions over a `PluginMap` keyed by plugin
   `name`. `args` is flattened (`Valset[] → Val[]`); the author owns order.
-- **`runClient`** — a launch-time manifest patch, re-run every `lanka launch`.
+- **`runClient`** — a launch-time manifest patch, re-run every `opys launch`.
   Returned fields completely replace; spread `manifest.x` to retain. The home
   for per-machine, never-shared values (auth tokens, local paths).
-- **`mode`** — `lanka build --mode <m>` → the config function's `ctx.mode`.
+- **`mode`** — `opys build --mode <m>` → the config function's `ctx.mode`.
 
-## Plugin model — `@lanka/dev`
+## Plugin model — `@opys/dev`
 
 ```ts
-interface LankaPlugin {
+interface OpysPlugin {
   name: string;
   build(ctx: BuildContext): Promise<Contribution> | Contribution;
 }
@@ -77,14 +77,14 @@ interface Contribution {
 
 A plugin is pure to construct — `forge('1.20.1-best')` does zero I/O; all
 network/fs work happens inside `build`, which the engine drives.
-`definePlugin` is an identity helper for authoring one. `@lanka/dev` also
+`definePlugin` is an identity helper for authoring one. `@opys/dev` also
 exports the build engine (`buildManifest`), the artifact-override mechanism
 (`ArtifactOverride` / `applyOverrides` — a `{ match, exclude?, rules?,
 integrity? }` patch — and the `Selector` type), and the `userDataDir` helper.
 
 ## Plugins
 
-Minecraft-domain plugins — `@lanka/minecraft`:
+Minecraft-domain plugins — `@opys/minecraft`:
 
 - **`minecraft(version?)`** — vanilla client + libraries + assets.
 - **`forge(version, opts?)`** — Forge (1.7–1.12 legacy + 1.13+ processor eras).
@@ -93,24 +93,24 @@ Minecraft-domain plugins — `@lanka/minecraft`:
 - **`curseforge({ token, path, files })`** — mod files from the CurseForge API.
 - **`authliberty(version, opts?)`** — an authlib-injector `-javaagent`.
 
-JVM runtime — `@lanka/java`:
+JVM runtime — `@opys/java`:
 
 - **`java(version, opts?)`** — provisions an OpenJDK runtime; solely owns the
   `java_home` / `java_bin` / `java_runtime_dir` vars, exposes `bin` as a
   launch group.
 
-Generic, domain-agnostic — `@lanka/dev`:
+Generic, domain-agnostic — `@opys/dev`:
 
 - **`artifactScanner({ directory, path, url, source, overrides? })`** — scans a
   local directory tree into artifacts.
 
 Helpers (not plugins): **`bifrost({ privateKey, username, uuid })`**
-(`@lanka/minecraft`) — mints an Ed25519 JWT; call it inside `runClient`.
-**`userDataDir(name)`** (`@lanka/dev`) — an OS-appropriate data directory.
+(`@opys/minecraft`) — mints an Ed25519 JWT; call it inside `runClient`.
+**`userDataDir(name)`** (`@opys/dev`) — an OS-appropriate data directory.
 
-## Manifest data model — `@lanka/core`
+## Manifest data model — `@opys/core`
 
-`core` is the reference implementation of the `lanka.json` format. Every
+`core` is the reference implementation of the `opys.json` format. Every
 data-model file follows **parse, don't validate**: a zod wire schema validates
 the JSON shape, and a total `decode` function normalizes it into the domain
 type (`string | string[] → string[]`, rule shorthand → full `Ruleset`, …).
@@ -124,7 +124,7 @@ type (`string | string[] → string[]`, rule shorthand → full `Ruleset`, …).
 - Source/Extract factories: `sourceUrl`/`sourceFile`/`sourceString`/`sourcePointer`, `extractPick`/`extractScan`/`extractDump`
 - Glob: `globToRegex`, `globBase`
 - Vars / interpolation: `parseValDefs`, `resolveValDefs`, `resolveVars`, `interpolate`
-- The `@lanka/mojang-rules` rule surface is re-exported from `core`.
+- The `@opys/mojang-rules` rule surface is re-exported from `core`.
 
 ### Pointer sources
 
@@ -135,12 +135,12 @@ still verified against the hash in that freshly-fetched descriptor.
 
 ### Discovery
 
-A `discovery` block on a `url` artifact tells lanka how to read `integrity` /
+A `discovery` block on a `url` artifact tells opys how to read `integrity` /
 `size` from metadata the host already publishes (a sibling checksum file, an
 RFC 9530 digest header). Resolved on every install; the discovered hash both
 verifies the download and decides freshness.
 
-## Runtime — `@lanka/runtime`
+## Runtime — `@opys/runtime`
 
 ```ts
 install(source: ManifestSource, options?: InstallOptions): Promise<void>
@@ -156,13 +156,13 @@ Install pipeline: `resolveManifest` → `resolvePointers` → `resolveDiscovery`
 → `sweep` (applies `restrict`).
 
 Errors: `NetworkError`, `IntegrityError`, `ExtractionError`. `runtime` depends
-on `@lanka/core` alone.
+on `@opys/core` alone.
 
-## CLI — `@lanka/cli`
+## CLI — `@opys/cli`
 
 ```
-lanka build  [-i <config>] [-o <out>] [--mode m]
-lanka launch [-i <config>] [--mode m]
+opys build  [-i <config>] [-o <out>] [--mode m]
+opys launch [-i <config>] [--mode m]
 ```
 
 Globals: `--log-level silent|error|warn|info|debug`, `-v`, `-h`.

@@ -1,11 +1,11 @@
-# @lanka/mojang
+# @opys/mojang
 
 Zero-binding Mojang JSON parsers. Parses Mojang version manifests and client JSONs into typed structures. No dependencies on other unipack packages.
 
 ## Install
 
 ```sh
-npm install @lanka/mojang zod
+npm install @opys/mojang zod
 ```
 
 ## API
@@ -13,11 +13,7 @@ npm install @lanka/mojang zod
 ### Version manifest
 
 ```ts
-import {
-  fetchVersionManifest,
-  findVersion,
-  latestRelease,
-} from '@lanka/mojang';
+import { fetchVersionManifest, findVersion, latestRelease } from '@opys/mojang';
 
 const manifest = await fetchVersionManifest();
 
@@ -31,7 +27,7 @@ console.log(latest.url); // URL to the version JSON
 ### Client JSON
 
 ```ts
-import { parseClient } from '@lanka/mojang';
+import { parseClient } from '@opys/mojang';
 
 const res = await fetch(version.url);
 const client = parseClient(await res.json());
@@ -47,7 +43,7 @@ client.assetIndex; // asset index reference
 ### Asset manifest
 
 ```ts
-import { fetchAssetManifest } from '@lanka/mojang';
+import { fetchAssetManifest } from '@opys/mojang';
 
 const assets = await fetchAssetManifest(client.assetIndex.url);
 // assets.objects: Record<string, { hash: string; size: number }>
@@ -56,7 +52,7 @@ const assets = await fetchAssetManifest(client.assetIndex.url);
 ### Argument merging
 
 ```ts
-import { mergeArgs } from '@lanka/mojang';
+import { mergeArgs } from '@opys/mojang';
 
 // Merge vanilla args with a mod loader's overrides
 const merged = mergeArgs(client.args, forgeArgs);
@@ -65,4 +61,4 @@ const merged = mergeArgs(client.args, forgeArgs);
 ## Notes
 
 - This package is intentionally a leaf in the dependency graph — it has no unipack dependencies.
-- Use `@lanka/minecraft` to convert parsed Mojang types into Manifest artifacts.
+- Use `@opys/minecraft` to convert parsed Mojang types into Manifest artifacts.

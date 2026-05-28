@@ -1,4 +1,4 @@
-// Plugin factories — the @lanka/minecraft domain surface.
+// Plugin factories — the @opys/minecraft domain surface.
 export {
   minecraft,
   forge,

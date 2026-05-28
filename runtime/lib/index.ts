@@ -1,6 +1,6 @@
 /**
- * `@lanka/runtime` — install + launch executor. Behaviors are backed by the
- * Rust `lanka-runtime` crate (via napi-rs); the TS surface wraps the
+ * `@opys/runtime` — install + launch executor. Behaviors are backed by the
+ * Rust `opys-runtime` crate (via napi-rs); the TS surface wraps the
  * binding with a Node `child_process.spawn` for `launch`, and translates
  * the napi-thrown messages back into the typed `NetworkError` /
  * `IntegrityError` / `ExtractionError` classes consumers still
@@ -8,7 +8,7 @@
  */
 
 import { spawn, type ChildProcess } from 'node:child_process';
-import * as napi from '@lanka/runtime-binding';
+import * as napi from '@opys/runtime-binding';
 
 /**
  * Discriminated by `phase`. The Rust bridge populates only the fields

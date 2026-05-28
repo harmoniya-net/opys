@@ -5,7 +5,7 @@
  * The CurseForge block is skipped unless `CURSEFORGE_TOKEN` is set.
  */
 import { describe, expect, it } from 'vitest';
-import type { BuildContext } from '@lanka/dev';
+import type { BuildContext } from '@opys/dev';
 import { forge, minecraft, curseforge } from '../../lib';
 
 const ctx: BuildContext = {

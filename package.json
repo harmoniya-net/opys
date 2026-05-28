@@ -1,5 +1,5 @@
 {
-  "name": "lanka",
+  "name": "opys",
   "version": "1.0.0",
   "private": true,
   "scripts": {
@@ -20,8 +20,8 @@
     "java",
     "runtime",
     "cli",
-    "crates/lanka-core-napi",
-    "crates/lanka-runtime-napi"
+    "crates/opys-core-napi",
+    "crates/opys-runtime-napi"
   ],
   "devDependencies": {
     "@napi-rs/cli": "^2.18.4",

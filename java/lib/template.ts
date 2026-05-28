@@ -4,8 +4,8 @@ import {
   type ConditionalVal,
   sourceUrl,
   extractDump,
-} from '@lanka/core';
-import type { OsName, OsArch, Ruleset } from '@lanka/core';
+} from '@opys/core';
+import type { OsName, OsArch, Ruleset } from '@opys/core';
 import {
   resolveOpenjdk,
   type JavaPlatform,
@@ -49,7 +49,7 @@ function osRuleset(os: OsName): Ruleset {
 }
 
 /**
- * Build a lanka template fragment that auto-installs an OpenJDK runtime
+ * Build a opys template fragment that auto-installs an OpenJDK runtime
  * (Eclipse Temurin) and exposes `${java_home}` + `${java_bin}` vars.
  *
  * Each platform's archive is emitted as its own `Artifact` with an
@@ -73,7 +73,7 @@ function osRuleset(os: OsName): Ruleset {
 export async function resolveJava(options: JavaOptions): Promise<JavaTemplate> {
   if (options.vendor && options.vendor !== 'openjdk') {
     throw new Error(
-      `@lanka/java: vendor '${options.vendor}' is not yet supported (only 'openjdk').`,
+      `@opys/java: vendor '${options.vendor}' is not yet supported (only 'openjdk').`,
     );
   }
   const release = await resolveOpenjdk(options.version, {

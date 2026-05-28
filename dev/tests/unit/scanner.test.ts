@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { basename, dirname, join } from 'node:path';
 import { artifactScanner } from '../../lib/scanner';
 import type { BuildContext } from '../../lib/plugin';
-import type { Artifact } from '@lanka/core';
+import type { Artifact } from '@opys/core';
 
 let dir = '';
 const logs: string[] = [];
@@ -16,7 +16,7 @@ const ctx: BuildContext = {
 };
 
 beforeEach(async () => {
-  dir = await mkdtemp(join(tmpdir(), 'lanka-scan-'));
+  dir = await mkdtemp(join(tmpdir(), 'opys-scan-'));
   logs.length = 0;
 });
 

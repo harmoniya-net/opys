@@ -1,0 +1,17 @@
+[package]
+name = "opys-mojang-rules"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "Mojang-standard rule format (os / features / rule / ruleset). Pure Rust port of @opys/mojang-rules."
+
+[dependencies]
+serde = { workspace = true }
+regex = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+serde_json = { workspace = true }

@@ -3,7 +3,7 @@ import {
   type Ruleset,
   globToRegex,
   parseShortRuleset,
-} from '@lanka/core';
+} from '@opys/core';
 
 /**
  * Targets a subset of artifacts:

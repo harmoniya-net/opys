@@ -1,8 +1,8 @@
-import type { Contribution, LankaPlugin } from './plugin';
+import type { Contribution, OpysPlugin } from './plugin';
 import { applyOverrides, type ArtifactOverride } from './overrides';
 
 /**
- * Wraps a {@link LankaPlugin} so that the artifacts it contributes are passed
+ * Wraps a {@link OpysPlugin} so that the artifacts it contributes are passed
  * through an ordered list of {@link ArtifactOverride}s before being returned.
  *
  * Use this to give artifact-producing plugins (`forge`, `curseforge`, …) the
@@ -16,9 +16,9 @@ import { applyOverrides, type ArtifactOverride } from './overrides';
  *                  list is a no-op (artifacts pass through unchanged).
  */
 export function defineArtifactPlugin(
-  plugin: LankaPlugin,
+  plugin: OpysPlugin,
   overrides: readonly ArtifactOverride[],
-): LankaPlugin {
+): OpysPlugin {
   return {
     name: plugin.name,
     async build(ctx) {

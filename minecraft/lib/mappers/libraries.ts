@@ -1,6 +1,6 @@
-import type { Artifact } from '@lanka/core';
-import { sourceUrl, extractDump } from '@lanka/core';
-import type { Library } from '@lanka/mojang';
+import type { Artifact } from '@opys/core';
+import { sourceUrl, extractDump } from '@opys/core';
+import type { Library } from '@opys/mojang';
 
 export function libraryToArtifact(lib: Library): Artifact {
   const path = `\${library_directory}/${lib.artifact.path}`;

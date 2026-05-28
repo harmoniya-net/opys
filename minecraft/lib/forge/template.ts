@@ -11,10 +11,10 @@ import {
   type Launch,
   sourceUrl,
   fetchWithRetry,
-} from '@lanka/core';
-import type { Val, Valset } from '@lanka/core';
-import type { MojangArgValue, Arguments, Library } from '@lanka/mojang';
-import { mergeArgs, parseLibraries } from '@lanka/mojang';
+} from '@opys/core';
+import type { Val, Valset } from '@opys/core';
+import type { MojangArgValue, Arguments, Library } from '@opys/mojang';
+import { mergeArgs, parseLibraries } from '@opys/mojang';
 import {
   parseForgeRecipe,
   type ForgeRecipe,
@@ -123,7 +123,7 @@ export async function resolveForge(
 
   if (recipe.kind === 'unsupported') {
     throw new Error(
-      `Forge era '${recipe.type}' (Minecraft <1.7) is not yet supported by @lanka/minecraft. ` +
+      `Forge era '${recipe.type}' (Minecraft <1.7) is not yet supported by @opys/minecraft. ` +
         `Only 'legacy' (1.7–1.12) and 'processor' (1.13+) builds are supported.`,
     );
   }

@@ -1,19 +1,19 @@
 import { describe, expect, it } from 'vitest';
-import { sourceUrl, type Artifact } from '@lanka/core';
+import { sourceUrl, type Artifact } from '@opys/core';
 import { buildManifest } from '../../lib/engine';
-import type { LankaConfig } from '../../lib/config';
-import type { BuildContext, Contribution, LankaPlugin } from '../../lib/plugin';
+import type { OpysConfig } from '../../lib/config';
+import type { BuildContext, Contribution, OpysPlugin } from '../../lib/plugin';
 
 const ctx: BuildContext = { log: () => {}, configDir: '/tmp', mode: '' };
 
-const fakePlugin = (name: string, contribution: Contribution): LankaPlugin => ({
+const fakePlugin = (name: string, contribution: Contribution): OpysPlugin => ({
   name,
   build: () => contribution,
 });
 
 describe('buildManifest', () => {
   it('merges artifacts and vars, assembles launch from accessors', async () => {
-    const config: LankaConfig = {
+    const config: OpysConfig = {
       plugins: [
         fakePlugin('base', {
           artifacts: [
@@ -50,7 +50,7 @@ describe('buildManifest', () => {
   });
 
   it('config vars override plugin vars; literal artifacts merge', async () => {
-    const config: LankaConfig = {
+    const config: OpysConfig = {
       plugins: [fakePlugin('p', { vars: { root: 'plugin' } })],
       manifest: {
         command: () => 'java',
@@ -69,7 +69,7 @@ describe('buildManifest', () => {
 
   it('warns on a plugin-vs-plugin var collision', async () => {
     const logs: string[] = [];
-    const config: LankaConfig = {
+    const config: OpysConfig = {
       plugins: [
         fakePlugin('a', { vars: { x: '1' } }),
         fakePlugin('b', { vars: { x: '2' } }),
@@ -86,7 +86,7 @@ describe('buildManifest', () => {
 
   it('does not warn when a plugin re-sets its own var', async () => {
     const logs: string[] = [];
-    const config: LankaConfig = {
+    const config: OpysConfig = {
       plugins: [fakePlugin('a', { vars: { x: '1' } })],
       manifest: { command: () => 'java', args: () => [] },
     };
@@ -104,7 +104,7 @@ describe('buildManifest', () => {
       source: sourceUrl('http://x/1'),
       rules: [],
     };
-    const config: LankaConfig = {
+    const config: OpysConfig = {
       plugins: [
         fakePlugin('p', {
           artifacts: [dup, { ...dup, source: sourceUrl('http://x/2') }],
@@ -126,7 +126,7 @@ describe('buildManifest', () => {
   });
 
   it('resolves workdir and envs from accessor functions', async () => {
-    const config: LankaConfig = {
+    const config: OpysConfig = {
       plugins: [fakePlugin('p', { launch: { dir: '/srv' } })],
       manifest: {
         command: () => 'java',
@@ -141,7 +141,7 @@ describe('buildManifest', () => {
   });
 
   it('defaults workdir to "." and envs to {} when omitted', async () => {
-    const config: LankaConfig = {
+    const config: OpysConfig = {
       plugins: [],
       manifest: { command: () => 'java', args: () => [] },
     };
@@ -151,7 +151,7 @@ describe('buildManifest', () => {
   });
 
   it('accepts a literal envs object and emits restrict', async () => {
-    const config: LankaConfig = {
+    const config: OpysConfig = {
       plugins: [],
       manifest: {
         command: () => 'java',
@@ -166,7 +166,7 @@ describe('buildManifest', () => {
   });
 
   it('omits restrict when the config provides an empty list', async () => {
-    const config: LankaConfig = {
+    const config: OpysConfig = {
       plugins: [],
       manifest: { command: () => 'java', args: () => [], restrict: [] },
     };

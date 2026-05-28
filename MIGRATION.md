@@ -1,44 +1,44 @@
 # Rust port — migration plan
 
 The Rust crates under `crates/` are the new source-of-truth for
-`@lanka/mojang-rules`, `@lanka/core`, and `@lanka/runtime`. The TS packages
+`@opys/mojang-rules`, `@opys/core`, and `@opys/runtime`. The TS packages
 are thin shims over napi-rs bindings.
 
 ## Current state
 
-|                                                                      | Status      |
-| -------------------------------------------------------------------- | ----------- |
-| Cargo workspace (`Cargo.toml`, `rust-toolchain.toml`)                | ✅          |
-| `crates/lanka-mojang-rules` + tests (23 ✓)                           | ✅          |
-| `crates/lanka-core` + tests (64 ✓)                                   | ✅          |
-| `crates/lanka-runtime` + smoke tests (2 ✓)                           | ✅          |
-| `crates/lanka-core-napi` (cdylib)                                    | ✅ compiles |
-| `crates/lanka-runtime-napi` (cdylib)                                 | ✅ compiles |
-| `core/lib/index.ts`, `runtime/lib/index.ts` napi-backed              | ✅          |
-| Consumers (`dev`, `minecraft`, `java`, `cli`) on plain `@lanka/core` | ✅          |
-| npm prebuild distribution                                            | ⏳ pending  |
-| Structured errors across napi (Q10)                                  | ⏳ pending  |
+|                                                                     | Status      |
+| ------------------------------------------------------------------- | ----------- |
+| Cargo workspace (`Cargo.toml`, `rust-toolchain.toml`)               | ✅          |
+| `crates/opys-mojang-rules` + tests (23 ✓)                           | ✅          |
+| `crates/opys-core` + tests (64 ✓)                                   | ✅          |
+| `crates/opys-runtime` + smoke tests (2 ✓)                           | ✅          |
+| `crates/opys-core-napi` (cdylib)                                    | ✅ compiles |
+| `crates/opys-runtime-napi` (cdylib)                                 | ✅ compiles |
+| `core/lib/index.ts`, `runtime/lib/index.ts` napi-backed             | ✅          |
+| Consumers (`dev`, `minecraft`, `java`, `cli`) on plain `@opys/core` | ✅          |
+| npm prebuild distribution                                           | ⏳ pending  |
+| Structured errors across napi (Q10)                                 | ⏳ pending  |
 
 ## Architecture notes
 
 ### Entry points
 
-`@lanka/core` and `@lanka/runtime` each expose a single main entry. The
+`@opys/core` and `@opys/runtime` each expose a single main entry. The
 `/napi` subpath that existed during migration scaffolding has been removed
 — consumers import from the package root.
 
 ### `fetch.ts` location
 
-`core/lib/fetch.ts` stays in `@lanka/core`. It's a build-time HTTP utility
+`core/lib/fetch.ts` stays in `@opys/core`. It's a build-time HTTP utility
 consumed by `mojang`, `forge`, `curseforge`, `authliberty`, and `java` —
-none of which can depend on `@lanka/runtime` (CLAUDE.md invariant: dev
+none of which can depend on `@opys/runtime` (CLAUDE.md invariant: dev
 and runtime never see each other). The Rust runtime crate has its own
 HTTP retry layer for the install pipeline; the TS-side `fetchWithRetry`
 serves build-time consumers.
 
 ### zod peer dependency
 
-`zod` remains a peer dependency of `@lanka/core`. `RuleSchema` /
+`zod` remains a peer dependency of `@opys/core`. `RuleSchema` /
 `OsNameSchema` are zod schemas used by the Forge recipe parser and the
 Mojang client argument/library parsers for validating upstream JSON.
 These are build-time only — the manifest contract itself doesn't need
@@ -50,14 +50,14 @@ zod (the napi binding does its own serde validation).
 `ExtractionError` classes as a compat shim. The Rust bridge currently
 throws `napi::Error::from_reason(msg)`; `translateError` parses the
 message and rewraps into these classes so `instanceof` checks keep
-working. Q10's `code`-discriminant model (single `LankaErrorInfo` with
+working. Q10's `code`-discriminant model (single `OpysErrorInfo` with
 typed `details`) is the follow-up — once the Rust side emits structured
 errors, the classes either grow a `code` field or get replaced.
 
 ## Architecture invariants preserved
 
-- **`lanka-core` depends only on `lanka-mojang-rules`** — same DAG as JS.
-- **`lanka-runtime` depends only on `lanka-core`** (plus tokio, reqwest,
+- **`opys-core` depends only on `opys-mojang-rules`** — same DAG as JS.
+- **`opys-runtime` depends only on `opys-core`** (plus tokio, reqwest,
   archive crates) — runtime is still a clean re-implementation target.
 - **`build_launch` (pure spawn-spec) is separate from `launch` (spawns)** —
   Q5 in the design doc.

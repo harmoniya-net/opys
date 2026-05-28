@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { java } from '../../lib/plugin';
 import type { JavaPlatform } from '../../lib/resolver';
-import type { BuildContext } from '@lanka/dev';
+import type { BuildContext } from '@opys/dev';
 
 afterEach(() => vi.unstubAllGlobals());
 

@@ -1,6 +1,6 @@
-import type { Artifact } from '@lanka/core';
-import { sourceUrl } from '@lanka/core';
-import type { Client } from '@lanka/mojang';
+import type { Artifact } from '@opys/core';
+import { sourceUrl } from '@opys/core';
+import type { Client } from '@opys/mojang';
 
 export function mapClientJar(client: Client): Artifact {
   return {

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import * as api from '../../lib/index';
 import { DEFAULT_PLATFORMS } from '../../lib/resolver';
 
-describe('@lanka/java public API', () => {
+describe('@opys/java public API', () => {
   it('re-exports the java plugin factory', () => {
     expect(typeof api.java).toBe('function');
   });

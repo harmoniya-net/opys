@@ -9,14 +9,14 @@
  * GitLab exposes the file's sha256 via the `package_files` API, which we
  * use for integrity verification. The `latest` channel's sha256 changes
  * whenever a new build replaces it — that's resolved at template-build
- * time and frozen into the lanka manifest.
+ * time and frozen into the opys manifest.
  *
  * Accepted version forms:
  *   - Exact version: `'0.3'`
  *   - `'latest'`     — the auto-updating `latest` package version
  */
 
-import { fetchWithRetry } from '@lanka/core';
+import { fetchWithRetry } from '@opys/core';
 
 const DEFAULT_PROJECT = 'harmoniya/authliberty';
 const DEFAULT_GITLAB = 'https://gitlab.com';

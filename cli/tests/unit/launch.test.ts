@@ -7,7 +7,7 @@ import { join } from 'node:path';
 const installMock = vi.hoisted(() => vi.fn());
 const launchMock = vi.hoisted(() => vi.fn());
 
-vi.mock('@lanka/runtime', () => ({
+vi.mock('@opys/runtime', () => ({
   install: installMock,
   launch: launchMock,
 }));
@@ -19,14 +19,14 @@ import { Logger } from '../../lib/logger';
 let dir = '';
 const logger = new Logger('silent');
 
-// cmdLaunch builds the manifest in-memory from this config — no lanka.json.
+// cmdLaunch builds the manifest in-memory from this config — no opys.json.
 const CONFIG = `export default {
   plugins: [],
   manifest: { command: () => 'java', args: () => [], workdir: '.' },
 };`;
 
 beforeEach(async () => {
-  dir = await mkdtemp(join(tmpdir(), 'lanka-launch-'));
+  dir = await mkdtemp(join(tmpdir(), 'opys-launch-'));
   installMock.mockReset();
   launchMock.mockReset();
   // install does nothing by default; launch yields a child that exits 0.
@@ -46,7 +46,7 @@ afterEach(async () => {
 
 /** Write a config file to the temp dir and return its path. */
 async function fixture(config = CONFIG): Promise<string> {
-  const cfgPath = join(dir, 'lanka.config.mjs');
+  const cfgPath = join(dir, 'opys.config.mjs');
   await writeFile(cfgPath, config, 'utf8');
   return cfgPath;
 }
@@ -59,7 +59,7 @@ describe('cmdLaunch — happy path', () => {
     expect(launchMock).toHaveBeenCalledOnce();
   });
 
-  it('launches the in-memory built manifest (no lanka.json needed)', async () => {
+  it('launches the in-memory built manifest (no opys.json needed)', async () => {
     const cfg = await fixture();
     await cmdLaunch(['-i', cfg], logger, 'launch');
     const manifestArg = launchMock.mock.calls[0]![0];
@@ -85,7 +85,7 @@ describe('cmdLaunch — happy path', () => {
     ).resolves.toBeUndefined();
   });
 
-  it('defaults the input file to lanka.config.mjs in cwd', async () => {
+  it('defaults the input file to opys.config.mjs in cwd', async () => {
     await fixture();
     const origCwd = process.cwd();
     process.chdir(dir);

@@ -1,60 +1,60 @@
-# lanka CLI
+# opys CLI
 
 Command-line interface for building and launching Minecraft client installations from declarative manifests.
 
 ## Install
 
 ```sh
-npm install -g @lanka/cli
+npm install -g @opys/cli
 ```
 
 Or run directly without installing:
 
 ```sh
-npx @lanka/cli <command>
+npx @opys/cli <command>
 ```
 
 ## Commands
 
-### `lanka build`
+### `opys build`
 
-Reads a JS config file, fetches Mojang metadata, and writes a `lanka.json` manifest.
+Reads a JS config file, fetches Mojang metadata, and writes a `opys.json` manifest.
 
 ```sh
-lanka build [--input lanka.config.mjs] [--output lanka.json]
+opys build [--input opys.config.mjs] [--output opys.json]
 ```
 
 | Flag       | Short | Default                | Description                       |
 | ---------- | ----- | ---------------------- | --------------------------------- |
-| `--input`  | `-i`  | `lanka.config.mjs`     | Path to the JS config file        |
+| `--input`  | `-i`  | `opys.config.mjs`      | Path to the JS config file        |
 | `--output` | `-o`  | value from config file | Output path for the manifest JSON |
 
 If `--output` is omitted and the config has no `output` field, the manifest is written to stdout.
 
-### `lanka launch`
+### `opys launch`
 
 Installs missing artifacts and spawns the JVM.
 
 ```sh
-lanka launch [manifest] [--var key=value ...]
+opys launch [manifest] [--var key=value ...]
 ```
 
 Common vars to pass at launch: `username`, `uuid`, `token`.
 
-## Config file (`lanka.config.mjs`)
+## Config file (`opys.config.mjs`)
 
 ```js
 import {
   defineConfig,
   resolveMinecraft,
   artifactScanner,
-} from '@lanka/minecraft';
+} from '@opys/minecraft';
 
 export default defineConfig(async () => {
   const mc = await resolveMinecraft({ version: '1.20.1' });
 
   return {
-    output: 'lanka.json',
+    output: 'opys.json',
     manifest: {
       artifacts: [
         mc.artifacts,

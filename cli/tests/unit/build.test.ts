@@ -10,7 +10,7 @@ let dir = '';
 const logger = new Logger('silent');
 
 beforeEach(async () => {
-  dir = await mkdtemp(join(tmpdir(), 'lanka-build-'));
+  dir = await mkdtemp(join(tmpdir(), 'opys-build-'));
 });
 
 afterEach(async () => {
@@ -21,7 +21,7 @@ afterEach(async () => {
 /**
  * Writes a config module to the temp dir. The config uses a plain inline
  * plugin object so it has no third-party imports — `cmdBuild` only needs
- * `mod.default` to be a `LankaConfigInput`.
+ * `mod.default` to be a `OpysConfigInput`.
  */
 async function writeConfig(file: string, body: string): Promise<string> {
   const path = join(dir, file);
@@ -41,7 +41,7 @@ const INLINE_PLUGIN = `{
 }`;
 
 const BASE_CONFIG = `export default {
-  output: 'lanka.json',
+  output: 'opys.json',
   plugins: [${INLINE_PLUGIN}],
   manifest: {
     command: () => 'java',
@@ -52,9 +52,9 @@ const BASE_CONFIG = `export default {
 
 describe('cmdBuild', () => {
   it('writes the manifest to the config-declared output file', async () => {
-    await writeConfig('lanka.config.mjs', BASE_CONFIG);
-    await cmdBuild(['-i', join(dir, 'lanka.config.mjs')], logger, 'build');
-    const written = await readFile(join(dir, 'lanka.json'), 'utf8');
+    await writeConfig('opys.config.mjs', BASE_CONFIG);
+    await cmdBuild(['-i', join(dir, 'opys.config.mjs')], logger, 'build');
+    const written = await readFile(join(dir, 'opys.json'), 'utf8');
     const manifest = JSON.parse(written);
     expect(manifest.artifacts).toHaveLength(1);
     expect(manifest.artifacts[0].path).toBe('a.jar');
@@ -63,9 +63,9 @@ describe('cmdBuild', () => {
   });
 
   it('honours an explicit --output flag over config.output', async () => {
-    await writeConfig('lanka.config.mjs', BASE_CONFIG);
+    await writeConfig('opys.config.mjs', BASE_CONFIG);
     await cmdBuild(
-      ['-i', join(dir, 'lanka.config.mjs'), '-o', 'custom.json'],
+      ['-i', join(dir, 'opys.config.mjs'), '-o', 'custom.json'],
       logger,
       'build',
     );
@@ -78,25 +78,25 @@ describe('cmdBuild', () => {
       plugins: [${INLINE_PLUGIN}],
       manifest: { command: () => 'java', args: () => [], workdir: '.' },
     };`;
-    await writeConfig('lanka.config.mjs', noOutput);
+    await writeConfig('opys.config.mjs', noOutput);
     const out: string[] = [];
     vi.spyOn(process.stdout, 'write').mockImplementation((c: unknown) => {
       out.push(String(c));
       return true;
     });
-    await cmdBuild(['-i', join(dir, 'lanka.config.mjs')], logger, 'build');
+    await cmdBuild(['-i', join(dir, 'opys.config.mjs')], logger, 'build');
     expect(out.join('')).toContain('"artifacts"');
   });
 
-  it('defaults the input file to lanka.config.mjs in cwd', async () => {
-    await writeConfig('lanka.config.mjs', BASE_CONFIG);
+  it('defaults the input file to opys.config.mjs in cwd', async () => {
+    await writeConfig('opys.config.mjs', BASE_CONFIG);
     const cwd = vi.spyOn(process, 'cwd').mockReturnValue(dir);
     try {
       await cmdBuild([], logger, 'build');
     } finally {
       cwd.mockRestore();
     }
-    const written = await readFile(join(dir, 'lanka.json'), 'utf8');
+    const written = await readFile(join(dir, 'opys.json'), 'utf8');
     expect(JSON.parse(written).artifacts).toHaveLength(1);
   });
 
@@ -110,9 +110,9 @@ describe('cmdBuild', () => {
         workdir: '.',
       },
     });`;
-    await writeConfig('lanka.config.mjs', fnConfig);
+    await writeConfig('opys.config.mjs', fnConfig);
     await cmdBuild(
-      ['-i', join(dir, 'lanka.config.mjs'), '--mode', 'staging'],
+      ['-i', join(dir, 'opys.config.mjs'), '--mode', 'staging'],
       logger,
       'build',
     );
@@ -121,19 +121,19 @@ describe('cmdBuild', () => {
   });
 
   it('throws a UsageError when the config has no default export', async () => {
-    await writeConfig('lanka.config.mjs', 'export const notDefault = 1;');
+    await writeConfig('opys.config.mjs', 'export const notDefault = 1;');
     await expect(
-      cmdBuild(['-i', join(dir, 'lanka.config.mjs')], logger, 'build'),
+      cmdBuild(['-i', join(dir, 'opys.config.mjs')], logger, 'build'),
     ).rejects.toThrow(UsageError);
   });
 
   it('forwards build log lines through the logger', async () => {
-    await writeConfig('lanka.config.mjs', BASE_CONFIG);
+    await writeConfig('opys.config.mjs', BASE_CONFIG);
     const spyLogger = new Logger('info');
     const info = vi.spyOn(spyLogger, 'info').mockImplementation(() => {});
-    await cmdBuild(['-i', join(dir, 'lanka.config.mjs')], spyLogger, 'build');
+    await cmdBuild(['-i', join(dir, 'opys.config.mjs')], spyLogger, 'build');
     expect(info).toHaveBeenCalled();
-    expect(info.mock.calls.some((c) => String(c[0]).includes('[lanka]'))).toBe(
+    expect(info.mock.calls.some((c) => String(c[0]).includes('[opys]'))).toBe(
       true,
     );
   });

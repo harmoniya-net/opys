@@ -7,7 +7,7 @@
  * resolvers don't each carry their own copy.
  */
 
-import { fetchWithRetry } from '@lanka/core';
+import { fetchWithRetry } from '@opys/core';
 
 export interface RawAsset {
   name: string;

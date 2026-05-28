@@ -7,7 +7,7 @@ on:
 env:
   CARGO_TERM_COLOR: always
   DEBUG: napi:*
-  APP_NAME: lanka
+  APP_NAME: opys
 
 jobs:
   # ─────────────────────────────────────────────────────────────
@@ -56,26 +56,26 @@ jobs:
 
       - run: npm ci --ignore-scripts
 
-      - name: Build @lanka/core-binding
+      - name: Build @opys/core-binding
         run: npx napi build --platform --release --target ${{ matrix.target }}
-        working-directory: crates/lanka-core-napi
+        working-directory: crates/opys-core-napi
 
-      - name: Build @lanka/runtime-binding
+      - name: Build @opys/runtime-binding
         run: npx napi build --platform --release --target ${{ matrix.target }}
-        working-directory: crates/lanka-runtime-napi
+        working-directory: crates/opys-runtime-napi
 
-      - name: Upload @lanka/core-binding artifact
+      - name: Upload @opys/core-binding artifact
         uses: actions/upload-artifact@v4
         with:
           name: core-binding-${{ matrix.target }}
-          path: crates/lanka-core-napi/*.node
+          path: crates/opys-core-napi/*.node
           if-no-files-found: error
 
-      - name: Upload @lanka/runtime-binding artifact
+      - name: Upload @opys/runtime-binding artifact
         uses: actions/upload-artifact@v4
         with:
           name: runtime-binding-${{ matrix.target }}
-          path: crates/lanka-runtime-napi/*.node
+          path: crates/opys-runtime-napi/*.node
           if-no-files-found: error
 
   # ─────────────────────────────────────────────────────────────
@@ -106,35 +106,35 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           pattern: core-binding-*
-          path: crates/lanka-core-napi/artifacts
+          path: crates/opys-core-napi/artifacts
           merge-multiple: true
 
       - uses: actions/download-artifact@v4
         with:
           pattern: runtime-binding-*
-          path: crates/lanka-runtime-napi/artifacts
+          path: crates/opys-runtime-napi/artifacts
           merge-multiple: true
 
       - name: Stage .node files for napi prepublish
         run: |
-          mv crates/lanka-core-napi/artifacts/*.node crates/lanka-core-napi/
-          mv crates/lanka-runtime-napi/artifacts/*.node crates/lanka-runtime-napi/
-          ls crates/lanka-core-napi/
-          ls crates/lanka-runtime-napi/
+          mv crates/opys-core-napi/artifacts/*.node crates/opys-core-napi/
+          mv crates/opys-runtime-napi/artifacts/*.node crates/opys-runtime-napi/
+          ls crates/opys-core-napi/
+          ls crates/opys-runtime-napi/
 
       # `napi prepublish` scaffolds per-platform npm subpackages
-      # (`@lanka/core-binding-linux-x64-gnu`, etc.) and publishes each
+      # (`@opys/core-binding-linux-x64-gnu`, etc.) and publishes each
       # alongside the loader package.
-      - name: Publish @lanka/core-binding (loader + platform sub-packages)
+      - name: Publish @opys/core-binding (loader + platform sub-packages)
         run: npx napi prepublish -t npm --skip-gh-release
-        working-directory: crates/lanka-core-napi
+        working-directory: crates/opys-core-napi
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      - name: Publish @lanka/runtime-binding (loader + platform sub-packages)
+      - name: Publish @opys/runtime-binding (loader + platform sub-packages)
         run: npx napi prepublish -t npm --skip-gh-release
-        working-directory: crates/lanka-runtime-napi
+        working-directory: crates/opys-runtime-napi
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
@@ -145,7 +145,7 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      - name: Publish TS workspaces (@lanka/core, runtime, dev, …)
+      - name: Publish TS workspaces (@opys/core, runtime, dev, …)
         run: npm publish --workspaces --access public --provenance
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
@@ -164,9 +164,9 @@ jobs:
 
       # `cargo publish` since 1.66 waits for crates.io indexing between
       # packages, so a sequential publish in dep order just works.
-      - run: cargo publish -p lanka-mojang-rules
+      - run: cargo publish -p opys-mojang-rules
         env: { CARGO_REGISTRY_TOKEN: '${{ secrets.CARGO_REGISTRY_TOKEN }}' }
-      - run: cargo publish -p lanka-core
+      - run: cargo publish -p opys-core
         env: { CARGO_REGISTRY_TOKEN: '${{ secrets.CARGO_REGISTRY_TOKEN }}' }
-      - run: cargo publish -p lanka-runtime
+      - run: cargo publish -p opys-runtime
         env: { CARGO_REGISTRY_TOKEN: '${{ secrets.CARGO_REGISTRY_TOKEN }}' }

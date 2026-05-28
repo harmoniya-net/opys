@@ -1,5 +1,5 @@
 {
-  "name": "@lanka/java",
+  "name": "@opys/java",
   "version": "1.0.0",
   "type": "module",
   "main": "./dist/index.js",
@@ -16,8 +16,8 @@
     "test:int": "vitest run tests/integration --testTimeout=120000"
   },
   "dependencies": {
-    "@lanka/core": "^1.0.0",
-    "@lanka/dev": "^1.0.0"
+    "@opys/core": "^1.0.0",
+    "@opys/dev": "^1.0.0"
   },
   "peerDependencies": {
     "zod": "^4.0.0"

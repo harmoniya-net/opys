@@ -6,8 +6,8 @@ import {
   type Val,
   type Valset,
   deduplicateArtifacts,
-} from '@lanka/core';
-import type { LankaConfig, ArgItem, PluginMap } from './config';
+} from '@opys/core';
+import type { OpysConfig, ArgItem, PluginMap } from './config';
 import type { BuildContext } from './plugin';
 
 /** Flatten author-ordered launch groups into a single `Valset`. */
@@ -26,10 +26,10 @@ function flattenArgs(items: ReadonlyArray<ArgItem>): Valset {
  * assemble the final `Manifest`.
  */
 export async function buildManifest(
-  config: LankaConfig,
+  config: OpysConfig,
   ctx: BuildContext,
 ): Promise<Manifest> {
-  ctx.log('lanka', `resolving ${config.plugins.length} plugin(s)`);
+  ctx.log('opys', `resolving ${config.plugins.length} plugin(s)`);
   const results = await Promise.all(
     config.plugins.map(async (p) => ({
       name: p.name,
@@ -54,7 +54,7 @@ export async function buildManifest(
       const prev = owner[key];
       if (prev !== undefined && prev !== r.name) {
         ctx.log(
-          'lanka',
+          'opys',
           `warning: var '${key}' set by both '${prev}' and '${r.name}' — using '${r.name}'`,
         );
       }
@@ -85,7 +85,7 @@ export async function buildManifest(
   };
 
   ctx.log(
-    'lanka',
+    'opys',
     `merged ${deduped.length} artifact(s) (${artifacts.length - deduped.length} deduped)`,
   );
 

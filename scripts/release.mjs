@@ -9,7 +9,7 @@
 //
 // npm and crates.io versions stay in lockstep. The two -napi crates are
 // `publish = false` so cargo skips them; they ship through their npm-side
-// `@lanka/*-binding` packages, which carry the same version.
+// `@opys/*-binding` packages, which carry the same version.
 
 import { execSync } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
@@ -40,14 +40,14 @@ const version = nextVersion(root.version, process.argv[2] ?? 'patch');
 console.log(`Releasing ${root.version} -> ${version}\n`);
 
 // 2a. Stamp the new version into the root and every npm workspace, and
-//     rewrite internal @lanka/* dependency ranges so they stay in lockstep.
+//     rewrite internal @opys/* dependency ranges so they stay in lockstep.
 const DEP_FIELDS = ['dependencies', 'devDependencies', 'peerDependencies'];
 const stampJson = (path) => {
   const pkg = readJson(path);
   pkg.version = version;
   for (const field of DEP_FIELDS) {
     for (const name of Object.keys(pkg[field] ?? {})) {
-      if (name.startsWith('@lanka/')) pkg[field][name] = `^${version}`;
+      if (name.startsWith('@opys/')) pkg[field][name] = `^${version}`;
     }
   }
   writeJson(path, pkg);
@@ -58,7 +58,7 @@ for (const ws of root.workspaces) stampJson(`${ws}/package.json`);
 
 // 2b. Stamp the same version into Cargo: the workspace `[workspace.package]`
 //     version (inherited by every crate via `version.workspace = true`) and
-//     every internal `lanka-*` path-dep's `version = "..."` specifier.
+//     every internal `opys-*` path-dep's `version = "..."` specifier.
 const stampCargoWorkspace = (path) => {
   const txt = readFileSync(path, 'utf8');
   // Replace the top-level `version = "..."` line. The `^` (with /m) anchors
@@ -73,19 +73,19 @@ const stampCargoWorkspace = (path) => {
 };
 const stampCargoCrate = (path) => {
   const txt = readFileSync(path, 'utf8');
-  // Rewrite `version = "..."` only on lines that also declare a lanka-* path dep.
+  // Rewrite `version = "..."` only on lines that also declare a opys-* path dep.
   const next = txt.replace(
-    /^(\s*lanka-[a-z-]+\s*=\s*\{[^}]*?\bversion\s*=\s*")[^"]+(".*)$/gm,
+    /^(\s*opys-[a-z-]+\s*=\s*\{[^}]*?\bversion\s*=\s*")[^"]+(".*)$/gm,
     `$1${version}$2`,
   );
   writeFileSync(path, next);
 };
 stampCargoWorkspace('Cargo.toml');
 for (const crate of [
-  'crates/lanka-core',
-  'crates/lanka-runtime',
-  'crates/lanka-core-napi',
-  'crates/lanka-runtime-napi',
+  'crates/opys-core',
+  'crates/opys-runtime',
+  'crates/opys-core-napi',
+  'crates/opys-runtime-napi',
 ]) {
   stampCargoCrate(`${crate}/Cargo.toml`);
 }

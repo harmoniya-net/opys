@@ -1,5 +1,5 @@
 {
-  "name": "@lanka/core",
+  "name": "@opys/core",
   "version": "1.0.0",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -22,8 +22,8 @@
   },
   "type": "module",
   "dependencies": {
-    "@lanka/core-binding": "^1.0.0",
-    "@lanka/mojang-rules": "^1.0.0"
+    "@opys/core-binding": "^1.0.0",
+    "@opys/mojang-rules": "^1.0.0"
   },
   "engines": {
     "node": ">=20"

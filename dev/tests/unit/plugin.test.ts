@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { definePlugin } from '../../lib/plugin';
-import type { BuildContext, LankaPlugin } from '../../lib/plugin';
+import type { BuildContext, OpysPlugin } from '../../lib/plugin';
 
 describe('definePlugin', () => {
   it('returns the plugin object unchanged', () => {
-    const plugin: LankaPlugin = { name: 'p', build: () => ({}) };
+    const plugin: OpysPlugin = { name: 'p', build: () => ({}) };
     expect(definePlugin(plugin)).toBe(plugin);
   });
 

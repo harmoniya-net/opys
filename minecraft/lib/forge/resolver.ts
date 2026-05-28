@@ -7,7 +7,7 @@
  *   ${source}/versions/${mc}/{best,latest,recommended}.json → alias redirects
  */
 
-import { fetchWithRetry } from '@lanka/core';
+import { fetchWithRetry } from '@opys/core';
 
 export interface ForgeFile {
   readonly md5: string;

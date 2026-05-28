@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { sourceUrl, type Artifact, type Integrity } from '@lanka/core';
+import { sourceUrl, type Artifact, type Integrity } from '@opys/core';
 import { applyOverrides, matchesSelector } from '../../lib/overrides';
 
 const art = (path: string, integrity?: Integrity): Artifact => ({

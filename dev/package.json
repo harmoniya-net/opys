@@ -1,5 +1,5 @@
 {
-  "name": "@lanka/dev",
+  "name": "@opys/dev",
   "version": "1.0.0",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -19,7 +19,7 @@
   },
   "type": "module",
   "dependencies": {
-    "@lanka/core": "^1.0.0"
+    "@opys/core": "^1.0.0"
   },
   "peerDependencies": {
     "zod": "^4.0.0"

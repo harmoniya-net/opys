@@ -1,4 +1,4 @@
-import { definePlugin, type LankaPlugin } from '@lanka/dev';
+import { definePlugin, type OpysPlugin } from '@opys/dev';
 import { resolveJava, type JavaOptions } from './template';
 
 /**
@@ -9,7 +9,7 @@ import { resolveJava, type JavaOptions } from './template';
 export function java(
   version: string,
   opts: Omit<JavaOptions, 'version'> = {},
-): LankaPlugin {
+): OpysPlugin {
   return definePlugin({
     name: 'java',
     async build(ctx) {

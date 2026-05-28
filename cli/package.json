@@ -1,8 +1,8 @@
 {
-  "name": "@lanka/cli",
+  "name": "@opys/cli",
   "version": "1.0.0",
   "bin": {
-    "lanka": "dist/lanka.mjs"
+    "opys": "dist/opys.mjs"
   },
   "files": [
     "dist"
@@ -15,11 +15,11 @@
   },
   "type": "module",
   "dependencies": {
-    "@lanka/core": "^1.0.0",
-    "@lanka/dev": "^1.0.0",
-    "@lanka/runtime": "^1.0.0",
-    "@lanka/minecraft": "^1.0.0",
-    "@lanka/mojang": "^1.0.0"
+    "@opys/core": "^1.0.0",
+    "@opys/dev": "^1.0.0",
+    "@opys/runtime": "^1.0.0",
+    "@opys/minecraft": "^1.0.0",
+    "@opys/mojang": "^1.0.0"
   },
   "peerDependencies": {
     "zod": "^4.0.0"

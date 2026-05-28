@@ -16,17 +16,17 @@
  * are soft-skipped — the resulting `JavaRelease` only contains the platforms
  * with a real binary.
  */
-import { fetchWithRetry } from '@lanka/core';
-import type { OsName, OsArch } from '@lanka/core';
+import { fetchWithRetry } from '@opys/core';
+import type { OsName, OsArch } from '@opys/core';
 
 const ADOPTIUM_BASE = 'https://api.adoptium.net/v3';
 const VENDOR = 'eclipse';
 
-/** Adoptium-side platform descriptor + how it maps onto lanka's OS/arch enums. */
+/** Adoptium-side platform descriptor + how it maps onto opys's OS/arch enums. */
 export interface JavaPlatform {
-  /** lanka OS name. */
+  /** opys OS name. */
   readonly os: OsName;
-  /** lanka arch. `x86_64` is Adoptium's `x64`. */
+  /** opys arch. `x86_64` is Adoptium's `x64`. */
   readonly arch: OsArch;
   /** Adoptium API `os` value (`linux`, `mac`, `windows`). */
   readonly adoptiumOs: 'linux' | 'mac' | 'windows';

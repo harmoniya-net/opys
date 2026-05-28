@@ -22,7 +22,7 @@ const RuleActionSchema = z.enum(['allow', 'disallow']);
 
 /**
  * The single rule schema for the whole monorepo — used to parse rules out
- * of Mojang version JSON, Forge recipes, and `lanka.json` artifacts alike.
+ * of Mojang version JSON, Forge recipes, and `opys.json` artifacts alike.
  * `z.infer` of this is exactly `Rule`, so no cast is needed.
  */
 export const RuleSchema = z.union([

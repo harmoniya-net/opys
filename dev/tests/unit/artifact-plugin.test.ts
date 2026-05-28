@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { sourceUrl, type Artifact } from '@lanka/core';
+import { sourceUrl, type Artifact } from '@opys/core';
 import { defineArtifactPlugin } from '../../lib/artifact-plugin';
-import type { BuildContext, Contribution, LankaPlugin } from '../../lib/plugin';
+import type { BuildContext, Contribution, OpysPlugin } from '../../lib/plugin';
 
 const ctx: BuildContext = { log: () => {}, configDir: '/tmp', mode: '' };
 
@@ -15,7 +15,7 @@ const art = (path: string): Artifact => ({
 const fixedPlugin = (
   contribution: Contribution,
   name = 'inner',
-): LankaPlugin => ({
+): OpysPlugin => ({
   name,
   build: () => contribution,
 });
@@ -87,7 +87,7 @@ describe('defineArtifactPlugin', () => {
   });
 
   it('awaits an async inner build hook', async () => {
-    const inner: LankaPlugin = {
+    const inner: OpysPlugin = {
       name: 'async-inner',
       build: async () => ({
         artifacts: [art('mods/x.jar'), art('mods/y.jar')],
@@ -102,7 +102,7 @@ describe('defineArtifactPlugin', () => {
 
   it('forwards the build context to the inner plugin', async () => {
     let seen: BuildContext | undefined;
-    const inner: LankaPlugin = {
+    const inner: OpysPlugin = {
       name: 'ctx-inner',
       build: (received) => {
         seen = received;

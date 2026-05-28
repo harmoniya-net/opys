@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildClasspath, buildLaunch } from '../../lib/mappers/launch';
-import { allowOsRuleset } from '@lanka/core';
+import { allowOsRuleset } from '@opys/core';
 
 describe('buildClasspath', () => {
   it('produces one conditional arm per platform', () => {

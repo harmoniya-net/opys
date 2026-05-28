@@ -1,5 +1,5 @@
 {
-  "name": "@lanka/minecraft",
+  "name": "@opys/minecraft",
   "version": "1.0.0",
   "type": "module",
   "main": "./dist/index.js",
@@ -16,9 +16,9 @@
     "test:int": "vitest run tests/integration --testTimeout=120000"
   },
   "dependencies": {
-    "@lanka/core": "^1.0.0",
-    "@lanka/dev": "^1.0.0",
-    "@lanka/mojang": "^1.0.0",
+    "@opys/core": "^1.0.0",
+    "@opys/dev": "^1.0.0",
+    "@opys/mojang": "^1.0.0",
     "fflate": "^0.8.2",
     "nbtify": "^2.2.0"
   },

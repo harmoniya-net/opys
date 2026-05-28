@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { mapClientJar } from '../../lib/mappers/client';
-import type { Client } from '@lanka/mojang';
+import type { Client } from '@opys/mojang';
 
 const client = {
   downloads: {

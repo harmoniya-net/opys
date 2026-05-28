@@ -1,7 +1,7 @@
-import type { Artifact } from '@lanka/core';
-import { sourceUrl } from '@lanka/core';
-import type { AssetManifest, AssetIndex } from '@lanka/mojang';
-import { assetUrl, assetPath } from '@lanka/mojang';
+import type { Artifact } from '@opys/core';
+import { sourceUrl } from '@opys/core';
+import type { AssetManifest, AssetIndex } from '@opys/mojang';
+import { assetUrl, assetPath } from '@opys/mojang';
 
 export function mapAssetIndex(index: AssetIndex): Artifact {
   return {

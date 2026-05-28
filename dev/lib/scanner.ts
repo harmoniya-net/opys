@@ -8,9 +8,9 @@ import {
   relative,
   resolve,
 } from 'node:path';
-import type { Artifact, Integrity, Source } from '@lanka/core';
-import { sourceFile, sourceUrl, interpolate } from '@lanka/core';
-import { definePlugin, type LankaPlugin } from './plugin';
+import type { Artifact, Integrity, Source } from '@opys/core';
+import { sourceFile, sourceUrl, interpolate } from '@opys/core';
+import { definePlugin, type OpysPlugin } from './plugin';
 import { applyOverrides, type ArtifactOverride } from './overrides';
 
 /** A file discovered by {@link artifactScanner}, passed to `path`/`url` functions. */
@@ -138,7 +138,7 @@ async function* scanDirectory(
 }
 
 /** Scan a local directory tree into artifacts — a generic build-time plugin. */
-export function artifactScanner(options: ArtifactScannerOptions): LankaPlugin {
+export function artifactScanner(options: ArtifactScannerOptions): OpysPlugin {
   return definePlugin({
     name: 'artifactScanner',
     async build(ctx) {

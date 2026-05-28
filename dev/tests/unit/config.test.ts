@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { defineConfig, resolveConfig } from '../../lib/config';
-import type { LankaConfig } from '../../lib/config';
+import type { OpysConfig } from '../../lib/config';
 
-const base: LankaConfig = {
+const base: OpysConfig = {
   plugins: [],
   manifest: { command: () => 'java', args: () => [] },
 };

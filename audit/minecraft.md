@@ -1,4 +1,4 @@
-# Audit — `@lanka/minecraft`
+# Audit — `@opys/minecraft`
 
 Code-quality audit, 2026-05-19 — open items only (resolved findings removed;
 see git history).
@@ -10,7 +10,7 @@ see git history).
   `patchLibraries` walk raw library objects with `raw as Record<string,
 unknown>`, `art.url` indexed off an `unknown`, `coord as ResolvedCoord`, etc.
   This is exactly the cast-heavy style the refactor removed elsewhere — there
-  is a real schema (`@lanka/mojang`'s library schema) being routed around.
+  is a real schema (`@opys/mojang`'s library schema) being routed around.
   Define a small zod schema for the two non-standard lwjgl3ify entry shapes and
   decode through it.
 

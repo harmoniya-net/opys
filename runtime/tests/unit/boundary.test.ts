@@ -9,13 +9,13 @@ import {
   type InstallProgress,
 } from '../../lib';
 
-describe('@lanka/runtime — napi boundary smoke', () => {
+describe('@opys/runtime — napi boundary smoke', () => {
   test('currentPlatform reports a non-empty name', () => {
     expect(currentPlatform().name.length).toBeGreaterThan(0);
   });
 
   test('install writes a string source and emits phase events', async () => {
-    const dir = mkdtempSync(join(tmpdir(), 'lanka-napi-rt-'));
+    const dir = mkdtempSync(join(tmpdir(), 'opys-napi-rt-'));
     const events: string[] = [];
     await install(
       {
@@ -34,7 +34,7 @@ describe('@lanka/runtime — napi boundary smoke', () => {
   });
 
   test('install skips an artifact whose target already exists', async () => {
-    const dir = mkdtempSync(join(tmpdir(), 'lanka-napi-rt-skip-'));
+    const dir = mkdtempSync(join(tmpdir(), 'opys-napi-rt-skip-'));
     writeFileSync(join(dir, 'exists.txt'), 'prior');
     await install(
       {

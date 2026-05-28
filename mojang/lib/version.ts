@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { fetchWithRetry } from '@lanka/core';
+import { fetchWithRetry } from '@opys/core';
 
 export class VersionFetchError extends Error {
   readonly kind = 'version-fetch' as const;

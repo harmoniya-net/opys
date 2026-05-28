@@ -1,7 +1,7 @@
 import { writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { encodeManifest } from '@lanka/core';
-import { buildManifest, type BuildContext } from '@lanka/dev';
+import { encodeManifest } from '@opys/core';
+import { buildManifest, type BuildContext } from '@opys/dev';
 import { parseArgs } from '../args';
 import { loadConfig } from '../load-config';
 import type { Logger } from '../logger';
@@ -16,7 +16,7 @@ export async function cmdBuild(
     { long: 'output', short: 'o', type: 'string' },
     { long: 'mode', type: 'string' },
   ]);
-  const inputFile = args.getString('input') ?? 'lanka.config.mjs';
+  const inputFile = args.getString('input') ?? 'opys.config.mjs';
   const outputFile = args.getString('output');
   const mode = args.getString('mode') ?? command;
 

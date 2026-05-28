@@ -13,14 +13,14 @@ import {
   sourceUrl,
   extractScan,
   fetchWithRetry,
-} from '@lanka/core';
-import type { Val, Valset } from '@lanka/core';
+} from '@opys/core';
+import type { Val, Valset } from '@opys/core';
 import {
   parseArguments,
   parseLibraries,
   type Library,
   type MojangArgValue,
-} from '@lanka/mojang';
+} from '@opys/mojang';
 import {
   resolveCleanroomVersion,
   type CleanroomRelease,
@@ -91,7 +91,7 @@ function readJsonEntry<T>(zip: Record<string, Uint8Array>, name: string): T {
 }
 
 /**
- * Build a lanka template that launches Minecraft with the Cleanroom loader.
+ * Build a opys template that launches Minecraft with the Cleanroom loader.
  *
  * Cleanroom is structurally similar to legacy Forge: vanilla 1.12.2 + a custom
  * mainClass (`top.outlands.foundation.boot.Foundation`) + a legacy

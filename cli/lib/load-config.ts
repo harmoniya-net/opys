@@ -1,10 +1,10 @@
 import { dirname, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { resolveConfig, type LankaConfig } from '@lanka/dev';
+import { resolveConfig, type OpysConfig } from '@opys/dev';
 import { UsageError } from './errors';
 
 export interface LoadedConfig {
-  config: LankaConfig;
+  config: OpysConfig;
   configDir: string;
 }
 

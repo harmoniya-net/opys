@@ -1,12 +1,12 @@
-import type { Artifact, ValDefs, Val, Valset } from '@lanka/core';
+import type { Artifact, ValDefs, Val, Valset } from '@opys/core';
 
 /** Build-time context handed to every plugin's `build` hook. */
 export interface BuildContext {
   /** Sanctioned build-time logging channel; auto-prefixed by plugin name. */
   log: (scope: string, message: string) => void;
-  /** Absolute directory of `lanka.config.mjs` — anchor for relative paths. */
+  /** Absolute directory of `opys.config.mjs` — anchor for relative paths. */
   configDir: string;
-  /** Value of `lanka build --mode <m>`; empty string when unset. */
+  /** Value of `opys build --mode <m>`; empty string when unset. */
   mode: string;
 }
 
@@ -27,16 +27,16 @@ export interface Contribution {
 }
 
 /**
- * A lanka plugin — a pure-to-construct, bundler-style hook object. The
+ * A opys plugin — a pure-to-construct, bundler-style hook object. The
  * constructor (`forge('1.20.1-best')`, …) does zero I/O; all network/fs work
  * happens inside `build`, which the engine drives.
  */
-export interface LankaPlugin {
+export interface OpysPlugin {
   name: string;
   build(ctx: BuildContext): Promise<Contribution> | Contribution;
 }
 
 /** Identity helper for authoring a plugin with inferred types. */
-export function definePlugin(plugin: LankaPlugin): LankaPlugin {
+export function definePlugin(plugin: OpysPlugin): OpysPlugin {
   return plugin;
 }

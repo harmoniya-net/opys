@@ -676,86 +676,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "lanka-core"
-version = "1.0.0"
-dependencies = [
- "base64",
- "indexmap",
- "lanka-mojang-rules",
- "regex",
- "serde",
- "serde_json",
- "thiserror",
-]
-
-[[package]]
-name = "lanka-core-napi"
-version = "1.0.0"
-dependencies = [
- "indexmap",
- "lanka-core",
- "lanka-mojang-rules",
- "napi",
- "napi-build",
- "napi-derive",
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "lanka-mojang-rules"
-version = "1.0.0"
-dependencies = [
- "regex",
- "serde",
- "serde_json",
- "thiserror",
-]
-
-[[package]]
-name = "lanka-runtime"
-version = "1.0.0"
-dependencies = [
- "base64",
- "bytes",
- "flate2",
- "futures",
- "hex",
- "indexmap",
- "lanka-core",
- "lanka-mojang-rules",
- "md-5",
- "rand 0.8.6",
- "regex",
- "reqwest",
- "serde",
- "serde_json",
- "sha1",
- "sha2",
- "tar",
- "tempfile",
- "thiserror",
- "tokio",
- "zip",
-]
-
-[[package]]
-name = "lanka-runtime-napi"
-version = "1.0.0"
-dependencies = [
- "indexmap",
- "lanka-core",
- "lanka-mojang-rules",
- "lanka-runtime",
- "napi",
- "napi-build",
- "napi-derive",
- "serde",
- "serde_json",
- "tokio",
-]
-
-[[package]]
 name = "leb128fmt"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -903,6 +823,86 @@ name = "once_cell"
 version = "1.21.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9f7c3e4beb33f85d45ae3e3a1792185706c8e16d043238c593331cc7cd313b50"
+
+[[package]]
+name = "opys-core"
+version = "1.0.0"
+dependencies = [
+ "base64",
+ "indexmap",
+ "opys-mojang-rules",
+ "regex",
+ "serde",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
+name = "opys-core-napi"
+version = "1.0.0"
+dependencies = [
+ "indexmap",
+ "napi",
+ "napi-build",
+ "napi-derive",
+ "opys-core",
+ "opys-mojang-rules",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "opys-mojang-rules"
+version = "1.0.0"
+dependencies = [
+ "regex",
+ "serde",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
+name = "opys-runtime"
+version = "1.0.0"
+dependencies = [
+ "base64",
+ "bytes",
+ "flate2",
+ "futures",
+ "hex",
+ "indexmap",
+ "md-5",
+ "opys-core",
+ "opys-mojang-rules",
+ "rand 0.8.6",
+ "regex",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "sha1",
+ "sha2",
+ "tar",
+ "tempfile",
+ "thiserror",
+ "tokio",
+ "zip",
+]
+
+[[package]]
+name = "opys-runtime-napi"
+version = "1.0.0"
+dependencies = [
+ "indexmap",
+ "napi",
+ "napi-build",
+ "napi-derive",
+ "opys-core",
+ "opys-mojang-rules",
+ "opys-runtime",
+ "serde",
+ "serde_json",
+ "tokio",
+]
 
 [[package]]
 name = "percent-encoding"

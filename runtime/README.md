@@ -1,11 +1,11 @@
-# @lanka/installer
+# @opys/installer
 
-Programmatic install and launch for Lanka manifests. Downloads artifacts in parallel, verifies integrity, extracts natives, and spawns the JVM.
+Programmatic install and launch for Opys manifests. Downloads artifacts in parallel, verifies integrity, extracts natives, and spawns the JVM.
 
 ## Install
 
 ```sh
-npm install @lanka/installer @lanka/core
+npm install @opys/installer @opys/core
 ```
 
 ## Manifest sources
@@ -14,7 +14,7 @@ Both `install` and `launch` accept a **manifest source** as their first argument
 
 | Value             | Example                                    |
 | ----------------- | ------------------------------------------ |
-| File path string  | `'lanka.json'`                             |
+| File path string  | `'opys.json'`                              |
 | HTTPS URL object  | `new URL('https://example.com/pack.json')` |
 | Parsed `Manifest` | object returned by `resolveManifest`       |
 
@@ -25,9 +25,9 @@ Both `install` and `launch` accept a **manifest source** as their first argument
 Streams missing artifacts to `<finalPath>.partial` then renames them into place; extracts zips for artifacts with `extract` rules. Already-cached artifacts (path exists on disk) are skipped. A failed integrity check throws `IntegrityError` immediately.
 
 ```ts
-import { install } from '@lanka/installer';
+import { install } from '@opys/installer';
 
-await install('lanka.json', {
+await install('opys.json', {
   vars: {
     root: '/opt/minecraft/1.20.1',
     username: 'Player',
@@ -72,9 +72,9 @@ Runs `install` then spawns the process described by the manifest's launch config
 Pass `install: false` to skip installation.
 
 ```ts
-import { launch } from '@lanka/installer';
+import { launch } from '@opys/installer';
 
-const child = await launch('lanka.json', {
+const child = await launch('opys.json', {
   vars: {
     root: '/opt/minecraft/1.20.1',
     username: 'Player',
@@ -108,9 +108,9 @@ await new Promise<void>((resolve, reject) => {
 Resolves any manifest source to a `Manifest` object.
 
 ```ts
-import { resolveManifest } from '@lanka/installer';
+import { resolveManifest } from '@opys/installer';
 
-const manifest = await resolveManifest('lanka.json');
+const manifest = await resolveManifest('opys.json');
 console.log(manifest.artifacts.length);
 ```
 
@@ -121,7 +121,7 @@ console.log(manifest.artifacts.length);
 Returns the `OsOptions` for the current host.
 
 ```ts
-import { currentPlatform } from '@lanka/installer';
+import { currentPlatform } from '@opys/installer';
 
 const platform = currentPlatform();
 // { name: 'linux', arch: 'x64', version: '...' }
