@@ -14,7 +14,7 @@
 
 import {
   gitHubAssetSha256,
-  listGitHubReleases,
+  pickGitHubRelease,
   type GitHubAsset,
   type GitHubRelease,
 } from '@opys/dev';
@@ -67,11 +67,20 @@ function findModJar(release: GitHubRelease, tag: string): GitHubAsset | null {
   return release.assets.find((a) => a.name === expected) ?? null;
 }
 
-function toRelease(release: GitHubRelease): Lwjgl3ifyRelease | null {
-  const versionJson = release.assets.find((a) => a.name === 'version.json');
-  if (!versionJson) return null;
-  const modJar = findModJar(release, release.tag_name);
-  if (!modJar) return null;
+export async function resolveLwjgl3ifyVersion(
+  input: string,
+  options: ResolveLwjgl3ifyOptions = {},
+): Promise<Lwjgl3ifyRelease> {
+  const repo = options.repo ?? DEFAULT_REPO;
+  const release = await pickGitHubRelease(repo, input, {
+    token: options.token,
+    filter: (r) =>
+      r.assets.some((a) => a.name === 'version.json') &&
+      findModJar(r, r.tag_name) !== null,
+  });
+  // The filter guaranteed both assets exist — `find` cannot return undefined.
+  const versionJson = release.assets.find((a) => a.name === 'version.json')!;
+  const modJar = findModJar(release, release.tag_name)!;
   return {
     tag: release.tag_name,
     prerelease: release.prerelease,
@@ -79,44 +88,4 @@ function toRelease(release: GitHubRelease): Lwjgl3ifyRelease | null {
     modJar: toAsset(modJar),
     publishedAt: release.published_at,
   };
-}
-
-export async function resolveLwjgl3ifyVersion(
-  input: string,
-  options: ResolveLwjgl3ifyOptions = {},
-): Promise<Lwjgl3ifyRelease> {
-  const repo = options.repo ?? DEFAULT_REPO;
-  const releases = (await listGitHubReleases(repo, options.token))
-    .filter((r) => !r.draft)
-    .map(toRelease)
-    .filter((r): r is Lwjgl3ifyRelease => r !== null);
-
-  if (input === 'latest') {
-    const stable = releases.find((r) => !r.prerelease);
-    if (!stable) {
-      throw new Error(
-        `No stable lwjgl3ify release with a version.json asset found in ${repo}`,
-      );
-    }
-    return stable;
-  }
-  if (input === 'prerelease') {
-    if (releases.length === 0) {
-      throw new Error(
-        `No lwjgl3ify release with a version.json asset found in ${repo}`,
-      );
-    }
-    return releases[0]!;
-  }
-
-  const match = releases.find((r) => r.tag === input);
-  if (!match) {
-    throw new Error(
-      `lwjgl3ify release '${input}' not found in ${repo}. Available: ${releases
-        .slice(0, 5)
-        .map((r) => r.tag)
-        .join(', ')}${releases.length > 5 ? ', …' : ''}`,
-    );
-  }
-  return match;
 }

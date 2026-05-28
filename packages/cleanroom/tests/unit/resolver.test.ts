@@ -126,14 +126,14 @@ describe('resolveCleanroomVersion', () => {
   it('throws when no stable release exists for "latest"', async () => {
     mockReleases([release('0.5.9-alpha', { prerelease: true })]);
     await expect(resolveCleanroomVersion('latest')).rejects.toThrow(
-      /No stable Cleanroom release/,
+      /No stable GitHub release/,
     );
   });
 
   it('throws when no releases exist for "prerelease"', async () => {
     mockReleases([]);
     await expect(resolveCleanroomVersion('prerelease')).rejects.toThrow(
-      /No Cleanroom releases/,
+      /No (stable )?GitHub release/,
     );
   });
 

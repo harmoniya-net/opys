@@ -14,11 +14,7 @@ import {
   type Lwjgl3ifyRelease,
   type ResolveLwjgl3ifyOptions,
 } from './resolver';
-import {
-  gitHubAssetSha256,
-  listGitHubReleases,
-  type GitHubRelease,
-} from '@opys/dev';
+import { gitHubAssetSha256, pickGitHubRelease } from '@opys/dev';
 
 const UNIMIXINS_DEFAULT_REPO = 'LegacyModdingMC/UniMixins';
 
@@ -28,6 +24,8 @@ interface UnimixinsAsset {
   sha256?: string;
   filename: string;
 }
+
+const UNIMIXINS_JAR = /^\+unimixins-all-1\.7\.10-.+\.jar$/;
 
 /**
  * Resolve UniMixins's `+unimixins-all-1.7.10-<v>.jar` asset from GitHub
@@ -40,29 +38,16 @@ async function resolveUnimixins(
   repo: string,
   token: string | undefined,
 ): Promise<UnimixinsAsset> {
-  const releases = await listGitHubReleases(repo, token);
-  const usable = releases.filter((r) => !r.draft);
-  let target: GitHubRelease | undefined;
-  if (version === 'latest') {
-    target = usable.find((r) => !r.prerelease);
-  } else if (version === 'prerelease') {
-    target = usable[0];
-  } else {
-    target = usable.find((r) => r.tag_name === version);
-  }
-  if (!target) {
-    throw new Error(`UniMixins release '${version}' not found in ${repo}`);
-  }
-  const asset = target.assets.find(
-    (a) =>
-      /^\+unimixins-all-1\.7\.10-.+\.jar$/.test(a.name) &&
-      !a.name.includes('-dev'),
-  );
-  if (!asset) {
-    throw new Error(
-      `No \`+unimixins-all-1.7.10-*.jar\` asset on UniMixins release ${target.tag_name}`,
-    );
-  }
+  const release = await pickGitHubRelease(repo, version, {
+    token,
+    filter: (r) =>
+      r.assets.some(
+        (a) => UNIMIXINS_JAR.test(a.name) && !a.name.includes('-dev'),
+      ),
+  });
+  const asset = release.assets.find(
+    (a) => UNIMIXINS_JAR.test(a.name) && !a.name.includes('-dev'),
+  )!;
   return {
     url: asset.browser_download_url,
     size: asset.size,

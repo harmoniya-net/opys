@@ -108,14 +108,14 @@ describe('resolveLwjgl3ifyVersion', () => {
   it('throws when no stable release exists for "latest"', async () => {
     mockReleases([release('3.1.0', { prerelease: true })]);
     await expect(resolveLwjgl3ifyVersion('latest')).rejects.toThrow(
-      /No stable lwjgl3ify release/,
+      /No stable GitHub release/,
     );
   });
 
   it('throws when no usable release exists for "prerelease"', async () => {
     mockReleases([]);
     await expect(resolveLwjgl3ifyVersion('prerelease')).rejects.toThrow(
-      /No lwjgl3ify release/,
+      /No (stable )?GitHub release/,
     );
   });
 

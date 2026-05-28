@@ -215,7 +215,7 @@ describe('resolveLwjgl3ify', () => {
     ]);
     await expect(
       resolveLwjgl3ify({ version: '3.0.16', unimixins: { version: 'x' } }),
-    ).rejects.toThrow(/UniMixins release 'x' not found/);
+    ).rejects.toThrow(/GitHub release 'x' not found/);
   });
 
   it('throws when no UniMixins asset is on the release', async () => {
@@ -242,7 +242,7 @@ describe('resolveLwjgl3ify', () => {
       ['/assets/5.json', ASSET_MANIFEST],
     ]);
     await expect(resolveLwjgl3ify({ version: '3.0.16' })).rejects.toThrow(
-      /No `\+unimixins-all/,
+      /No (stable )?GitHub release/,
     );
   });
 

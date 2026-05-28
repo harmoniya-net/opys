@@ -13,8 +13,8 @@
 
 import {
   gitHubAssetSha256,
-  listGitHubReleases,
-  type GitHubRelease,
+  pickGitHubRelease,
+  type GitHubAsset,
 } from '@opys/dev';
 
 const DEFAULT_REPO = 'CleanroomMC/Cleanroom';
@@ -43,36 +43,10 @@ export interface ResolveCleanroomOptions {
   token?: string;
 }
 
-function findInstaller(release: GitHubRelease): {
-  url: string;
-  name: string;
-  size: number;
-  sha256?: string;
-} | null {
-  const asset = release.assets.find(
-    (a) => /-installer\.jar$/.test(a.name) && !a.name.includes('-sources'),
+function isInstallerAsset(asset: GitHubAsset): boolean {
+  return (
+    /-installer\.jar$/.test(asset.name) && !asset.name.includes('-sources')
   );
-  if (!asset) return null;
-  return {
-    url: asset.browser_download_url,
-    name: asset.name,
-    size: asset.size,
-    sha256: gitHubAssetSha256(asset),
-  };
-}
-
-function toRelease(release: GitHubRelease): CleanroomRelease | null {
-  const installer = findInstaller(release);
-  if (!installer) return null;
-  return {
-    tag: release.tag_name,
-    prerelease: release.prerelease,
-    installerUrl: installer.url,
-    installerName: installer.name,
-    installerSize: installer.size,
-    installerSha256: installer.sha256,
-    publishedAt: release.published_at,
-  };
 }
 
 export async function resolveCleanroomVersion(
@@ -80,35 +54,19 @@ export async function resolveCleanroomVersion(
   options: ResolveCleanroomOptions = {},
 ): Promise<CleanroomRelease> {
   const repo = options.repo ?? DEFAULT_REPO;
-  const releases = (await listGitHubReleases(repo, options.token))
-    .filter((r) => !r.draft)
-    .map(toRelease)
-    .filter((r): r is CleanroomRelease => r !== null);
-
-  if (input === 'latest') {
-    const stable = releases.find((r) => !r.prerelease);
-    if (!stable) {
-      throw new Error(
-        `No stable Cleanroom release found in ${repo}. Try 'prerelease' or pin a specific tag.`,
-      );
-    }
-    return stable;
-  }
-  if (input === 'prerelease') {
-    if (releases.length === 0) {
-      throw new Error(`No Cleanroom releases found in ${repo}`);
-    }
-    return releases[0]!;
-  }
-
-  const match = releases.find((r) => r.tag === input);
-  if (!match) {
-    throw new Error(
-      `Cleanroom release '${input}' not found in ${repo}. Available: ${releases
-        .slice(0, 5)
-        .map((r) => r.tag)
-        .join(', ')}${releases.length > 5 ? ', …' : ''}`,
-    );
-  }
-  return match;
+  const release = await pickGitHubRelease(repo, input, {
+    token: options.token,
+    filter: (r) => r.assets.some(isInstallerAsset),
+  });
+  // Filter guaranteed at least one installer asset exists.
+  const installer = release.assets.find(isInstallerAsset)!;
+  return {
+    tag: release.tag_name,
+    prerelease: release.prerelease,
+    installerUrl: installer.browser_download_url,
+    installerName: installer.name,
+    installerSize: installer.size,
+    installerSha256: gitHubAssetSha256(installer),
+    publishedAt: release.published_at,
+  };
 }
