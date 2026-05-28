@@ -1,6 +1,6 @@
 {
   "name": "@opys/minecraft-serverlist",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "type": "module",
   "main": "./dist/index.js",
   "exports": {
@@ -15,7 +15,7 @@
     "test": "vitest run tests/unit --passWithNoTests"
   },
   "dependencies": {
-    "@opys/core": "^1.0.0",
+    "@opys/core": "^0.0.1",
     "nbtify": "^2.2.0"
   },
   "devDependencies": {

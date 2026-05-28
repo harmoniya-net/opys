@@ -1,6 +1,6 @@
 {
   "name": "@opys/minecraft",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "type": "module",
   "main": "./dist/index.js",
   "exports": {
@@ -16,20 +16,20 @@
     "test:int": "vitest run tests/integration --testTimeout=120000"
   },
   "dependencies": {
-    "@opys/minecraft-vanilla": "^1.0.0",
-    "@opys/forge": "^1.0.0",
-    "@opys/cleanroom": "^1.0.0",
-    "@opys/lwjgl3ify": "^1.0.0",
-    "@opys/authliberty": "^1.0.0",
-    "@opys/curseforge": "^1.0.0",
-    "@opys/bifrost": "^1.0.0",
-    "@opys/minecraft-serverlist": "^1.0.0",
-    "@opys/java": "^1.0.0"
+    "@opys/minecraft-vanilla": "^0.0.1",
+    "@opys/forge": "^0.0.1",
+    "@opys/cleanroom": "^0.0.1",
+    "@opys/lwjgl3ify": "^0.0.1",
+    "@opys/authliberty": "^0.0.1",
+    "@opys/curseforge": "^0.0.1",
+    "@opys/bifrost": "^0.0.1",
+    "@opys/minecraft-serverlist": "^0.0.1",
+    "@opys/java": "^0.0.1"
   },
   "devDependencies": {
-    "@opys/core": "^1.0.0",
-    "@opys/dev": "^1.0.0",
-    "@opys/mojang": "^1.0.0",
+    "@opys/core": "^0.0.1",
+    "@opys/dev": "^0.0.1",
+    "@opys/mojang": "^0.0.1",
     "tsdown": "*",
     "vitest": "*"
   },
