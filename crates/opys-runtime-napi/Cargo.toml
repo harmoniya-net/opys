@@ -12,9 +12,9 @@ publish = false
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-opys-runtime = { path = "../opys-runtime", version = "0.1.7" }
-opys-core = { path = "../opys-core", version = "0.1.7" }
-opys-mojang-rules = { path = "../opys-mojang-rules", version = "0.1.7" }
+opys-runtime = { path = "../opys-runtime", version = "0.1.8" }
+opys-core = { path = "../opys-core", version = "0.1.8" }
+opys-mojang-rules = { path = "../opys-mojang-rules", version = "0.1.8" }
 serde = { workspace = true }
 serde_json = { workspace = true }
 indexmap = { version = "2", features = ["serde"] }
