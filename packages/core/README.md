@@ -1,14 +1,17 @@
 # @opys/core
 
-Data model for Opys manifests. Types, factory functions, Zod parsers, and encode/decode utilities. No I/O.
+[![npm](https://img.shields.io/npm/v/@opys/core.svg)](https://www.npmjs.com/package/@opys/core)
 
-## Install
+The frozen-manifest contract for opys: data model, opys shorthand,
+`Val`/`Valset`, glob, interpolation. Behaviors are backed by the
+[`opys-core`](https://crates.io/crates/opys-core) Rust crate via
+napi-rs; domain types and small sugar helpers are hand-written TS.
 
 ```sh
-npm install @opys/core @opys/rules zod
+npm install @opys/core
 ```
 
-## Types
+## Domain types
 
 ### `Source` — artifact origin
 
@@ -17,105 +20,81 @@ type Source =
   | { kind: 'url'; url: string }
   | { kind: 'file'; file: string }
   | { kind: 'string'; string: string }
-  | { kind: 'empty' };
+  | { kind: 'bytes'; bytes: string } // base64
+  | { kind: 'pointer'; pointer: string };
 
-// Factory functions
 sourceUrl('https://example.com/file.jar');
 sourceFile('./local/file.jar');
 sourceString('inline content');
-sourceEmpty();
-
-// Parse / encode
-SourceSchema.parse(raw);
-encodeSource(source);
+Source.bytes(new Uint8Array([1, 2, 3])); // auto-base64
+sourcePointer('forge:libraries.json');
 ```
 
 ### `ExtractRule` — zip extraction instructions
 
 ```ts
 type ExtractRule =
-  | { kind: 'pick'; file: string; into: string }          // single file
-  | { kind: 'scan'; matches: string; into: string; ... }  // glob match
-  | { kind: 'dump'; into: string; clean?: boolean; ... }  // full extract
+  | { kind: 'pick'; file: string; into: string } // single file
+  | { kind: 'scan'; matches: string; into: string; ... } // glob match
+  | { kind: 'dump'; into: string; clean?: boolean; ... }; // full extract
 
-// Factory functions
-extractPick('lwjgl.dll', '${natives_directory}')
-extractScan('*.so', '${natives_directory}', { excludes: ['META-INF/'] })
-extractDump('${natives_directory}', { clean: true, excludes: ['META-INF/'] })
-
-// Parse / encode
-ExtractSchema.parse(raw)          // always returns ExtractRule[]
-encodeExtract(rules)
+extractPick('lwjgl.dll', '${natives_directory}');
+extractScan('*.so', '${natives_directory}', { excludes: ['META-INF/'] });
+extractDump('${natives_directory}', { clean: true, excludes: ['META-INF/'] });
 ```
 
 ### `Artifact` — a single installable artifact
 
-An artifact has a source, optional integrity/size checks, optional extract rules, and optional rulesets that gate it per platform or feature.
+An artifact has a source, optional integrity/size checks, optional
+extract rules, and optional rulesets that gate it per platform or
+feature.
+
+### `Manifest` — the frozen wire shape
 
 ```ts
-import { ArtifactSchema, encodeArtifact } from '@opys/core';
+import { parseManifest, filterManifest, encodeManifest } from '@opys/core';
 
-const artifact = ArtifactSchema.parse(raw);
-encodeArtifact(artifact);
+const manifest = parseManifest(jsonString);
+const filtered = filterManifest(manifest, {
+  name: 'linux',
+  version: '',
+  arch: 'x86_64',
+});
+const wire = encodeManifest(filtered);
 ```
 
-### `Manifest` — the manifest
+### `ValDefs` — interpolation variables with OS-conditional arms
 
 ```ts
-interface Manifest {
-  vars: ValDefs;
-  launch?: Launch;
-  artifacts: ReadonlyArray<Artifact>;
-}
+import { resolveValDefs, resolveVars, interpolate } from '@opys/core';
 
-// Parse JSON string
-const manifest = await parseManifest(jsonString);
-
-// Filter to current platform
-const filtered = filterManifest(manifest, { name: 'linux', arch: 'x64' });
-
-// Encode back to JSON-serializable object
-encodeManifest(manifest);
-```
-
-### `ValDefs` — interpolation variables
-
-Variables support OS-conditional values and `${ref}` interpolation.
-
-```ts
-import {
-  parseValDefs,
-  encodeValDefs,
-  resolveValDefs,
-  resolveVars,
-} from '@opys/core';
-
-const defs = parseValDefs(raw);
 const flat = resolveValDefs(defs, platform); // pick OS-appropriate values
 const vars = resolveVars(flat); // resolve ${ref} chains
 const result = interpolate('${root}/assets', vars);
 ```
 
-### `defineConfig` — config file helper
-
-Used as the default export in `opys.config.mjs`:
+## Build-time HTTP helper
 
 ```ts
-import { defineConfig } from '@opys/core';
+import { fetchWithRetry } from '@opys/core';
 
-export default defineConfig({
-  output: 'opys.json',
-  manifest: {
-    artifacts: [...],
-    vars: [...],
-    launch: { ... },
-  },
+const res = await fetchWithRetry('https://api.example.com/data', {
+  attempts: 4,
+  baseDelayMs: 250,
 });
-
-// Or as a function for context-aware configs
-export default defineConfig((ctx) => ({
-  manifest: {
-    artifacts: ctx.mode === 'build' ? [...] : [],
-  },
-}));
 ```
+
+Used by every plugin that resolves data from upstream APIs. Bounded
+exponential backoff on transient errors (network failures + 5xx);
+4xx and JSON-parse failures surface unchanged.
+
+## Frozen wire format
+
+`opys.json` is the contract. Other opys packages layer on top:
+
+- [`@opys/dev`](https://www.npmjs.com/package/@opys/dev) — config +
+  plugin SDK that produces manifests.
+- [`@opys/runtime`](https://www.npmjs.com/package/@opys/runtime) —
+  install + launch executor that consumes manifests.
+
+Part of the [opys](https://github.com/harmoniya-net/opys) toolkit.
