@@ -1,6 +1,6 @@
 {
   "name": "@opys/runtime-binding",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "private": true,
   "description": "napi-rs binary binding for @opys/runtime. Not consumed directly — re-exported by @opys/runtime.",
   "main": "index.js",
