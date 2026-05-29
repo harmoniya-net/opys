@@ -12,7 +12,7 @@
 // `@opys/*-binding` packages, which carry the same version.
 
 import { execSync } from 'node:child_process';
-import { readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 
 const sh = (cmd) => execSync(cmd, { stdio: 'inherit' });
 const out = (cmd) => execSync(cmd, { encoding: 'utf8' }).trim();
@@ -90,15 +90,21 @@ for (const crate of [
   stampCargoCrate(`${crate}/Cargo.toml`);
 }
 
-// 3. Sync both lockfiles, build to verify everything compiles, commit + tag.
-sh('npm install --package-lock-only');
+// 3. Sync both lockfiles. A clean reinstall (instead of
+//    `npm install --package-lock-only`) is the only way to fix transitive
+//    drift that `npm ci` in CI would otherwise reject. Slower but
+//    reliable.
+if (existsSync('node_modules')) rmSync('node_modules', { recursive: true });
+if (existsSync('package-lock.json')) rmSync('package-lock.json');
+sh('npm install');
 // `cargo build` refreshes Cargo.lock to the new workspace version and
 // verifies every crate still compiles after the path-dep version bumps.
 sh('cargo build --workspace --release');
 sh('npm run build --workspaces --if-present');
 sh('git add -A');
 sh(`git commit -m "release v${version}"`);
-sh(`git tag v${version}`);
+// Annotated tag — `git push --follow-tags` only pushes annotated tags.
+sh(`git tag -a v${version} -m "v${version}"`);
 
 // 4. Push the tag — `.github/workflows/release.yml` picks it up and runs
 //    the napi cross-build matrix + publishes to npm and crates.io. The
