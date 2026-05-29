@@ -118,15 +118,15 @@ jobs:
           path: crates/opys-runtime-napi/artifacts
           merge-multiple: true
 
-      # napi-rs wants each per-platform sub-package to live in `npm/<target>/`.
-      # `create-npm-dirs` scaffolds those dirs from the `napi.targets` list;
-      # `artifacts` walks the downloaded `.node` files (filename encodes the
-      # target) and routes each into its corresponding `npm/<target>/` dir.
-      - name: Scaffold + place napi .node sub-packages
+      # The `npm/<target>/` per-platform sub-package scaffolding is checked
+      # into git (see `crates/opys-*-napi/npm/`). `napi artifacts` walks
+      # the downloaded `.node` files (filename encodes the target) and
+      # routes each into the matching `npm/<target>/` directory.
+      - name: Route .node files into per-platform sub-packages
         run: |
           set -eux
           for c in crates/opys-core-napi crates/opys-runtime-napi; do
-            (cd "$c" && npx napi create-npm-dirs && npx napi artifacts)
+            (cd "$c" && npx napi artifacts)
             ls -R "$c/npm"
           done
 
