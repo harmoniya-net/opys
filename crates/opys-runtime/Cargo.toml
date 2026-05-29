@@ -9,8 +9,8 @@ homepage.workspace = true
 description = "opys install + launch executor. Consumes a frozen Manifest."
 
 [dependencies]
-opys-core = { path = "../opys-core", version = "0.1.4" }
-opys-mojang-rules = { path = "../opys-mojang-rules", version = "0.1.4" }
+opys-core = { path = "../opys-core", version = "0.1.5" }
+opys-mojang-rules = { path = "../opys-mojang-rules", version = "0.1.5" }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }

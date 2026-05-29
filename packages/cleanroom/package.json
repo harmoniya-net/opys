@@ -1,6 +1,6 @@
 {
   "name": "@opys/cleanroom",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "type": "module",
   "main": "./dist/index.js",
   "exports": {
@@ -15,10 +15,10 @@
     "test": "vitest run tests/unit --passWithNoTests"
   },
   "dependencies": {
-    "@opys/core": "^0.1.4",
-    "@opys/dev": "^0.1.4",
-    "@opys/mojang": "^0.1.4",
-    "@opys/minecraft-vanilla": "^0.1.4",
+    "@opys/core": "^0.1.5",
+    "@opys/dev": "^0.1.5",
+    "@opys/mojang": "^0.1.5",
+    "@opys/minecraft-vanilla": "^0.1.5",
     "fflate": "^0.8.2"
   },
   "devDependencies": {
