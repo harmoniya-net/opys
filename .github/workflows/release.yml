@@ -118,16 +118,20 @@ jobs:
           path: crates/opys-runtime-napi/artifacts
           merge-multiple: true
 
-      - name: Stage .node files for napi prepublish
+      # napi-rs wants each per-platform sub-package to live in `npm/<target>/`.
+      # `create-npm-dirs` scaffolds those dirs from the `napi.targets` list;
+      # `artifacts` walks the downloaded `.node` files (filename encodes the
+      # target) and routes each into its corresponding `npm/<target>/` dir.
+      - name: Scaffold + place napi .node sub-packages
         run: |
-          mv crates/opys-core-napi/artifacts/*.node crates/opys-core-napi/
-          mv crates/opys-runtime-napi/artifacts/*.node crates/opys-runtime-napi/
-          ls crates/opys-core-napi/
-          ls crates/opys-runtime-napi/
+          set -eux
+          for c in crates/opys-core-napi crates/opys-runtime-napi; do
+            (cd "$c" && npx napi create-npm-dirs && npx napi artifacts)
+            ls -R "$c/npm"
+          done
 
-      # `napi prepublish` scaffolds per-platform npm subpackages
-      # (`@opys/core-binding-linux-x64-gnu`, etc.) and publishes each
-      # alongside the loader package.
+      # `napi prepublish` updates each sub-package's version (matches the
+      # loader's) and publishes them all via `npm publish` under the hood.
       - name: Publish @opys/core-binding (loader + platform sub-packages)
         run: npx napi prepublish -t npm --skip-gh-release
         working-directory: crates/opys-core-napi
