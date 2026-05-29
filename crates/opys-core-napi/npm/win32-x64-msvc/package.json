@@ -19,5 +19,8 @@
     "type": "git",
     "url": "git+https://github.com/harmoniya-net/opys.git",
     "directory": "crates/opys-core-napi"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }
