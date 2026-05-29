@@ -1,6 +1,6 @@
 {
   "name": "@opys/curseforge",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "type": "module",
   "main": "./dist/index.js",
   "exports": {
@@ -15,8 +15,8 @@
     "test": "vitest run tests/unit --passWithNoTests"
   },
   "dependencies": {
-    "@opys/core": "^0.1.3",
-    "@opys/dev": "^0.1.3"
+    "@opys/core": "^0.1.4",
+    "@opys/dev": "^0.1.4"
   },
   "devDependencies": {
     "tsdown": "*",
