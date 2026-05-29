@@ -23,7 +23,10 @@ jobs:
             target: x86_64-unknown-linux-gnu
           - host: ubuntu-latest
             target: aarch64-unknown-linux-gnu
-          - host: macos-13
+          # Both darwin targets cross-compile on macos-14 (arm64 host). macos-13
+          # queue availability is unreliable; the macOS SDK is universal, so
+          # `--target x86_64-apple-darwin` builds fine from an arm64 host.
+          - host: macos-14
             target: x86_64-apple-darwin
           - host: macos-14
             target: aarch64-apple-darwin
