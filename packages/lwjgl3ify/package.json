@@ -1,6 +1,6 @@
 {
   "name": "@opys/lwjgl3ify",
-  "version": "0.0.2",
+  "version": "0.1.0",
   "type": "module",
   "main": "./dist/index.js",
   "exports": {
@@ -15,10 +15,10 @@
     "test": "vitest run tests/unit --passWithNoTests"
   },
   "dependencies": {
-    "@opys/core": "^0.0.2",
-    "@opys/dev": "^0.0.2",
-    "@opys/mojang": "^0.0.2",
-    "@opys/minecraft-vanilla": "^0.0.2"
+    "@opys/core": "^0.1.0",
+    "@opys/dev": "^0.1.0",
+    "@opys/mojang": "^0.1.0",
+    "@opys/minecraft-vanilla": "^0.1.0"
   },
   "devDependencies": {
     "tsdown": "*",
