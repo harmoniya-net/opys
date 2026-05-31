@@ -35,6 +35,9 @@ pub enum InstallError {
     #[error(transparent)]
     Core(#[from] opys_core::DecodeError),
 
+    #[error("install cancelled")]
+    Cancelled,
+
     #[error("{0}")]
     Other(String),
 }

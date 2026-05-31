@@ -2,6 +2,7 @@ use indexmap::IndexMap;
 use std::collections::HashSet;
 use std::path::Path;
 use std::sync::Arc;
+use tokio_util::sync::CancellationToken;
 use opys_core::{
     filter_manifest, interpolate, resolve_val_defs, resolve_vars, ExtractRule, OsOptions, VarMap,
 };
@@ -39,6 +40,10 @@ pub struct InstallOptions {
     pub on_progress: Option<Arc<dyn Fn(InstallProgress) + Send + Sync>>,
     pub verify_integrity: bool,
     pub features: Vec<String>,
+    /// Cooperative cancellation. When triggered, [`install`] stops promptly —
+    /// in-flight downloads are aborted — and returns [`InstallError::Cancelled`].
+    /// Defaults to a token that is never cancelled.
+    pub cancel: CancellationToken,
 }
 
 impl InstallOptions {
@@ -92,6 +97,10 @@ pub async fn install<'a>(
     let verify = options.verify_integrity;
     let features = options.features;
     let progress = options.on_progress.clone();
+    let cancel = options.cancel;
+    if cancel.is_cancelled() {
+        return Err(InstallError::Cancelled);
+    }
 
     let report = |p: InstallProgress| {
         if let Some(cb) = &progress {
@@ -182,8 +191,11 @@ pub async fn install<'a>(
         }
     };
 
-    fetch_all(fetch_tasks, &vars, concurrency, hooks).await?;
+    fetch_all(fetch_tasks, &vars, concurrency, hooks, &cancel).await?;
 
+    if cancel.is_cancelled() {
+        return Err(InstallError::Cancelled);
+    }
     if verify {
         report(InstallProgress::Verify);
         let verify_inputs: Vec<(&str, &opys_core::Artifact)> = scanned
@@ -213,6 +225,9 @@ pub async fn install<'a>(
         }
     }
 
+    if cancel.is_cancelled() {
+        return Err(InstallError::Cancelled);
+    }
     if !extract_tasks.is_empty() {
         report(InstallProgress::Extract {
             count: extract_tasks.len() as u32,

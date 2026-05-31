@@ -5,7 +5,9 @@
 use serde_json::json;
 use std::sync::Arc;
 use tempfile::tempdir;
-use opys_runtime::{install, InstallOptions, InstallProgress, ManifestSource};
+use opys_runtime::{
+    install, CancellationToken, InstallError, InstallOptions, InstallProgress, ManifestSource,
+};
 
 #[tokio::test]
 async fn installs_string_source_to_interpolated_path() {
@@ -71,4 +73,29 @@ async fn skips_existing_files() {
 
     let content = std::fs::read_to_string(dir.path().join("exists.txt")).unwrap();
     assert_eq!(content, "prior", "scan should have skipped existing file");
+}
+
+#[tokio::test]
+async fn cancels_before_writing_when_token_already_cancelled() {
+    let dir = tempdir().unwrap();
+    let root = dir.path().to_string_lossy().into_owned();
+    let manifest_json = json!({
+        "vars": { "root": root },
+        "artifacts": [
+            { "path": "${root}/never.txt", "source": { "string": "x" } }
+        ]
+    })
+    .to_string();
+    let manifest = opys_core::parse_manifest(&manifest_json).unwrap();
+
+    let mut opts = InstallOptions::new();
+    opts.cancel = CancellationToken::new();
+    opts.cancel.cancel(); // cancelled up front — install must bail immediately
+
+    let result = install(ManifestSource::Manifest(manifest), opts).await;
+    assert!(matches!(result, Err(InstallError::Cancelled)));
+    assert!(
+        !dir.path().join("never.txt").exists(),
+        "cancelled install must not write artifacts"
+    );
 }

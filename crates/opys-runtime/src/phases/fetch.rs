@@ -6,6 +6,8 @@ use std::sync::Arc;
 use tokio::fs;
 use tokio::io::AsyncWriteExt;
 use tokio::sync::Mutex;
+use tokio::task::JoinSet;
+use tokio_util::sync::CancellationToken;
 use opys_core::{interpolate, Artifact, Source};
 
 use crate::errors::InstallError;
@@ -251,6 +253,7 @@ pub async fn fetch_all(
     vars: &IndexMap<String, String>,
     concurrency: u32,
     hooks: FetchHooks,
+    cancel: &CancellationToken,
 ) -> Result<(), InstallError> {
     // Largest-first.
     tasks.sort_by(|a, b| b.artifact.size.unwrap_or(0).cmp(&a.artifact.size.unwrap_or(0)));
@@ -258,13 +261,16 @@ pub async fn fetch_all(
     let budget = Arc::new(Budget::new(concurrency));
     let vars = Arc::new(vars.clone());
 
-    let mut handles = Vec::with_capacity(tasks.len());
+    // A JoinSet (not bare `tokio::spawn`) so that returning early — on error or
+    // cancellation — drops the set and aborts every still-running download.
+    // Detached `tokio::spawn` tasks would instead keep running in the background.
+    let mut set: JoinSet<Result<(), InstallError>> = JoinSet::new();
     for task in tasks {
         let budget = Arc::clone(&budget);
         let vars = Arc::clone(&vars);
         let hooks = hooks.clone();
         let task = Arc::new(task);
-        handles.push(tokio::spawn(async move {
+        set.spawn(async move {
             let w = weight(task.artifact.size);
             budget.acquire(w).await;
             let res: Result<(), InstallError> = async {
@@ -287,15 +293,21 @@ pub async fn fetch_all(
             .await;
             budget.release(w).await;
             res
-        }));
+        });
     }
 
-    for h in handles {
-        match h.await {
-            Ok(Ok(())) => {}
-            Ok(Err(e)) => return Err(e),
-            Err(e) => return Err(InstallError::other(format!("join error: {e}"))),
+    loop {
+        tokio::select! {
+            // Bias the cancel check so a pending cancellation always wins over a
+            // ready download result.
+            biased;
+            _ = cancel.cancelled() => return Err(InstallError::Cancelled),
+            joined = set.join_next() => match joined {
+                None => return Ok(()),
+                Some(Ok(Ok(()))) => {}
+                Some(Ok(Err(e))) => return Err(e),
+                Some(Err(e)) => return Err(InstallError::other(format!("join error: {e}"))),
+            },
         }
     }
-    Ok(())
 }
