@@ -127,7 +127,7 @@ pub async fn install<'a>(
     let mut refetch = pointers.refetch;
     refetch.extend(discovered.refetch);
 
-    let scanned = scan(&manifest, &vars, &platform, &features, &refetch)?;
+    let scanned = scan(&manifest, &vars, &platform, &features, &refetch).await?;
     let total_fetch = scanned.tasks.len() as u32;
 
     let fetch_tasks: Vec<FetchTask> = scanned
