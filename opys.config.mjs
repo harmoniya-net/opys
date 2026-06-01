@@ -176,6 +176,11 @@ export default defineConfig(({ mode }) => ({
       forge.gameArgs,
     ],
     workdir: '${game_directory}',
+    // Keep mods/ in sync with the manifest: jars no longer listed (removed
+    // mods, manual drops) are swept on each install. Scoped to mods/ only —
+    // saves, config, logs and options live elsewhere in game_directory and
+    // must never be touched.
+    restrict: ['${game_directory}/mods/**'],
   },
   runClient: (manifest) => ({
     vars: {
