@@ -6,6 +6,7 @@ use opys_core::{interpolate, Artifact, ExtractRule};
 
 use crate::archive::{extract_archive, extract_archive_pick};
 use crate::errors::InstallError;
+use crate::pathnorm::normalize;
 
 pub const EXTRACT_MARKER_SUFFIX: &str = ".opys-extracted";
 
@@ -45,9 +46,14 @@ async fn extract_artifact(
             match rule {
                 ExtractRule::Dump(d) => {
                     let target_dir = interpolate(&d.into, vars);
-                    if d.clean.unwrap_or(false) && !cleaned.contains(&target_dir) {
+                    // Key the "already cleaned this run" set on the normalized
+                    // path, so two rules naming the same dir with different
+                    // case/separators on Windows don't each `remove_dir_all` it
+                    // — the second wipe would erase the first rule's output.
+                    let cleaned_key = normalize(&target_dir);
+                    if d.clean.unwrap_or(false) && !cleaned.contains(&cleaned_key) {
                         let _ = fs::remove_dir_all(&target_dir).await;
-                        cleaned.insert(target_dir.clone());
+                        cleaned.insert(cleaned_key);
                     }
                     fs::create_dir_all(&target_dir).await?;
                     let excludes = d

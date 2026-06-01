@@ -8,6 +8,7 @@ mod errors;
 mod fetch;
 mod install;
 mod launch;
+mod pathnorm;
 mod platform;
 mod tar_reader;
 
