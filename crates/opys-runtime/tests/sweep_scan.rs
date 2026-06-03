@@ -20,6 +20,7 @@ use opys_runtime::{install, InstallOptions, InstallProgress, ManifestSource};
 const SHA1_PRIOR: &str = "4a47653d5fc58fc62757c6b815e715ec77c8ee2e"; // "prior"
 const SHA1_CORRECT: &str = "3179a65eff2523bbde53c99b299b719c10a35235"; // "correct"
 const SHA1_AA: &str = "e0c9035898dd52fc65c41454cec9c4d2611bfb37"; // "aa"
+const SHA1_BB: &str = "9a900f538965a426994e1e90600920aff0b4e8d2"; // "bb"
 
 async fn run(manifest_json: String) -> Vec<InstallProgress> {
     let events = Arc::new(Mutex::new(Vec::<InstallProgress>::new()));
@@ -169,6 +170,38 @@ async fn reinstall_keeps_hashless_file_untouched() {
         "hashless present file is trusted and left as-is"
     );
     assert_eq!(download_skipped(&second), Some(1), "present file is skipped");
+}
+
+/// A file that is *both* a managed artifact and matched by a `restrict` glob:
+/// its hash changed (aa → bb) so install must re-fetch it, and being managed it
+/// must survive the sweep rather than be deleted as a stray.
+#[tokio::test]
+async fn refetches_managed_file_named_by_restrict() {
+    let dir = tempdir().unwrap();
+    let root = dir.path().to_string_lossy().into_owned();
+    // On disk: the old content.
+    std::fs::write(dir.path().join("config.txt"), b"aa").unwrap();
+
+    run(
+        json!({
+            "vars": { "root": root },
+            "restrict": ["${root}/config.txt"],
+            "artifacts": [{
+                "path": "${root}/config.txt",
+                "source": { "string": "bb" },
+                "integrity": { "sha1": SHA1_BB }
+            }]
+        })
+        .to_string(),
+    )
+    .await;
+
+    assert!(dir.path().join("config.txt").exists(), "managed file must not be swept");
+    assert_eq!(
+        std::fs::read_to_string(dir.path().join("config.txt")).unwrap(),
+        "bb",
+        "hash changed (aa→bb) ⇒ re-fetched to the manifest content",
+    );
 }
 
 // ── Restrict sweep ────────────────────────────────────────────────────────

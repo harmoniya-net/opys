@@ -20,6 +20,17 @@ jobs:
       - run: cargo build --workspace --locked
       - run: cargo test --workspace --locked
 
+  # The sweep/extract path handling branches on `\` vs `/` and case-folds on
+  # Windows; only a real Windows filesystem walk exercises that end to end.
+  cargo-windows:
+    name: Cargo test (Windows)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo test -p opys-runtime --locked
+
   node:
     name: TS build + typecheck + test
     runs-on: ubuntu-latest

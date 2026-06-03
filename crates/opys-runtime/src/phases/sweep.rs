@@ -196,6 +196,22 @@ mod tests {
     }
 
     #[test]
+    fn windows_single_file_restrict_spares_managed() {
+        // A restrict glob naming one exact file (no wildcard) that is also a
+        // managed artifact — the Windows half of `refetches_managed_file_named_
+        // by_restrict`, which the integration suite only runs on POSIX.
+        let managed: HashSet<String> = ["C:\\Users\\x/config.txt"]
+            .iter()
+            .map(|m| normalize_inner(m, true))
+            .collect();
+        let rx = vec![glob_to_regex(&normalize_inner("C:\\Users\\x/config.txt", true))];
+        // Walk yields the `\`-joined, real-case path → still recognized managed.
+        assert!(!is_swept("C:\\Users\\x\\config.txt", &managed, &rx, true), "managed file spared");
+        // A single-file glob scopes only that file; a sibling isn't matched.
+        assert!(!is_swept("C:\\Users\\x\\other.txt", &managed, &rx, true), "sibling untouched");
+    }
+
+    #[test]
     fn posix_decision_is_unchanged() {
         let managed: HashSet<String> = ["/home/u/mods/a.jar"]
             .iter()
