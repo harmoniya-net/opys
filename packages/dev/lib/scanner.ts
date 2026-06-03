@@ -42,8 +42,10 @@ export interface ArtifactScannerOptions {
   path?: ScanTemplate;
   hash?: 'sha1' | 'sha256';
   /**
-   * 'url'  → emit sourceUrl + computed hash (default)
-   * 'file' → emit sourceFile pointing at the local copy; skip hashing entirely
+   * 'url'  → emit sourceUrl (default)
+   * 'file' → emit sourceFile pointing at the local copy
+   * Either way the file is hashed, so a content change re-fetches it; clear
+   * integrity with an override for deliberate path-trust.
    */
   source?: 'url' | 'file';
   /**
@@ -116,16 +118,17 @@ async function* scanDirectory(
       ? applyTemplate(options.path, file)
       : file.rel;
 
-    let integrity: Integrity | undefined;
-    let source: Source;
-    if (sourceKind === 'file') {
-      source = sourceFile(file.abs);
-      // trust local file by path — skip hash computation
-    } else {
-      source = sourceUrl(applyTemplate(options.url, file));
-      const digest = await hashFile(file.abs, algo);
-      integrity = algo === 'sha1' ? { sha1: digest } : { sha256: digest };
-    }
+    // Hash regardless of source kind: a hashless artifact is skipped by path
+    // alone and never re-fetched, so a `file` source would never pick up a
+    // content change. With integrity, the runtime re-hashes the destination and
+    // re-copies on mismatch. Clear it via an override for deliberate path-trust.
+    const digest = await hashFile(file.abs, algo);
+    const integrity: Integrity =
+      algo === 'sha1' ? { sha1: digest } : { sha256: digest };
+    const source: Source =
+      sourceKind === 'file'
+        ? sourceFile(file.abs)
+        : sourceUrl(applyTemplate(options.url, file));
 
     yield {
       path: artifactPath,

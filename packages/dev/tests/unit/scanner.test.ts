@@ -60,11 +60,12 @@ describe('artifactScanner', () => {
     expect(arts[0]!.integrity).toEqual({ sha256 });
   });
 
-  it('emits file sources with no hashing in file mode', async () => {
+  it('emits file sources with integrity so a content change re-fetches', async () => {
     await touch('a.txt', 'hello');
     const arts = await run({ url: 'https://cdn/${rel}', source: 'file' });
     expect(arts[0]!.source.kind).toBe('file');
-    expect(arts[0]!.integrity).toBeUndefined();
+    const sha1 = createHash('sha1').update('hello').digest('hex');
+    expect(arts[0]!.integrity).toEqual({ sha1 });
   });
 
   it('defaults the artifact path to the relative path', async () => {
