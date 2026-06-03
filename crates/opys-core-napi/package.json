@@ -1,6 +1,6 @@
 {
   "name": "@opys/core-binding",
-  "version": "0.1.11",
+  "version": "0.1.12",
   "description": "napi-rs binary binding for @opys/core. Not consumed directly — re-exported by @opys/core.",
   "main": "index.js",
   "types": "index.d.ts",
