@@ -13,10 +13,6 @@ None.
 
 ## LOW
 
-- **`lib/overrides.ts:49-50` — `integrity?: null` is a type that lies about
-  intent.** The field can only ever be `null` ("clear integrity + discovery").
-  A `null`-only field reads as a mistake. Replace with a boolean like
-  `clearIntegrity?: true`.
 - **`lib/config.ts:8` / `lib/engine.ts:14-22` — `ArgItem`/`flattenArgs` accept
   a bare `Val` that no caller uses.** `args` accessors return
   `Valset | Val | string`, but the documented usage never produces a bare
@@ -28,4 +24,4 @@ None.
 
 ## Verdict
 
-Good shape. Three minor LOW items remain — all polish, none structural.
+Good shape. Two minor LOW items remain — all polish, none structural.

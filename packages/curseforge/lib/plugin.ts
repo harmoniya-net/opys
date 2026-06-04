@@ -1,4 +1,4 @@
-import { definePlugin, type OpysPlugin } from '@opys/dev';
+import { definePlugin, type ChainablePlugin } from '@opys/dev';
 import {
   resolveCurseforge,
   type CurseForgeOptions,
@@ -12,7 +12,7 @@ export interface CurseforgePluginOptions extends CurseForgeOptions {
 }
 
 /** Mod files resolved from the CurseForge API. */
-export function curseforge(options: CurseforgePluginOptions): OpysPlugin {
+export function curseforge(options: CurseforgePluginOptions): ChainablePlugin {
   return definePlugin({
     name: 'curseforge',
     async build(ctx) {

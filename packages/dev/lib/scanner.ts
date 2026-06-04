@@ -10,8 +10,7 @@ import {
 } from 'node:path';
 import type { Artifact, Integrity, Source } from '@opys/core';
 import { sourceFile, sourceUrl, interpolate } from '@opys/core';
-import { definePlugin, type OpysPlugin } from './plugin';
-import { applyOverrides, type ArtifactOverride } from './overrides';
+import { definePlugin, type ChainablePlugin } from './plugin';
 
 /** A file discovered by {@link artifactScanner}, passed to `path`/`url` functions. */
 export interface ScannedFile {
@@ -48,11 +47,6 @@ export interface ArtifactScannerOptions {
    * integrity with an override for deliberate path-trust.
    */
   source?: 'url' | 'file';
-  /**
-   * Per-selector patches applied to the scanned artifacts — exclude files,
-   * attach rulesets (OS / feature gates), or clear integrity.
-   */
-  overrides?: ArtifactOverride[];
 }
 
 /** A {@link ScannedFile} carrying its on-disk `size`. */
@@ -140,23 +134,23 @@ async function* scanDirectory(
   }
 }
 
-/** Scan a local directory tree into artifacts — a generic build-time plugin. */
-export function artifactScanner(options: ArtifactScannerOptions): OpysPlugin {
+/**
+ * Scan a local directory tree into artifacts — a generic build-time plugin.
+ * Post-process the result with the fluent {@link ChainablePlugin} methods, e.g.
+ * `artifactScanner({…}).exclude('**\/*.tmp').removeIntegrity('**\/options.txt')`.
+ */
+export function artifactScanner(
+  options: ArtifactScannerOptions,
+): ChainablePlugin {
   return definePlugin({
     name: 'artifactScanner',
     async build(ctx) {
       const baseDir = isAbsolute(options.directory)
         ? options.directory
         : resolve(ctx.configDir, options.directory);
-      const scanned: Artifact[] = [];
-      for await (const a of scanDirectory(options, baseDir)) scanned.push(a);
-      const artifacts = applyOverrides(scanned, options.overrides ?? []);
-      const dropped = scanned.length - artifacts.length;
-      ctx.log(
-        'artifactScanner',
-        `scanned ${scanned.length} file(s)` +
-          (dropped > 0 ? `, ${dropped} excluded` : ''),
-      );
+      const artifacts: Artifact[] = [];
+      for await (const a of scanDirectory(options, baseDir)) artifacts.push(a);
+      ctx.log('artifactScanner', `scanned ${artifacts.length} file(s)`);
       return { artifacts };
     },
   });

@@ -1,11 +1,11 @@
-import { definePlugin, type OpysPlugin } from '@opys/dev';
+import { definePlugin, type ChainablePlugin } from '@opys/dev';
 import { resolveAuthliberty, type AuthLibertyOptions } from './template';
 
 /** AuthLiberty — an authlib-injector `-javaagent` auth redirector. */
 export function authliberty(
   version: string,
   opts: Omit<AuthLibertyOptions, 'version'> = {},
-): OpysPlugin {
+): ChainablePlugin {
   return definePlugin({
     name: 'authliberty',
     async build(ctx) {

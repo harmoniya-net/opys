@@ -115,15 +115,15 @@ describe('artifactScanner', () => {
     ]);
   });
 
-  it('applies overrides and logs the excluded count', async () => {
+  it('is post-processed by chaining fluent methods on the returned plugin', async () => {
     await touch('keep.txt', '1');
     await touch('drop.txt', '2');
-    const arts = await run({
+    const plugin = artifactScanner({
+      directory: dir,
       url: 'https://cdn/${rel}',
-      overrides: [{ match: 'drop.txt', exclude: true }],
-    });
-    expect(arts.map((a) => a.path)).toEqual(['keep.txt']);
-    expect(logs.some((l) => l.includes('1 excluded'))).toBe(true);
+    }).exclude('drop.txt');
+    const result = await plugin.build(ctx);
+    expect((result.artifacts ?? []).map((a) => a.path)).toEqual(['keep.txt']);
   });
 
   it('logs the scanned count with no exclusions', async () => {

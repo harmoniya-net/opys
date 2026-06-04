@@ -1,11 +1,11 @@
-import { definePlugin, launchGroups, type OpysPlugin } from '@opys/dev';
+import { definePlugin, launchGroups, type ChainablePlugin } from '@opys/dev';
 import { resolveCleanroom, type CleanroomOptions } from './template';
 
 /** Cleanroom — a 1.12.2 Forge variant. */
 export function cleanroom(
   version: string,
   opts: Omit<CleanroomOptions, 'version'> = {},
-): OpysPlugin {
+): ChainablePlugin {
   return definePlugin({
     name: 'cleanroom',
     async build(ctx) {
