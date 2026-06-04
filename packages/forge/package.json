@@ -1,6 +1,6 @@
 {
   "name": "@opys/forge",
-  "version": "0.1.12",
+  "version": "0.1.13",
   "type": "module",
   "main": "./dist/index.js",
   "exports": {
@@ -15,10 +15,10 @@
     "test": "vitest run tests/unit --passWithNoTests"
   },
   "dependencies": {
-    "@opys/core": "^0.1.12",
-    "@opys/dev": "^0.1.12",
-    "@opys/mojang": "^0.1.12",
-    "@opys/minecraft-vanilla": "^0.1.12"
+    "@opys/core": "^0.1.13",
+    "@opys/dev": "^0.1.13",
+    "@opys/mojang": "^0.1.13",
+    "@opys/minecraft-vanilla": "^0.1.13"
   },
   "peerDependencies": {
     "zod": "^4.0.0"

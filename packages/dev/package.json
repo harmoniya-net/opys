@@ -1,6 +1,6 @@
 {
   "name": "@opys/dev",
-  "version": "0.1.12",
+  "version": "0.1.13",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
   "exports": {
@@ -19,7 +19,7 @@
   },
   "type": "module",
   "dependencies": {
-    "@opys/core": "^0.1.12"
+    "@opys/core": "^0.1.13"
   },
   "peerDependencies": {
     "zod": "^4.0.0"
