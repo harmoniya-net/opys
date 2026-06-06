@@ -21,6 +21,12 @@ import {
   type LegacyLibrary,
 } from './recipe';
 import { resolveForgeVersion, type ForgeIndexEntry } from './resolver';
+import {
+  FORGE_WRAPPER_MAIN,
+  type ForgeWrapperOptions,
+} from '@opys/forgewrapper';
+
+export type { ForgeWrapperOptions };
 
 const DEFAULT_SOURCE = 'https://fuckforge.harmoniya.net';
 
@@ -30,8 +36,6 @@ const DEFAULT_FORGE_WRAPPER = {
   sha1: '035a51fe6439792a61507630d89382f621da0f1f',
   size: 28679,
 } as const;
-
-const FORGE_WRAPPER_MAIN = 'io.github.zekerzhayard.forgewrapper.installer.Main';
 
 /**
  * Extract artifact paths on the Java module path (-p) from parsed args.
@@ -55,17 +59,6 @@ function modulePathArtifacts(args: Arguments): Set<string> {
     }
   }
   return artifacts;
-}
-
-export interface ForgeWrapperOptions {
-  /** Download URL for the ForgeWrapper JAR. */
-  url?: string;
-  /** Optional sha1 for integrity verification. */
-  sha1?: string;
-  /** Optional declared size in bytes. */
-  size?: number;
-  /** Override the destination path under `${library_directory}`. */
-  path?: string;
 }
 
 export interface ForgeOptions {

@@ -27,25 +27,18 @@ import {
   DEFAULT_NEOFORGE_MAVEN,
   type NeoForgeRelease,
 } from './resolver';
+import {
+  FORGE_WRAPPER_MAIN,
+  type ForgeWrapperOptions,
+} from '@opys/forgewrapper';
+
+export type { ForgeWrapperOptions };
 
 const DEFAULT_NEOFORGE_FORGE_WRAPPER = {
   version: 'prism-2025-12-07',
   url: 'https://files.prismlauncher.org/maven/io/github/zekerzhayard/ForgeWrapper/prism-2025-12-07/ForgeWrapper-prism-2025-12-07.jar',
   sha1: '4c4653d80409e7e968d3e3209196ffae778b7b4e',
 } as const;
-
-const FORGE_WRAPPER_MAIN = 'io.github.zekerzhayard.forgewrapper.installer.Main';
-
-export interface ForgeWrapperOptions {
-  /** Download URL for the ForgeWrapper JAR. */
-  url?: string;
-  /** Optional sha1 for integrity verification. */
-  sha1?: string;
-  /** Optional declared size in bytes. */
-  size?: number;
-  /** Override the destination path under `${library_directory}`. */
-  path?: string;
-}
 
 export interface NeoForgeOptions {
   /**

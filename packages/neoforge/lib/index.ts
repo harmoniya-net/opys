@@ -1,7 +1,6 @@
 export { neoforge } from './plugin';
 export {
   resolveNeoForge,
-  type ForgeWrapperOptions,
   type NeoForgeOptions,
   type NeoForgeTemplate,
 } from './template';

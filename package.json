@@ -17,6 +17,7 @@
     "packages/dev",
     "packages/mojang",
     "packages/minecraft-vanilla",
+    "packages/forgewrapper",
     "packages/forge",
     "packages/neoforge",
     "packages/cleanroom",

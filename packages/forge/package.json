@@ -15,6 +15,7 @@
     "test": "vitest run tests/unit --passWithNoTests"
   },
   "dependencies": {
+    "@opys/forgewrapper": "^0.1.15",
     "@opys/core": "^0.1.15",
     "@opys/dev": "^0.1.15",
     "@opys/mojang": "^0.1.15",

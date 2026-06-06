@@ -3,8 +3,11 @@ export {
   resolveForge,
   type ForgeOptions,
   type ForgeTemplate,
-  type ForgeWrapperOptions,
 } from './template';
+export {
+  type ForgeWrapperOptions,
+  FORGE_WRAPPER_MAIN,
+} from '@opys/forgewrapper';
 export {
   resolveForgeVersion,
   type ForgeIndexEntry,
