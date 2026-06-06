@@ -215,6 +215,80 @@ describe('resolveNeoForge', () => {
     expect(installer!.integrity).toBeUndefined();
   });
 
+  it('deduplicates classpath by Maven coords when NeoForge re-lists vanilla libs at same version', async () => {
+    // NeoForge version.json often re-lists vanilla libs (gson, guava, etc.).
+    // Dedup by groupId:artifactId so no path appears twice.
+    const vj = baseVersionJson({
+      libraries: [
+        lib(
+          'com.google.code.gson:gson:2.10.1',
+          'com/google/code/gson/gson/2.10.1/gson-2.10.1.jar',
+          'https://maven/gson.jar',
+        ), // same coord+path as in vanilla clientJson()
+        lib(
+          'cpw.mods:bootstraplauncher:2.1.3',
+          'cpw/mods/bootstraplauncher/2.1.3/bootstraplauncher-2.1.3.jar',
+          'https://maven/bootstraplauncher.jar',
+        ),
+      ],
+    });
+    const zip = makeInstallerZip(vj, baseInstallProfile());
+    routedFetch([
+      [`neoforge-${NF_VERSION}-installer.jar.sha1`, 'abc'],
+      [`neoforge-${NF_VERSION}-installer.jar`, zip],
+      ...vanillaRoutes(),
+    ]);
+
+    const t = await resolveNeoForge({ version: NF_VERSION, source: SOURCE });
+
+    const gsonPath =
+      '${library_directory}/com/google/code/gson/gson/2.10.1/gson-2.10.1.jar';
+    const classpathArms = t.vars.classpath as unknown as { value: string }[];
+    for (const arm of classpathArms) {
+      const count = arm.value
+        .split('${classpath_separator}')
+        .filter((e) => e === gsonPath).length;
+      expect(count).toBe(1);
+    }
+  });
+
+  it('deduplicates classpath by Maven coords when NeoForge upgrades a vanilla lib', async () => {
+    // NeoForge may ship a newer gson (2.11.0) while vanilla ships 2.10.1.
+    // Vanilla's 2.10.1 must be excluded; NeoForge's 2.11.0 must appear exactly once.
+    const vj = baseVersionJson({
+      libraries: [
+        lib(
+          'com.google.code.gson:gson:2.11.0', // upgraded version
+          'com/google/code/gson/gson/2.11.0/gson-2.11.0.jar',
+          'https://maven/gson-new.jar',
+        ),
+        lib(
+          'cpw.mods:bootstraplauncher:2.1.3',
+          'cpw/mods/bootstraplauncher/2.1.3/bootstraplauncher-2.1.3.jar',
+          'https://maven/bootstraplauncher.jar',
+        ),
+      ],
+    });
+    const zip = makeInstallerZip(vj, baseInstallProfile());
+    routedFetch([
+      [`neoforge-${NF_VERSION}-installer.jar.sha1`, 'abc'],
+      [`neoforge-${NF_VERSION}-installer.jar`, zip],
+      ...vanillaRoutes(),
+    ]);
+
+    const t = await resolveNeoForge({ version: NF_VERSION, source: SOURCE });
+
+    const classpathArms = t.vars.classpath as unknown as { value: string }[];
+    for (const arm of classpathArms) {
+      const entries = arm.value.split('${classpath_separator}');
+      // Old version must not appear
+      expect(entries.some((e) => e.includes('gson-2.10.1'))).toBe(false);
+      // New version must appear exactly once
+      const newCount = entries.filter((e) => e.includes('gson-2.11.0')).length;
+      expect(newCount).toBe(1);
+    }
+  });
+
   it('excludes empty-URL libs from the download set', async () => {
     const zip = makeInstallerZip(baseVersionJson(), baseInstallProfile());
     routedFetch([

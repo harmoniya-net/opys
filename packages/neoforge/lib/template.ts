@@ -193,8 +193,18 @@ export async function resolveNeoForge(
     ...mapLibraries(downloadableInstall),
   ];
 
-  // Classpath: vanilla libs + NeoForge runtime libs, minus anything on -p.
-  const cpLibs = [...client.libraries, ...runtimeLibs];
+  // Classpath: vanilla-only libs + NeoForge runtime libs, minus anything on -p.
+  // NeoForge version.json inheritsFrom vanilla but re-lists shared libs (gson,
+  // guava, etc.), potentially at updated versions. Deduplicate by Maven coordinates
+  // (groupId:artifactId) so NeoForge's version wins when versions differ and no
+  // path appears twice — BootstrapLauncher's UnionFileSystem is fatal on duplicates.
+  const neoForgeCoords = new Set(
+    runtimeLibs.map((l) => `${l.name.groupId}:${l.name.artifactId}`),
+  );
+  const vanillaOnlyLibs = client.libraries.filter(
+    (l) => !neoForgeCoords.has(`${l.name.groupId}:${l.name.artifactId}`),
+  );
+  const cpLibs = [...vanillaOnlyLibs, ...runtimeLibs];
   const libPaths = cpLibs
     .filter((l) => !onModulePath.has(l.artifact.path))
     .map((l) => ({
