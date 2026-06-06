@@ -29,16 +29,12 @@ import {
 } from './resolver';
 import {
   FORGE_WRAPPER_MAIN,
+  DEFAULT_FORGE_WRAPPER,
+  stripModuleArgs,
   type ForgeWrapperOptions,
 } from '@opys/forgewrapper';
 
 export type { ForgeWrapperOptions };
-
-const DEFAULT_NEOFORGE_FORGE_WRAPPER = {
-  version: 'prism-2025-12-07',
-  url: 'https://files.prismlauncher.org/maven/io/github/zekerzhayard/ForgeWrapper/prism-2025-12-07/ForgeWrapper-prism-2025-12-07.jar',
-  sha1: '4c4653d80409e7e968d3e3209196ffae778b7b4e',
-} as const;
 
 export interface NeoForgeOptions {
   /**
@@ -123,42 +119,6 @@ function fixArgs(args: Arguments): Arguments {
   return { ...args, jvm: args.jvm.map(fixArg) };
 }
 
-const FORGE_MODULE_ARGS = new Set([
-  '-p',
-  '--module-path',
-  '--add-modules',
-  '--add-reads',
-  '--add-opens',
-  '--add-exports',
-]);
-
-/**
- * Strip module-path-related JVM args from the merged arg list.
- * ForgeWrapper applies these programmatically via Unsafe/reflection,
- * bypassing Java 25's module system command-line incompatibilities.
- * Also removes -DignoreList since there's no module-path scanning.
- */
-function stripModuleArgs(jvm: MojangArgValue[]): MojangArgValue[] {
-  const result: MojangArgValue[] = [];
-  let skipNext = false;
-  for (const arg of jvm) {
-    if (skipNext) {
-      skipNext = false;
-      continue;
-    }
-    const raw = typeof arg === 'string' ? arg : '';
-    if (FORGE_MODULE_ARGS.has(raw)) {
-      skipNext = true;
-      continue;
-    }
-    if (typeof raw === 'string' && raw.startsWith('-DignoreList=')) {
-      continue;
-    }
-    result.push(arg);
-  }
-  return result;
-}
-
 export async function resolveNeoForge(
   options: NeoForgeOptions,
 ): Promise<NeoForgeTemplate> {
@@ -193,10 +153,10 @@ export async function resolveNeoForge(
   const merged = mergeArgs(client.args, nfArgs);
 
   const fwOpt = options.forgeWrapper ?? {};
-  const fwVersion = DEFAULT_NEOFORGE_FORGE_WRAPPER.version;
-  const fwUrl = fwOpt.url ?? DEFAULT_NEOFORGE_FORGE_WRAPPER.url;
+  const fwVersion = DEFAULT_FORGE_WRAPPER.version;
+  const fwUrl = fwOpt.url ?? DEFAULT_FORGE_WRAPPER.url;
   const fwSha1 =
-    fwOpt.sha1 ?? (fwOpt.url ? undefined : DEFAULT_NEOFORGE_FORGE_WRAPPER.sha1);
+    fwOpt.sha1 ?? (fwOpt.url ? undefined : DEFAULT_FORGE_WRAPPER.sha1);
   const fwSize = fwOpt.size;
   const forgeWrapperPath =
     fwOpt.path ??

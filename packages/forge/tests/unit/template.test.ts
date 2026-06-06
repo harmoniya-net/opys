@@ -218,10 +218,10 @@ describe('resolveForge — processor era', () => {
         a.path.includes('forge-' + PROC_FORGE + '-installer.jar'),
       ),
     ).toBe(true);
-    expect(t.artifacts.some((a) => a.path.includes('forgewrapper'))).toBe(true);
+    expect(t.artifacts.some((a) => a.path.includes('ForgeWrapper'))).toBe(true);
   });
 
-  it('appends forgewrapper -D jvm args', async () => {
+  it('includes forgewrapper -D jvm args', async () => {
     processorRoutes();
     const t = await resolveForge({ version: PROC_FORGE, source: SOURCE });
     const jvm = t.jvmArgs.flatMap((v) => v.value);
@@ -233,14 +233,22 @@ describe('resolveForge — processor era', () => {
     );
   });
 
-  it('uses the bundled ForgeWrapper sha1/size by default', async () => {
+  it('strips module-path JVM args', async () => {
     processorRoutes();
     const t = await resolveForge({ version: PROC_FORGE, source: SOURCE });
-    const fw = t.artifacts.find((a) => a.path.includes('forgewrapper'))!;
+    const jvm = t.jvmArgs.flatMap((v) => v.value);
+    expect(jvm.some((a) => a === '-p')).toBe(false);
+    expect(jvm.some((a) => a.startsWith('-DignoreList='))).toBe(false);
+  });
+
+  it('uses the bundled ForgeWrapper sha1 by default (PrismLauncher fork)', async () => {
+    processorRoutes();
+    const t = await resolveForge({ version: PROC_FORGE, source: SOURCE });
+    const fw = t.artifacts.find((a) => a.path.includes('ForgeWrapper'))!;
     expect(fw.integrity).toEqual({
-      sha1: '035a51fe6439792a61507630d89382f621da0f1f',
+      sha1: '4c4653d80409e7e968d3e3209196ffae778b7b4e',
     });
-    expect(fw.size).toBe(28679);
+    expect(fw.size).toBeUndefined();
   });
 
   it('honours a custom ForgeWrapper url without bundled integrity', async () => {
@@ -268,7 +276,7 @@ describe('resolveForge — processor era', () => {
       source: SOURCE,
       forgeWrapper: { url: 'https://x/fw.jar', sha1: 'aa', size: 5 },
     });
-    const fw = t.artifacts.find((a) => a.path.includes('forgewrapper'))!;
+    const fw = t.artifacts.find((a) => a.path.includes('ForgeWrapper'))!;
     expect(fw.integrity).toEqual({ sha1: 'aa' });
     expect(fw.size).toBe(5);
   });
