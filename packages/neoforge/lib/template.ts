@@ -28,6 +28,25 @@ import {
   type NeoForgeRelease,
 } from './resolver';
 
+const DEFAULT_NEOFORGE_FORGE_WRAPPER = {
+  version: 'prism-2025-12-07',
+  url: 'https://files.prismlauncher.org/maven/io/github/zekerzhayard/ForgeWrapper/prism-2025-12-07/ForgeWrapper-prism-2025-12-07.jar',
+  sha1: '4c4653d80409e7e968d3e3209196ffae778b7b4e',
+} as const;
+
+const FORGE_WRAPPER_MAIN = 'io.github.zekerzhayard.forgewrapper.installer.Main';
+
+export interface ForgeWrapperOptions {
+  /** Download URL for the ForgeWrapper JAR. */
+  url?: string;
+  /** Optional sha1 for integrity verification. */
+  sha1?: string;
+  /** Optional declared size in bytes. */
+  size?: number;
+  /** Override the destination path under `${library_directory}`. */
+  path?: string;
+}
+
 export interface NeoForgeOptions {
   /**
    * NeoForge version. Accepts:
@@ -38,6 +57,8 @@ export interface NeoForgeOptions {
   version: string;
   /** NeoForge Maven base URL. Default: `https://maven.neoforged.net/releases`. */
   source?: string;
+  /** Override the bundled ForgeWrapper JAR (PrismLauncher fork). */
+  forgeWrapper?: ForgeWrapperOptions;
 }
 
 export interface NeoForgeTemplate {
@@ -178,19 +199,16 @@ export async function resolveNeoForge(
   );
   const merged = mergeArgs(client.args, nfArgs);
 
-  // ForgeWrapper: PrismLauncher's custom launcher that handles module-path
-  // setup programmatically via Unsafe + MethodHandles.Lookup, bypassing
-  // Java 25's module system incompatibilities with NeoForge's command-line
-  // module-path args. All jars go on -cp; ForgeWrapper does the module
-  // gymnastics at runtime.
-  const FORGE_WRAPPER_MAIN =
-    'io.github.zekerzhayard.forgewrapper.installer.Main';
-  const FORGE_WRAPPER_VERSION = 'prism-2025-12-07';
-  const FORGE_WRAPPER_JAR = `io/github/zekerzhayard/ForgeWrapper/${FORGE_WRAPPER_VERSION}/ForgeWrapper-${FORGE_WRAPPER_VERSION}.jar`;
-  const FORGE_WRAPPER_URL = `https://files.prismlauncher.org/maven/${FORGE_WRAPPER_JAR}`;
-  const FORGE_WRAPPER_SHA1 = '4c4653d80409e7e968d3e3209196ffae778b7b4e';
+  const fwOpt = options.forgeWrapper ?? {};
+  const fwVersion = DEFAULT_NEOFORGE_FORGE_WRAPPER.version;
+  const fwUrl = fwOpt.url ?? DEFAULT_NEOFORGE_FORGE_WRAPPER.url;
+  const fwSha1 =
+    fwOpt.sha1 ?? (fwOpt.url ? undefined : DEFAULT_NEOFORGE_FORGE_WRAPPER.sha1);
+  const fwSize = fwOpt.size;
+  const forgeWrapperPath =
+    fwOpt.path ??
+    `\${library_directory}/io/github/zekerzhayard/ForgeWrapper/${fwVersion}/ForgeWrapper-${fwVersion}.jar`;
 
-  // Strip module-path JVM args — ForgeWrapper applies them programmatically.
   const neoForgeCoords = new Set(
     runtimeLibs.map((l) => `${l.name.groupId}:${l.name.artifactId}`),
   );
@@ -207,10 +225,7 @@ export async function resolveNeoForge(
     rules: l.rules,
     artifactPath: `\${library_directory}/${l.artifact.path}`,
   }));
-  libPaths.push({
-    rules: [],
-    artifactPath: `\${library_directory}/${FORGE_WRAPPER_JAR}`,
-  });
+  libPaths.push({ rules: [], artifactPath: forgeWrapperPath });
 
   // ForgeWrapper system properties — tells the detector where to find the
   // installer jar, minecraft jar, and library directory.
@@ -243,10 +258,11 @@ export async function resolveNeoForge(
     ],
   };
   const forgeWrapperArtifact: Artifact = {
-    path: `\${library_directory}/${FORGE_WRAPPER_JAR}`,
-    source: sourceUrl(FORGE_WRAPPER_URL),
+    path: forgeWrapperPath,
+    source: sourceUrl(fwUrl),
     rules: [],
-    integrity: { sha1: FORGE_WRAPPER_SHA1 },
+    ...(fwSha1 ? { integrity: { sha1: fwSha1 } } : {}),
+    ...(fwSize != null ? { size: fwSize } : {}),
   };
 
   // Only fetch libs that have a real download URL; empty-URL libs are bundled
