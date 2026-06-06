@@ -3,6 +3,7 @@ import { zipSync, strToU8 } from 'fflate';
 import {
   minecraft,
   forge,
+  neoforge,
   cleanroom,
   lwjgl3ify,
   authliberty,
@@ -113,6 +114,66 @@ describe('forge plugin', () => {
     expect(c.artifacts!.length).toBeGreaterThan(0);
     expect(c.launch).toHaveProperty('mainClass');
     expect(logs.some((l) => l.includes(`resolved ${F}`))).toBe(true);
+  });
+});
+
+describe('neoforge plugin', () => {
+  it('builds a neoforge contribution', async () => {
+    reset();
+    const NF = '20.4.80-beta';
+    const MC = '1.20.4';
+    const versionJson = {
+      id: `${MC}-neoforge-${NF}`,
+      inheritsFrom: MC,
+      mainClass: 'cpw.mods.bootstraplauncher.BootstrapLauncher',
+      arguments: {
+        game: ['--fml.neoForgeVersion', NF],
+        jvm: ['-DlibraryDirectory=${library_directory}'],
+      },
+      libraries: [
+        lib(
+          'cpw.mods:bootstraplauncher:2.1.3',
+          'cpw/mods/bootstraplauncher/2.1.3/bootstraplauncher-2.1.3.jar',
+          'https://maven/bootstraplauncher.jar',
+        ),
+      ],
+    };
+    const installProfile = {
+      spec: 1,
+      profile: 'NeoForge',
+      version: `${MC}-neoforge-${NF}`,
+      minecraft: MC,
+      libraries: [],
+    };
+    const zip = zipSync({
+      'version.json': strToU8(JSON.stringify(versionJson)),
+      'install_profile.json': strToU8(JSON.stringify(installProfile)),
+    });
+    routedFetch([
+      [`neoforge-${NF}-installer.jar.sha1`, new Response('abc123')],
+      [`neoforge-${NF}-installer.jar`, new Response(zip)],
+      [
+        'version_manifest',
+        {
+          ...VERSION_MANIFEST,
+          versions: [
+            {
+              ...VERSION_MANIFEST.versions[0]!,
+              id: MC,
+              url: `https://meta/${MC}.json`,
+            },
+          ],
+        },
+      ],
+      [`/${MC}.json`, clientJson(MC)],
+      ['/assets/5.json', ASSET_MANIFEST],
+    ]);
+    const plugin = neoforge(NF);
+    expect(plugin.name).toBe('neoforge');
+    const c = await plugin.build(ctx);
+    expect(c.artifacts!.length).toBeGreaterThan(0);
+    expect(c.launch).toHaveProperty('mainClass');
+    expect(logs.some((l) => l.includes(`resolved ${NF}`))).toBe(true);
   });
 });
 

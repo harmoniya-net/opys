@@ -18,6 +18,7 @@
     "packages/mojang",
     "packages/minecraft-vanilla",
     "packages/forge",
+    "packages/neoforge",
     "packages/cleanroom",
     "packages/lwjgl3ify",
     "packages/authliberty",

@@ -1,5 +1,5 @@
 {
-  "name": "@opys/minecraft",
+  "name": "@opys/neoforge",
   "version": "0.1.13",
   "type": "module",
   "main": "./dist/index.js",
@@ -12,25 +12,16 @@
   "scripts": {
     "build": "tsdown lib/index.ts --format esm,cjs --dts --clean",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "test": "vitest run tests/unit --passWithNoTests",
-    "test:int": "vitest run tests/integration --testTimeout=120000"
+    "test": "vitest run tests/unit --passWithNoTests"
   },
   "dependencies": {
-    "@opys/minecraft-vanilla": "^0.1.13",
-    "@opys/forge": "^0.1.13",
-    "@opys/neoforge": "^0.1.13",
-    "@opys/cleanroom": "^0.1.13",
-    "@opys/lwjgl3ify": "^0.1.13",
-    "@opys/authliberty": "^0.1.13",
-    "@opys/curseforge": "^0.1.13",
-    "@opys/bifrost": "^0.1.13",
-    "@opys/minecraft-serverlist": "^0.1.13",
-    "@opys/java": "^0.1.13"
-  },
-  "devDependencies": {
     "@opys/core": "^0.1.13",
     "@opys/dev": "^0.1.13",
     "@opys/mojang": "^0.1.13",
+    "@opys/minecraft-vanilla": "^0.1.13",
+    "fflate": "^0.8.2"
+  },
+  "devDependencies": {
     "tsdown": "*",
     "vitest": "*"
   },
@@ -43,6 +34,6 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/harmoniya-net/opys.git",
-    "directory": "packages/minecraft"
+    "directory": "packages/neoforge"
   }
 }
