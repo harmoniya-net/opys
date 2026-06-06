@@ -1,6 +1,6 @@
 {
   "name": "@opys/java",
-  "version": "0.1.13",
+  "version": "0.1.14",
   "type": "module",
   "main": "./dist/index.js",
   "exports": {
@@ -16,8 +16,8 @@
     "test:int": "vitest run tests/integration --testTimeout=120000"
   },
   "dependencies": {
-    "@opys/core": "^0.1.13",
-    "@opys/dev": "^0.1.13"
+    "@opys/core": "^0.1.14",
+    "@opys/dev": "^0.1.14"
   },
   "peerDependencies": {
     "zod": "^4.0.0"

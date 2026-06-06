@@ -1,6 +1,6 @@
 {
   "name": "@opys/mojang-rules",
-  "version": "0.1.13",
+  "version": "0.1.14",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
   "peerDependencies": {

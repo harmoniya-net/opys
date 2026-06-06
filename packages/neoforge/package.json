@@ -1,6 +1,6 @@
 {
   "name": "@opys/neoforge",
-  "version": "0.1.13",
+  "version": "0.1.14",
   "type": "module",
   "main": "./dist/index.js",
   "exports": {
@@ -15,10 +15,10 @@
     "test": "vitest run tests/unit --passWithNoTests"
   },
   "dependencies": {
-    "@opys/core": "^0.1.13",
-    "@opys/dev": "^0.1.13",
-    "@opys/mojang": "^0.1.13",
-    "@opys/minecraft-vanilla": "^0.1.13",
+    "@opys/core": "^0.1.14",
+    "@opys/dev": "^0.1.14",
+    "@opys/mojang": "^0.1.14",
+    "@opys/minecraft-vanilla": "^0.1.14",
     "fflate": "^0.8.2"
   },
   "devDependencies": {
