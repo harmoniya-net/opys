@@ -13,3 +13,5 @@ target/
 crates/opys-*-napi/*.node
 crates/opys-*-napi/index.js
 crates/opys-*-napi/index.d.ts
+manifest.json
+message.txt
