@@ -1,6 +1,6 @@
 {
   "name": "opys",
-  "version": "0.1.15",
+  "version": "0.1.16",
   "private": true,
   "scripts": {
     "format": "prettier --write .",

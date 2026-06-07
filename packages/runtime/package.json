@@ -1,6 +1,6 @@
 {
   "name": "@opys/runtime",
-  "version": "0.1.15",
+  "version": "0.1.16",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
   "exports": {
@@ -19,8 +19,8 @@
   },
   "type": "module",
   "dependencies": {
-    "@opys/core": "^0.1.15",
-    "@opys/runtime-binding": "^0.1.15"
+    "@opys/core": "^0.1.16",
+    "@opys/runtime-binding": "^0.1.16"
   },
   "engines": {
     "node": ">=20"
