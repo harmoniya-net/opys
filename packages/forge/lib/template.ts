@@ -13,7 +13,7 @@ import {
   fetchWithRetry,
 } from '@opys/core';
 import type { Val, Valset } from '@opys/core';
-import { mergeArgs, parseLibraries, type MojangArgValue } from '@opys/mojang';
+import { mergeArgs, parseLibraries } from '@opys/mojang';
 import {
   parseForgeRecipe,
   type ForgeRecipe,
@@ -22,8 +22,9 @@ import {
 import { resolveForgeVersion, type ForgeIndexEntry } from './resolver';
 import {
   FORGE_WRAPPER_MAIN,
-  DEFAULT_FORGE_WRAPPER,
   stripModuleArgs,
+  resolveForgeWrapperArtifact,
+  buildForgeWrapperJvmArgs,
   type ForgeWrapperOptions,
 } from '@opys/forgewrapper';
 
@@ -214,21 +215,8 @@ async function buildProcessorTemplate(
     integrity: { md5: installerFile.md5 },
   };
 
-  const fwOpt = options.forgeWrapper ?? {};
-  const fwUrl = fwOpt.url ?? DEFAULT_FORGE_WRAPPER.url;
-  const fwSha1 =
-    fwOpt.sha1 ?? (fwOpt.url ? undefined : DEFAULT_FORGE_WRAPPER.sha1);
-  const fwSize = fwOpt.size;
-  const forgeWrapperPath =
-    fwOpt.path ??
-    `\${library_directory}/io/github/zekerzhayard/ForgeWrapper/${DEFAULT_FORGE_WRAPPER.version}/ForgeWrapper-${DEFAULT_FORGE_WRAPPER.version}.jar`;
-  const forgeWrapperArtifact: Artifact = {
-    path: forgeWrapperPath,
-    source: sourceUrl(fwUrl),
-    rules: [],
-    ...(fwSha1 ? { integrity: { sha1: fwSha1 } } : {}),
-    ...(fwSize != null ? { size: fwSize } : {}),
-  };
+  const { artifact: forgeWrapperArtifact, path: forgeWrapperPath } =
+    resolveForgeWrapperArtifact(options.forgeWrapper ?? {});
 
   // Download set: union of recipe runtime libs + install_profile libs.
   // deduplicateArtifacts (in core) collapses duplicates by path.
@@ -254,12 +242,10 @@ async function buildProcessorTemplate(
 
   const vars: ValDefs = { ...mc.vars, classpath: classpathEntries };
 
-  const wrapperJvmArgs: MojangArgValue[] = [
-    `-Dforgewrapper.librariesDir=\${library_directory}`,
-    `-Dforgewrapper.installer=${installerPath}`,
-    `-Dforgewrapper.minecraft=\${version_dir}/client.jar`,
+  const finalJvm = [
+    ...buildForgeWrapperJvmArgs(installerPath),
+    ...stripModuleArgs(merged.jvm),
   ];
-  const finalJvm = [...wrapperJvmArgs, ...stripModuleArgs(merged.jvm)];
 
   const parts = buildLaunch(FORGE_WRAPPER_MAIN, merged.game, finalJvm);
 

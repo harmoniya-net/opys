@@ -29,8 +29,9 @@ import {
 } from './resolver';
 import {
   FORGE_WRAPPER_MAIN,
-  DEFAULT_FORGE_WRAPPER,
   stripModuleArgs,
+  resolveForgeWrapperArtifact,
+  buildForgeWrapperJvmArgs,
   type ForgeWrapperOptions,
 } from '@opys/forgewrapper';
 
@@ -152,15 +153,8 @@ export async function resolveNeoForge(
   );
   const merged = mergeArgs(client.args, nfArgs);
 
-  const fwOpt = options.forgeWrapper ?? {};
-  const fwVersion = DEFAULT_FORGE_WRAPPER.version;
-  const fwUrl = fwOpt.url ?? DEFAULT_FORGE_WRAPPER.url;
-  const fwSha1 =
-    fwOpt.sha1 ?? (fwOpt.url ? undefined : DEFAULT_FORGE_WRAPPER.sha1);
-  const fwSize = fwOpt.size;
-  const forgeWrapperPath =
-    fwOpt.path ??
-    `\${library_directory}/io/github/zekerzhayard/ForgeWrapper/${fwVersion}/ForgeWrapper-${fwVersion}.jar`;
+  const { artifact: forgeWrapperArtifact, path: forgeWrapperPath } =
+    resolveForgeWrapperArtifact(options.forgeWrapper ?? {});
 
   const neoForgeCoords = new Set(
     runtimeLibs.map((l) => `${l.name.groupId}:${l.name.artifactId}`),
@@ -179,16 +173,6 @@ export async function resolveNeoForge(
     artifactPath: `\${library_directory}/${l.artifact.path}`,
   }));
   libPaths.push({ rules: [], artifactPath: forgeWrapperPath });
-
-  // ForgeWrapper system properties — tells the detector where to find the
-  // installer jar, minecraft jar, and library directory.
-  const forgeWrapperArgs: MojangArgValue[] = [
-    `-Dforgewrapper.librariesDir=\${library_directory}`,
-    `-Dforgewrapper.installer=\${library_directory}/net/neoforged/neoforge/${release.version}/neoforge-${release.version}-installer.jar`,
-    '-Dforgewrapper.minecraft=${version_dir}/client.jar',
-  ];
-  const strippedJvm = [...forgeWrapperArgs, ...stripModuleArgs(merged.jvm)];
-  const strippedGame = merged.game;
 
   const classpathEntries = buildClasspath(
     libPaths,
@@ -210,13 +194,11 @@ export async function resolveNeoForge(
       extractScan('maven/', '${library_directory}', { strip: ['maven/'] }),
     ],
   };
-  const forgeWrapperArtifact: Artifact = {
-    path: forgeWrapperPath,
-    source: sourceUrl(fwUrl),
-    rules: [],
-    ...(fwSha1 ? { integrity: { sha1: fwSha1 } } : {}),
-    ...(fwSize != null ? { size: fwSize } : {}),
-  };
+
+  const strippedJvm = [
+    ...buildForgeWrapperJvmArgs(installerPath),
+    ...stripModuleArgs(merged.jvm),
+  ];
 
   // Only fetch libs that have a real download URL; empty-URL libs are bundled
   // in the installer's maven/ tree.
@@ -228,7 +210,7 @@ export async function resolveNeoForge(
   ];
 
   const vars: ValDefs = { ...mc.vars, classpath: classpathEntries };
-  const parts = buildLaunch(FORGE_WRAPPER_MAIN, strippedGame, strippedJvm);
+  const parts = buildLaunch(FORGE_WRAPPER_MAIN, merged.game, strippedJvm);
 
   return {
     artifacts: [

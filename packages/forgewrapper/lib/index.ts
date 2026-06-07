@@ -1,3 +1,4 @@
+import { sourceUrl, type Artifact } from '@opys/core';
 import type { MojangArgValue } from '@opys/mojang';
 
 export const FORGE_WRAPPER_MAIN =
@@ -54,4 +55,36 @@ export function stripModuleArgs(jvm: MojangArgValue[]): MojangArgValue[] {
     result.push(arg);
   }
   return result;
+}
+
+/** Resolve the ForgeWrapper artifact and its library path from user options. */
+export function resolveForgeWrapperArtifact(opts: ForgeWrapperOptions): {
+  artifact: Artifact;
+  path: string;
+} {
+  const url = opts.url ?? DEFAULT_FORGE_WRAPPER.url;
+  const sha1 = opts.sha1 ?? (opts.url ? undefined : DEFAULT_FORGE_WRAPPER.sha1);
+  const size = opts.size;
+  const path =
+    opts.path ??
+    `\${library_directory}/io/github/zekerzhayard/ForgeWrapper/${DEFAULT_FORGE_WRAPPER.version}/ForgeWrapper-${DEFAULT_FORGE_WRAPPER.version}.jar`;
+  const artifact: Artifact = {
+    path,
+    source: sourceUrl(url),
+    rules: [],
+    ...(sha1 ? { integrity: { sha1 } } : {}),
+    ...(size != null ? { size } : {}),
+  };
+  return { artifact, path };
+}
+
+/** Build the `-Dforgewrapper.*` JVM system properties for a given installer path. */
+export function buildForgeWrapperJvmArgs(
+  installerPath: string,
+): MojangArgValue[] {
+  return [
+    `-Dforgewrapper.librariesDir=\${library_directory}`,
+    `-Dforgewrapper.installer=${installerPath}`,
+    `-Dforgewrapper.minecraft=\${version_dir}/client.jar`,
+  ];
 }
