@@ -311,6 +311,143 @@ describe('resolveNeoForge', () => {
     expect(hasEmptyUrlArtifact).toBe(false);
   });
 
+  it('uses ForgeWrapper as main class (not BootstrapLauncher)', async () => {
+    const zip = makeInstallerZip(baseVersionJson(), baseInstallProfile());
+    routedFetch([
+      [`neoforge-${NF_VERSION}-installer.jar.sha1`, 'abc'],
+      [`neoforge-${NF_VERSION}-installer.jar`, zip],
+      ...vanillaRoutes(),
+    ]);
+
+    const t = await resolveNeoForge({ version: NF_VERSION, source: SOURCE });
+
+    expect(t.mainClass.value[0]).toBe(
+      'io.github.zekerzhayard.forgewrapper.installer.Main',
+    );
+  });
+
+  it('includes ForgeWrapper JAR in artifacts and on classpath', async () => {
+    const zip = makeInstallerZip(baseVersionJson(), baseInstallProfile());
+    routedFetch([
+      [`neoforge-${NF_VERSION}-installer.jar.sha1`, 'abc'],
+      [`neoforge-${NF_VERSION}-installer.jar`, zip],
+      ...vanillaRoutes(),
+    ]);
+
+    const t = await resolveNeoForge({ version: NF_VERSION, source: SOURCE });
+
+    const hasForgeWrapperArtifact = t.artifacts.some((a) =>
+      a.path.includes('ForgeWrapper'),
+    );
+    expect(hasForgeWrapperArtifact).toBe(true);
+
+    const classpathArms = t.vars.classpath as unknown as { value: string }[];
+    const anyArmHasFW = classpathArms.some((arm) =>
+      arm.value.includes('ForgeWrapper'),
+    );
+    expect(anyArmHasFW).toBe(true);
+  });
+
+  it('strips module-path JVM args from the merged list', async () => {
+    const vj = baseVersionJson({
+      arguments: {
+        game: [],
+        jvm: [
+          '-DlibraryDirectory=${library_directory}',
+          '-p',
+          '${library_directory}/cpw/mods/bootstraplauncher.jar',
+          '--add-modules',
+          'ALL-MODULE-PATH',
+          '--add-opens',
+          'java.base/java.lang=cpw.mods.securejarhandler',
+          '-DignoreList=bootstraplauncher,securejarhandler',
+        ],
+      },
+    });
+    const zip = makeInstallerZip(vj, baseInstallProfile());
+    routedFetch([
+      [`neoforge-${NF_VERSION}-installer.jar.sha1`, 'abc'],
+      [`neoforge-${NF_VERSION}-installer.jar`, zip],
+      ...vanillaRoutes(),
+    ]);
+
+    const t = await resolveNeoForge({ version: NF_VERSION, source: SOURCE });
+
+    const jvmArgs = t.jvmArgs.flatMap((v) => v.value);
+    expect(jvmArgs.some((a) => a === '-p')).toBe(false);
+    expect(jvmArgs.some((a) => a === '--module-path')).toBe(false);
+    expect(jvmArgs.some((a) => a === '--add-modules')).toBe(false);
+    expect(jvmArgs.some((a) => a.startsWith('-DignoreList='))).toBe(false);
+    expect(jvmArgs.some((a) => a === '--add-opens')).toBe(false);
+  });
+
+  it('includes forgewrapper system properties in JVM args', async () => {
+    const zip = makeInstallerZip(baseVersionJson(), baseInstallProfile());
+    routedFetch([
+      [`neoforge-${NF_VERSION}-installer.jar.sha1`, 'abc'],
+      [`neoforge-${NF_VERSION}-installer.jar`, zip],
+      ...vanillaRoutes(),
+    ]);
+
+    const t = await resolveNeoForge({ version: NF_VERSION, source: SOURCE });
+
+    const jvmArgs = t.jvmArgs.flatMap((v) => v.value);
+    expect(
+      jvmArgs.some((a) => a.includes('-Dforgewrapper.librariesDir=')),
+    ).toBe(true);
+    expect(jvmArgs.some((a) => a.includes('-Dforgewrapper.installer='))).toBe(
+      true,
+    );
+    expect(jvmArgs.some((a) => a.includes('-Dforgewrapper.minecraft='))).toBe(
+      true,
+    );
+  });
+
+  it('respects custom forgeWrapper url/sha1/path options', async () => {
+    const zip = makeInstallerZip(baseVersionJson(), baseInstallProfile());
+    routedFetch([
+      [`neoforge-${NF_VERSION}-installer.jar.sha1`, 'abc'],
+      [`neoforge-${NF_VERSION}-installer.jar`, zip],
+      ...vanillaRoutes(),
+    ]);
+
+    const customUrl = 'https://custom.example.com/ForgeWrapper-custom.jar';
+    const customSha1 = 'cafebabe'.repeat(5);
+    const customPath = '${library_directory}/custom/ForgeWrapper-custom.jar';
+
+    const t = await resolveNeoForge({
+      version: NF_VERSION,
+      source: SOURCE,
+      forgeWrapper: { url: customUrl, sha1: customSha1, path: customPath },
+    });
+
+    const fwArtifact = t.artifacts.find((a) => a.path === customPath);
+    expect(fwArtifact).toBeDefined();
+    expect(fwArtifact!.source).toEqual({ kind: 'url', url: customUrl });
+    expect(fwArtifact!.integrity).toEqual({ sha1: customSha1 });
+  });
+
+  it('omits sha1 when a custom forgeWrapper url is given without sha1', async () => {
+    const zip = makeInstallerZip(baseVersionJson(), baseInstallProfile());
+    routedFetch([
+      [`neoforge-${NF_VERSION}-installer.jar.sha1`, 'abc'],
+      [`neoforge-${NF_VERSION}-installer.jar`, zip],
+      ...vanillaRoutes(),
+    ]);
+
+    const t = await resolveNeoForge({
+      version: NF_VERSION,
+      source: SOURCE,
+      forgeWrapper: {
+        url: 'https://custom.example.com/ForgeWrapper-custom.jar',
+      },
+    });
+
+    const fwArtifact = t.artifacts.find((a) => a.path.includes('ForgeWrapper'));
+    expect(fwArtifact).toBeDefined();
+    expect(fwArtifact!.integrity).toBeUndefined();
+  });
+
   it('merges NeoForge game args after vanilla args', async () => {
     const zip = makeInstallerZip(baseVersionJson(), baseInstallProfile());
     routedFetch([

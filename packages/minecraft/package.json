@@ -16,6 +16,7 @@
     "test:int": "vitest run tests/integration --testTimeout=120000"
   },
   "dependencies": {
+    "@opys/forgewrapper": "^0.1.15",
     "@opys/minecraft-vanilla": "^0.1.15",
     "@opys/forge": "^0.1.15",
     "@opys/neoforge": "^0.1.15",

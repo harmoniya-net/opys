@@ -17,6 +17,7 @@
     "packages/dev",
     "packages/mojang",
     "packages/minecraft-vanilla",
+    "packages/forgewrapper",
     "packages/forge",
     "packages/neoforge",
     "packages/cleanroom",
@@ -33,6 +34,8 @@
     "crates/opys-runtime-napi"
   ],
   "devDependencies": {
+    "@emnapi/core": "^1.10.0",
+    "@emnapi/runtime": "^1.10.0",
     "@napi-rs/cli": "^2.18.4",
     "@types/node": "^22.19.17",
     "@vitest/coverage-v8": "^4.1.6",

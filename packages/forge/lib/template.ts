@@ -13,7 +13,6 @@ import {
   fetchWithRetry,
 } from '@opys/core';
 import type { Val, Valset } from '@opys/core';
-import type { MojangArgValue, Arguments, Library } from '@opys/mojang';
 import { mergeArgs, parseLibraries } from '@opys/mojang';
 import {
   parseForgeRecipe,
@@ -21,52 +20,17 @@ import {
   type LegacyLibrary,
 } from './recipe';
 import { resolveForgeVersion, type ForgeIndexEntry } from './resolver';
+import {
+  FORGE_WRAPPER_MAIN,
+  stripModuleArgs,
+  resolveForgeWrapperArtifact,
+  buildForgeWrapperJvmArgs,
+  type ForgeWrapperOptions,
+} from '@opys/forgewrapper';
+
+export type { ForgeWrapperOptions };
 
 const DEFAULT_SOURCE = 'https://fuckforge.harmoniya.net';
-
-const DEFAULT_FORGE_WRAPPER = {
-  version: '1.6.0',
-  url: 'https://github.com/ZekerZhayard/ForgeWrapper/releases/download/1.6.0/ForgeWrapper-1.6.0.jar',
-  sha1: '035a51fe6439792a61507630d89382f621da0f1f',
-  size: 28679,
-} as const;
-
-const FORGE_WRAPPER_MAIN = 'io.github.zekerzhayard.forgewrapper.installer.Main';
-
-/**
- * Extract artifact paths on the Java module path (-p) from parsed args.
- * These jars must NOT appear on -cp or the JVM module system breaks.
- */
-function modulePathArtifacts(args: Arguments): Set<string> {
-  const flat: string[] = [];
-  for (const arg of args.jvm) {
-    if (typeof arg === 'string') flat.push(arg);
-    else flat.push(...(Array.isArray(arg.value) ? arg.value : [arg.value]));
-  }
-  const artifacts = new Set<string>();
-  for (let i = 0; i < flat.length; i++) {
-    if (flat[i] === '-p' || flat[i] === '--module-path') {
-      const pathStr = flat[++i];
-      if (!pathStr) continue;
-      for (const jar of pathStr.split(/[:;]/)) {
-        const m = jar.match(/^\$\{library_directory\}\/(.+)$/);
-        if (m?.[1]) artifacts.add(m[1]);
-      }
-    }
-  }
-  return artifacts;
-}
-
-export interface ForgeWrapperOptions {
-  /** Download URL for the ForgeWrapper JAR. */
-  url?: string;
-  /** Optional sha1 for integrity verification. */
-  sha1?: string;
-  /** Optional declared size in bytes. */
-  size?: number;
-  /** Override the destination path under `${library_directory}`. */
-  path?: string;
-}
 
 export interface ForgeOptions {
   /**
@@ -242,7 +206,6 @@ async function buildProcessorTemplate(
   // Forge's args APPEND to vanilla's args. Recipe paths are already fixed
   // (`../libraries/` → `${library_directory}`) by the recipe parser.
   const merged = mergeArgs(client.args, recipe.args);
-  const onModulePath = modulePathArtifacts(merged);
 
   const installerPath = `\${library_directory}/net/minecraftforge/forge/${indexEntry.forge}/forge-${indexEntry.forge}-installer.jar`;
   const installerArtifact: Artifact = {
@@ -252,22 +215,8 @@ async function buildProcessorTemplate(
     integrity: { md5: installerFile.md5 },
   };
 
-  const fwOpt = options.forgeWrapper ?? {};
-  const fwUrl = fwOpt.url ?? DEFAULT_FORGE_WRAPPER.url;
-  const fwSha1 =
-    fwOpt.sha1 ?? (fwOpt.url ? undefined : DEFAULT_FORGE_WRAPPER.sha1);
-  const fwSize =
-    fwOpt.size ?? (fwOpt.url ? undefined : DEFAULT_FORGE_WRAPPER.size);
-  const forgeWrapperPath =
-    fwOpt.path ??
-    `\${library_directory}/io/github/zekerzhayard/forgewrapper/${DEFAULT_FORGE_WRAPPER.version}/forgewrapper-${DEFAULT_FORGE_WRAPPER.version}.jar`;
-  const forgeWrapperArtifact: Artifact = {
-    path: forgeWrapperPath,
-    source: sourceUrl(fwUrl),
-    rules: [],
-    ...(fwSha1 ? { integrity: { sha1: fwSha1 } } : {}),
-    ...(fwSize != null ? { size: fwSize } : {}),
-  };
+  const { artifact: forgeWrapperArtifact, path: forgeWrapperPath } =
+    resolveForgeWrapperArtifact(options.forgeWrapper ?? {});
 
   // Download set: union of recipe runtime libs + install_profile libs.
   // deduplicateArtifacts (in core) collapses duplicates by path.
@@ -276,16 +225,14 @@ async function buildProcessorTemplate(
     ...mapLibraries(installProfileLibs),
   ];
 
-  // Classpath: vanilla libs + recipe runtime libs + ForgeWrapper, minus -p entries.
-  // Use recipe.libraries (NOT install_profile.libraries) here — only the runtime
-  // subset goes on -cp; the rest are loaded dynamically by Forge.
-  const cpLibs: Library[] = [...client.libraries, ...recipe.libraries];
-  const libPaths = cpLibs
-    .filter((l) => !onModulePath.has(l.artifact.path))
-    .map((l) => ({
-      rules: l.rules,
-      artifactPath: `\${library_directory}/${l.artifact.path}`,
-    }));
+  // Classpath: vanilla libs + recipe runtime libs + ForgeWrapper.
+  // ForgeWrapper (PrismLauncher fork) handles module-path setup at runtime, so
+  // all jars go on -cp; no -p filtering needed here.
+  const cpLibs = [...client.libraries, ...recipe.libraries];
+  const libPaths = cpLibs.map((l) => ({
+    rules: l.rules,
+    artifactPath: `\${library_directory}/${l.artifact.path}`,
+  }));
   libPaths.push({ rules: [], artifactPath: forgeWrapperPath });
 
   const classpathEntries = buildClasspath(
@@ -295,12 +242,10 @@ async function buildProcessorTemplate(
 
   const vars: ValDefs = { ...mc.vars, classpath: classpathEntries };
 
-  const wrapperJvmArgs: MojangArgValue[] = [
-    `-Dforgewrapper.installer=${installerPath}`,
-    `-Dforgewrapper.minecraft=\${version_dir}/client.jar`,
-    `-Dforgewrapper.librariesDir=\${library_directory}`,
+  const finalJvm = [
+    ...buildForgeWrapperJvmArgs(installerPath),
+    ...stripModuleArgs(merged.jvm),
   ];
-  const finalJvm = [...merged.jvm, ...wrapperJvmArgs];
 
   const parts = buildLaunch(FORGE_WRAPPER_MAIN, merged.game, finalJvm);
 

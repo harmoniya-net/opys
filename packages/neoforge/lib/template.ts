@@ -27,6 +27,15 @@ import {
   DEFAULT_NEOFORGE_MAVEN,
   type NeoForgeRelease,
 } from './resolver';
+import {
+  FORGE_WRAPPER_MAIN,
+  stripModuleArgs,
+  resolveForgeWrapperArtifact,
+  buildForgeWrapperJvmArgs,
+  type ForgeWrapperOptions,
+} from '@opys/forgewrapper';
+
+export type { ForgeWrapperOptions };
 
 export interface NeoForgeOptions {
   /**
@@ -38,6 +47,8 @@ export interface NeoForgeOptions {
   version: string;
   /** NeoForge Maven base URL. Default: `https://maven.neoforged.net/releases`. */
   source?: string;
+  /** Override the bundled ForgeWrapper JAR (PrismLauncher fork). */
+  forgeWrapper?: ForgeWrapperOptions;
 }
 
 export interface NeoForgeTemplate {
@@ -93,30 +104,6 @@ function readJsonEntry<T>(zip: Record<string, Uint8Array>, name: string): T {
   return JSON.parse(new TextDecoder().decode(buf)) as T;
 }
 
-/**
- * Extract artifact paths on the Java module path (-p) from parsed args.
- * These jars must NOT appear on -cp or the JVM module system breaks.
- */
-function modulePathArtifacts(args: Arguments): Set<string> {
-  const flat: string[] = [];
-  for (const arg of args.jvm) {
-    if (typeof arg === 'string') flat.push(arg);
-    else flat.push(...(Array.isArray(arg.value) ? arg.value : [arg.value]));
-  }
-  const artifacts = new Set<string>();
-  for (let i = 0; i < flat.length; i++) {
-    if (flat[i] === '-p' || flat[i] === '--module-path') {
-      const pathStr = flat[++i];
-      if (!pathStr) continue;
-      for (const jar of pathStr.split(/[:;]/)) {
-        const m = jar.match(/^\$\{library_directory\}\/(.+)$/);
-        if (m?.[1]) artifacts.add(m[1]);
-      }
-    }
-  }
-  return artifacts;
-}
-
 function fixPath(s: string): string {
   return s.replace(/\.\.\/libraries\//g, '${library_directory}/');
 }
@@ -165,11 +152,36 @@ export async function resolveNeoForge(
     parseArguments(versionJson.arguments ?? { game: [], jvm: [] }),
   );
   const merged = mergeArgs(client.args, nfArgs);
-  const onModulePath = modulePathArtifacts(merged);
+
+  const { artifact: forgeWrapperArtifact, path: forgeWrapperPath } =
+    resolveForgeWrapperArtifact(options.forgeWrapper ?? {});
+
+  const neoForgeCoords = new Set(
+    runtimeLibs.map((l) => `${l.name.groupId}:${l.name.artifactId}`),
+  );
+  const vanillaOnlyLibs = client.libraries.filter(
+    (l) => !neoForgeCoords.has(`${l.name.groupId}:${l.name.artifactId}`),
+  );
+  // installProfileLibs (from install_profile.json) are build tool deps
+  // (installertools, binarypatcher, asm-9.3, etc.) — NOT needed on the
+  // game classpath. ForgeWrapper handles the install phase internally.
+  // Including them would cause module conflicts (e.g. asm-9.3 vs asm-9.8
+  // from the runtime version.json libs).
+  const cpLibs = [...vanillaOnlyLibs, ...runtimeLibs];
+  const libPaths = cpLibs.map((l) => ({
+    rules: l.rules,
+    artifactPath: `\${library_directory}/${l.artifact.path}`,
+  }));
+  libPaths.push({ rules: [], artifactPath: forgeWrapperPath });
+
+  const classpathEntries = buildClasspath(
+    libPaths,
+    '${version_dir}/client.jar',
+  );
 
   // The installer's maven/ tree contains bundled JARs (the NeoForge universal,
   // etc.) that have url:"" in version.json. Extract them into the library
-  // directory so BootstrapLauncher can discover them via -DlibraryDirectory.
+  // directory so ForgeWrapper/ModLauncher can discover them.
   const installerPath =
     `\${library_directory}/net/neoforged/neoforge/${release.version}` +
     `/neoforge-${release.version}-installer.jar`;
@@ -183,45 +195,30 @@ export async function resolveNeoForge(
     ],
   };
 
+  const strippedJvm = [
+    ...buildForgeWrapperJvmArgs(installerPath),
+    ...stripModuleArgs(merged.jvm),
+  ];
+
   // Only fetch libs that have a real download URL; empty-URL libs are bundled
-  // in the installer's maven/ tree and will be covered by the extract above.
+  // in the installer's maven/ tree.
   const downloadableRuntime = runtimeLibs.filter((l) => l.artifact.url);
   const downloadableInstall = installProfileLibs.filter((l) => l.artifact.url);
-
   const forgeLibArtifacts = [
     ...mapLibraries(downloadableRuntime),
     ...mapLibraries(downloadableInstall),
   ];
 
-  // Classpath: vanilla-only libs + NeoForge runtime libs, minus anything on -p.
-  // NeoForge version.json inheritsFrom vanilla but re-lists shared libs (gson,
-  // guava, etc.), potentially at updated versions. Deduplicate by Maven coordinates
-  // (groupId:artifactId) so NeoForge's version wins when versions differ and no
-  // path appears twice — BootstrapLauncher's UnionFileSystem is fatal on duplicates.
-  const neoForgeCoords = new Set(
-    runtimeLibs.map((l) => `${l.name.groupId}:${l.name.artifactId}`),
-  );
-  const vanillaOnlyLibs = client.libraries.filter(
-    (l) => !neoForgeCoords.has(`${l.name.groupId}:${l.name.artifactId}`),
-  );
-  const cpLibs = [...vanillaOnlyLibs, ...runtimeLibs];
-  const libPaths = cpLibs
-    .filter((l) => !onModulePath.has(l.artifact.path))
-    .map((l) => ({
-      rules: l.rules,
-      artifactPath: `\${library_directory}/${l.artifact.path}`,
-    }));
-
-  const classpathEntries = buildClasspath(
-    libPaths,
-    '${version_dir}/client.jar',
-  );
-
   const vars: ValDefs = { ...mc.vars, classpath: classpathEntries };
-  const parts = buildLaunch(versionJson.mainClass, merged.game, merged.jvm);
+  const parts = buildLaunch(FORGE_WRAPPER_MAIN, merged.game, strippedJvm);
 
   return {
-    artifacts: [...mc.artifacts, ...forgeLibArtifacts, installerArtifact],
+    artifacts: [
+      ...mc.artifacts,
+      ...forgeLibArtifacts,
+      installerArtifact,
+      forgeWrapperArtifact,
+    ],
     vars,
     ...parts,
   };

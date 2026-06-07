@@ -1,5 +1,5 @@
 {
-  "name": "@opys/neoforge",
+  "name": "@opys/forgewrapper",
   "version": "0.1.15",
   "type": "module",
   "main": "./dist/index.js",
@@ -15,12 +15,8 @@
     "test": "vitest run tests/unit --passWithNoTests"
   },
   "dependencies": {
-    "@opys/forgewrapper": "^0.1.15",
     "@opys/core": "^0.1.15",
-    "@opys/dev": "^0.1.15",
-    "@opys/mojang": "^0.1.15",
-    "@opys/minecraft-vanilla": "^0.1.15",
-    "fflate": "^0.8.2"
+    "@opys/mojang": "^0.1.15"
   },
   "devDependencies": {
     "tsdown": "*",
@@ -35,6 +31,6 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/harmoniya-net/opys.git",
-    "directory": "packages/neoforge"
+    "directory": "packages/forgewrapper"
   }
 }
