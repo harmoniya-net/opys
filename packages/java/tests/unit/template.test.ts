@@ -176,15 +176,38 @@ describe('resolveJava — vars', () => {
     expect(arm.value).toBe('${java_home}/bin/java');
   });
 
-  it('points java_bin at bin/java.exe on windows', async () => {
+  it('defaults java_bin to javaw.exe on windows, java.exe behind java_console', async () => {
     stubFetch((url) =>
       url.includes('os=windows')
         ? new Response(JSON.stringify([release(WIN_X64)]))
         : null,
     );
     const t = await resolveJava({ version: '21', platforms: [WIN_X64] });
-    const arm = armFor(t.vars.java_bin as ConditionalVal[], 'windows');
-    expect(arm.value).toBe('${java_home}/bin/java.exe');
+    const arms = t.vars.java_bin as ConditionalVal[];
+
+    // Default (no feature): javaw.exe — its arm disallows java_console.
+    const javaw = arms.find((a) => a.value === '${java_home}/bin/javaw.exe')!;
+    expect(javaw).toBeDefined();
+    expect(javaw.rules).toContainEqual({
+      action: 'disallow',
+      features: { java_console: true },
+    });
+
+    // java.exe is gated behind the java_console feature being enabled.
+    const javaExe = arms.find((a) => a.value === '${java_home}/bin/java.exe')!;
+    expect(javaExe).toBeDefined();
+    expect(javaExe.rules).toContainEqual({
+      action: 'allow',
+      features: { java_console: true },
+    });
+
+    // Both arms still scope to windows.
+    for (const arm of [javaw, javaExe]) {
+      expect(arm.rules).toContainEqual({
+        action: 'allow',
+        os: { name: 'windows' },
+      });
+    }
   });
 
   it('emits one java_home / java_bin arm per distinct OS, not per arch', async () => {

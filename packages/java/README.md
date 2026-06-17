@@ -48,7 +48,7 @@ resolveJava({
 2. Queries each platform (linux/osx/windows × x86_64+aarch64) in parallel; soft-skips combinations that don't ship a binary.
 3. Emits one `Artifact` per platform pointing at the GitHub-hosted release asset, with sha256 from the API and OS+arch rules so only the matching binary downloads at install time.
 4. Each artifact has an `extract: dump` rule pointing at `${root}/runtimes/jdk-<major>/`, so the JDK lands at `${root}/runtimes/jdk-<major>/jdk-<full>/`.
-5. Sets `java_home` (per OS — macOS gets the `/Contents/Home` suffix) and `java_bin` (`${java_home}/bin/java` on POSIX, `${java_home}/bin/java.exe` on Windows).
+5. Sets `java_home` (per OS — macOS gets the `/Contents/Home` suffix) and `java_bin` (`${java_home}/bin/java` on POSIX; on Windows `${java_home}/bin/javaw.exe` by default — no console window — switching to `java.exe` when the `java_console` feature is enabled, e.g. `opys launch --feature java_console`).
 
 `@opys/installer` extracts both `.zip` (Windows) and `.tar.gz` / `.tgz` (Linux/macOS) archives, preserving the executable bit on tar entries so `bin/java` stays runnable without a chmod step.
 

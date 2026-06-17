@@ -23,9 +23,17 @@ export async function cmdLaunch(
   const args = parseArgs(argv, [
     { long: 'input', short: 'i', type: 'string' },
     { long: 'mode', type: 'string' },
+    { long: 'feature', type: 'string' },
   ]);
   const inputFile = args.getString('input') ?? 'opys.config.mjs';
   const mode = args.getString('mode') ?? command;
+  // Runtime features gate rule-tagged vars/artifacts at install + launch — e.g.
+  // `--feature java_console` flips Windows `java_bin` from javaw.exe to java.exe.
+  // Comma-separated so a single flag can carry several: `--feature a,b`.
+  const features = (args.getString('feature') ?? '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
 
   const { config, configDir } = await loadConfig(inputFile, mode);
 
@@ -64,6 +72,7 @@ export async function cmdLaunch(
   };
 
   await install(manifest, {
+    features,
     onProgress(p: InstallProgress) {
       switch (p.phase) {
         case 'download':
@@ -106,7 +115,7 @@ export async function cmdLaunch(
   pw.finish();
   logger.info(` Ready in ${elapsed(t0)}`);
   logger.info('Launching...');
-  const child = await launch(manifest, { install: false });
+  const child = await launch(manifest, { install: false, features });
   logger.info(` PID ${child.pid}`);
   await new Promise<void>((res, rej) => {
     child.on('exit', (code) =>

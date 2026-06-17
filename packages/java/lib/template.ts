@@ -49,6 +49,34 @@ function osRuleset(os: OsName): Ruleset {
 }
 
 /**
+ * Windows ships both `java.exe` (console subsystem) and `javaw.exe` (windows
+ * subsystem — no console). Emit two mutually-exclusive `java_bin` arms gated
+ * on the `java_console` feature: `javaw.exe` by default so a launched game
+ * never spawns a stray console window, and `java.exe` when `java_console` is
+ * enabled at install/launch (e.g. `opys launch --feature java_console`) to
+ * watch stdout/stderr. The ruleset evaluator is pure AND, so for any feature
+ * state exactly one arm is active.
+ */
+function windowsBinArms(): ConditionalVal[] {
+  return [
+    {
+      value: '${java_home}/bin/javaw.exe',
+      rules: [
+        { action: 'allow', os: { name: 'windows' } },
+        { action: 'disallow', features: { java_console: true } },
+      ],
+    },
+    {
+      value: '${java_home}/bin/java.exe',
+      rules: [
+        { action: 'allow', os: { name: 'windows' } },
+        { action: 'allow', features: { java_console: true } },
+      ],
+    },
+  ];
+}
+
+/**
  * Build a opys template fragment that auto-installs an OpenJDK runtime
  * (Eclipse Temurin) and exposes `${java_home}` + `${java_bin}` vars.
  *
@@ -58,6 +86,10 @@ function osRuleset(os: OsName): Ruleset {
  * the Adoptium release directory as the immediate child (e.g.
  * `jdk-21.0.11+10/`). On macOS, `${java_home}` includes the
  * `/Contents/Home` suffix that Mac JDK bundles use.
+ *
+ * On Windows, `${java_bin}` defaults to `javaw.exe` (no console window);
+ * enable the `java_console` feature to switch it to `java.exe` — see
+ * `windowsBinArms`.
  *
  * Spread the result into your loader's vars + artifacts:
  *
@@ -109,11 +141,14 @@ export async function resolveJava(options: JavaOptions): Promise<JavaTemplate> {
     )!.platform;
     const home = `${javaRoot}/${release.extractDir}${platform.homeSuffix}`;
     javaHomeArms.push({ value: home, rules: osRuleset(os) });
-    const exe = os === 'windows' ? 'java.exe' : 'java';
-    javaBinArms.push({
-      value: `\${java_home}/bin/${exe}`,
-      rules: osRuleset(os),
-    });
+    if (os === 'windows') {
+      javaBinArms.push(...windowsBinArms());
+    } else {
+      javaBinArms.push({
+        value: `\${java_home}/bin/java`,
+        rules: osRuleset(os),
+      });
+    }
   }
 
   const vars: ValDefs = {
