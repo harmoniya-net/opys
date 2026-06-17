@@ -53,6 +53,30 @@ describe('libraryToArtifact', () => {
     expect(libraryToArtifact(gson).extract).toBeUndefined();
   });
 
+  it('omits placeholder integrity/size probes (empty sha1, zero size)', () => {
+    // lwjgl3ify 3.0.25 ships lzma:lzma:0.0.1 with a real url but sha1:'' size:0.
+    const lzma = parseLibraries([
+      {
+        name: 'lzma:lzma:0.0.1',
+        downloads: {
+          artifact: {
+            path: 'lzma/lzma/0.0.1/lzma-0.0.1.jar',
+            sha1: '',
+            size: 0,
+            url: 'https://libraries.minecraft.net/lzma/lzma/0.0.1/lzma-0.0.1.jar',
+          },
+        },
+      },
+    ])[0]!;
+    const art = libraryToArtifact(lzma);
+    expect(art.source).toEqual({
+      kind: 'url',
+      url: 'https://libraries.minecraft.net/lzma/lzma/0.0.1/lzma-0.0.1.jar',
+    });
+    expect(art.integrity).toBeUndefined();
+    expect(art.size).toBeUndefined();
+  });
+
   it('adds a dump extract rule for native libraries', () => {
     const art = libraryToArtifact(lwjglNative);
     expect(lwjglNative.native).toBe(true);
