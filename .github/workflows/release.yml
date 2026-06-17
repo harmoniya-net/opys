@@ -34,9 +34,9 @@ jobs:
             target: x86_64-pc-windows-msvc
     runs-on: ${{ matrix.host }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: 20
           cache: npm
@@ -68,14 +68,14 @@ jobs:
         working-directory: crates/opys-runtime-napi
 
       - name: Upload @opys/core-binding artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: core-binding-${{ matrix.target }}
           path: crates/opys-core-napi/*.node
           if-no-files-found: error
 
       - name: Upload @opys/runtime-binding artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: runtime-binding-${{ matrix.target }}
           path: crates/opys-runtime-napi/*.node
@@ -92,9 +92,9 @@ jobs:
       contents: read
       id-token: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: 20
           cache: npm
@@ -106,13 +106,13 @@ jobs:
       - run: npm ci
 
       # Pull every target's .node into its binding crate dir.
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           pattern: core-binding-*
           path: crates/opys-core-napi/artifacts
           merge-multiple: true
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           pattern: runtime-binding-*
           path: crates/opys-runtime-napi/artifacts
@@ -165,7 +165,7 @@ jobs:
     needs: publish-npm
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
 
