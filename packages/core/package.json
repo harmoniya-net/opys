@@ -1,6 +1,6 @@
 {
   "name": "@opys/core",
-  "version": "0.1.17",
+  "version": "0.1.18",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
   "peerDependencies": {
@@ -22,8 +22,8 @@
   },
   "type": "module",
   "dependencies": {
-    "@opys/core-binding": "^0.1.17",
-    "@opys/mojang-rules": "^0.1.17"
+    "@opys/core-binding": "^0.1.18",
+    "@opys/mojang-rules": "^0.1.18"
   },
   "engines": {
     "node": ">=20"
