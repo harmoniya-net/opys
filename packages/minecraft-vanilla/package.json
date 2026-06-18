@@ -1,6 +1,6 @@
 {
   "name": "@opys/minecraft-vanilla",
-  "version": "0.1.18",
+  "version": "0.1.19",
   "type": "module",
   "main": "./dist/index.js",
   "exports": {
@@ -15,9 +15,9 @@
     "test": "vitest run tests/unit --passWithNoTests"
   },
   "dependencies": {
-    "@opys/core": "^0.1.18",
-    "@opys/dev": "^0.1.18",
-    "@opys/mojang": "^0.1.18"
+    "@opys/core": "^0.1.19",
+    "@opys/dev": "^0.1.19",
+    "@opys/mojang": "^0.1.19"
   },
   "devDependencies": {
     "tsdown": "*",
