@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import { read } from 'nbtify';
 import { resolveServerlist } from '../../lib';
@@ -98,6 +99,14 @@ describe('resolveServerlist', () => {
     );
     expect(buf.readInt32BE(14)).toBe(0);
     expect(await decodeServers(buf)).toEqual([]);
+  });
+
+  it('sets sha1 integrity matching the encoded bytes', async () => {
+    const arts = await resolveServerlist([{ name: 'S', ip: '1.2.3.4' }]);
+    const src = arts[0]!.source as { kind: string; bytes?: string };
+    const buf = Buffer.from(src.bytes!, 'base64');
+    const expected = createHash('sha1').update(buf).digest('hex');
+    expect(arts[0]!.integrity).toEqual({ sha1: expected });
   });
 
   it('grows the payload with each added server', async () => {

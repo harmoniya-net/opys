@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { sourceBytes, type Artifact } from '@opys/core';
 import { write } from 'nbtify';
 
@@ -31,11 +32,13 @@ export async function resolveServerlist(
 ): Promise<Artifact[]> {
   const path = options.path ?? '${game_directory}/servers.dat';
   const bytes = await encodeServersDat(servers);
+  const sha1 = createHash('sha1').update(bytes).digest('hex');
   return [
     {
       path,
       source: sourceBytes(bytes),
       size: bytes.length,
+      integrity: { sha1 },
       rules: [],
     },
   ];
