@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
-import { sourceBytes, type Artifact } from '@opys/core';
+import { sourceBytes } from '@opys/core';
+import { definePlugin, type ChainablePlugin } from '@opys/dev';
 import { write } from 'nbtify';
 
 export interface ServerEntry {
@@ -26,20 +27,27 @@ async function encodeServersDat(servers: ServerEntry[]): Promise<Buffer> {
   return Buffer.from(bytes);
 }
 
-export async function resolveServerlist(
+export function serverlist(
   servers: ServerEntry[],
   options: ServerlistOptions = {},
-): Promise<Artifact[]> {
+): ChainablePlugin {
   const path = options.path ?? '${game_directory}/servers.dat';
-  const bytes = await encodeServersDat(servers);
-  const sha1 = createHash('sha1').update(bytes).digest('hex');
-  return [
-    {
-      path,
-      source: sourceBytes(bytes),
-      size: bytes.length,
-      integrity: { sha1 },
-      rules: [],
+  return definePlugin({
+    name: 'serverlist',
+    async build() {
+      const bytes = await encodeServersDat(servers);
+      const sha1 = createHash('sha1').update(bytes).digest('hex');
+      return {
+        artifacts: [
+          {
+            path,
+            source: sourceBytes(bytes),
+            size: bytes.length,
+            integrity: { sha1 },
+            rules: [],
+          },
+        ],
+      };
     },
-  ];
+  });
 }
