@@ -110,6 +110,37 @@ describe('cmdLaunch — happy path', () => {
   });
 });
 
+describe('cmdLaunch — manifest var validation', () => {
+  it('throws when runClient produces a numeric var value', async () => {
+    const patched = `export default {
+      plugins: [],
+      manifest: { command: () => 'java', args: () => [], workdir: '.' },
+      runClient: () => ({ vars: { xmx: 4000 } }),
+    };`;
+    const cfg = await fixture(patched);
+    await expect(cmdLaunch(['-i', cfg], logger, 'launch')).rejects.toThrow(
+      /var 'xmx'/,
+    );
+  });
+
+  it('accepts string and ConditionalVal[] var values from runClient', async () => {
+    const patched = `export default {
+      plugins: [],
+      manifest: { command: () => 'java', args: () => [], workdir: '.' },
+      runClient: () => ({
+        vars: {
+          xmx: '4000',
+          token: [{ value: 'abc', rules: [] }],
+        },
+      }),
+    };`;
+    const cfg = await fixture(patched);
+    await expect(
+      cmdLaunch(['-i', cfg], logger, 'launch'),
+    ).resolves.toBeUndefined();
+  });
+});
+
 describe('cmdLaunch — error handling', () => {
   it('throws a UsageError when the config has no default export', async () => {
     const cfg = await fixture('export const x = 1;');

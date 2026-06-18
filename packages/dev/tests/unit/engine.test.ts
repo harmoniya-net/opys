@@ -172,4 +172,41 @@ describe('buildManifest', () => {
     };
     expect((await buildManifest(config, ctx)).restrict).toBeUndefined();
   });
+
+  it('wraps a "${var}" string arg into a Val and preserves a ConditionalVal[] var', async () => {
+    const config: OpysConfig = {
+      plugins: [],
+      manifest: {
+        command: () => 'java',
+        args: () => ['${game_dir}'],
+        vars: { game_dir: [{ value: '/home/user/.minecraft', rules: [] }] },
+      },
+    };
+    const m = await buildManifest(config, ctx);
+    expect(m.launch?.args).toEqual([{ rules: [], value: ['${game_dir}'] }]);
+    expect(m.vars).toEqual({
+      game_dir: [{ value: '/home/user/.minecraft', rules: [] }],
+    });
+  });
+
+  it('a string arg referencing a var and a simple string var coexist correctly', async () => {
+    const config: OpysConfig = {
+      plugins: [
+        fakePlugin('p', {
+          vars: { root: '/data' },
+          launch: { extra: '--flag' },
+        }),
+      ],
+      manifest: {
+        command: () => 'java',
+        args: ({ p }) => ['${root}', p!.extra!],
+      },
+    };
+    const m = await buildManifest(config, ctx);
+    expect(m.vars).toEqual({ root: '/data' });
+    expect(m.launch?.args).toEqual([
+      { rules: [], value: ['${root}'] },
+      { rules: [], value: ['--flag'] },
+    ]);
+  });
 });

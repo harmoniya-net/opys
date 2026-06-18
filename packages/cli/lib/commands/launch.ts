@@ -52,6 +52,14 @@ export async function cmdLaunch(
     ? { ...baseManifest, ...config.runClient(baseManifest) }
     : baseManifest;
 
+  for (const [key, val] of Object.entries(manifest.vars)) {
+    if (typeof val !== 'string' && !Array.isArray(val)) {
+      throw new Error(
+        `var '${key}' must be a string or ConditionalVal[], got ${typeof val}`,
+      );
+    }
+  }
+
   const t0 = Date.now();
   const pw = new ProgressWriter(process.stderr.isTTY ?? false);
   logger.setProgressWriter(pw);
