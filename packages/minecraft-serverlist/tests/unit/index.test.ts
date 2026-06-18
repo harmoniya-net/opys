@@ -126,4 +126,68 @@ describe('serverlist', () => {
       .build(ctx);
     expect(contribution.artifacts![0]!.rules).toHaveLength(1);
   });
+
+  it('entries without rules all go into a single always-on artifact', async () => {
+    const contribution = await serverlist([
+      { name: 'A', ip: 'a' },
+      { name: 'B', ip: 'b' },
+    ]).build(ctx);
+    expect(contribution.artifacts).toHaveLength(1);
+    expect(contribution.artifacts![0]!.rules).toEqual([]);
+    const buf = bytesOf(
+      contribution.artifacts![0]!.source as { kind: string; bytes?: string },
+    );
+    expect(await decodeServers(buf)).toEqual([
+      { name: 'A', ip: 'a' },
+      { name: 'B', ip: 'b' },
+    ]);
+  });
+
+  it('entries with rules produce a separate artifact per distinct ruleset', async () => {
+    const contribution = await serverlist([
+      { name: 'Always', ip: 'always' },
+      { name: 'LinuxOnly', ip: 'linux', rules: 'allow.os.linux' },
+      { name: 'WinOnly', ip: 'win', rules: 'allow.os.windows' },
+    ]).build(ctx);
+    expect(contribution.artifacts).toHaveLength(3);
+    const [base, linux, win] = contribution.artifacts!;
+    expect(base!.rules).toEqual([]);
+    expect(linux!.rules).toEqual([{ action: 'allow', os: { name: 'linux' } }]);
+    expect(win!.rules).toEqual([{ action: 'allow', os: { name: 'windows' } }]);
+    expect(
+      await decodeServers(
+        bytesOf(base!.source as { kind: string; bytes?: string }),
+      ),
+    ).toEqual([{ name: 'Always', ip: 'always' }]);
+    expect(
+      await decodeServers(
+        bytesOf(linux!.source as { kind: string; bytes?: string }),
+      ),
+    ).toEqual([{ name: 'LinuxOnly', ip: 'linux' }]);
+  });
+
+  it('groups entries sharing the same ruleset into one artifact', async () => {
+    const contribution = await serverlist([
+      { name: 'A', ip: 'a', rules: 'allow.os.linux' },
+      { name: 'B', ip: 'b', rules: 'allow.os.linux' },
+    ]).build(ctx);
+    expect(contribution.artifacts).toHaveLength(1);
+    const buf = bytesOf(
+      contribution.artifacts![0]!.source as { kind: string; bytes?: string },
+    );
+    expect(await decodeServers(buf)).toEqual([
+      { name: 'A', ip: 'a' },
+      { name: 'B', ip: 'b' },
+    ]);
+  });
+
+  it('all artifacts share the same path', async () => {
+    const contribution = await serverlist([
+      { name: 'A', ip: 'a' },
+      { name: 'B', ip: 'b', rules: 'allow.os.linux' },
+    ]).build(ctx);
+    const paths = contribution.artifacts!.map((a) => a.path);
+    expect(new Set(paths).size).toBe(1);
+    expect(paths[0]).toBe('${game_directory}/servers.dat');
+  });
 });
