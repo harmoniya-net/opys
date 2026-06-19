@@ -1,6 +1,6 @@
 {
   "name": "@opys/fabric",
-  "version": "0.1.19",
+  "version": "0.1.20",
   "type": "module",
   "main": "./dist/index.js",
   "exports": {
@@ -15,10 +15,10 @@
     "test": "vitest run tests/unit --passWithNoTests"
   },
   "dependencies": {
-    "@opys/core": "^0.1.19",
-    "@opys/dev": "^0.1.19",
-    "@opys/mojang": "^0.1.19",
-    "@opys/minecraft-vanilla": "^0.1.19"
+    "@opys/core": "^0.1.20",
+    "@opys/dev": "^0.1.20",
+    "@opys/mojang": "^0.1.20",
+    "@opys/minecraft-vanilla": "^0.1.20"
   },
   "peerDependencies": {
     "zod": "^4.0.0"
