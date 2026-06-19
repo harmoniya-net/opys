@@ -20,6 +20,7 @@
     "packages/forgewrapper",
     "packages/forge",
     "packages/neoforge",
+    "packages/fabric",
     "packages/cleanroom",
     "packages/lwjgl3ify",
     "packages/authliberty",

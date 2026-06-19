@@ -1,5 +1,5 @@
 {
-  "name": "@opys/minecraft",
+  "name": "@opys/fabric",
   "version": "0.1.19",
   "type": "module",
   "main": "./dist/index.js",
@@ -12,27 +12,18 @@
   "scripts": {
     "build": "tsdown lib/index.ts --format esm,cjs --dts --clean",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "test": "vitest run tests/unit --passWithNoTests",
-    "test:int": "vitest run tests/integration --testTimeout=120000"
+    "test": "vitest run tests/unit --passWithNoTests"
   },
   "dependencies": {
-    "@opys/forgewrapper": "^0.1.19",
-    "@opys/minecraft-vanilla": "^0.1.19",
-    "@opys/forge": "^0.1.19",
-    "@opys/neoforge": "^0.1.19",
-    "@opys/fabric": "^0.1.19",
-    "@opys/cleanroom": "^0.1.19",
-    "@opys/lwjgl3ify": "^0.1.19",
-    "@opys/authliberty": "^0.1.19",
-    "@opys/curseforge": "^0.1.19",
-    "@opys/bifrost": "^0.1.19",
-    "@opys/minecraft-serverlist": "^0.1.19",
-    "@opys/java": "^0.1.19"
-  },
-  "devDependencies": {
     "@opys/core": "^0.1.19",
     "@opys/dev": "^0.1.19",
     "@opys/mojang": "^0.1.19",
+    "@opys/minecraft-vanilla": "^0.1.19"
+  },
+  "peerDependencies": {
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
     "tsdown": "*",
     "vitest": "*"
   },
@@ -45,6 +36,6 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/harmoniya-net/opys.git",
-    "directory": "packages/minecraft"
+    "directory": "packages/fabric"
   }
 }

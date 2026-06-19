@@ -4,6 +4,7 @@
 export * from '@opys/minecraft-vanilla';
 export * from '@opys/forge';
 export * from '@opys/neoforge';
+export * from '@opys/fabric';
 export * from '@opys/cleanroom';
 export * from '@opys/lwjgl3ify';
 export * from '@opys/authliberty';

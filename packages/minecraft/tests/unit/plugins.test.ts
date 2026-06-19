@@ -4,6 +4,7 @@ import {
   minecraft,
   forge,
   neoforge,
+  fabric,
   cleanroom,
   lwjgl3ify,
   authliberty,
@@ -174,6 +175,37 @@ describe('neoforge plugin', () => {
     expect(c.artifacts!.length).toBeGreaterThan(0);
     expect(c.launch).toHaveProperty('mainClass');
     expect(logs.some((l) => l.includes(`resolved ${NF}`))).toBe(true);
+  });
+});
+
+describe('fabric plugin', () => {
+  it('builds a fabric contribution', async () => {
+    reset();
+    const LOADER = '0.16.10';
+    const profile = {
+      inheritsFrom: '1.20.1',
+      mainClass: 'net.fabricmc.loader.impl.launch.knot.KnotClient',
+      arguments: {
+        game: [],
+        jvm: ['-DFabricMcEmu= net.minecraft.client.main.Main '],
+      },
+      libraries: [
+        {
+          name: `net.fabricmc:fabric-loader:${LOADER}`,
+          url: 'https://maven.fabricmc.net/',
+          sha1: 'a'.repeat(40),
+          size: 1000,
+        },
+        { name: 'org.ow2.asm:asm:9.7.1', url: 'https://maven.fabricmc.net/' },
+      ],
+    };
+    routedFetch([['/profile/json', profile], ...vanillaRoutes()]);
+    const plugin = fabric('1.20.1', { loader: LOADER });
+    expect(plugin.name).toBe('fabric');
+    const c = await plugin.build(ctx);
+    expect(c.artifacts!.length).toBeGreaterThan(0);
+    expect(c.launch).toHaveProperty('mainClass');
+    expect(logs.some((l) => l.includes('resolved 1.20.1'))).toBe(true);
   });
 });
 
