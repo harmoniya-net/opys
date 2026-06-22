@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { java } from '../../lib/plugin';
 import type { JavaPlatform } from '../../lib/resolver';
 import type { BuildContext } from '@opys/dev';
+import { DEFAULT_PLATFORMS } from '@opys/dgpuj';
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -105,5 +106,47 @@ describe('java', () => {
     await expect(
       java('21', { platforms: [LINUX_X64] }).build(ctx),
     ).rejects.toThrow(/No OpenJDK binaries found/);
+  });
+
+  it('with { dgpuj: true } provisions the launcher and repoints bin', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: string | URL) => {
+        const url = String(input);
+        if (url.includes('api.github.com')) {
+          return new Response(
+            JSON.stringify([
+              {
+                tag_name: 'v0.3.0',
+                prerelease: false,
+                draft: false,
+                published_at: '2026-06-22T00:00:00Z',
+                assets: DEFAULT_PLATFORMS.map((p) => ({
+                  name: `dgpuj-${p.target}.${p.ext}`,
+                  size: 1,
+                  browser_download_url: `https://x/dgpuj-${p.target}.${p.ext}`,
+                  digest: 'sha256:aa',
+                })),
+              },
+            ]),
+          );
+        }
+        return url.includes('os=linux')
+          ? new Response(JSON.stringify([release()]))
+          : new Response('not found', { status: 404 });
+      }),
+    );
+    const { ctx } = makeCtx();
+    const result = await java('21', {
+      platforms: [LINUX_X64],
+      dgpuj: true,
+    }).build(ctx);
+    // One JDK archive + one dgpuj archive per target.
+    expect(result.artifacts).toHaveLength(1 + DEFAULT_PLATFORMS.length);
+    expect(result.vars?.dgpuj_dir).toBe('${root}/dgpuj');
+    expect(result.launch).toEqual({
+      bin: '${dgpuj_bin}',
+      home: { rules: [], value: ['--dgpuj-home', '${java_home}'] },
+    });
   });
 });

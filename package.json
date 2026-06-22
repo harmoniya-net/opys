@@ -28,6 +28,7 @@
     "packages/bifrost",
     "packages/minecraft-serverlist",
     "packages/java",
+    "packages/dgpuj",
     "packages/minecraft",
     "packages/runtime",
     "packages/cli",

@@ -42,6 +42,31 @@ resolveJava({
 });
 ```
 
+### Discrete-GPU launcher (`dgpuj`)
+
+Pass `dgpuj` to wrap the launch in
+[`dgpuj`](https://github.com/harmoniya-net/dgpuj) — it forces the discrete GPU
+on hybrid-graphics systems, then runs the JVM in-process (a child-spawning
+wrapper can't, since the GPU is chosen per-process). Works on every platform:
+forces the dGPU on Windows/Linux, harmless passthrough on macOS.
+
+```ts
+java('17', { dgpuj: true });
+java('17', { platforms, dgpuj: { version: 'v0.3.0' } }); // pin / pass dgpuj opts
+```
+
+`java` then also provisions the `dgpuj` binary (via
+[`@opys/dgpuj`](../dgpuj)), additionally owns `dgpuj_dir` / `dgpuj_bin`,
+repoints the `bin` launch group at `dgpuj`, and exposes a `home` group. Wire it:
+
+```ts
+command: ({ java }) => java.bin,                  // = dgpuj when enabled
+args: ({ java, forge }) => [
+  java.home,                                       // --dgpuj-home ${java_home}
+  forge.jvmArgs, forge.mainClass, forge.gameArgs,
+],
+```
+
 ## How it works
 
 1. Resolves the requested `version` against `https://api.adoptium.net/v3/`. Major versions hit `/feature_releases/<n>/ga` (latest GA); full versions hit `/release_name/eclipse/jdk-<v>` (exact).

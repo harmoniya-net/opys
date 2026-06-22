@@ -6,6 +6,7 @@ import {
   extractDump,
 } from '@opys/core';
 import type { OsName, OsArch, Ruleset } from '@opys/core';
+import type { DgpujOptions } from '@opys/dgpuj';
 import {
   resolveOpenjdk,
   type JavaPlatform,
@@ -26,6 +27,17 @@ export interface JavaOptions {
   platforms?: readonly JavaPlatform[];
   /** Optional override for the Adoptium API base URL. */
   apiBase?: string;
+  /**
+   * Wrap the launch in the [`dgpuj`](https://github.com/harmoniya-net/dgpuj)
+   * discrete-GPU launcher — it forces the dGPU on hybrid-graphics systems, then
+   * runs the JVM in-process. `true` for defaults, or pass dgpuj options
+   * (`{ version, repo, token, platforms }`).
+   *
+   * When set, `java` also provisions the dgpuj binary, additionally owns
+   * `dgpuj_dir` / `dgpuj_bin`, repoints the `bin` launch group at dgpuj, and
+   * exposes a `home` group (`--dgpuj-home ${java_home}`) to prepend to `args`.
+   */
+  dgpuj?: boolean | DgpujOptions;
 }
 
 export interface JavaTemplate {
