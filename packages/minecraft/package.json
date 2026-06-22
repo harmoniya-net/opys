@@ -1,6 +1,6 @@
 {
   "name": "@opys/minecraft",
-  "version": "0.1.21",
+  "version": "0.1.22",
   "type": "module",
   "main": "./dist/index.js",
   "exports": {
@@ -16,24 +16,24 @@
     "test:int": "vitest run tests/integration --testTimeout=120000"
   },
   "dependencies": {
-    "@opys/forgewrapper": "^0.1.21",
-    "@opys/minecraft-vanilla": "^0.1.21",
-    "@opys/forge": "^0.1.21",
-    "@opys/neoforge": "^0.1.21",
-    "@opys/fabric": "^0.1.21",
-    "@opys/cleanroom": "^0.1.21",
-    "@opys/lwjgl3ify": "^0.1.21",
-    "@opys/authliberty": "^0.1.21",
-    "@opys/curseforge": "^0.1.21",
-    "@opys/bifrost": "^0.1.21",
-    "@opys/minecraft-serverlist": "^0.1.21",
-    "@opys/java": "^0.1.21",
-    "@opys/dgpuj": "^0.1.21"
+    "@opys/forgewrapper": "^0.1.22",
+    "@opys/minecraft-vanilla": "^0.1.22",
+    "@opys/forge": "^0.1.22",
+    "@opys/neoforge": "^0.1.22",
+    "@opys/fabric": "^0.1.22",
+    "@opys/cleanroom": "^0.1.22",
+    "@opys/lwjgl3ify": "^0.1.22",
+    "@opys/authliberty": "^0.1.22",
+    "@opys/curseforge": "^0.1.22",
+    "@opys/bifrost": "^0.1.22",
+    "@opys/minecraft-serverlist": "^0.1.22",
+    "@opys/java": "^0.1.22",
+    "@opys/dgpuj": "^0.1.22"
   },
   "devDependencies": {
-    "@opys/core": "^0.1.21",
-    "@opys/dev": "^0.1.21",
-    "@opys/mojang": "^0.1.21",
+    "@opys/core": "^0.1.22",
+    "@opys/dev": "^0.1.22",
+    "@opys/mojang": "^0.1.22",
     "tsdown": "*",
     "vitest": "*"
   },
