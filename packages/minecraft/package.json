@@ -27,7 +27,8 @@
     "@opys/curseforge": "^0.1.21",
     "@opys/bifrost": "^0.1.21",
     "@opys/minecraft-serverlist": "^0.1.21",
-    "@opys/java": "^0.1.21"
+    "@opys/java": "^0.1.21",
+    "@opys/dgpuj": "^0.1.21"
   },
   "devDependencies": {
     "@opys/core": "^0.1.21",

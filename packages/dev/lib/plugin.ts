@@ -26,6 +26,13 @@ export interface Contribution {
   vars?: ValDefs;
   /** Named launch fragments, exposed to the config's accessor functions. */
   launch?: LaunchGroups;
+  /**
+   * Launch environment variables this plugin sets by default (e.g. `@opys/java`
+   * exports `JAVA_HOME`). Merged across plugins in list order — last wins, with
+   * a collision warning — and the config's `manifest.envs` is the final
+   * override layer.
+   */
+  envs?: ValDefs;
 }
 
 /**

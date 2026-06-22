@@ -17,8 +17,7 @@
   },
   "dependencies": {
     "@opys/core": "^0.1.21",
-    "@opys/dev": "^0.1.21",
-    "@opys/dgpuj": "^0.1.21"
+    "@opys/dev": "^0.1.21"
   },
   "peerDependencies": {
     "zod": "^4.0.0"

@@ -140,6 +140,48 @@ describe('buildManifest', () => {
     expect(m.launch?.envs).toEqual({ HOME: '/srv' });
   });
 
+  it('merges plugin-contributed envs into launch.envs', async () => {
+    const config: OpysConfig = {
+      plugins: [
+        fakePlugin('java', { envs: { JAVA_HOME: '/jdk' } }),
+        fakePlugin('other', { envs: { OTHER: '1' } }),
+      ],
+      manifest: { command: () => 'x', args: () => [] },
+    };
+    const m = await buildManifest(config, ctx);
+    expect(m.launch?.envs).toEqual({ JAVA_HOME: '/jdk', OTHER: '1' });
+  });
+
+  it('lets manifest.envs override a plugin-contributed env', async () => {
+    const config: OpysConfig = {
+      plugins: [fakePlugin('java', { envs: { JAVA_HOME: '/plugin' } })],
+      manifest: {
+        command: () => 'x',
+        args: () => [],
+        envs: { JAVA_HOME: '/override' },
+      },
+    };
+    const m = await buildManifest(config, ctx);
+    expect(m.launch?.envs).toEqual({ JAVA_HOME: '/override' });
+  });
+
+  it('warns and keeps the last when two plugins set the same env', async () => {
+    const logs: string[] = [];
+    const config: OpysConfig = {
+      plugins: [
+        fakePlugin('a', { envs: { DUP: 'first' } }),
+        fakePlugin('b', { envs: { DUP: 'second' } }),
+      ],
+      manifest: { command: () => 'x', args: () => [] },
+    };
+    const m = await buildManifest(config, {
+      ...ctx,
+      log: (_scope, message) => logs.push(message),
+    });
+    expect(m.launch?.envs).toEqual({ DUP: 'second' });
+    expect(logs.some((l) => l.includes("env 'DUP'"))).toBe(true);
+  });
+
   it('defaults workdir to "." and envs to {} when omitted', async () => {
     const config: OpysConfig = {
       plugins: [],

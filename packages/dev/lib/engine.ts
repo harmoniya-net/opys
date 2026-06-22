@@ -74,6 +74,30 @@ export async function buildManifest(
     results.map((r) => [r.name, r.contribution.launch ?? {}]),
   );
   const m = config.manifest;
+
+  // Envs: plugin-contributed defaults (list order, last wins; warn on
+  // plugin-vs-plugin collision), then the author's `manifest.envs` as the
+  // silent override layer — mirroring how vars are merged above.
+  const envs: Record<string, ValDefs[string]> = {};
+  const envOwner: Record<string, string> = {};
+  for (const r of results) {
+    if (!r.contribution.envs) continue;
+    for (const [key, value] of Object.entries(r.contribution.envs)) {
+      const prev = envOwner[key];
+      if (prev !== undefined && prev !== r.name) {
+        ctx.log(
+          'opys',
+          `warning: env '${key}' set by both '${prev}' and '${r.name}' — using '${r.name}'`,
+        );
+      }
+      envs[key] = value;
+      envOwner[key] = r.name;
+    }
+  }
+  const authorEnvs =
+    typeof m.envs === 'function' ? m.envs(pluginMap) : (m.envs ?? {});
+  for (const [key, value] of Object.entries(authorEnvs)) envs[key] = value;
+
   const launch: Launch = {
     command: m.command(pluginMap),
     workdir:
@@ -81,7 +105,7 @@ export async function buildManifest(
         ? m.workdir(pluginMap)
         : (m.workdir ?? '.'),
     args: flattenArgs(m.args(pluginMap)),
-    envs: typeof m.envs === 'function' ? m.envs(pluginMap) : (m.envs ?? {}),
+    envs,
   };
 
   ctx.log(

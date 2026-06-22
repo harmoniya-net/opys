@@ -12,6 +12,18 @@ export * from '@opys/curseforge';
 export * from '@opys/minecraft-serverlist';
 export * from '@opys/java';
 
+// dgpuj's `DEFAULT_PLATFORMS` collides with `@opys/java`'s, so re-export its
+// surface explicitly (sans that name — import it from `@opys/dgpuj` directly
+// if needed).
+export {
+  dgpuj,
+  resolveDgpuj,
+  DEFAULT_REPO,
+  type DgpujOptions,
+  type DgpujPlatform,
+  type DgpujTemplate,
+} from '@opys/dgpuj';
+
 // Bifrost keeps its `resolveBifrost` shape for direct callers but is
 // also re-exported as `bifrost` for ergonomic parity with the plugin
 // factories.

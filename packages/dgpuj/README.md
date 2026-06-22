@@ -17,41 +17,30 @@ and hosts the JVM via `JNI_CreateJavaVM`. See the
 
 ## Usage
 
-### Recommended: via `@opys/java`
-
-If you provision the JDK with [`@opys/java`](../java), just flip the `dgpuj`
-option — `java` then owns the dgpuj binary and repoints `bin` at it:
-
-```js
-import { java } from '@opys/java';
-
-// plugins: [forge('1.20.1-best'), java('17', { dgpuj: true })]
-command: ({ java }) => java.bin,                 // = dgpuj
-args: ({ java, forge }) => [
-  java.home,                                      // --dgpuj-home ${java_home}
-  forge.jvmArgs, forge.mainClass, forge.gameArgs,
-],
-```
-
-### Standalone plugin
-
-Or add it as its own plugin (e.g. when you wire the JVM yourself):
+Add `dgpuj()` alongside `java` and point the launch `command` at it.
+`@opys/java` exports `JAVA_HOME` by default, so dgpuj finds the JVM
+automatically — no extra args needed. It's re-exported from `@opys/minecraft`:
 
 ```js
-import { dgpuj } from '@opys/dgpuj';
+import { defineConfig } from '@opys/dev';
+import { forge, java, dgpuj } from '@opys/minecraft';
 
-// plugins: [forge('1.20.1-best'), java('17'), dgpuj()]
-command: ({ dgpuj }) => dgpuj.bin,
-args: ({ dgpuj, forge }) => [
-  dgpuj.home, // --dgpuj-home ${java_home}
-  forge.jvmArgs, forge.mainClass, forge.gameArgs,
-],
+export default defineConfig(() => ({
+  output: 'output.json',
+  plugins: [forge('1.20.1-best'), java('17'), dgpuj()],
+  manifest: {
+    command: ({ dgpuj }) => dgpuj.bin,
+    args: ({ forge }) => [forge.jvmArgs, forge.mainClass, forge.gameArgs],
+    workdir: '${game_directory}',
+  },
+}));
 ```
 
-`dgpuj.bin` is the launcher binary; `dgpuj.home` expands to
-`--dgpuj-home ${java_home}` so it finds the JVM provisioned by `@opys/java`. If
-you locate the JVM yourself, drop `dgpuj.home` and pass `--dgpuj-jvm <path>` or
-set `JAVA_HOME` instead.
+`dgpuj.bin` is the launcher binary. If nothing exports `JAVA_HOME` (e.g. you
+don't use `@opys/java`), tell dgpuj where the JVM is — prepend the `home` launch
+group (`args: ({ dgpuj, forge }) => [dgpuj.home, …]`, which expands to
+`--dgpuj-home ${java_home}`), or set `JAVA_HOME` / pass `--dgpuj-jvm <path>`
+yourself.
 
 ## API
 
