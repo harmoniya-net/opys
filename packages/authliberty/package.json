@@ -1,6 +1,6 @@
 {
   "name": "@opys/authliberty",
-  "version": "0.1.22",
+  "version": "0.1.23",
   "type": "module",
   "main": "./dist/index.js",
   "exports": {
@@ -15,8 +15,8 @@
     "test": "vitest run tests/unit --passWithNoTests"
   },
   "dependencies": {
-    "@opys/core": "^0.1.22",
-    "@opys/dev": "^0.1.22"
+    "@opys/core": "^0.1.23",
+    "@opys/dev": "^0.1.23"
   },
   "devDependencies": {
     "tsdown": "*",
