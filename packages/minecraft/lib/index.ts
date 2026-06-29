@@ -9,6 +9,7 @@ export * from '@opys/cleanroom';
 export * from '@opys/lwjgl3ify';
 export * from '@opys/authliberty';
 export * from '@opys/curseforge';
+export * from '@opys/modrinth';
 export * from '@opys/minecraft-serverlist';
 export * from '@opys/java';
 

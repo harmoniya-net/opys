@@ -52,6 +52,17 @@ export interface CurseForgeOptions {
   token: string;
 }
 
+/** Decoded CurseForge file metadata — the download URL is already resolved. */
+export interface CurseForgeFileMeta {
+  fileId: number;
+  projectId: number;
+  filename: string;
+  size: number;
+  /** Resolved download URL (the API value, or a forgecdn fallback). */
+  url: string;
+  sha1?: string;
+}
+
 /** Fallback CDN URL used when CurseForge omits `downloadUrl`. */
 function forgeCdnUrl(fileId: number, fileName: string): string {
   const head = Math.floor(fileId / 1000);
@@ -68,7 +79,7 @@ function pickSha1(file: CFFile): string | undefined {
  * strings must contain a `/files/<digits>` segment (the standard CurseForge
  * file URL shape).
  */
-function parseFileRef(ref: CurseForgeFileRef): number {
+export function parseFileRef(ref: CurseForgeFileRef): number {
   if (typeof ref === 'number') return ref;
   const match = ref.match(/\/files\/(\d+)/);
   if (!match) {
@@ -104,6 +115,27 @@ async function fetchFiles(token: string, fileIds: number[]): Promise<CFFile[]> {
 }
 
 /**
+ * Fetch decoded metadata for CurseForge file IDs in one batched call,
+ * resolving each download URL (with a forgecdn fallback when the API omits
+ * it). The order of the result follows the API, not the input — look up by
+ * `fileId`.
+ */
+export async function fetchCurseforgeFiles(
+  token: string,
+  fileIds: number[],
+): Promise<CurseForgeFileMeta[]> {
+  const files = await fetchFiles(token, fileIds);
+  return files.map((file) => ({
+    fileId: file.id,
+    projectId: file.modId,
+    filename: file.fileName,
+    size: file.fileLength,
+    url: file.downloadUrl ?? forgeCdnUrl(file.id, file.fileName),
+    sha1: pickSha1(file),
+  }));
+}
+
+/**
  * Resolve CurseForge file refs into opys `Artifact`s sharing one install
  * path. Call multiple times for different destinations (mods,
  * resourcepacks, shaderpacks, …) and drop each result straight into your
@@ -128,33 +160,33 @@ export async function resolveCurseforge(
   files: CurseForgeFileRef[],
 ): Promise<Artifact[]> {
   const ids = files.map(parseFileRef);
-  const meta = await fetchFiles(options.token, ids);
-  const byId = new Map(meta.map((m) => [m.id, m]));
+  const metas = await fetchCurseforgeFiles(options.token, ids);
+  const byId = new Map(metas.map((m) => [m.fileId, m]));
 
   const artifacts: Artifact[] = [];
   for (const fileId of ids) {
-    const file = byId.get(fileId);
-    if (!file) {
+    const meta = byId.get(fileId);
+    if (!meta) {
       throw new Error(
         `CurseForge API did not return metadata for file ${fileId}`,
       );
     }
 
     const path = options.path({
-      filename: file.fileName,
-      fileId: file.id,
-      projectId: file.modId,
-      size: file.fileLength,
+      filename: meta.filename,
+      fileId: meta.fileId,
+      projectId: meta.projectId,
+      size: meta.size,
     });
 
-    const url = file.downloadUrl ?? forgeCdnUrl(file.id, file.fileName);
-    const sha1 = pickSha1(file);
-    const integrity: HashEntry | undefined = sha1 ? { sha1 } : undefined;
+    const integrity: HashEntry | undefined = meta.sha1
+      ? { sha1: meta.sha1 }
+      : undefined;
 
     artifacts.push({
       path,
-      source: sourceUrl(url),
-      size: file.fileLength,
+      source: sourceUrl(meta.url),
+      size: meta.size,
       rules: [],
       integrity,
     });

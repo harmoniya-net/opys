@@ -25,6 +25,7 @@
     "packages/lwjgl3ify",
     "packages/authliberty",
     "packages/curseforge",
+    "packages/modrinth",
     "packages/bifrost",
     "packages/minecraft-serverlist",
     "packages/java",

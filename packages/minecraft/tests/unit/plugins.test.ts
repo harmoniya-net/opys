@@ -9,6 +9,7 @@ import {
   lwjgl3ify,
   authliberty,
   curseforge,
+  modrinth,
 } from '../../lib';
 import type { BuildContext } from '@opys/dev';
 import {
@@ -370,6 +371,43 @@ describe('curseforge plugin', () => {
     const c = await plugin.build(ctx);
     expect(c.artifacts).toHaveLength(1);
     expect(c.artifacts![0]!.path).toBe('mods/jei.jar');
+    expect(logs.some((l) => l.includes('1 file(s)'))).toBe(true);
+  });
+});
+
+describe('modrinth plugin', () => {
+  it('builds a modrinth contribution from version refs', async () => {
+    reset();
+    routedFetch([
+      [
+        '/v2/versions',
+        [
+          {
+            id: 'abc',
+            project_id: 'proj',
+            version_number: '1.0',
+            files: [
+              {
+                filename: 'sodium.jar',
+                url: 'https://cdn.modrinth.com/sodium.jar',
+                primary: true,
+                size: 10,
+                hashes: { sha1: 'sha1', sha512: 'sha512' },
+              },
+            ],
+          },
+        ],
+      ],
+    ]);
+    const plugin = modrinth({
+      path: (i) => `mods/${i.filename}`,
+      versions: ['abc'],
+    });
+    expect(plugin.name).toBe('modrinth');
+    const c = await plugin.build(ctx);
+    expect(c.artifacts).toHaveLength(1);
+    expect(c.artifacts![0]!.path).toBe('mods/sodium.jar');
+    expect(c.artifacts![0]!.integrity).toEqual({ sha1: 'sha1' });
     expect(logs.some((l) => l.includes('1 file(s)'))).toBe(true);
   });
 });
