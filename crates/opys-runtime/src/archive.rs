@@ -40,11 +40,11 @@ pub fn matches_glob(name: &str, pattern: &str) -> bool {
         };
         return name.starts_with(prefix);
     }
-    if pattern.ends_with('*') {
-        return name.starts_with(&pattern[..pattern.len() - 1]);
+    if let Some(prefix) = pattern.strip_suffix('*') {
+        return name.starts_with(prefix);
     }
-    if pattern.starts_with('*') {
-        return name.ends_with(&pattern[1..]);
+    if let Some(suffix) = pattern.strip_prefix('*') {
+        return name.ends_with(suffix);
     }
     name == pattern
 }
@@ -166,7 +166,7 @@ async fn read_normalized(archive_path: &str) -> std::io::Result<Vec<NormalizedEn
     let path = archive_path.to_owned();
     tokio::task::spawn_blocking(move || read_archive_sync(&path, &data))
         .await
-        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?
+        .map_err(std::io::Error::other)?
 }
 
 /// Extract entries from `archive_path` into `target_dir`, applying include/

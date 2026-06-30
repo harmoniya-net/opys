@@ -18,21 +18,15 @@ pub struct FetchTask {
     pub final_path: String,
 }
 
-#[derive(Clone)]
-pub struct FetchHooks {
-    pub on_start: Option<Arc<dyn Fn(&FetchTask) + Send + Sync>>,
-    pub on_bytes: Option<Arc<dyn Fn(&FetchTask, u64) + Send + Sync>>,
-    pub on_done: Option<Arc<dyn Fn(&FetchTask) + Send + Sync>>,
-}
+type FetchStartHook = Arc<dyn Fn(&FetchTask) + Send + Sync>;
+type FetchBytesHook = Arc<dyn Fn(&FetchTask, u64) + Send + Sync>;
+type FetchDoneHook = Arc<dyn Fn(&FetchTask) + Send + Sync>;
 
-impl Default for FetchHooks {
-    fn default() -> Self {
-        Self {
-            on_start: None,
-            on_bytes: None,
-            on_done: None,
-        }
-    }
+#[derive(Clone, Default)]
+pub struct FetchHooks {
+    pub on_start: Option<FetchStartHook>,
+    pub on_bytes: Option<FetchBytesHook>,
+    pub on_done: Option<FetchDoneHook>,
 }
 
 const RETRY_DELAYS_MS: &[u64] = &[500, 2_000, 8_000];

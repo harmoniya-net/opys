@@ -32,7 +32,7 @@ async fn run(manifest_json: String) -> Vec<InstallProgress> {
     let mut opts = InstallOptions::new();
     opts.on_progress = Some(cb);
     let manifest = opys_core::parse_manifest(&manifest_json).unwrap();
-    install(ManifestSource::Manifest(manifest), opts).await.unwrap();
+    install(ManifestSource::Manifest(Box::new(manifest)), opts).await.unwrap();
     Arc::try_unwrap(events).unwrap().into_inner().unwrap()
 }
 

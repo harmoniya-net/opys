@@ -7,7 +7,7 @@ use crate::fetch::{fetch_with_retry, RetryOptions};
 /// Sources the install pipeline accepts.
 pub enum ManifestSource<'a> {
     /// Already-decoded manifest in memory.
-    Manifest(Manifest),
+    Manifest(Box<Manifest>),
     /// Local filesystem path to a `opys.json`.
     Path(&'a str),
     /// HTTP(S) URL to a `opys.json`.
@@ -16,7 +16,7 @@ pub enum ManifestSource<'a> {
 
 pub async fn resolve_manifest(source: ManifestSource<'_>) -> Result<Manifest, InstallError> {
     match source {
-        ManifestSource::Manifest(m) => Ok(m),
+        ManifestSource::Manifest(m) => Ok(*m),
         ManifestSource::Path(p) => {
             let bytes = fs::read(p).await.map_err(|source| InstallError::Io {
                 path: p.to_owned(),

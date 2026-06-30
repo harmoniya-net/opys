@@ -1,15 +1,11 @@
-use indexmap::IndexMap;
 use std::collections::HashSet;
-use std::path::Path;
 use std::sync::Arc;
 use tokio_util::sync::CancellationToken;
-use opys_core::{
-    filter_manifest, interpolate, resolve_val_defs, resolve_vars, ExtractRule, OsOptions, VarMap,
-};
+use opys_core::{filter_manifest, interpolate, resolve_val_defs, resolve_vars, OsOptions, VarMap};
 
 use crate::constants::DEFAULT_CONCURRENCY;
 use crate::errors::InstallError;
-use crate::phases::extract::{extract_all, ExtractTask, EXTRACT_MARKER_SUFFIX};
+use crate::phases::extract::{extract_all, ExtractTask};
 use crate::phases::fetch::{fetch_all, FetchHooks, FetchTask};
 use crate::phases::resolve::{resolve_manifest, ManifestSource};
 use crate::phases::resolve_discovery::resolve_discovery;
@@ -53,38 +49,6 @@ impl InstallOptions {
             ..Default::default()
         }
     }
-}
-
-fn extract_pending(
-    artifact: &opys_core::Artifact,
-    final_path: &str,
-    vars: &IndexMap<String, String>,
-) -> bool {
-    let Some(rules) = &artifact.extract else {
-        return false;
-    };
-    if Path::new(&format!("{final_path}{EXTRACT_MARKER_SUFFIX}")).exists() {
-        return false;
-    }
-    rules.iter().any(|rule| match rule {
-        ExtractRule::Pick(p) => !Path::new(&interpolate(&p.into, vars)).exists(),
-        ExtractRule::Dump(d) => !is_non_empty_dir(&interpolate(&d.into, vars)),
-        ExtractRule::Scan(s) => !is_non_empty_dir(&interpolate(&s.into, vars)),
-    })
-}
-
-fn is_non_empty_dir(dir: &str) -> bool {
-    let Ok(rd) = std::fs::read_dir(dir) else {
-        return false;
-    };
-    for entry in rd.flatten() {
-        if let Some(name) = entry.file_name().to_str() {
-            if !name.starts_with('.') {
-                return true;
-            }
-        }
-    }
-    false
 }
 
 pub async fn install<'a>(
@@ -139,7 +103,6 @@ pub async fn install<'a>(
         })
         .collect();
 
-    let fresh = Arc::new(std::sync::Mutex::new(HashSet::<String>::new()));
     let fetched = Arc::new(std::sync::atomic::AtomicU32::new(0));
 
     report(InstallProgress::Download {
@@ -150,7 +113,6 @@ pub async fn install<'a>(
 
     let hooks = {
         let progress = progress.clone();
-        let fresh = Arc::clone(&fresh);
         let fetched = Arc::clone(&fetched);
         FetchHooks {
             on_start: progress.as_ref().map(|cb| {
@@ -174,7 +136,6 @@ pub async fn install<'a>(
             on_done: Some({
                 let cb = progress.clone();
                 Arc::new(move |t: &FetchTask| {
-                    fresh.lock().unwrap().insert(t.final_path.clone());
                     let n = fetched.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
                     if let Some(cb) = &cb {
                         cb(InstallProgress::DownloadDone {
@@ -210,19 +171,21 @@ pub async fn install<'a>(
     }
 
     let applicable = filter_manifest(&manifest, &platform, &features)?;
-    let fresh_paths = fresh.lock().unwrap().clone();
+    // Extraction always reruns on every install — there is no skip-if-already-
+    // extracted check. Mods/configs inside an extracted archive can change
+    // between launches without the archive itself changing path, so staleness
+    // can't be detected by presence alone; re-extracting is the only way to
+    // guarantee the output matches the manifest.
     let mut extract_tasks = Vec::new();
     for artifact in &applicable.artifacts {
         if artifact.extract.is_none() {
             continue;
         }
         let final_path = interpolate(&artifact.path, &vars);
-        if fresh_paths.contains(&final_path) || extract_pending(artifact, &final_path, &vars) {
-            extract_tasks.push(ExtractTask {
-                final_path,
-                artifact: artifact.clone(),
-            });
-        }
+        extract_tasks.push(ExtractTask {
+            final_path,
+            artifact: artifact.clone(),
+        });
     }
 
     if cancel.is_cancelled() {

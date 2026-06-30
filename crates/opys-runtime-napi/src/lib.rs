@@ -199,7 +199,7 @@ impl Task for InstallTask {
             .build()
             .map_err(map_err)?;
         rt.block_on(async {
-            rt_install(ManifestSource::Manifest(manifest), opts).await.map_err(map_err)
+            rt_install(ManifestSource::Manifest(Box::new(manifest)), opts).await.map_err(map_err)
         })?;
         Ok(())
     }
@@ -246,7 +246,7 @@ pub async fn build_launch_js(
     }
 
     let (_manifest, spec) =
-        rt_build_launch(ManifestSource::Manifest(m), &launch_opts).await.map_err(map_err)?;
+        rt_build_launch(ManifestSource::Manifest(Box::new(m)), &launch_opts).await.map_err(map_err)?;
     Ok(LaunchSpecJs {
         command: spec.command,
         args: spec.args,

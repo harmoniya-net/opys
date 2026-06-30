@@ -42,7 +42,7 @@ async fn installs_string_source_to_interpolated_path() {
 
     let mut opts = InstallOptions::new();
     opts.on_progress = Some(cb);
-    install(ManifestSource::Manifest(manifest), opts).await.unwrap();
+    install(ManifestSource::Manifest(Box::new(manifest)), opts).await.unwrap();
 
     let written = std::fs::read_to_string(dir.path().join("hello.txt")).unwrap();
     assert_eq!(written, "world");
@@ -69,7 +69,7 @@ async fn skips_existing_files() {
     std::fs::write(dir.path().join("exists.txt"), b"prior").unwrap();
 
     let manifest = opys_core::parse_manifest(&manifest_json).unwrap();
-    install(ManifestSource::Manifest(manifest), InstallOptions::new()).await.unwrap();
+    install(ManifestSource::Manifest(Box::new(manifest)), InstallOptions::new()).await.unwrap();
 
     let content = std::fs::read_to_string(dir.path().join("exists.txt")).unwrap();
     assert_eq!(content, "prior", "scan should have skipped existing file");
@@ -92,7 +92,7 @@ async fn cancels_before_writing_when_token_already_cancelled() {
     opts.cancel = CancellationToken::new();
     opts.cancel.cancel(); // cancelled up front — install must bail immediately
 
-    let result = install(ManifestSource::Manifest(manifest), opts).await;
+    let result = install(ManifestSource::Manifest(Box::new(manifest)), opts).await;
     assert!(matches!(result, Err(InstallError::Cancelled)));
     assert!(
         !dir.path().join("never.txt").exists(),

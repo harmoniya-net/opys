@@ -102,7 +102,7 @@ pub async fn launch<'a>(
         io.platform = Some(platform);
         io.features = features;
         io.vars = Some(extra_vars);
-        install(ManifestSource::Manifest(manifest), io).await?;
+        install(ManifestSource::Manifest(Box::new(manifest)), io).await?;
     }
 
     let mut cmd = Command::new(&spec.command);
