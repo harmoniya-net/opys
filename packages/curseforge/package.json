@@ -1,6 +1,6 @@
 {
   "name": "@opys/curseforge",
-  "version": "0.1.23",
+  "version": "0.1.24",
   "type": "module",
   "main": "./dist/index.js",
   "exports": {
@@ -15,12 +15,12 @@
     "test": "vitest run tests/unit --passWithNoTests"
   },
   "dependencies": {
-    "@opys/core": "^0.1.23",
-    "@opys/dev": "^0.1.23",
-    "@opys/minecraft-vanilla": "^0.1.23",
-    "@opys/fabric": "^0.1.23",
-    "@opys/forge": "^0.1.23",
-    "@opys/neoforge": "^0.1.23",
+    "@opys/core": "^0.1.24",
+    "@opys/dev": "^0.1.24",
+    "@opys/minecraft-vanilla": "^0.1.24",
+    "@opys/fabric": "^0.1.24",
+    "@opys/forge": "^0.1.24",
+    "@opys/neoforge": "^0.1.24",
     "fflate": "^0.8.2"
   },
   "devDependencies": {
