@@ -147,6 +147,13 @@ async fn apply_mode(_path: &Path, _mode: Option<u32>) -> std::io::Result<()> {
 
 #[cfg(unix)]
 async fn create_symlink(target: &str, dest: &Path) -> std::io::Result<()> {
+    // Re-extraction re-creates symlinks left by a prior run — `symlink()`
+    // doesn't overwrite like a file write does, so the stale link (or file)
+    // at `dest` must be cleared first.
+    match fs::remove_file(dest).await {
+        Err(err) if err.kind() != std::io::ErrorKind::NotFound => return Err(err),
+        _ => {}
+    }
     // Permission-denied is a silent skip (non-admin Windows-style guard).
     match tokio::fs::symlink(target, dest).await {
         Err(err) if err.kind() != std::io::ErrorKind::PermissionDenied => Err(err),
@@ -235,4 +242,58 @@ pub async fn extract_archive_pick(
     f.flush().await?;
     apply_mode(dest_path, found.mode).await?;
     Ok(())
+}
+
+#[cfg(all(test, unix))]
+mod tests {
+    use super::*;
+    use std::io::Write;
+
+    /// Builds an in-memory tar with one regular file and one symlink entry.
+    fn tar_with_symlink() -> Vec<u8> {
+        let mut builder = tar::Builder::new(Vec::new());
+
+        let mut file_header = tar::Header::new_gnu();
+        file_header.set_path("payload.txt").unwrap();
+        file_header.set_size(5);
+        file_header.set_mode(0o644);
+        file_header.set_cksum();
+        builder.append(&file_header, &b"hello"[..]).unwrap();
+
+        let mut link_header = tar::Header::new_gnu();
+        link_header.set_entry_type(tar::EntryType::Symlink);
+        link_header.set_path("link.txt").unwrap();
+        link_header.set_link_name("payload.txt").unwrap();
+        link_header.set_size(0);
+        link_header.set_cksum();
+        builder.append(&link_header, &[][..]).unwrap();
+
+        builder.into_inner().unwrap()
+    }
+
+    /// Re-extracting the same archive into the same directory must not fail
+    /// with "File exists" — install now re-extracts on every launch, so a
+    /// symlink entry has to overwrite the link left by the prior run instead
+    /// of erroring like a bare `symlink()` syscall would.
+    #[tokio::test]
+    async fn extract_archive_is_idempotent_for_symlinks() {
+        let dir = tempfile::tempdir().unwrap();
+        let archive_path = dir.path().join("bundle.tar");
+        std::fs::File::create(&archive_path)
+            .unwrap()
+            .write_all(&tar_with_symlink())
+            .unwrap();
+        let archive_path = archive_path.to_str().unwrap();
+
+        extract_archive(archive_path, dir.path(), None, None, None)
+            .await
+            .unwrap();
+        extract_archive(archive_path, dir.path(), None, None, None)
+            .await
+            .expect("re-extraction must overwrite the existing symlink, not error");
+
+        let link = dir.path().join("link.txt");
+        assert_eq!(std::fs::read_link(&link).unwrap(), Path::new("payload.txt"));
+        assert_eq!(std::fs::read_to_string(dir.path().join("payload.txt")).unwrap(), "hello");
+    }
 }
