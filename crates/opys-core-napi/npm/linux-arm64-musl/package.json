@@ -1,0 +1,29 @@
+{
+  "name": "@opys/core-binding-linux-arm64-musl",
+  "version": "0.1.3",
+  "os": [
+    "linux"
+  ],
+  "cpu": [
+    "arm64"
+  ],
+  "main": "index.linux-arm64-musl.node",
+  "files": [
+    "index.linux-arm64-musl.node"
+  ],
+  "description": "napi-rs binary binding for @opys/core. Not consumed directly — re-exported by @opys/core.",
+  "engines": {
+    "node": ">=20"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/harmoniya-net/opys.git",
+    "directory": "crates/opys-core-napi"
+  },
+  "libc": [
+    "musl"
+  ],
+  "publishConfig": {
+    "access": "public"
+  }
+}
