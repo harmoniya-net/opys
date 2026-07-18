@@ -826,7 +826,7 @@ checksum = "9f7c3e4beb33f85d45ae3e3a1792185706c8e16d043238c593331cc7cd313b50"
 
 [[package]]
 name = "opys-core"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "base64",
  "indexmap",
@@ -839,7 +839,7 @@ dependencies = [
 
 [[package]]
 name = "opys-core-napi"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "indexmap",
  "napi",
@@ -853,7 +853,7 @@ dependencies = [
 
 [[package]]
 name = "opys-mojang-rules"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "regex",
  "serde",
@@ -863,7 +863,7 @@ dependencies = [
 
 [[package]]
 name = "opys-runtime"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "base64",
  "bytes",
@@ -891,7 +891,7 @@ dependencies = [
 
 [[package]]
 name = "opys-runtime-napi"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "indexmap",
  "napi",

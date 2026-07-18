@@ -1,6 +1,6 @@
 {
   "name": "@opys/cli",
-  "version": "0.1.26",
+  "version": "0.1.27",
   "bin": {
     "opys": "dist/opys.mjs"
   },
@@ -15,11 +15,11 @@
   },
   "type": "module",
   "dependencies": {
-    "@opys/core": "^0.1.26",
-    "@opys/dev": "^0.1.26",
-    "@opys/runtime": "^0.1.26",
-    "@opys/minecraft": "^0.1.26",
-    "@opys/mojang": "^0.1.26"
+    "@opys/core": "^0.1.27",
+    "@opys/dev": "^0.1.27",
+    "@opys/runtime": "^0.1.27",
+    "@opys/minecraft": "^0.1.27",
+    "@opys/mojang": "^0.1.27"
   },
   "peerDependencies": {
     "zod": "^4.0.0"
