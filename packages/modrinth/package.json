@@ -1,6 +1,6 @@
 {
   "name": "@opys/modrinth",
-  "version": "0.1.25",
+  "version": "0.1.26",
   "type": "module",
   "main": "./dist/index.js",
   "exports": {
@@ -15,12 +15,12 @@
     "test": "vitest run tests/unit --passWithNoTests"
   },
   "dependencies": {
-    "@opys/core": "^0.1.25",
-    "@opys/dev": "^0.1.25",
-    "@opys/minecraft-vanilla": "^0.1.25",
-    "@opys/fabric": "^0.1.25",
-    "@opys/forge": "^0.1.25",
-    "@opys/neoforge": "^0.1.25",
+    "@opys/core": "^0.1.26",
+    "@opys/dev": "^0.1.26",
+    "@opys/minecraft-vanilla": "^0.1.26",
+    "@opys/fabric": "^0.1.26",
+    "@opys/forge": "^0.1.26",
+    "@opys/neoforge": "^0.1.26",
     "fflate": "^0.8.2"
   },
   "devDependencies": {
