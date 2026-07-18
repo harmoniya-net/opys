@@ -65,10 +65,17 @@ jobs:
           echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
 
       # Zig bundles musl sysroots for every arch, so it cross-links both
-      # musl targets uniformly without per-arch musl gcc toolchains.
+      # musl targets uniformly without per-arch musl gcc toolchains. Fetched
+      # directly rather than via a setup-zig action: those build the
+      # download URL as `zig-<os>-<arch>-<ver>.tar.xz`, but upstream renamed
+      # release tarballs to `zig-<arch>-<os>-<ver>.tar.xz` as of 0.16.0,
+      # so every mirror 404s until the action catches up.
       - name: Setup Zig
         if: contains(matrix.target, '-musl')
-        uses: mlugg/setup-zig@v1
+        run: |
+          curl -sL https://ziglang.org/download/0.16.0/zig-x86_64-linux-0.16.0.tar.xz -o /tmp/zig.tar.xz
+          tar xf /tmp/zig.tar.xz -C /tmp
+          echo "/tmp/zig-x86_64-linux-0.16.0" >> "$GITHUB_PATH"
 
       - run: npm ci --ignore-scripts
 
