@@ -1,6 +1,6 @@
 # @opys/java
 
-OpenJDK runtime support for opys — auto-installs an [Eclipse Temurin](https://adoptium.net) JDK and exposes `${java_home}` and `${java_bin}` as standardized vars so loader templates can reference a portable Java binary.
+JDK runtime support for opys — auto-installs a JDK (Temurin, Zulu, or GraalVM CE) and exposes `${java_home}` and `${java_bin}` as standardized vars so loader templates can reference a portable Java binary.
 
 ## Install
 
@@ -26,28 +26,42 @@ return {
 };
 ```
 
+### Vendors
+
+```ts
+resolveJava({ version: '21' }); // Temurin (default)
+resolveJava({ version: '21', vendor: 'zulu' }); // Azul Zulu
+resolveJava({ version: '21', vendor: 'graalvm' }); // GraalVM Community Edition
+```
+
+Each vendor has its own resolver (`resolveTemurin`, `resolveZulu`, `resolveGraalvm`) exported directly, if you need release metadata without the rest of the plugin machinery.
+
 ### Version input
 
 - **Major** — `'21'`, `'17'` — resolves to the latest GA release for that major.
-- **Full version** — `'21.0.11+10'` — exact Adoptium release name (`jdk-` prefix and `-LTS` suffix are tolerated).
+- **Full version** — vendor-specific exact build:
+  - `temurin`: exact Adoptium release name, e.g. `'21.0.11+10'` (`jdk-` prefix and `-LTS` suffix are tolerated).
+  - `zulu`: exact `java_version`, e.g. `'21.0.12'`.
+  - `graalvm`: exact GitHub release tag, e.g. `'21.0.2'` (auto-prefixed to `jdk-21.0.2`) — only the standard `jdk-<major>.<minor>.<patch>` release cadence is supported, not the newer `graal-<version>` "Innovation" cadence.
 
 ### Options
 
 ```ts
 resolveJava({
   version: string,
-  vendor?: 'openjdk',         // only OpenJDK (Temurin) is supported today
-  platforms?: JavaPlatform[], // override the default OS/arch matrix
-  apiBase?: string,           // override the Adoptium API base URL
+  vendor?: 'temurin' | 'zulu' | 'graalvm', // defaults to 'temurin'
+  platforms?: Platform[],                  // override the default OS/arch matrix
+  apiBase?: string,                        // Adoptium/Azul API base URL override — temurin/zulu only
+  token?: string,                          // GitHub token for higher rate limits — graalvm only
 });
 ```
 
 ## How it works
 
-1. Resolves the requested `version` against `https://api.adoptium.net/v3/`. Major versions hit `/feature_releases/<n>/ga` (latest GA); full versions hit `/release_name/eclipse/jdk-<v>` (exact).
-2. Queries each platform (linux/osx/windows × x86_64+aarch64) in parallel; soft-skips combinations that don't ship a binary.
-3. Emits one `Artifact` per platform pointing at the GitHub-hosted release asset, with sha256 from the API and OS+arch rules so only the matching binary downloads at install time.
-4. Each artifact has an `extract: dump` rule pointing at `${root}/runtimes/jdk-<major>/`, so the JDK lands at `${root}/runtimes/jdk-<major>/jdk-<full>/`.
+1. Resolves the requested `version` against the chosen vendor's API — Adoptium (`api.adoptium.net`) for `temurin`, Azul's Metadata API (`api.azul.com`) for `zulu`, or the `graalvm/graalvm-ce-builds` GitHub releases for `graalvm`.
+2. Queries each platform (linux/osx/windows × x86_64+aarch64) in parallel; soft-skips combinations that don't ship a binary. `temurin` and `zulu` additionally anchor every platform on the release version most of them agree on, since each platform is queried independently and can resolve to a different latest patch if a build hasn't rolled out everywhere yet.
+3. Emits one `Artifact` per platform pointing at the vendor's hosted release asset, with a sha256 checksum and OS+arch rules so only the matching binary downloads at install time. When a vendor can't provide a checksum up front (older GraalVM CE releases predate GitHub's inline asset digest), the artifact instead carries an install-time `discovery` hint pointing at the vendor's sibling checksum file — never shipped unverified.
+4. Each artifact extracts into `${root}/runtimes/jdk-<major>/` with its own top-level directory stripped, whatever it's named — some vendors' archives embed a build identifier that isn't knowable at resolve time (GraalVM CE's do), so every vendor extracts the same flattened way rather than special-casing the ones whose directory name happens to be predictable.
 5. Sets `java_home` (per OS — macOS gets the `/Contents/Home` suffix) and `java_bin` (`${java_home}/bin/java` on POSIX; on Windows `${java_home}/bin/javaw.exe` by default — no console window — switching to `java.exe` when the `java_console` feature is enabled, e.g. `opys launch --feature java_console`).
 
 `@opys/installer` extracts both `.zip` (Windows) and `.tar.gz` / `.tgz` (Linux/macOS) archives, preserving the executable bit on tar entries so `bin/java` stays runnable without a chmod step.
@@ -58,6 +72,6 @@ Every opys template returned by `@opys/minecraft` (and by any loader built on it
 
 ## Notes
 
-- **Vendor**: only `openjdk` (Eclipse Temurin) is supported. Adding Liberica, Zulu, GraalVM is a matter of plugging in another resolver.
-- **macOS app bundles**: macOS Temurin tarballs ship as `.app` bundles with `Contents/MacOS/_CodeSignature/...`. `${java_home}` includes the `/Contents/Home` suffix automatically.
+- **Vendors**: `temurin` (Eclipse Adoptium), `zulu` (Azul), `graalvm` (GraalVM Community Edition). Adding another (e.g. Liberica) is a matter of plugging in another resolver that returns a `VendorRelease`.
+- **macOS app bundles**: every supported vendor's macOS archive ships as a `.jdk`-style bundle with a `Contents/MacOS`/`Contents/_CodeSignature`/… layout. `${java_home}` includes the `/Contents/Home` suffix automatically.
 - **Disk usage**: each JDK is ~200 MB compressed, ~500 MB extracted. The archive is downloaded into `${root}/runtimes/` as a sibling of the `jdk-<major>/` extract target — delete the leftover `.tar.gz`/`.zip` archive there to reclaim space.

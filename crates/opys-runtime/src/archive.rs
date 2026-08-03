@@ -26,6 +26,24 @@ pub enum EntryKind {
     Symlink,
 }
 
+/// Strip `pattern` off the front of `name`, if present.
+///   `*<suffix>` → strip up through the first occurrence of `<suffix>`,
+///                 whatever precedes it — e.g. `"*/"` drops an archive's
+///                 top-level directory regardless of its literal name (the
+///                 common case for JDK-style archives whose internal
+///                 directory embeds a build number unknowable at resolve
+///                 time, e.g. GraalVM CE).
+///   else        → literal prefix match.
+fn strip_one<'a>(name: &'a str, pattern: &str) -> Option<&'a str> {
+    match pattern.strip_prefix('*') {
+        Some(suffix) => {
+            let idx = name.find(suffix)?;
+            Some(&name[idx + suffix.len()..])
+        }
+        None => name.strip_prefix(pattern),
+    }
+}
+
 /// Match an archive entry name against an extract-rule pattern.
 ///   `pattern/` or `pattern/*` → prefix match (subtree)
 ///   `pattern*`               → starts-with
@@ -201,7 +219,7 @@ pub async fn extract_archive(
         let mut out_name = entry.name.clone();
         if let Some(prefixes) = strip_prefixes {
             for p in prefixes {
-                if let Some(rest) = out_name.strip_prefix(p) {
+                if let Some(rest) = strip_one(&out_name, p) {
                     out_name = rest.to_owned();
                     break;
                 }
@@ -295,5 +313,56 @@ mod tests {
         let link = dir.path().join("link.txt");
         assert_eq!(std::fs::read_link(&link).unwrap(), Path::new("payload.txt"));
         assert_eq!(std::fs::read_to_string(dir.path().join("payload.txt")).unwrap(), "hello");
+    }
+
+    #[test]
+    fn strip_one_literal_prefix_matches_current_behaviour() {
+        assert_eq!(strip_one("maven/foo.jar", "maven/"), Some("foo.jar"));
+        assert_eq!(strip_one("overrides/config.txt", "maven/"), None);
+    }
+
+    #[test]
+    fn strip_one_glob_strips_an_unknown_leading_segment() {
+        // The literal top-level dir name (a build number unknowable ahead of
+        // time, e.g. GraalVM CE's `graalvm-community-openjdk-21.0.2+13.1`)
+        // is irrelevant — `"*/"` strips up through the first `/` regardless.
+        assert_eq!(
+            strip_one("graalvm-community-openjdk-21.0.2+13.1/bin/java", "*/"),
+            Some("bin/java"),
+        );
+        assert_eq!(strip_one("anything-at-all/x", "*/"), Some("x"));
+        // No `/` in the name at all → no match.
+        assert_eq!(strip_one("no-slash-here", "*/"), None);
+    }
+
+    /// Extracting a tar whose entries all share one unpredictable top-level
+    /// directory, with `strip: ["*/"]`, must land the contents flat under
+    /// the target dir — the real-world shape of a GraalVM CE archive.
+    #[tokio::test]
+    async fn extract_archive_glob_strip_flattens_an_unknown_top_dir() {
+        let mut builder = tar::Builder::new(Vec::new());
+        let mut header = tar::Header::new_gnu();
+        header.set_path("graalvm-community-openjdk-21.0.2+13.1/bin/java").unwrap();
+        header.set_size(5);
+        header.set_mode(0o755);
+        header.set_cksum();
+        builder.append(&header, &b"hello"[..]).unwrap();
+        let data = builder.into_inner().unwrap();
+
+        let dir = tempfile::tempdir().unwrap();
+        let archive_path = dir.path().join("bundle.tar");
+        std::fs::File::create(&archive_path).unwrap().write_all(&data).unwrap();
+        let archive_path = archive_path.to_str().unwrap();
+
+        let strip = vec!["*/".to_string()];
+        extract_archive(archive_path, dir.path(), None, None, Some(&strip))
+            .await
+            .unwrap();
+
+        assert_eq!(
+            std::fs::read_to_string(dir.path().join("bin/java")).unwrap(),
+            "hello",
+        );
+        assert!(!dir.path().join("graalvm-community-openjdk-21.0.2+13.1").exists());
     }
 }

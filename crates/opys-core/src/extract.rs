@@ -10,6 +10,12 @@ pub struct ExtractPick {
 pub struct ExtractScan {
     pub matches: String,
     pub into: String,
+    /// Path-prefixes to strip off each matched entry, tried in order. A
+    /// literal string is a plain prefix; `*<suffix>` strips up through the
+    /// first occurrence of `<suffix>` regardless of what precedes it — e.g.
+    /// `"*/"` drops an archive's top-level directory whatever it's named
+    /// (for archives whose internal directory embeds a build identifier
+    /// unknowable ahead of time).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub strip: Option<Vec<String>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]

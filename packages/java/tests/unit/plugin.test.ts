@@ -1,17 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { java } from '../../lib/plugin';
-import type { JavaPlatform } from '../../lib/resolver';
+import type { Platform } from '../../lib/platforms';
 import type { BuildContext } from '@opys/dev';
 
 afterEach(() => vi.unstubAllGlobals());
 
-const LINUX_X64: JavaPlatform = {
-  os: 'linux',
-  arch: 'x86_64',
-  adoptiumOs: 'linux',
-  adoptiumArch: 'x64',
-  homeSuffix: '',
-};
+const LINUX_X64: Platform = { os: 'linux', arch: 'x86_64' };
 
 function release() {
   return {
@@ -77,11 +71,11 @@ describe('java', () => {
     expect(result.envs).toEqual({ JAVA_HOME: '${java_home}' });
   });
 
-  it('logs the resolved OpenJDK version', async () => {
+  it('defaults to the temurin vendor and logs its resolved label', async () => {
     stubFetch();
     const { ctx, logs } = makeCtx();
     await java('21', { platforms: [LINUX_X64] }).build(ctx);
-    expect(logs).toEqual([{ scope: 'java', message: 'OpenJDK 21.0.11+10' }]);
+    expect(logs).toEqual([{ scope: 'java', message: 'Temurin 21.0.11+10' }]);
   });
 
   it('forwards options through to the resolver', async () => {
@@ -105,6 +99,6 @@ describe('java', () => {
     const { ctx } = makeCtx();
     await expect(
       java('21', { platforms: [LINUX_X64] }).build(ctx),
-    ).rejects.toThrow(/No OpenJDK binaries found/);
+    ).rejects.toThrow(/No Temurin binaries found/);
   });
 });

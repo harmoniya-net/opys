@@ -173,6 +173,14 @@ export interface ExtractScan {
   readonly kind: 'scan';
   readonly matches: string;
   readonly into: string;
+  /**
+   * Path-prefixes to strip off each matched entry, tried in order. A
+   * literal string is a plain prefix; `*<suffix>` strips up through the
+   * first occurrence of `<suffix>` regardless of what precedes it — e.g. a
+   * wildcard followed by a single slash drops an archive's top-level
+   * directory whatever it's named, for archives whose internal directory
+   * embeds a build identifier unknowable ahead of time.
+   */
   readonly strip?: string[];
   readonly includes?: string[];
   readonly excludes?: string[];
