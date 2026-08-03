@@ -1,6 +1,6 @@
 {
   "name": "@opys/dgpuj",
-  "version": "0.1.27",
+  "version": "0.2.0",
   "type": "module",
   "main": "./dist/index.js",
   "exports": {
@@ -16,8 +16,8 @@
     "test:int": "vitest run tests/integration --testTimeout=120000"
   },
   "dependencies": {
-    "@opys/core": "^0.1.27",
-    "@opys/dev": "^0.1.27"
+    "@opys/core": "^0.2.0",
+    "@opys/dev": "^0.2.0"
   },
   "peerDependencies": {
     "zod": "^4.0.0"
