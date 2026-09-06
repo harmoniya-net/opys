@@ -49,19 +49,19 @@ pub enum ExtractRule {
 /// encoding emits the bare object when the list has exactly one entry.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(untagged)]
-pub enum ExtractWire {
+pub(crate) enum ExtractWire {
     One(ExtractRule),
     Many(Vec<ExtractRule>),
 }
 
-pub fn decode_extract(raw: ExtractWire) -> Vec<ExtractRule> {
+pub(crate) fn decode_extract(raw: ExtractWire) -> Vec<ExtractRule> {
     match raw {
         ExtractWire::One(r) => vec![r],
         ExtractWire::Many(v) => v,
     }
 }
 
-pub fn encode_extract(rules: &[ExtractRule]) -> ExtractWire {
+pub(crate) fn encode_extract(rules: &[ExtractRule]) -> ExtractWire {
     if rules.len() == 1 {
         ExtractWire::One(rules[0].clone())
     } else {

@@ -124,7 +124,6 @@ describe('resolveModrinthModpack', () => {
       '${game_directory}/resourcepacks/pack.zip',
     ]);
     expect(pack.files[0]!.source).toEqual({
-      kind: 'url',
       url: 'https://cdn.modrinth.com/sodium.jar',
     });
     expect(pack.files[0]!.integrity).toEqual({ sha1: 'aaa' });
@@ -137,7 +136,6 @@ describe('resolveModrinthModpack', () => {
 
     expect(overrides.path).toBe('${root}/cache/modrinth-modpack.mrpack');
     expect(overrides.source).toEqual({
-      kind: 'url',
       url: 'https://cdn.modrinth.com/pack.mrpack',
     });
     expect(overrides.integrity).toMatchObject({
@@ -145,13 +143,11 @@ describe('resolveModrinthModpack', () => {
     });
     expect(overrides.extract).toEqual([
       {
-        kind: 'scan',
         matches: 'overrides/',
         into: '${game_directory}',
         strip: ['overrides/'],
       },
       {
-        kind: 'scan',
         matches: 'client-overrides/',
         into: '${game_directory}',
         strip: ['client-overrides/'],

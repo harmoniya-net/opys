@@ -33,7 +33,7 @@ const INLINE_PLUGIN = `{
   name: 'fixture',
   build: () => ({
     artifacts: [
-      { path: 'a.jar', source: { kind: 'string', string: 'x' }, rules: [] },
+      { path: 'a.jar', source: { string: 'x' }, rules: [] },
     ],
     vars: { root: '/games' },
     launch: {},

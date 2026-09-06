@@ -57,7 +57,6 @@ describe('resolveModrinth', () => {
     expect(arts).toHaveLength(1);
     expect(arts[0]!.path).toBe('mods/mod-AAA.jar');
     expect(arts[0]!.source).toEqual({
-      kind: 'url',
       url: 'https://cdn.modrinth.com/AAA.jar',
     });
     expect(arts[0]!.size).toBe(2048);

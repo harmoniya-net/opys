@@ -1,9 +1,7 @@
 use indexmap::IndexMap;
+use opys_core::{interpolate, parse_pointer_descriptor, Artifact, Manifest, OsOptions, Source};
 use std::collections::HashSet;
 use std::path::Path;
-use opys_core::{
-    artifact_applies, interpolate, parse_pointer_descriptor, Artifact, Manifest, OsOptions, Source,
-};
 
 use crate::errors::InstallError;
 use crate::fetch::{fetch_with_retry, RetryOptions};
@@ -79,9 +77,7 @@ pub async fn resolve_pointers(
     let mut new_artifacts = Vec::with_capacity(manifest.artifacts.len());
 
     for artifact in manifest.artifacts {
-        if !matches!(artifact.source, Source::Pointer { .. })
-            || !artifact_applies(&artifact, platform, &[])?
-        {
+        if !matches!(artifact.source, Source::Pointer { .. }) || !artifact.applies(platform, &[])? {
             new_artifacts.push(artifact);
             continue;
         }

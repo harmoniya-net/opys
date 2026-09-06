@@ -122,7 +122,6 @@ describe('resolveCleanroom', () => {
     expect(installer.integrity).toEqual({ sha256: 'abc' });
     expect(installer.extract).toEqual([
       {
-        kind: 'scan',
         matches: 'maven/',
         into: '${library_directory}',
         strip: ['maven/'],

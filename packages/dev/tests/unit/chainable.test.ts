@@ -86,7 +86,7 @@ describe('ChainablePlugin', () => {
     const out = await built(
       base.updateMany('**/*.jar', { source: sourceFile('/local/x') }),
     );
-    expect(out.every((a) => a.source.kind === 'file')).toBe(true);
+    expect(out.every((a) => 'file' in a.source)).toBe(true);
   });
 
   it('updateMany accepts a function of the matched artifact', async () => {
@@ -97,7 +97,6 @@ describe('ChainablePlugin', () => {
       })),
     );
     expect(a!.source).toEqual({
-      kind: 'url',
       url: 'https://mirror/mods/jei.jar',
     });
   });

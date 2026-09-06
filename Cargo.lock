@@ -852,6 +852,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "opys-dev"
+version = "0.2.0"
+dependencies = [
+ "indexmap",
+ "opys-core",
+]
+
+[[package]]
+name = "opys-dev-napi"
+version = "0.2.0"
+dependencies = [
+ "indexmap",
+ "napi",
+ "napi-build",
+ "napi-derive",
+ "opys-core",
+ "opys-dev",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "opys-mojang"
 version = "0.2.0"
 dependencies = [

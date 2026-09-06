@@ -164,7 +164,6 @@ describe('resolveCurseforgeModpack', () => {
       '${game_directory}/mods/lithium.jar',
     ]);
     expect(pack.files[0]!.source).toEqual({
-      kind: 'url',
       url: 'https://cdn/mod-111.jar',
     });
     expect(pack.files[0]!.integrity).toEqual({ sha1: 'sha1-111' });
@@ -177,7 +176,6 @@ describe('resolveCurseforgeModpack', () => {
 
     expect(overrides.path).toBe('${root}/cache/curseforge-modpack.zip');
     expect(overrides.source).toEqual({
-      kind: 'url',
       url: 'https://cdn/pack.zip',
     });
     expect(overrides.integrity).toMatchObject({
@@ -185,7 +183,6 @@ describe('resolveCurseforgeModpack', () => {
     });
     expect(overrides.extract).toEqual([
       {
-        kind: 'scan',
         matches: 'overrides/',
         into: '${game_directory}',
         strip: ['overrides/'],
@@ -213,7 +210,6 @@ describe('resolveCurseforgeModpack', () => {
     });
     const pack = await resolveCurseforgeModpack({ token: 't' }, 9999);
     expect(pack.files[0]!.source).toEqual({
-      kind: 'url',
       url: 'https://edge.forgecdn.net/files/1234/567/big%20mod.jar',
     });
   });

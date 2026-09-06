@@ -47,7 +47,7 @@ describe('artifactScanner', () => {
     expect(arts).toHaveLength(1);
     const a = arts[0]!;
     expect(a.path).toBe('a.txt');
-    expect(a.source).toEqual({ kind: 'url', url: 'https://cdn/a.txt' });
+    expect(a.source).toEqual({ url: 'https://cdn/a.txt' });
     expect(a.size).toBe(5);
     const sha1 = createHash('sha1').update('hello').digest('hex');
     expect(a.integrity).toEqual({ sha1 });
@@ -63,7 +63,7 @@ describe('artifactScanner', () => {
   it('emits file sources with integrity so a content change re-fetches', async () => {
     await touch('a.txt', 'hello');
     const arts = await run({ url: 'https://cdn/${rel}', source: 'file' });
-    expect(arts[0]!.source.kind).toBe('file');
+    expect('file' in arts[0]!.source).toBe(true);
     const sha1 = createHash('sha1').update('hello').digest('hex');
     expect(arts[0]!.integrity).toEqual({ sha1 });
   });
@@ -82,7 +82,6 @@ describe('artifactScanner', () => {
     });
     expect(arts[0]!.path).toBe('install/mods/jei.jar');
     expect(arts[0]!.source).toEqual({
-      kind: 'url',
       url: 'https://cdn/mods/jei.jar',
     });
   });
@@ -90,7 +89,7 @@ describe('artifactScanner', () => {
   it('leaves an empty ${dir} for a root-level file', async () => {
     await touch('root.txt', 'x');
     const arts = await run({ url: 'https://cdn/${dir}x' });
-    expect(arts[0]!.source).toEqual({ kind: 'url', url: 'https://cdn/x' });
+    expect(arts[0]!.source).toEqual({ url: 'https://cdn/x' });
   });
 
   it('accepts path and url as functions', async () => {
@@ -100,7 +99,7 @@ describe('artifactScanner', () => {
       path: (f) => `out/${f.rel}`,
     });
     expect(arts[0]!.path).toBe('out/a.txt');
-    expect(arts[0]!.source).toEqual({ kind: 'url', url: 'https://cdn/a.txt' });
+    expect(arts[0]!.source).toEqual({ url: 'https://cdn/a.txt' });
   });
 
   it('walks nested directories', async () => {

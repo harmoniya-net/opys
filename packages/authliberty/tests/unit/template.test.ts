@@ -50,7 +50,6 @@ describe('resolveAuthliberty', () => {
       '${library_directory}/net/harmoniya/authliberty/0.3/authliberty-0.3.jar',
     );
     expect(art.source).toEqual({
-      kind: 'url',
       url: t.release.url,
     });
     expect(art.size).toBe(4096);

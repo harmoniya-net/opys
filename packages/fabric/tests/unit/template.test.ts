@@ -190,7 +190,6 @@ describe('resolveFabric', () => {
       a.path.includes(`net/fabricmc/fabric-loader/${LOADER}`),
     )!;
     expect(loaderArtifact.source).toEqual({
-      kind: 'url',
       url: `https://maven.fabricmc.net/net/fabricmc/fabric-loader/${LOADER}/fabric-loader-${LOADER}.jar`,
     });
   });

@@ -211,7 +211,6 @@ describe('resolveJava — artifacts', () => {
       '${java_runtime_dir}/OpenJDK21U-jdk_x64_linux.tar.gz',
     );
     expect(art.source).toEqual({
-      kind: 'url',
       url: 'https://github.com/adoptium/linux.tar.gz',
     });
     expect(art.size).toBe(999);
@@ -236,7 +235,6 @@ describe('resolveJava — artifacts', () => {
     const t = await resolveJava({ version: '21', platforms: [LINUX_X64] });
     expect(t.artifacts[0]!.extract).toEqual([
       {
-        kind: 'scan',
         matches: '*',
         into: '${java_runtime_dir}/jdk-21',
         strip: ['*/'],

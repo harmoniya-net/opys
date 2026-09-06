@@ -1,0 +1,29 @@
+{
+  "name": "@opys/dev-binding-linux-arm64-musl",
+  "version": "0.2.0",
+  "os": [
+    "linux"
+  ],
+  "cpu": [
+    "arm64"
+  ],
+  "main": "index.linux-arm64-musl.node",
+  "files": [
+    "index.linux-arm64-musl.node"
+  ],
+  "description": "napi-rs binary binding for @opys/dev. Not consumed directly \u2014 re-exported by @opys/dev.",
+  "engines": {
+    "node": ">=20"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/harmoniya-net/opys.git",
+    "directory": "crates/opys-dev-napi"
+  },
+  "libc": [
+    "musl"
+  ],
+  "publishConfig": {
+    "access": "public"
+  }
+}

@@ -65,7 +65,7 @@ describe.skipIf(!token)(
       expect(c.artifacts!).toHaveLength(1);
       const a = c.artifacts![0]!;
       expect(a.path).toMatch(/^mods\/.+\.jar$/);
-      expect(a.source).toMatchObject({ kind: 'url' });
+      expect(a.source).toHaveProperty('url');
       expect(a.size).toBeGreaterThan(0);
     });
   },
@@ -95,7 +95,7 @@ describe.skipIf(!token)(
       const archives = c.artifacts!.filter((a) => a.path.endsWith('.zip'));
       const overrides = archives.find((a) => a.extract?.length);
       expect(overrides).toBeDefined();
-      expect(overrides!.extract!.some((r) => r.kind === 'scan')).toBe(true);
+      expect(overrides!.extract!.some((r) => 'matches' in r)).toBe(true);
     });
   },
 );
@@ -115,7 +115,7 @@ describe('modrinth plugin (live)', () => {
     expect(c.artifacts!).toHaveLength(2);
     for (const a of c.artifacts!) {
       expect(a.path).toMatch(/^mods\/.+\.jar$/);
-      expect(a.source).toMatchObject({ kind: 'url' });
+      expect(a.source).toHaveProperty('url');
       expect(a.size).toBeGreaterThan(0);
       expect(a.integrity).toMatchObject({ sha1: expect.any(String) });
     }
@@ -147,7 +147,7 @@ describe('modrinth modpack plugin (live)', () => {
     // are also extract-bearing artifacts, so filter by the archive itself.)
     const archives = c.artifacts!.filter((a) => a.path.endsWith('.mrpack'));
     expect(archives).toHaveLength(1);
-    expect(archives[0]!.extract!.some((r) => r.kind === 'scan')).toBe(true);
+    expect(archives[0]!.extract!.some((r) => 'matches' in r)).toBe(true);
 
     // The pack's own mod files are plain downloads, never extracted.
     expect(mods.every((a) => !a.extract)).toBe(true);

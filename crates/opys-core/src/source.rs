@@ -2,7 +2,7 @@ use base64::Engine;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(tag = "kind", rename_all = "lowercase")]
+#[serde(from = "SourceWire", into = "SourceWire")]
 pub enum Source {
     Url { url: String },
     File { file: String },
@@ -23,7 +23,7 @@ impl Source {
 /// Wire shape — discriminated by which field is present, NOT by a `kind` tag.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(untagged)]
-pub enum SourceWire {
+pub(crate) enum SourceWire {
     Url { url: String },
     File { file: String },
     String { string: String },
@@ -31,28 +31,26 @@ pub enum SourceWire {
     Pointer { pointer: String },
 }
 
-pub fn decode_source(raw: SourceWire) -> Source {
-    match raw {
-        SourceWire::Url { url } => Source::Url { url },
-        SourceWire::File { file } => Source::File { file },
-        SourceWire::String { string } => Source::String { string },
-        SourceWire::Bytes { bytes } => Source::Bytes { bytes },
-        SourceWire::Pointer { pointer } => Source::Pointer { pointer },
+impl From<SourceWire> for Source {
+    fn from(raw: SourceWire) -> Self {
+        match raw {
+            SourceWire::Url { url } => Source::Url { url },
+            SourceWire::File { file } => Source::File { file },
+            SourceWire::String { string } => Source::String { string },
+            SourceWire::Bytes { bytes } => Source::Bytes { bytes },
+            SourceWire::Pointer { pointer } => Source::Pointer { pointer },
+        }
     }
 }
 
-pub fn encode_source(source: &Source) -> SourceWire {
-    match source {
-        Source::Url { url } => SourceWire::Url { url: url.clone() },
-        Source::File { file } => SourceWire::File { file: file.clone() },
-        Source::String { string } => SourceWire::String {
-            string: string.clone(),
-        },
-        Source::Bytes { bytes } => SourceWire::Bytes {
-            bytes: bytes.clone(),
-        },
-        Source::Pointer { pointer } => SourceWire::Pointer {
-            pointer: pointer.clone(),
-        },
+impl From<Source> for SourceWire {
+    fn from(s: Source) -> Self {
+        match s {
+            Source::Url { url } => SourceWire::Url { url },
+            Source::File { file } => SourceWire::File { file },
+            Source::String { string } => SourceWire::String { string },
+            Source::Bytes { bytes } => SourceWire::Bytes { bytes },
+            Source::Pointer { pointer } => SourceWire::Pointer { pointer },
+        }
     }
 }

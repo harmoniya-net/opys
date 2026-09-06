@@ -19,7 +19,7 @@ describe('java plugin (live, Temurin)', () => {
 
     expect(c.artifacts!.length).toBeGreaterThan(0);
     const archive = c.artifacts![0]!;
-    expect(archive.source).toMatchObject({ kind: 'url' });
+    expect(archive.source).toHaveProperty('url');
     expect(archive.integrity).toBeDefined();
     expect(archive.size).toBeGreaterThan(0);
     // The JDK archive must declare how to unpack itself.

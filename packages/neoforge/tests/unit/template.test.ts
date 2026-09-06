@@ -423,7 +423,7 @@ describe('resolveNeoForge', () => {
 
     const fwArtifact = t.artifacts.find((a) => a.path === customPath);
     expect(fwArtifact).toBeDefined();
-    expect(fwArtifact!.source).toEqual({ kind: 'url', url: customUrl });
+    expect(fwArtifact!.source).toEqual({ url: customUrl });
     expect(fwArtifact!.integrity).toEqual({ sha1: customSha1 });
   });
 

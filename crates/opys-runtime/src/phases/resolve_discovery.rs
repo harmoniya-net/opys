@@ -1,12 +1,11 @@
 use base64::Engine;
 use indexmap::IndexMap;
+use opys_core::{
+    interpolate, Artifact, Discovery, HashAlgo, HashEntry, HashRef, Manifest, OsOptions, Source,
+};
 use regex::Regex;
 use std::collections::HashSet;
 use std::path::Path;
-use opys_core::{
-    artifact_applies, interpolate, Artifact, Discovery, HashAlgo, HashEntry, HashRef, Manifest,
-    OsOptions, Source,
-};
 
 use crate::errors::InstallError;
 use crate::fetch::{client, fetch_with_retry, RetryOptions, OPYS_USER_AGENT};
@@ -45,11 +44,7 @@ fn extract_hash(blob: &str, algo: HashAlgo, filename: Option<&str>) -> Option<St
         Some(f) => blob.lines().filter(|l| l.contains(f)).collect(),
         None => Vec::new(),
     };
-    let lines: Vec<&str> = if named.is_empty() {
-        vec![blob]
-    } else {
-        named
-    };
+    let lines: Vec<&str> = if named.is_empty() { vec![blob] } else { named };
     let hex_re = Regex::new(&format!(r"\b[0-9a-fA-F]{{{len}}}\b")).unwrap();
     let b64_re = Regex::new(r"[A-Za-z0-9+/_-]{20,}={0,2}").unwrap();
     for text in lines {
@@ -73,7 +68,11 @@ async fn discover(
     spec: &Discovery,
     vars: &IndexMap<String, String>,
 ) -> Result<(Option<HashEntry>, Option<u64>), InstallError> {
-    let need_head = spec.integrity.as_ref().and_then(|i| i.header.as_ref()).is_some()
+    let need_head = spec
+        .integrity
+        .as_ref()
+        .and_then(|i| i.header.as_ref())
+        .is_some()
         || spec.size.as_ref().and_then(|s| s.header.as_ref()).is_some();
     let mut headers: Option<reqwest::header::HeaderMap> = None;
     if need_head {
@@ -118,13 +117,14 @@ async fn discover(
                 let mut url_vars = vars.clone();
                 url_vars.insert("url".into(), artifact_url.to_owned());
                 let probe_url = interpolate(u.location(), &url_vars);
-                let res = fetch_with_retry(reqwest::Method::GET, &probe_url, RetryOptions::default())
-                    .await
-                    .map_err(|e| InstallError::Network {
-                        url: probe_url.clone(),
-                        status: 0,
-                        body: e.to_string(),
-                    })?;
+                let res =
+                    fetch_with_retry(reqwest::Method::GET, &probe_url, RetryOptions::default())
+                        .await
+                        .map_err(|e| InstallError::Network {
+                            url: probe_url.clone(),
+                            status: 0,
+                            body: e.to_string(),
+                        })?;
                 if !res.status().is_success() {
                     return Err(InstallError::Network {
                         url: probe_url,
@@ -134,7 +134,11 @@ async fn discover(
                 }
                 let body = res.text().await.unwrap_or_default();
                 let fname = url_filename(artifact_url);
-                let fname_opt = if fname.is_empty() { None } else { Some(fname.as_str()) };
+                let fname_opt = if fname.is_empty() {
+                    None
+                } else {
+                    Some(fname.as_str())
+                };
                 if let Some(hex) = extract_hash(&body, algo, fname_opt) {
                     integrity = Some(hash_entry(algo, hex));
                 }
@@ -160,7 +164,9 @@ async fn discover(
         }
     }
 
-    let _ = HashRef::Sha1 { sha1: String::new() }; // silence unused-import warning for HashRef
+    let _ = HashRef::Sha1 {
+        sha1: String::new(),
+    }; // silence unused-import warning for HashRef
     Ok((integrity, size))
 }
 
@@ -174,7 +180,7 @@ pub async fn resolve_discovery(
 
     for artifact in manifest.artifacts {
         let spec = artifact.discovery.clone();
-        if spec.is_none() || !artifact_applies(&artifact, platform, &[])? {
+        if spec.is_none() || !artifact.applies(platform, &[])? {
             new_artifacts.push(artifact);
             continue;
         }
@@ -191,7 +197,10 @@ pub async fn resolve_discovery(
         let artifact_url = interpolate(&url_template, vars);
         let (integrity, size) = discover(&artifact_url, spec.as_ref().unwrap(), vars).await?;
         let next = Artifact {
-            integrity: integrity.clone().map(opys_core::Integrity::One).or_else(|| artifact.integrity.clone()),
+            integrity: integrity
+                .clone()
+                .map(opys_core::Integrity::One)
+                .or_else(|| artifact.integrity.clone()),
             size: size.or(artifact.size),
             ..artifact
         };

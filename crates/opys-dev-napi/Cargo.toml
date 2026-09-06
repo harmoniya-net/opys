@@ -1,0 +1,25 @@
+[package]
+name = "opys-dev-napi"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "napi-rs bindings for opys-dev."
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+opys-dev = { path = "../opys-dev", version = "0.2.0" }
+opys-core = { path = "../opys-core", version = "0.2.0" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+indexmap = { version = "2", features = ["serde"] }
+
+napi = { version = "2", default-features = false, features = ["napi8", "serde-json"] }
+napi-derive = "2"
+
+[build-dependencies]
+napi-build = "2"

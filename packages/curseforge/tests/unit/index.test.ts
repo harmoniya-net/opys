@@ -48,7 +48,6 @@ describe('resolveCurseforge', () => {
     expect(arts).toHaveLength(1);
     expect(arts[0]!.path).toBe('mods/mod-111.jar');
     expect(arts[0]!.source).toEqual({
-      kind: 'url',
       url: 'https://cdn/mod-111.jar',
     });
     expect(arts[0]!.size).toBe(2048);
@@ -97,7 +96,6 @@ describe('resolveCurseforge', () => {
     ]);
     const arts = await resolveCurseforge(opts, [1234567]);
     expect(arts[0]!.source).toEqual({
-      kind: 'url',
       url: 'https://edge.forgecdn.net/files/1234/567/big%20mod.jar',
     });
   });

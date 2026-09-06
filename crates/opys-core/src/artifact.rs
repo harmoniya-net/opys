@@ -1,13 +1,14 @@
-use serde::{Deserialize, Serialize};
 use opys_mojang_rules::{satisfies_ruleset, OsOptions, RuleError, Ruleset};
+use serde::{Deserialize, Serialize};
 
 use crate::discovery::Discovery;
 use crate::extract::{decode_extract, encode_extract, ExtractRule, ExtractWire};
 use crate::integrity::Integrity;
 use crate::shorthand::{encode_short_ruleset, parse_short_ruleset, RawRuleset, ShorthandError};
-use crate::source::{decode_source, encode_source, Source, SourceWire};
+use crate::source::Source;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(try_from = "ArtifactWire", into = "ArtifactWire")]
 pub struct Artifact {
     pub path: String,
     pub source: Source,
@@ -19,58 +20,71 @@ pub struct Artifact {
     pub extract: Option<Vec<ExtractRule>>,
 }
 
+/// `source` is the domain `Source`, which carries its own wire conversion —
+/// only the fields whose wire shape actually differs are spelled out here.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ArtifactWire {
-    pub path: String,
-    pub source: SourceWire,
+pub(crate) struct ArtifactWire {
+    path: String,
+    source: Source,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub size: Option<u64>,
+    size: Option<u64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub rules: Option<RawRuleset>,
+    rules: Option<RawRuleset>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub integrity: Option<Integrity>,
+    integrity: Option<Integrity>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub discovery: Option<Discovery>,
+    discovery: Option<Discovery>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub metadata: Option<serde_json::Value>,
+    metadata: Option<serde_json::Value>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub extract: Option<ExtractWire>,
+    extract: Option<ExtractWire>,
 }
 
-pub fn decode_artifact(raw: ArtifactWire) -> Result<Artifact, ShorthandError> {
-    Ok(Artifact {
-        path: raw.path,
-        source: decode_source(raw.source),
-        size: raw.size,
-        rules: raw.rules.map(parse_short_ruleset).transpose()?.unwrap_or_default(),
-        integrity: raw.integrity,
-        discovery: raw.discovery,
-        metadata: raw.metadata,
-        extract: raw.extract.map(decode_extract),
-    })
-}
+impl TryFrom<ArtifactWire> for Artifact {
+    type Error = ShorthandError;
 
-pub fn encode_artifact(u: &Artifact) -> ArtifactWire {
-    ArtifactWire {
-        path: u.path.clone(),
-        source: encode_source(&u.source),
-        size: u.size,
-        rules: (!u.rules.is_empty()).then(|| encode_short_ruleset(&u.rules)),
-        integrity: u.integrity.clone().map(Integrity::collapsed),
-        discovery: u.discovery.clone(),
-        metadata: u.metadata.clone(),
-        extract: u.extract.as_deref().map(encode_extract),
+    fn try_from(raw: ArtifactWire) -> Result<Self, Self::Error> {
+        Ok(Artifact {
+            path: raw.path,
+            source: raw.source,
+            size: raw.size,
+            rules: raw
+                .rules
+                .map(parse_short_ruleset)
+                .transpose()?
+                .unwrap_or_default(),
+            integrity: raw.integrity,
+            discovery: raw.discovery,
+            metadata: raw.metadata,
+            extract: raw.extract.map(decode_extract),
+        })
     }
 }
 
-/// Deduplicate by normalized path — later entries win.
+impl From<Artifact> for ArtifactWire {
+    fn from(u: Artifact) -> Self {
+        ArtifactWire {
+            path: u.path,
+            source: u.source,
+            size: u.size,
+            rules: (!u.rules.is_empty()).then(|| encode_short_ruleset(&u.rules)),
+            integrity: u.integrity.map(Integrity::collapsed),
+            extract: u.extract.as_deref().map(encode_extract),
+            discovery: u.discovery,
+            metadata: u.metadata,
+        }
+    }
+}
+
+/// Deduplicate by normalized path — the later entry's *content* wins, while
+/// the path keeps the position of its first appearance. That placement is what
+/// `Map.set` gives in JS, and matching it keeps a manifest byte-identical
+/// across the two implementations.
 pub fn deduplicate_artifacts(artifacts: Vec<Artifact>) -> Vec<Artifact> {
     use indexmap::IndexMap;
     let mut map: IndexMap<String, Artifact> = IndexMap::new();
     for u in artifacts {
-        let norm = normalize_posix(&u.path);
-        map.shift_remove(&norm);
-        map.insert(norm, u);
+        map.insert(normalize_posix(&u.path), u);
     }
     map.into_values().collect()
 }
@@ -107,13 +121,4 @@ impl Artifact {
     pub fn applies(&self, os: &OsOptions, feats: &[String]) -> Result<bool, RuleError> {
         satisfies_ruleset(&self.rules, os, feats)
     }
-}
-
-/// Free-fn alias for `Artifact::applies` — kept until callers migrate.
-pub fn artifact_applies(
-    u: &Artifact,
-    os: &OsOptions,
-    feats: &[String],
-) -> Result<bool, RuleError> {
-    u.applies(os, feats)
 }

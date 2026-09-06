@@ -1,0 +1,13 @@
+[package]
+name = "opys-dev"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "opys build-time SDK. Merges plugin contributions into a Manifest."
+
+[dependencies]
+opys-core = { path = "../opys-core", version = "0.2.0" }
+indexmap = { version = "2", features = ["serde"] }

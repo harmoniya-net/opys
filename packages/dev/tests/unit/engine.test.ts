@@ -11,6 +11,10 @@ const fakePlugin = (name: string, contribution: Contribution): OpysPlugin => ({
   build: () => contribution,
 });
 
+// `buildManifest` returns the manifest in its canonical wire spelling, the
+// same shape `decodeManifest` produces: a rule-free single value collapses to
+// a bare string, and an arm with no rules drops the `rules` key. `opys build`
+// re-encodes before writing, so `opys.json` is unaffected either way.
 describe('buildManifest', () => {
   it('merges artifacts and vars, assembles launch from accessors', async () => {
     const config: OpysConfig = {
@@ -43,10 +47,7 @@ describe('buildManifest', () => {
     expect(m.vars).toEqual({ root: '.' });
     expect(m.launch?.command).toBe('java');
     expect(m.launch?.workdir).toBe('${root}');
-    expect(m.launch?.args).toEqual([
-      { rules: [], value: ['-Xmx2G'] },
-      { rules: [], value: ['Main'] },
-    ]);
+    expect(m.launch?.args).toEqual(['-Xmx2G', 'Main']);
   });
 
   it('config vars override plugin vars; literal artifacts merge', async () => {
@@ -119,10 +120,7 @@ describe('buildManifest', () => {
     const m = await buildManifest(config, ctx);
     expect(m.artifacts).toHaveLength(1);
     expect(m.artifacts[0]!.source).toEqual(sourceUrl('http://x/2'));
-    expect(m.launch?.args).toEqual([
-      { rules: [], value: ['-flag'] },
-      { rules: [], value: ['tail'] },
-    ]);
+    expect(m.launch?.args).toEqual(['-flag', 'tail']);
   });
 
   it('resolves workdir and envs from accessor functions', async () => {
@@ -225,9 +223,9 @@ describe('buildManifest', () => {
       },
     };
     const m = await buildManifest(config, ctx);
-    expect(m.launch?.args).toEqual([{ rules: [], value: ['${game_dir}'] }]);
+    expect(m.launch?.args).toEqual(['${game_dir}']);
     expect(m.vars).toEqual({
-      game_dir: [{ value: '/home/user/.minecraft', rules: [] }],
+      game_dir: [{ value: '/home/user/.minecraft' }],
     });
   });
 
@@ -246,9 +244,6 @@ describe('buildManifest', () => {
     };
     const m = await buildManifest(config, ctx);
     expect(m.vars).toEqual({ root: '/data' });
-    expect(m.launch?.args).toEqual([
-      { rules: [], value: ['${root}'] },
-      { rules: [], value: ['--flag'] },
-    ]);
+    expect(m.launch?.args).toEqual(['${root}', '--flag']);
   });
 });

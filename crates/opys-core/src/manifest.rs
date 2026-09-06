@@ -1,16 +1,13 @@
-use indexmap::IndexMap;
-use serde::{Deserialize, Serialize};
 use opys_mojang_rules::OsOptions;
+use serde::{Deserialize, Serialize};
 
-use crate::artifact::{
-    artifact_applies, decode_artifact, encode_artifact, Artifact, ArtifactWire,
-};
-use crate::launch::{decode_launch, encode_launch, Launch, LaunchWire};
-use crate::shorthand::ShorthandError;
-use crate::valdefs::{encode_val_defs, parse_val_defs, ValDefWire, ValDefs};
+use crate::artifact::Artifact;
+use crate::launch::Launch;
+use crate::valdefs::ValDefs;
 use crate::DecodeError;
 
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(from = "ManifestWire", into = "ManifestWire")]
 pub struct Manifest {
     pub vars: ValDefs,
     pub launch: Option<Launch>,
@@ -19,63 +16,54 @@ pub struct Manifest {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ManifestWire {
+pub(crate) struct ManifestWire {
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub vars: Option<IndexMap<String, ValDefWire>>,
+    vars: Option<ValDefs>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub launch: Option<LaunchWire>,
+    launch: Option<Launch>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub artifacts: Option<Vec<ArtifactWire>>,
+    artifacts: Option<Vec<Artifact>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub restrict: Option<Vec<String>>,
+    restrict: Option<Vec<String>>,
 }
 
-pub fn decode_manifest(raw: ManifestWire) -> Result<Manifest, ShorthandError> {
-    Ok(Manifest {
-        vars: raw.vars.map(parse_val_defs).transpose()?.unwrap_or_default(),
-        launch: raw.launch.map(decode_launch).transpose()?,
-        artifacts: raw
-            .artifacts
-            .map(|v| v.into_iter().map(decode_artifact).collect::<Result<_, _>>())
-            .transpose()?
-            .unwrap_or_default(),
-        restrict: raw.restrict,
-    })
-}
-
-pub fn encode_manifest(u: &Manifest) -> serde_json::Value {
-    let mut m = serde_json::Map::new();
-    m.insert("vars".into(), encode_val_defs(&u.vars));
-    if let Some(launch) = &u.launch {
-        m.insert("launch".into(), encode_launch(launch));
-    }
-    m.insert(
-        "artifacts".into(),
-        serde_json::to_value(u.artifacts.iter().map(encode_artifact).collect::<Vec<_>>()).unwrap(),
-    );
-    if let Some(r) = &u.restrict {
-        if !r.is_empty() {
-            m.insert("restrict".into(), serde_json::to_value(r).unwrap());
+impl From<ManifestWire> for Manifest {
+    fn from(raw: ManifestWire) -> Self {
+        Manifest {
+            vars: raw.vars.unwrap_or_default(),
+            launch: raw.launch,
+            artifacts: raw.artifacts.unwrap_or_default(),
+            restrict: raw.restrict,
         }
     }
-    serde_json::Value::Object(m)
+}
+
+impl From<Manifest> for ManifestWire {
+    /// `vars` and `artifacts` are always emitted; `restrict` only when it has
+    /// entries, since an empty sweep list and no sweep list mean the same.
+    fn from(m: Manifest) -> Self {
+        ManifestWire {
+            vars: Some(m.vars),
+            launch: m.launch,
+            artifacts: Some(m.artifacts),
+            restrict: m.restrict.filter(|r| !r.is_empty()),
+        }
+    }
 }
 
 pub fn parse_manifest(input: &str) -> Result<Manifest, DecodeError> {
-    let wire: ManifestWire = serde_json::from_str(input)
-        .map_err(|e| DecodeError::Manifest(format!("{e}")))?;
-    decode_manifest(wire).map_err(Into::into)
+    serde_json::from_str(input).map_err(|e| DecodeError::Manifest(format!("{e}")))
 }
 
 pub fn filter_manifest(
-    u: &Manifest,
+    m: &Manifest,
     os: &OsOptions,
     feats: &[String],
 ) -> Result<Manifest, opys_mojang_rules::RuleError> {
-    let artifacts = u
+    let artifacts = m
         .artifacts
         .iter()
-        .filter_map(|a| match artifact_applies(a, os, feats) {
+        .filter_map(|a| match a.applies(os, feats) {
             Ok(true) => Some(Ok(a.clone())),
             Ok(false) => None,
             Err(e) => Some(Err(e)),
@@ -83,6 +71,6 @@ pub fn filter_manifest(
         .collect::<Result<_, _>>()?;
     Ok(Manifest {
         artifacts,
-        ..u.clone()
+        ..m.clone()
     })
 }

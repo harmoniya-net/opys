@@ -1,7 +1,8 @@
 #!/usr/bin/env node
-// End-to-end smoke test for the napi bindings. Loads all three .node files,
-// exercises core decode/encode/resolve and the mojang parsers, then runs an
-// actual `install` from runtime-napi against a tmpdir with a string source.
+// End-to-end smoke test for the napi bindings. Loads all four .node files,
+// exercises core decode/encode/resolve, the mojang parsers and the dev
+// engine's merge, then runs an actual `install` from runtime-napi against a
+// tmpdir with a string source.
 //
 // Run from the repo root:  node scripts/smoke-napi.mjs
 
@@ -14,6 +15,7 @@ const require = createRequire(import.meta.url);
 const core = require('../crates/opys-core-napi/index.js');
 const runtime = require('../crates/opys-runtime-napi/index.js');
 const mojang = require('../crates/opys-mojang-napi/index.js');
+const dev = require('../crates/opys-dev-napi/index.js');
 
 let ok = 0;
 let fail = 0;
@@ -129,6 +131,55 @@ check('install writes the string source to disk', written === 'world');
 check('install emits resolve event', events.includes('resolve'));
 check('install emits verify event', events.includes('verify'));
 check('install emits download:done event', events.includes('download:done'));
+
+console.log('\n— dev —');
+const assembled = dev.assemble(
+  [
+    {
+      name: 'base',
+      contribution: {
+        artifacts: [{ path: 'a.jar', source: { url: 'https://x/a' } }],
+        vars: { root: '.' },
+      },
+    },
+    {
+      name: 'other',
+      contribution: {
+        artifacts: [{ path: 'a.jar', source: { url: 'https://x/b' } }],
+        vars: { root: 'clash' },
+        envs: { E: '1' },
+      },
+    },
+  ],
+  {
+    command: 'java',
+    args: [[{ rules: [], value: ['-Xmx2G'] }], 'Main'],
+    restrict: ['mods/**'],
+  },
+);
+check(
+  'assemble dedupes by path, last content wins',
+  assembled.manifest.artifacts.length === 1 &&
+    assembled.manifest.artifacts[0].source.url === 'https://x/b',
+);
+check(
+  'assemble warns on a plugin-vs-plugin var collision',
+  assembled.warnings.some((w) => w.includes("var 'root'")),
+);
+check(
+  'assemble flattens launch fragments in author order',
+  JSON.stringify(assembled.manifest.launch.args) ===
+    JSON.stringify(['-Xmx2G', 'Main']),
+);
+check(
+  'assemble defaults workdir to "."',
+  assembled.manifest.launch.workdir === '.',
+);
+check(
+  'assemble merges plugin envs and emits restrict',
+  assembled.manifest.launch.envs.E === '1' &&
+    JSON.stringify(assembled.manifest.restrict) === JSON.stringify(['mods/**']),
+);
 
 const spec = await runtime.buildLaunch({
   vars: { root: dir, jvm: '/usr/bin/java' },

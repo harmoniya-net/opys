@@ -41,7 +41,8 @@ Eight packages, a clean DAG, no cycles:
 @opys/core          Manifest data model + opys shorthand + Val/Valset.
                      The reference implementation of opys.json.           → mojang-rules
 @opys/dev           Build SDK: defineConfig, the build engine, the plugin contract,
-                     artifact overrides, artifactScanner, userDataDir.             → core
+                     artifact overrides, artifactScanner, userDataDir.
+                     The contribution merge is the `opys-dev` crate.               → core
 @opys/runtime       install + launch executor.                              → core ONLY
 @opys/minecraft     Minecraft-domain plugins — minecraft / forge / cleanroom /
                      lwjgl3ify / curseforge / authliberty — + bifrost / serverlist
@@ -53,6 +54,15 @@ Eight packages, a clean DAG, no cycles:
 ### Invariants
 
 - **`core` is the frozen manifest spec.** Its schemas are the contract.
+- **`core` holds only what _both_ sides need.** A contract named by build-time
+  alone — `Contribution`, the plugin output — belongs in `dev`; one named by
+  runtime alone belongs in `runtime`. `core` is the intersection, not the union.
+- **Wire types are internal.** Every domain type de/serializes itself
+  (`#[serde(try_from = "…Wire")]`), so `…Wire` is `pub(crate)` and no consumer
+  ever names one — a caller writes `serde_json::from_value::<Manifest>(v)`. The
+  TS types mirror the wire exactly, which is why `Source` and `ExtractRule` are
+  discriminated by which field is present rather than by a `kind` tag: a tag
+  with no counterpart on the wire is a second spelling waiting to drift.
 - **`runtime` depends on `core` alone** among `@opys/*` — verified: `runtime/lib`
   imports only `@opys/core`, a few tiny third-party libs (`fflate`,
   `tar-stream`), and `node:`. It is a clean reimplementation target.
@@ -65,6 +75,11 @@ Eight packages, a clean DAG, no cycles:
   **shorthand** (`'allow.os.osx'` → `[{action:'allow',os:{name:'osx'}}]`) and
   so accepts both spellings. The rule-tagged-value primitives `Val`/`Valset`
   are opys's own flavor, in `core`.
+- **One merge, one implementation.** Folding plugin contributions into a
+  `Manifest` is `opys-dev`'s `assemble`; `@opys/dev` calls it through
+  `@opys/dev-binding`. Driving the plugins stays in JS because plugins and the
+  author's `command`/`args` accessors are closures — but a native builder
+  running Rust plugins reaches the identical merge.
 - **The `@opys/mojang-rules` npm package carries types only** — no zod, no
   native code, no dependencies. Both sides of the build/runtime wall can name
   the rule contract without pulling anything in. A hand-written TS

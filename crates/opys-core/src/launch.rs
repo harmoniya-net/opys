@@ -1,14 +1,12 @@
 use indexmap::IndexMap;
-use serde::{Deserialize, Serialize};
 use opys_mojang_rules::{OsOptions, RuleError};
+use serde::{Deserialize, Serialize};
 
-use crate::shorthand::ShorthandError;
-use crate::val::{encode_valset, parse_valset, resolve_valset, ValWire, Valset};
-use crate::valdefs::{
-    encode_val_defs, parse_val_defs, resolve_val_defs, ValDefWire, ValDefs,
-};
+use crate::val::{resolve_valset, Valset};
+use crate::valdefs::{resolve_val_defs, ValDefs};
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(from = "LaunchWire", into = "LaunchWire")]
 pub struct Launch {
     pub command: String,
     pub workdir: String,
@@ -16,35 +14,40 @@ pub struct Launch {
     pub envs: ValDefs,
 }
 
+/// `Val` and `ValDef` carry their own wire conversions, so the fallible half
+/// of decoding happens while these fields deserialize — leaving `Launch`
+/// itself an infallible reshape of present/absent.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct LaunchWire {
-    pub command: String,
-    pub workdir: String,
+pub(crate) struct LaunchWire {
+    command: String,
+    workdir: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub args: Option<Vec<ValWire>>,
+    args: Option<Valset>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub envs: Option<IndexMap<String, ValDefWire>>,
+    envs: Option<ValDefs>,
 }
 
-pub fn decode_launch(raw: LaunchWire) -> Result<Launch, ShorthandError> {
-    Ok(Launch {
-        command: raw.command,
-        workdir: raw.workdir,
-        args: raw.args.map(parse_valset).transpose()?.unwrap_or_default(),
-        envs: raw.envs.map(parse_val_defs).transpose()?.unwrap_or_default(),
-    })
+impl From<LaunchWire> for Launch {
+    fn from(raw: LaunchWire) -> Self {
+        Launch {
+            command: raw.command,
+            workdir: raw.workdir,
+            args: raw.args.unwrap_or_default(),
+            envs: raw.envs.unwrap_or_default(),
+        }
+    }
 }
 
-pub fn encode_launch(launch: &Launch) -> serde_json::Value {
-    let mut m = serde_json::Map::new();
-    m.insert("command".into(), serde_json::Value::String(launch.command.clone()));
-    m.insert("workdir".into(), serde_json::Value::String(launch.workdir.clone()));
-    m.insert(
-        "args".into(),
-        serde_json::Value::Array(encode_valset(&launch.args)),
-    );
-    m.insert("envs".into(), encode_val_defs(&launch.envs));
-    serde_json::Value::Object(m)
+impl From<Launch> for LaunchWire {
+    /// `args` and `envs` are always emitted, empty or not.
+    fn from(launch: Launch) -> Self {
+        LaunchWire {
+            command: launch.command,
+            workdir: launch.workdir,
+            args: Some(launch.args),
+            envs: Some(launch.envs),
+        }
+    }
 }
 
 pub fn resolved_args(

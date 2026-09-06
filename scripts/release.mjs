@@ -81,9 +81,11 @@ stampCargoWorkspace('Cargo.toml');
 for (const crate of [
   'crates/opys-core',
   'crates/opys-mojang',
+  'crates/opys-dev',
   'crates/opys-runtime',
   'crates/opys-core-napi',
   'crates/opys-mojang-napi',
+  'crates/opys-dev-napi',
   'crates/opys-runtime-napi',
 ]) {
   stampCargoCrate(`${crate}/Cargo.toml`);

@@ -17,7 +17,6 @@ describe('mapClientJar', () => {
     const art = mapClientJar(client);
     expect(art.path).toBe('${version_dir}/client.jar');
     expect(art.source).toEqual({
-      kind: 'url',
       url: 'https://piston-data/client.jar',
     });
     expect(art.size).toBe(99);

@@ -12,9 +12,18 @@ manifest executor. The two are joined only by the frozen `opys.json` format.
 2. `resolveConfig(default, { mode })` — invoke the function form, if any.
 3. `buildManifest(config, ctx)` (`@opys/dev`):
    - run every plugin's `build(ctx)` hook **in parallel** → `Contribution[]`
-   - concat artifacts (plugin order, then `manifest.artifacts`), dedup last-wins by `posix.normalize(path)`
-   - merge vars (plugin order, last wins; warn on plugin-vs-plugin collision), then layer `manifest.vars`
-   - assemble `launch` from the `command`/`args`/`workdir`/`envs` accessor functions
+   - evaluate the `command`/`args`/`workdir`/`envs` accessor functions
+   - hand both to `assemble` in the `opys-dev` crate, which:
+     - concats artifacts (plugin order, then `manifest.artifacts`) and dedups
+       last-wins by `posix.normalize(path)`, each path keeping the position of
+       its first appearance
+     - merges vars (plugin order, last wins; returns a warning on a
+       plugin-vs-plugin collision), then layers `manifest.vars`
+     - flattens the launch fragments into the final `Launch`
+
+   The returned manifest is in its canonical wire spelling — a rule-free single
+   value is a bare string, an arm with no rules has no `rules` key.
+
 4. `encodeManifest` → JSON → write to `-o`, `config.output`, or stdout.
 
 ### `opys launch [-i config] [--mode m]`

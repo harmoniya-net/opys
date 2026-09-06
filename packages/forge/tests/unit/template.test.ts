@@ -264,7 +264,7 @@ describe('resolveForge — processor era', () => {
     const fw = t.artifacts.find(
       (a) => a.path === '${library_directory}/fw.jar',
     )!;
-    expect(fw.source).toEqual({ kind: 'url', url: 'https://example/fw.jar' });
+    expect(fw.source).toEqual({ url: 'https://example/fw.jar' });
     expect(fw.integrity).toBeUndefined();
     expect(fw.size).toBeUndefined();
   });

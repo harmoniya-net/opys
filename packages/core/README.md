@@ -15,13 +15,16 @@ npm install @opys/core
 
 ### `Source` — artifact origin
 
+Discriminated by which field is present — this is the frozen wire shape, so
+narrow with `'url' in source` rather than a tag.
+
 ```ts
 type Source =
-  | { kind: 'url'; url: string }
-  | { kind: 'file'; file: string }
-  | { kind: 'string'; string: string }
-  | { kind: 'bytes'; bytes: string } // base64
-  | { kind: 'pointer'; pointer: string };
+  | { url: string }
+  | { file: string }
+  | { string: string }
+  | { bytes: string } // base64
+  | { pointer: string };
 
 sourceUrl('https://example.com/file.jar');
 sourceFile('./local/file.jar');
@@ -32,11 +35,13 @@ sourcePointer('forge:libraries.json');
 
 ### `ExtractRule` — zip extraction instructions
 
+Discriminated the same way: `file` → pick, `matches` → scan, otherwise dump.
+
 ```ts
 type ExtractRule =
-  | { kind: 'pick'; file: string; into: string } // single file
-  | { kind: 'scan'; matches: string; into: string; ... } // glob match
-  | { kind: 'dump'; into: string; clean?: boolean; ... }; // full extract
+  | { file: string; into: string } // single file
+  | { matches: string; into: string; ... } // glob match
+  | { into: string; clean?: boolean; ... }; // full extract
 
 extractPick('lwjgl.dll', '${natives_directory}');
 extractScan('*.so', '${natives_directory}', { excludes: ['META-INF/'] });

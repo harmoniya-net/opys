@@ -14,7 +14,7 @@ describe('mapAssetIndex', () => {
   it('maps an asset index into a url artifact under assets_root', () => {
     const art = mapAssetIndex(index);
     expect(art.path).toBe('${assets_root}/indexes/5.json');
-    expect(art.source).toEqual({ kind: 'url', url: index.url });
+    expect(art.source).toEqual({ url: index.url });
     expect(art.size).toBe(123);
     expect(art.integrity).toEqual({ sha1: 'a'.repeat(40) });
     expect(art.rules).toEqual([]);
@@ -35,7 +35,6 @@ describe('mapAssetObjects', () => {
     const first = arts[0]!;
     expect(first.path).toBe(`\${assets_root}/objects/ab/${'ab'.repeat(20)}`);
     expect(first.source).toEqual({
-      kind: 'url',
       url: `https://resources.download.minecraft.net/ab/${'ab'.repeat(20)}`,
     });
     expect(first.size).toBe(10);

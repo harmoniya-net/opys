@@ -132,8 +132,7 @@ pub fn install_js(
     options: Option<InstallOptionsJs>,
     progress: Option<JsFunction>,
 ) -> Result<AsyncTask<InstallTask>> {
-    let wire: opys_core::ManifestWire = serde_json::from_value(manifest).map_err(map_err)?;
-    let m = opys_core::decode_manifest(wire).map_err(map_err)?;
+    let m: opys_core::Manifest = serde_json::from_value(manifest).map_err(map_err)?;
 
     // Convert JsFunction → ThreadsafeFunction BEFORE crossing into the async
     // task — JsFunction is !Send.
@@ -189,7 +188,10 @@ impl Task for InstallTask {
                     }
                     s.last_emit = Some(now);
                 }
-                tsfn.call(progress_to_event(p), ThreadsafeFunctionCallMode::NonBlocking);
+                tsfn.call(
+                    progress_to_event(p),
+                    ThreadsafeFunctionCallMode::NonBlocking,
+                );
             }));
         }
 
@@ -199,7 +201,9 @@ impl Task for InstallTask {
             .build()
             .map_err(map_err)?;
         rt.block_on(async {
-            rt_install(ManifestSource::Manifest(Box::new(manifest)), opts).await.map_err(map_err)
+            rt_install(ManifestSource::Manifest(Box::new(manifest)), opts)
+                .await
+                .map_err(map_err)
         })?;
         Ok(())
     }
@@ -231,8 +235,7 @@ pub async fn build_launch_js(
     manifest: Json,
     options: Option<BuildLaunchOptionsJs>,
 ) -> Result<LaunchSpecJs> {
-    let wire: opys_core::ManifestWire = serde_json::from_value(manifest).map_err(map_err)?;
-    let m = opys_core::decode_manifest(wire).map_err(map_err)?;
+    let m: opys_core::Manifest = serde_json::from_value(manifest).map_err(map_err)?;
 
     let mut launch_opts = LaunchOptions::new();
     launch_opts.do_install = false;
@@ -245,8 +248,9 @@ pub async fn build_launch_js(
         launch_opts.cwd = o.cwd;
     }
 
-    let (_manifest, spec) =
-        rt_build_launch(ManifestSource::Manifest(Box::new(m)), &launch_opts).await.map_err(map_err)?;
+    let (_manifest, spec) = rt_build_launch(ManifestSource::Manifest(Box::new(m)), &launch_opts)
+        .await
+        .map_err(map_err)?;
     Ok(LaunchSpecJs {
         command: spec.command,
         args: spec.args,

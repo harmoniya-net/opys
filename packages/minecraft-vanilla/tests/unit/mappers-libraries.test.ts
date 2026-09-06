@@ -41,7 +41,6 @@ describe('libraryToArtifact', () => {
       '${library_directory}/com/google/code/gson/gson/2.10.1/gson-2.10.1.jar',
     );
     expect(art.source).toEqual({
-      kind: 'url',
       url: 'https://libraries.minecraft.net/gson.jar',
     });
     expect(art.size).toBe(283367);
@@ -70,7 +69,6 @@ describe('libraryToArtifact', () => {
     ])[0]!;
     const art = libraryToArtifact(lzma);
     expect(art.source).toEqual({
-      kind: 'url',
       url: 'https://libraries.minecraft.net/lzma/lzma/0.0.1/lzma-0.0.1.jar',
     });
     expect(art.integrity).toBeUndefined();
@@ -82,7 +80,6 @@ describe('libraryToArtifact', () => {
     expect(lwjglNative.native).toBe(true);
     expect(art.extract).toEqual([
       {
-        kind: 'dump',
         into: '${natives_directory}',
         excludes: ['META-INF/'],
         clean: true,

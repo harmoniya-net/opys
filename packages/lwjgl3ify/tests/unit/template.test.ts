@@ -101,7 +101,6 @@ describe('resolveLwjgl3ify', () => {
       a.path.includes('mods/lwjgl3ify-3.0.16.jar'),
     )!;
     expect(mod.source).toEqual({
-      kind: 'url',
       url: 'https://gh/dl/lwjgl3ify-3.0.16.jar',
     });
     expect(mod.integrity).toEqual({ sha256: 'modhash' });

@@ -62,7 +62,6 @@ describe('resolveDgpuj', () => {
       '${dgpuj_dir}/dgpuj-x86_64-unknown-linux-gnu.tar.gz',
     );
     expect(lin!.source).toEqual({
-      kind: 'url',
       url: expect.stringContaining('linux-gnu.tar.gz'),
     });
     expect(lin!.integrity).toEqual({ sha256: 'abc123' });
@@ -72,10 +71,10 @@ describe('resolveDgpuj', () => {
       { action: 'allow', os: { arch: 'x86_64' } },
     ]);
     expect(lin!.extract).toEqual([
-      { kind: 'pick', file: 'dgpuj', into: '${dgpuj_dir}/dgpuj' },
+      { file: 'dgpuj', into: '${dgpuj_dir}/dgpuj' },
     ]);
     expect(win!.extract).toEqual([
-      { kind: 'pick', file: 'dgpuj.exe', into: '${dgpuj_dir}/dgpuj.exe' },
+      { file: 'dgpuj.exe', into: '${dgpuj_dir}/dgpuj.exe' },
     ]);
   });
 

@@ -122,12 +122,16 @@ export function globToRegex(glob: string): RegExp {
 // Domain types — frozen wire shape.
 // ──────────────────────────────────────────────────────────────────────────
 
+/**
+ * Discriminated by which field is present, not by a tag — this is the frozen
+ * wire shape, and there is no second spelling of it. Narrow with `'url' in s`.
+ */
 export type Source =
-  | { readonly kind: 'url'; readonly url: string }
-  | { readonly kind: 'file'; readonly file: string }
-  | { readonly kind: 'string'; readonly string: string }
-  | { readonly kind: 'bytes'; readonly bytes: string }
-  | { readonly kind: 'pointer'; readonly pointer: string };
+  | { readonly url: string }
+  | { readonly file: string }
+  | { readonly string: string }
+  | { readonly bytes: string }
+  | { readonly pointer: string };
 
 export type HashEntry = { sha1: string } | { sha256: string } | { md5: string };
 export type Integrity = HashEntry | HashEntry[];
@@ -150,13 +154,15 @@ export interface Discovery {
   readonly size?: SizeProbes;
 }
 
+/**
+ * Like `Source`, the extract rules are discriminated by which field is
+ * present: `file` → pick, `matches` → scan, otherwise dump.
+ */
 export interface ExtractPick {
-  readonly kind: 'pick';
   readonly file: string;
   readonly into: string;
 }
 export interface ExtractScan {
-  readonly kind: 'scan';
   readonly matches: string;
   readonly into: string;
   /**
@@ -172,7 +178,6 @@ export interface ExtractScan {
   readonly excludes?: string[];
 }
 export interface ExtractDump {
-  readonly kind: 'dump';
   readonly into: string;
   readonly clean?: boolean;
   readonly includes?: string[];
@@ -229,50 +234,27 @@ export interface PointerDescriptor {
 // Factories — pure TS, no boundary crossing.
 // ──────────────────────────────────────────────────────────────────────────
 
-export const sourceUrl = (url: string): Source => ({ kind: 'url', url });
-export const sourceFile = (file: string): Source => ({ kind: 'file', file });
-export const sourceString = (string: string): Source => ({
-  kind: 'string',
-  string,
-});
-export const sourcePointer = (pointer: string): Source => ({
-  kind: 'pointer',
-  pointer,
-});
+export const sourceUrl = (url: string): Source => ({ url });
+export const sourceFile = (file: string): Source => ({ file });
+export const sourceString = (string: string): Source => ({ string });
+export const sourcePointer = (pointer: string): Source => ({ pointer });
 export const sourceBytes = (bytes: Uint8Array): Source => ({
-  kind: 'bytes',
   bytes: Buffer.from(bytes).toString('base64'),
 });
 
-export const isSourceUrl = (s: Source): s is Extract<Source, { kind: 'url' }> =>
-  s.kind === 'url';
-export const isSourceFile = (
-  s: Source,
-): s is Extract<Source, { kind: 'file' }> => s.kind === 'file';
-export const isSourceString = (
-  s: Source,
-): s is Extract<Source, { kind: 'string' }> => s.kind === 'string';
-export const isSourceBytes = (
-  s: Source,
-): s is Extract<Source, { kind: 'bytes' }> => s.kind === 'bytes';
-export const isSourcePointer = (
-  s: Source,
-): s is Extract<Source, { kind: 'pointer' }> => s.kind === 'pointer';
-
 export const extractPick = (file: string, into: string): ExtractPick => ({
-  kind: 'pick',
   file,
   into,
 });
 export const extractScan = (
   matches: string,
   into: string,
-  opts?: Omit<ExtractScan, 'kind' | 'matches' | 'into'>,
-): ExtractScan => ({ kind: 'scan', matches, into, ...opts });
+  opts?: Omit<ExtractScan, 'matches' | 'into'>,
+): ExtractScan => ({ matches, into, ...opts });
 export const extractDump = (
   into: string,
-  opts?: Omit<ExtractDump, 'kind' | 'into'>,
-): ExtractDump => ({ kind: 'dump', into, ...opts });
+  opts?: Omit<ExtractDump, 'into'>,
+): ExtractDump => ({ into, ...opts });
 
 /** Deduplicate by normalized (posix) path; later entries win. */
 export function deduplicateArtifacts(artifacts: Artifact[]): Artifact[] {

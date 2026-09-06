@@ -74,6 +74,6 @@ describe('deduplicateArtifacts', () => {
     const out = deduplicateArtifacts([
       { path: 'a', source: sourceFile('/tmp/a'), rules: [] },
     ]);
-    expect(out[0]!.source).toEqual({ kind: 'file', file: '/tmp/a' });
+    expect(out[0]!.source).toEqual({ file: '/tmp/a' });
   });
 });

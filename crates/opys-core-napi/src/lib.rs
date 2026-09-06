@@ -15,30 +15,36 @@ fn map_err<E: std::fmt::Display>(e: E) -> napi::Error {
     napi::Error::from_reason(e.to_string())
 }
 
+/// Decode a JS value into a domain type. The domain types own their wire
+/// conversion, so this is the single shape the boundary needs.
+fn from_js<T: serde::de::DeserializeOwned>(value: Json) -> Result<T> {
+    serde_json::from_value(value).map_err(map_err)
+}
+
+fn to_js<T: serde::Serialize>(value: &T) -> Result<Json> {
+    serde_json::to_value(value).map_err(map_err)
+}
+
 /// Decode a wire manifest (plain JS object) into the domain shape.
 /// Returns the domain object as plain JS.
 #[napi(js_name = "decodeManifest")]
 pub fn decode_manifest(wire: Json) -> Result<Json> {
-    let parsed: opys_core::ManifestWire = serde_json::from_value(wire).map_err(map_err)?;
-    let m = opys_core::decode_manifest(parsed).map_err(map_err)?;
-    Ok(opys_core::encode_manifest(&m))
+    to_js(&from_js::<opys_core::Manifest>(wire)?)
 }
 
 /// Encode a domain manifest back to its wire form.
 #[napi(js_name = "encodeManifest")]
 pub fn encode_manifest(domain: Json) -> Result<Json> {
     // The domain object is just the wire shape (we don't keep separate runtime
-    // types on the TS side) — pass through serde to validate and re-emit.
-    let wire: opys_core::ManifestWire = serde_json::from_value(domain).map_err(map_err)?;
-    let m = opys_core::decode_manifest(wire).map_err(map_err)?;
-    Ok(opys_core::encode_manifest(&m))
+    // types on the TS side), so this is the same round-trip as `decodeManifest`
+    // — kept as its own export because the TS API names both directions.
+    to_js(&from_js::<opys_core::Manifest>(domain)?)
 }
 
 /// Parse a JSON-string manifest and return the domain shape as JS.
 #[napi(js_name = "parseManifest")]
 pub fn parse_manifest(input: String) -> Result<Json> {
-    let m = opys_core::parse_manifest(&input).map_err(map_err)?;
-    Ok(opys_core::encode_manifest(&m))
+    to_js(&opys_core::parse_manifest(&input).map_err(map_err)?)
 }
 
 #[napi(object, js_name = "OsOptions")]
@@ -75,18 +81,24 @@ pub fn interpolate(template: String, vars: HashMap<String, String>) -> String {
 
 /// Drop artifacts whose rules exclude the given platform / features.
 #[napi(js_name = "filterManifest")]
-pub fn filter_manifest(manifest: Json, platform: OsOptionsJs, features: Vec<String>) -> Result<Json> {
-    let wire: opys_core::ManifestWire = serde_json::from_value(manifest).map_err(map_err)?;
-    let m = opys_core::decode_manifest(wire).map_err(map_err)?;
+pub fn filter_manifest(
+    manifest: Json,
+    platform: OsOptionsJs,
+    features: Vec<String>,
+) -> Result<Json> {
+    let m: opys_core::Manifest = from_js(manifest)?;
     let filtered = opys_core::filter_manifest(&m, &platform.into(), &features).map_err(map_err)?;
-    Ok(opys_core::encode_manifest(&filtered))
+    to_js(&filtered)
 }
 
 /// Resolve a Launch's `args` rule-tagged values for the given platform.
 #[napi(js_name = "resolvedArgs")]
-pub fn resolved_args(launch: Json, platform: OsOptionsJs, features: Vec<String>) -> Result<Vec<String>> {
-    let wire: opys_core::LaunchWire = serde_json::from_value(launch).map_err(map_err)?;
-    let l = opys_core::decode_launch(wire).map_err(map_err)?;
+pub fn resolved_args(
+    launch: Json,
+    platform: OsOptionsJs,
+    features: Vec<String>,
+) -> Result<Vec<String>> {
+    let l: opys_core::Launch = from_js(launch)?;
     opys_core::resolved_args(&l, &platform.into(), &features).map_err(map_err)
 }
 
@@ -97,15 +109,18 @@ pub fn resolved_envs(
     platform: OsOptionsJs,
     features: Vec<String>,
 ) -> Result<HashMap<String, String>> {
-    let wire: opys_core::LaunchWire = serde_json::from_value(launch).map_err(map_err)?;
-    let l = opys_core::decode_launch(wire).map_err(map_err)?;
+    let l: opys_core::Launch = from_js(launch)?;
     let env = opys_core::resolved_envs(&l, &platform.into(), &features).map_err(map_err)?;
     Ok(env.into_iter().collect())
 }
 
 /// Evaluate a ruleset against a platform + active features.
 #[napi(js_name = "satisfiesRuleset")]
-pub fn satisfies_ruleset(rules: Json, platform: OsOptionsJs, features: Vec<String>) -> Result<bool> {
+pub fn satisfies_ruleset(
+    rules: Json,
+    platform: OsOptionsJs,
+    features: Vec<String>,
+) -> Result<bool> {
     let raw: opys_core::RawRuleset = serde_json::from_value(rules).map_err(map_err)?;
     let parsed = opys_core::parse_short_ruleset(raw).map_err(map_err)?;
     opys_mojang_rules::satisfies_ruleset(&parsed, &platform.into(), &features).map_err(map_err)

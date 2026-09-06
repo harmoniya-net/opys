@@ -1,10 +1,19 @@
 //! Mirrors core/tests/unit/manifest.test.ts.
 
-use serde_json::json;
 use opys_core::{
-    decode_manifest, deduplicate_artifacts, encode_manifest, filter_manifest, parse_manifest,
-    Artifact, Manifest, ManifestWire, OsOptions, Source,
+    deduplicate_artifacts, filter_manifest, parse_manifest, Artifact, Manifest, OsOptions, Source,
 };
+use serde_json::json;
+
+/// The domain types decode and encode themselves; wire types are internal to
+/// `opys-core`, so the tests go through serde exactly as any consumer does.
+fn decode<T: serde::de::DeserializeOwned>(value: serde_json::Value) -> T {
+    serde_json::from_value(value).unwrap()
+}
+
+fn encode<T: serde::Serialize>(value: &T) -> serde_json::Value {
+    serde_json::to_value(value).unwrap()
+}
 
 fn linux() -> OsOptions {
     OsOptions {
@@ -70,12 +79,10 @@ fn parse_manifest_with_vars_launch_artifacts_restrict() {
 
 #[test]
 fn round_trips_minimal_manifest() {
-    let wire: ManifestWire = serde_json::from_value(json!({
+    let m: Manifest = decode(json!({
         "artifacts": [{ "path": "a", "source": { "string": "x" } }]
-    }))
-    .unwrap();
-    let m = decode_manifest(wire).unwrap();
-    let encoded = encode_manifest(&m);
+    }));
+    let encoded = encode(&m);
     assert_eq!(
         encoded,
         json!({
@@ -87,15 +94,13 @@ fn round_trips_minimal_manifest() {
 
 #[test]
 fn round_trips_vars_launch_restrict() {
-    let wire: ManifestWire = serde_json::from_value(json!({
+    let m: Manifest = decode(json!({
         "vars": { "root": "." },
         "launch": { "command": "java", "workdir": "/srv", "args": ["-jar"] },
         "artifacts": [],
         "restrict": ["mods/**"]
-    }))
-    .unwrap();
-    let m = decode_manifest(wire).unwrap();
-    let encoded = encode_manifest(&m);
+    }));
+    let encoded = encode(&m);
     assert_eq!(encoded["vars"]["root"], json!("."));
     assert_eq!(encoded["launch"]["command"], json!("java"));
     assert_eq!(encoded["restrict"], json!(["mods/**"]));
@@ -109,13 +114,13 @@ fn omits_empty_restrict_on_encode() {
         artifacts: Vec::new(),
         restrict: Some(Vec::new()),
     };
-    let encoded = encode_manifest(&m);
+    let encoded = encode(&m);
     assert!(encoded.get("restrict").is_none());
 }
 
 #[test]
 fn defaults_missing_vars_and_artifacts() {
-    let m = decode_manifest(serde_json::from_value(json!({})).unwrap()).unwrap();
+    let m: Manifest = decode(json!({}));
     assert_eq!(m.vars.len(), 0);
     assert_eq!(m.artifacts.len(), 0);
     assert!(m.restrict.is_none());
@@ -130,25 +135,29 @@ fn filter_returns_only_matching_artifacts() {
         artifacts: vec![make_artifact("a"), make_artifact("b")],
         restrict: None,
     };
-    assert_eq!(filter_manifest(&u, &linux(), &[]).unwrap().artifacts.len(), 2);
+    assert_eq!(
+        filter_manifest(&u, &linux(), &[]).unwrap().artifacts.len(),
+        2
+    );
 }
 
 #[test]
 fn filter_drops_artifacts_excluded_by_rules() {
-    let wire: opys_core::ArtifactWire = serde_json::from_value(json!({
+    let linux_only: Artifact = decode(json!({
         "path": "l",
         "source": { "string": "x" },
         "rules": "allow.os.linux"
-    }))
-    .unwrap();
-    let linux_only = opys_core::decode_artifact(wire).unwrap();
+    }));
     let u = Manifest {
         vars: Default::default(),
         launch: None,
         artifacts: vec![linux_only, make_artifact("b")],
         restrict: None,
     };
-    assert_eq!(filter_manifest(&u, &linux(), &[]).unwrap().artifacts.len(), 2);
+    assert_eq!(
+        filter_manifest(&u, &linux(), &[]).unwrap().artifacts.len(),
+        2
+    );
     let on_osx = filter_manifest(&u, &osx_x86(), &[]).unwrap();
     assert_eq!(on_osx.artifacts.len(), 1);
     assert_eq!(on_osx.artifacts[0].path, "b");
@@ -163,7 +172,10 @@ fn filter_preserves_restrict() {
         restrict: Some(vec!["mods/**".into()]),
     };
     let filtered = filter_manifest(&u, &linux(), &[]).unwrap();
-    assert_eq!(filtered.restrict.as_ref().unwrap(), &vec!["mods/**".to_owned()]);
+    assert_eq!(
+        filtered.restrict.as_ref().unwrap(),
+        &vec!["mods/**".to_owned()]
+    );
 }
 
 #[test]
@@ -191,6 +203,9 @@ fn dedup_normalizes_path_before_comparing() {
 #[test]
 fn dedup_preserves_insertion_order_for_unique_paths() {
     let arts = vec![make_artifact("a"), make_artifact("b"), make_artifact("c")];
-    let paths: Vec<String> = deduplicate_artifacts(arts).into_iter().map(|a| a.path).collect();
+    let paths: Vec<String> = deduplicate_artifacts(arts)
+        .into_iter()
+        .map(|a| a.path)
+        .collect();
     assert_eq!(paths, vec!["a", "b", "c"]);
 }

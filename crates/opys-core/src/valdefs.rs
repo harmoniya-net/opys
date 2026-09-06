@@ -1,6 +1,6 @@
 use indexmap::IndexMap;
-use serde::{Deserialize, Serialize};
 use opys_mojang_rules::{satisfies_ruleset, OsOptions, RuleError, Ruleset};
+use serde::{Deserialize, Serialize};
 
 use crate::shorthand::{encode_short_ruleset, parse_short_ruleset, RawRuleset, ShorthandError};
 
@@ -10,7 +10,8 @@ pub struct ConditionalVal {
     pub rules: Ruleset,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(try_from = "ValDefWire", into = "ValDefWire")]
 pub enum ValDef {
     Flat(String),
     Arms(Vec<ConditionalVal>),
@@ -19,68 +20,62 @@ pub enum ValDef {
 pub type ValDefs = IndexMap<String, ValDef>;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ConditionalValWire {
-    pub value: String,
+pub(crate) struct ConditionalValWire {
+    value: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub rules: Option<RawRuleset>,
+    rules: Option<RawRuleset>,
 }
 
+/// The arms are carried as wire structs rather than `Vec<ConditionalVal>`:
+/// serde discards the inner error of an untagged variant, so converting the
+/// arms explicitly is what keeps a bad shorthand reported as
+/// `Unknown action '…'` instead of "data did not match any variant".
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
-pub enum ValDefWire {
+pub(crate) enum ValDefWire {
     Flat(String),
     Arms(Vec<ConditionalValWire>),
 }
 
-pub fn parse_val_defs(raw: IndexMap<String, ValDefWire>) -> Result<ValDefs, ShorthandError> {
-    raw.into_iter()
-        .map(|(key, val)| {
-            let parsed = match val {
-                ValDefWire::Flat(s) => ValDef::Flat(s),
-                ValDefWire::Arms(arms) => ValDef::Arms(
-                    arms.into_iter()
-                        .map(|arm| {
-                            Ok(ConditionalVal {
-                                value: arm.value,
-                                rules: arm
-                                    .rules
-                                    .map(parse_short_ruleset)
-                                    .transpose()?
-                                    .unwrap_or_default(),
-                            })
+impl TryFrom<ValDefWire> for ValDef {
+    type Error = ShorthandError;
+
+    fn try_from(raw: ValDefWire) -> Result<Self, Self::Error> {
+        Ok(match raw {
+            ValDefWire::Flat(s) => ValDef::Flat(s),
+            ValDefWire::Arms(arms) => ValDef::Arms(
+                arms.into_iter()
+                    .map(|arm| {
+                        Ok(ConditionalVal {
+                            value: arm.value,
+                            rules: arm
+                                .rules
+                                .map(parse_short_ruleset)
+                                .transpose()?
+                                .unwrap_or_default(),
                         })
-                        .collect::<Result<_, ShorthandError>>()?,
-                ),
-            };
-            Ok((key, parsed))
+                    })
+                    .collect::<Result<_, ShorthandError>>()?,
+            ),
         })
-        .collect()
+    }
 }
 
-pub fn encode_val_defs(defs: &ValDefs) -> serde_json::Value {
-    let mut out = serde_json::Map::new();
-    for (key, val) in defs {
-        let v = match val {
-            ValDef::Flat(s) => serde_json::Value::String(s.clone()),
-            ValDef::Arms(arms) => serde_json::Value::Array(
-                arms.iter()
-                    .map(|arm| {
-                        let mut m = serde_json::Map::new();
-                        m.insert("value".into(), serde_json::Value::String(arm.value.clone()));
-                        if !arm.rules.is_empty() {
-                            m.insert(
-                                "rules".into(),
-                                serde_json::to_value(encode_short_ruleset(&arm.rules)).unwrap(),
-                            );
-                        }
-                        serde_json::Value::Object(m)
+impl From<ValDef> for ValDefWire {
+    /// Unlike `Val`, an arm drops `rules` entirely when empty.
+    fn from(def: ValDef) -> Self {
+        match def {
+            ValDef::Flat(s) => ValDefWire::Flat(s),
+            ValDef::Arms(arms) => ValDefWire::Arms(
+                arms.into_iter()
+                    .map(|arm| ConditionalValWire {
+                        value: arm.value,
+                        rules: (!arm.rules.is_empty()).then(|| encode_short_ruleset(&arm.rules)),
                     })
                     .collect(),
             ),
-        };
-        out.insert(key.clone(), v);
+        }
     }
-    serde_json::Value::Object(out)
 }
 
 /// For each key: flat → use as-is; arms → last matching arm wins.
