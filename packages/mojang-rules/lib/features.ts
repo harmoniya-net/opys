@@ -1,14 +1,5 @@
-import { z } from 'zod';
-
+/**
+ * Feature constraint: `{ feature_name: required_value }`. A feature is
+ * satisfied iff its presence in the active set matches the required bool.
+ */
 export type FeatureConstraint = Record<string, boolean>;
-
-export const FeatureConstraintSchema = z.record(z.string(), z.boolean());
-
-export function satisfiesFeatures(
-  constraint: FeatureConstraint,
-  feats: string[],
-): boolean {
-  return Object.entries(constraint).every(
-    ([feature, should]) => feats.includes(feature) === should,
-  );
-}

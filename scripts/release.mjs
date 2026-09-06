@@ -64,10 +64,7 @@ const stampCargoWorkspace = (path) => {
   // Replace the top-level `version = "..."` line. The `^` (with /m) anchors
   // to a line start so we don't accidentally match `rust-version = ...` or
   // the inline `version = "1"` inside `[workspace.dependencies]` entries.
-  const next = txt.replace(
-    /^(version\s*=\s*")[^"]+(")/m,
-    `$1${version}$2`,
-  );
+  const next = txt.replace(/^(version\s*=\s*")[^"]+(")/m, `$1${version}$2`);
   if (next === txt) throw new Error(`could not stamp version in ${path}`);
   writeFileSync(path, next);
 };
@@ -83,8 +80,10 @@ const stampCargoCrate = (path) => {
 stampCargoWorkspace('Cargo.toml');
 for (const crate of [
   'crates/opys-core',
+  'crates/opys-mojang',
   'crates/opys-runtime',
   'crates/opys-core-napi',
+  'crates/opys-mojang-napi',
   'crates/opys-runtime-napi',
 ]) {
   stampCargoCrate(`${crate}/Cargo.toml`);

@@ -10,12 +10,11 @@ import {
 } from '@opys/core';
 import {
   type Client,
-  fetchAssetManifest,
   latestRelease,
-  fetchVersionManifest,
   findVersion,
   type Version,
 } from '@opys/mojang';
+import { fetchAssetManifest, fetchVersionManifest } from './mojang-fetch';
 import { mapLibraries } from './mappers/libraries';
 import { mapAssetIndex, mapAssetObjects } from './mappers/assets';
 import { mapClientJar } from './mappers/client';

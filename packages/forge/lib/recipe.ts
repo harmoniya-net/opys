@@ -6,7 +6,33 @@ import {
   type Library,
   type MojangArgValue,
 } from '@opys/mojang';
-import { type Ruleset, RuleSchema } from '@opys/core';
+import type { Ruleset } from '@opys/core';
+
+/**
+ * Local copy of the Mojang rule schema.
+ *
+ * TEMPORARY. `@opys/mojang-rules` no longer ships zod — validation moved to
+ * serde behind the napi boundary — but this parser still needs a zod schema
+ * it can compose into `LegacyLibRawSchema` below. The rules it decodes are
+ * transit-only: they are carried straight through to `LegacyLibrary.rules`
+ * and never inspected here. Removed when `forge` itself is ported.
+ */
+const RuleActionSchema = z.enum(['allow', 'disallow']);
+const OsNameSchema = z.enum(['linux', 'windows', 'osx']);
+const OsArchSchema = z.enum(['x86', 'x86_64', 'arm', 'aarch64', 'any']);
+const OsConstraintSchema = z.object({
+  name: OsNameSchema.optional(),
+  version: z.string().optional(),
+  arch: OsArchSchema.optional(),
+});
+const RuleSchema = z.union([
+  z.object({ action: RuleActionSchema, os: OsConstraintSchema }),
+  z.object({
+    action: RuleActionSchema,
+    features: z.record(z.string(), z.boolean()),
+  }),
+  z.object({ action: RuleActionSchema }),
+]);
 
 /**
  * Forge version JSONs sometimes embed raw `../libraries/` paths (relative to a

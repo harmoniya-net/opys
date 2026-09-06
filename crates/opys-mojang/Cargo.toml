@@ -1,0 +1,18 @@
+[package]
+name = "opys-mojang"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "Mojang protocol parsers (version JSON, libraries, assets, maven). Pure — no I/O."
+
+[dependencies]
+opys-mojang-rules = { path = "../opys-mojang-rules", version = "0.2.0" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+serde_json = { workspace = true }

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-// End-to-end smoke test for the napi bindings. Loads both .node files,
-// exercises core decode/encode/resolve, then runs an actual `install` from
-// runtime-napi against a tmpdir with a string source.
+// End-to-end smoke test for the napi bindings. Loads all three .node files,
+// exercises core decode/encode/resolve and the mojang parsers, then runs an
+// actual `install` from runtime-napi against a tmpdir with a string source.
 //
 // Run from the repo root:  node scripts/smoke-napi.mjs
 
@@ -13,6 +13,7 @@ import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const core = require('../crates/opys-core-napi/index.js');
 const runtime = require('../crates/opys-runtime-napi/index.js');
+const mojang = require('../crates/opys-mojang-napi/index.js');
 
 let ok = 0;
 let fail = 0;
@@ -27,7 +28,10 @@ function check(label, predicate) {
 }
 
 console.log('— core —');
-check('currentPlatform.name is non-empty', runtime.currentPlatform().name.length > 0);
+check(
+  'currentPlatform.name is non-empty',
+  runtime.currentPlatform().name.length > 0,
+);
 check(
   'resolveVars expands a reference',
   core.resolveVars({ a: 'hello', b: '${a} world' }).b === 'hello world',
@@ -70,6 +74,42 @@ check(
     [],
   ) === true,
 );
+
+console.log('\n— mojang —');
+check(
+  'parseMaven splits a coordinate',
+  mojang.parseMaven('org.lwjgl:lwjgl:3.3.1:natives-linux').classifier ===
+    'natives-linux',
+);
+check(
+  'encodeMaven inverts parseMaven',
+  mojang.encodeMaven(mojang.parseMaven('org.lwjgl:lwjgl:3.3.1')) ===
+    'org.lwjgl:lwjgl:3.3.1',
+);
+check(
+  'parseArguments reads the legacy string form',
+  mojang.parseArguments('--demo --width 100').legacy === true,
+);
+check(
+  'assetPath shards on the hash prefix',
+  mojang.assetPath('abcdef') === 'ab/abcdef',
+);
+// The mojang addon is strict Mojang format — shorthand belongs to core.
+check(
+  'satisfiesRuleset accepts the expanded form',
+  mojang.satisfiesRuleset(
+    [{ action: 'allow', os: { name: 'linux' } }],
+    { name: 'linux', version: '', arch: 'x86_64' },
+    [],
+  ) === true,
+);
+let rejectedShorthand = false;
+try {
+  mojang.decodeRuleset(['allow.os.linux']);
+} catch {
+  rejectedShorthand = true;
+}
+check('decodeRuleset rejects opys shorthand', rejectedShorthand);
 
 console.log('\n— runtime —');
 const dir = mkdtempSync(join(tmpdir(), 'opys-napi-'));

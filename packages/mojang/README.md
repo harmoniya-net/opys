@@ -1,11 +1,15 @@
 # @opys/mojang
 
-Zero-binding Mojang JSON parsers. Parses Mojang version manifests and client JSONs into typed structures. No dependencies on other unipack packages.
+Mojang protocol parsers — version manifest, client JSON, libraries, assets and
+Maven coordinates — as a typed wrapper over the
+[`opys-mojang`](https://crates.io/crates/opys-mojang) Rust crate.
+
+**No I/O.** The package parses; the caller fetches.
 
 ## Install
 
 ```sh
-npm install @opys/mojang zod
+npm install @opys/mojang
 ```
 
 ## API
@@ -13,9 +17,16 @@ npm install @opys/mojang zod
 ### Version manifest
 
 ```ts
-import { fetchVersionManifest, findVersion, latestRelease } from '@opys/mojang';
+import {
+  parseVersionManifest,
+  findVersion,
+  latestRelease,
+  VERSION_MANIFEST_URL,
+} from '@opys/mojang';
 
-const manifest = await fetchVersionManifest();
+const manifest = parseVersionManifest(
+  await (await fetch(VERSION_MANIFEST_URL)).json(),
+);
 
 const version = findVersion(manifest, '1.20.1');
 const latest = latestRelease(manifest);
@@ -29,8 +40,7 @@ console.log(latest.url); // URL to the version JSON
 ```ts
 import { parseClient } from '@opys/mojang';
 
-const res = await fetch(version.url);
-const client = parseClient(await res.json());
+const client = parseClient(await (await fetch(version.url)).json());
 
 client.id; // version string
 client.mainClass; // entry point class
@@ -43,9 +53,11 @@ client.assetIndex; // asset index reference
 ### Asset manifest
 
 ```ts
-import { fetchAssetManifest } from '@opys/mojang';
+import { parseAssetManifest } from '@opys/mojang';
 
-const assets = await fetchAssetManifest(client.assetIndex.url);
+const assets = parseAssetManifest(
+  await (await fetch(client.assetIndex.url)).json(),
+);
 // assets.objects: Record<string, { hash: string; size: number }>
 ```
 
@@ -58,7 +70,28 @@ import { mergeArgs } from '@opys/mojang';
 const merged = mergeArgs(client.args, forgeArgs);
 ```
 
+### Rules
+
+The addon links `opys-mojang-rules` in statically, so the rule surface ships
+here too — in **strict** Mojang form. The opys shorthand (`'allow.os.linux'`)
+is `@opys/core`'s own spelling and is rejected:
+
+```ts
+import { satisfiesRuleset, decodeRuleset } from '@opys/mojang';
+
+satisfiesRuleset(client.libraries[0].rules, {
+  name: 'linux',
+  version: '6.12',
+  arch: 'x86_64',
+});
+
+decodeRuleset('allow.os.linux'); // throws — use @opys/core for shorthand
+```
+
 ## Notes
 
-- This package is intentionally a leaf in the dependency graph — it has no unipack dependencies.
-- Use `@opys/minecraft` to convert parsed Mojang types into Manifest artifacts.
+- The only `@opys/*` dependency is
+  [`@opys/mojang-rules`](https://npmjs.com/package/@opys/mojang-rules), which
+  is types-only. Fetching, and every manifest concern, lives elsewhere.
+- Use `@opys/minecraft` to convert parsed Mojang types into Manifest artifacts,
+  and its `fetchVersionManifest` / `fetchAssetManifest` for retrying HTTP.

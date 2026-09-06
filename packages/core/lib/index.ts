@@ -15,8 +15,15 @@
  *     TS impl exists for consumers that need expanded `Rule` objects.
  */
 
-import { z } from 'zod';
 import * as napi from '@opys/core-binding';
+import type {
+  OsArch,
+  OsName,
+  OsOptions,
+  Rule,
+  RuleAction,
+  Ruleset,
+} from '@opys/mojang-rules';
 
 // `fetchWithRetry` is a build-time HTTP utility (used by Mojang/Forge/Java
 // plugins). It's not part of the manifest contract, so it stays as TS —
@@ -24,26 +31,25 @@ import * as napi from '@opys/core-binding';
 export { fetchWithRetry, OPYS_USER_AGENT } from './fetch';
 export type { FetchRetryOptions } from './fetch';
 
-// `RuleSchema` is a zod schema typed to produce a domain `Rule`. Used by
-// the Forge recipe parser to validate upstream JSON. Kept for build-time
-// consumers — the manifest contract itself doesn't need zod (the napi
-// binding does its own serde validation).
-export const OsNameSchema = z.enum(['linux', 'windows', 'osx']);
-export const OsArchSchema = z.enum(['x86', 'x86_64', 'arm', 'aarch64', 'any']);
-const OsConstraintSchema = z.object({
-  name: OsNameSchema.optional(),
-  version: z.string().optional(),
-  arch: OsArchSchema.optional(),
-});
-const RuleActionSchema = z.enum(['allow', 'disallow']);
-export const RuleSchema = z.union([
-  z.object({ action: RuleActionSchema, os: OsConstraintSchema }),
-  z.object({
-    action: RuleActionSchema,
-    features: z.record(z.string(), z.boolean()),
-  }),
-  z.object({ action: RuleActionSchema }),
-]);
+// The Mojang rule format — types plus the two trivial factories — is owned
+// by `@opys/mojang-rules`. `core` re-exports it rather than restating it,
+// and extends it below with the opys shorthand codec (`parseShortRuleset` /
+// `encodeShortRuleset`) and the rule-tagged `Val`/`Valset`.
+//
+// The evaluator is deliberately *not* re-exported: `satisfiesRuleset` here
+// expands shorthand first, so it is strictly wider than the Mojang-standard
+// predicate. The strict one lives in `@opys/mojang`.
+export type {
+  OsName,
+  OsArch,
+  OsOptions,
+  OsConstraint,
+  FeatureConstraint,
+  RuleAction,
+  Rule,
+  Ruleset,
+} from '@opys/mojang-rules';
+export { emptyRuleset, allowOsRuleset } from '@opys/mojang-rules';
 
 // ──────────────────────────────────────────────────────────────────────────
 // Behaviors — typed wrappers around the Rust binding.
@@ -115,26 +121,6 @@ export function globToRegex(glob: string): RegExp {
 // ──────────────────────────────────────────────────────────────────────────
 // Domain types — frozen wire shape.
 // ──────────────────────────────────────────────────────────────────────────
-
-export type OsOptions = napi.OsOptions;
-export type OsName = 'linux' | 'windows' | 'osx';
-export type OsArch = 'x86' | 'x86_64' | 'arm' | 'aarch64' | 'any';
-
-export interface OsConstraint {
-  readonly name?: OsName;
-  readonly version?: string;
-  readonly arch?: OsArch;
-}
-
-export type RuleAction = 'allow' | 'disallow';
-export type FeatureConstraint = Record<string, boolean>;
-
-export type Rule =
-  | { action: RuleAction; os: OsConstraint }
-  | { action: RuleAction; features: FeatureConstraint }
-  | { action: RuleAction };
-
-export type Ruleset = Rule[];
 
 export type Source =
   | { readonly kind: 'url'; readonly url: string }
@@ -287,11 +273,6 @@ export const extractDump = (
   into: string,
   opts?: Omit<ExtractDump, 'kind' | 'into'>,
 ): ExtractDump => ({ kind: 'dump', into, ...opts });
-
-export const emptyRuleset = (): Ruleset => [];
-export const allowOsRuleset = (name: OsName): Ruleset => [
-  { action: 'allow', os: { name } },
-];
 
 /** Deduplicate by normalized (posix) path; later entries win. */
 export function deduplicateArtifacts(artifacts: Artifact[]): Artifact[] {

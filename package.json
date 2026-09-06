@@ -33,6 +33,7 @@
     "packages/minecraft",
     "packages/runtime",
     "packages/cli",
+    "crates/opys-mojang-napi",
     "crates/opys-core-napi",
     "crates/opys-runtime-napi"
   ],

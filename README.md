@@ -60,10 +60,10 @@ The build side (`dev` + plugins) and the runtime side (`runtime`) are joined
 
 | Package                               | Description                                            |
 | ------------------------------------- | ------------------------------------------------------ |
-| [`@opys/mojang-rules`](mojang-rules/) | Mojang-standard rule format (os/features/rule/ruleset) |
+| [`@opys/mojang-rules`](mojang-rules/) | Mojang-standard rule format — types only, no deps      |
 | [`@opys/core`](core/)                 | Manifest data model + shorthand + `Val` — frozen spec  |
 | [`@opys/dev`](dev/)                   | Plugin SDK + `defineConfig` + the build engine         |
-| [`@opys/mojang`](mojang/)             | Zero-binding Mojang JSON parsers                       |
+| [`@opys/mojang`](mojang/)             | Mojang JSON parsers — Rust crate behind a napi binding |
 | [`@opys/minecraft`](minecraft/)       | Minecraft-domain plugins (minecraft/forge/curseforge…) |
 | [`@opys/java`](java/)                 | OpenJDK provisioning plugin                            |
 | [`@opys/runtime`](runtime/)           | Install + launch executor                              |

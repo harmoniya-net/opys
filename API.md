@@ -124,7 +124,11 @@ type (`string | string[] → string[]`, rule shorthand → full `Ruleset`, …).
 - Source/Extract factories: `sourceUrl`/`sourceFile`/`sourceString`/`sourcePointer`, `extractPick`/`extractScan`/`extractDump`
 - Glob: `globToRegex`, `globBase`
 - Vars / interpolation: `parseValDefs`, `resolveValDefs`, `resolveVars`, `interpolate`
-- The `@opys/mojang-rules` rule surface is re-exported from `core`.
+- The `@opys/mojang-rules` rule types (`Rule`, `Ruleset`, `OsName`, …) plus
+  `emptyRuleset` / `allowOsRuleset` are re-exported from `core`. The
+  evaluator is not: `core`'s `satisfiesRuleset` expands opys shorthand
+  first, so it is strictly wider than the Mojang-standard predicate. For
+  the strict one, use `@opys/mojang`.
 
 ### Pointer sources
 

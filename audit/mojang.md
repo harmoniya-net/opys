@@ -1,52 +1,57 @@
-# Audit — `@opys/mojang`
+# Audit — `opys-mojang` / `@opys/mojang`
 
-Code-quality audit, 2026-05-19 — open items only (resolved findings removed;
-see git history).
+Code-quality audit — open items only (resolved findings removed; see git
+history).
+
+The parsers moved to `crates/opys-mojang`; `@opys/mojang` is now a typed
+wrapper over the napi addon. Line references below point at the crate.
 
 ## HIGH
 
-- **`lib/client/maven.ts:33-43` — `encodeMaven` silently discards data; not a
-  total inverse of `parseMaven`.** `MavenCoord.version` is typed optional, but
-  `encodeMaven` drops `packaging` unless `classifier` AND `version` are all
+- **`src/maven.rs:60-70` — `encode_maven` silently discards data; not a total
+  inverse of `parse_maven`.** `MavenCoord.version` is `Option`, but
+  `encode_maven` drops `packaging` unless `classifier` _and_ `version` are
   present, and drops `classifier` unless `version` is present. So
-  `{groupId, artifactId, classifier:'natives-linux'}` (a valid `MavenCoord`)
-  encodes to `g:a` — data loss with no error. The type says `version?` is
-  optional, but `encodeMaven` is only correct when it is set. Either make
-  `version` required in `MavenCoord`, or make `encodeMaven` total / throw on
-  un-encodable shapes. (`maven.test.ts:111` enshrines the lossy behaviour.)
+  `{group_id, artifact_id, classifier: "natives-linux"}` encodes to `g:a` —
+  data loss with no error. Carried over deliberately: the flag it feeds
+  (`Library.native`) lands in artifact `metadata`, which is frozen, so the
+  behaviour could not change in the port. Fix by making `version` required, or
+  by moving encoding off `Display` onto a fallible method.
+  (`encode_maven_drops_incomplete_tails` enshrines the lossy behaviour.)
 
 ## MEDIUM
 
-- **`lib/client/client.ts:35-39` — `arguments`/`minecraftArguments` and
-  `libraries` typed `z.unknown()`, defeating "parse, don't validate".** The
-  schema parses the envelope but punts the two hardest fields to `z.unknown()`,
-  then `parseArguments`/`parseLibraries` re-parse from scratch. The wire shape
-  is already known (`MojangArgSchema`/`RawLibSchema`). Compose the sub-schemas
-  via `.transform()`, or document the deliberate two-pass approach.
-- **`lib/client/client.ts:48-52` — `parseClient` throws a bare `Error`** for a
-  missing-arguments wire defect, while every other failure path is a `ZodError`
-  and the version module has a structured `VersionFetchError`. Use a typed
-  error or a `.refine`.
-- **`lib/version.ts:36-39`, `lib/client/client.ts:9,18` — hand-written
-  `interface`s duplicating zod schemas** where `z.infer` is used elsewhere
-  (`logging.ts`, `VersionSchema`). `VersionManifest` / `ClientMetadata` /
-  `Client` must be kept in sync by hand and can drift. Pick one approach.
+None.
 
 ## LOW
 
-- **`lib/version.ts:62-65` — `latestRelease` is exported but unused** (no
-  consumer outside the package) and throws a bare `Error`. Drop it, or align
-  it with the `VersionFetchError` style.
-- **`lib/client/assets.ts:44-49` — `fetchAssetManifest` throws a bare `Error`**
-  while the sibling `fetchVersionManifest` throws a structured
-  `VersionFetchError`. Two fetchers, two error contracts.
-- **`lib/client/libraries.ts:35` — `extract: { exclude }` is parsed in
-  `RawLibSchema` then never read.** `Library` has no `extract` field. Dead
-  schema surface, or a missing feature.
+- **`VersionManifest::latest_release` has no in-repo consumer** outside the
+  napi wrapper. Kept as public API surface; drop it if that stays true.
+- **`packages/minecraft-vanilla/lib/mojang-fetch.ts:46` —
+  `fetchAssetManifest` throws a bare `Error`** while its sibling
+  `fetchVersionManifest` throws a structured `VersionFetchError`. Two fetchers,
+  two error contracts. (Inherited when fetching moved out of `@opys/mojang`.)
+- **Hand-written TS types mirror the Rust structs.** `packages/mojang/lib/index.ts`
+  restates `Client`, `Library`, `Downloads`, … by hand, so Rust↔TS drift is
+  possible. This is the established napi pattern here (`@opys/core` does the
+  same), and the boundary tests in `packages/mojang/tests/unit/boundary.test.ts`
+  cover the field names, but codegen would remove the class of bug entirely.
+
+## Resolved by the Rust port
+
+- `z.unknown()` deferral on `arguments`/`libraries` — every wire type now
+  implements `Deserialize` (`#[serde(from/try_from)]`), so a client JSON
+  decodes in one pass with no `serde_json::Value` intermediate and no bespoke
+  `parse_*` functions.
+- `parseClient` throwing a bare `Error` — now `MojangError::MissingArguments`.
+- `extract: { exclude }` parsed but never read — dropped from the wire struct.
+- **Wire-key bug**: `DownloadsSchema` declared `clientMappings` /
+  `serverMappings` / `windowsServer` in camelCase, but Mojang sends them
+  snake_case, so zod matched none of them and dropped all three on every
+  version JSON. The Rust structs read the wire spelling and emit camelCase.
+  No manifest impact — nothing reads anything but `downloads.client`.
 
 ## Verdict
 
-Good shape. The one real bug is `encodeMaven` being a lossy non-inverse of
-`parseMaven` while `MavenCoord` advertises `version` as optional — a type that
-lies. The rest is stylistic consistency: `z.unknown()` deferral, mixed
-structured-vs-bare errors, hand-written interfaces vs `z.infer`.
+One real bug (`encode_maven`), deliberately preserved because the frozen
+manifest depends on its output. Everything else is polish.

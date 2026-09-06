@@ -1,0 +1,26 @@
+{
+  "name": "@opys/mojang-binding-win32-x64-msvc",
+  "version": "0.2.0",
+  "os": [
+    "win32"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "main": "index.win32-x64-msvc.node",
+  "files": [
+    "index.win32-x64-msvc.node"
+  ],
+  "description": "napi-rs binary binding for @opys/mojang. Not consumed directly \u2014 re-exported by @opys/mojang.",
+  "engines": {
+    "node": ">=20"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/harmoniya-net/opys.git",
+    "directory": "crates/opys-mojang-napi"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

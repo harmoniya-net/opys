@@ -1,13 +1,23 @@
 /**
  * Live integration test — hits the real Mojang launcher-meta endpoints.
  * Run with `npm run test:int`; excluded from the default `npm test`.
+ *
+ * `@opys/mojang` performs no I/O, so the fetching is done here directly.
  */
 import { describe, expect, it } from 'vitest';
-import { fetchVersionManifest, findVersion, parseClient } from '../../lib';
+import {
+  findVersion,
+  parseClient,
+  parseVersionManifest,
+  VERSION_MANIFEST_URL,
+} from '../../lib';
+
+const fetchManifest = async () =>
+  parseVersionManifest(await (await fetch(VERSION_MANIFEST_URL)).json());
 
 describe('mojang version manifest (live)', () => {
   it('fetches the manifest and finds a known version', async () => {
-    const manifest = await fetchVersionManifest();
+    const manifest = await fetchManifest();
     expect(manifest.versions.length).toBeGreaterThan(0);
     expect(manifest.latest.release).toBeTruthy();
 
@@ -18,7 +28,7 @@ describe('mojang version manifest (live)', () => {
   });
 
   it('fetches and parses the real 1.20.1 client JSON', async () => {
-    const manifest = await fetchVersionManifest();
+    const manifest = await fetchManifest();
     const v = findVersion(manifest, '1.20.1')!;
     const client = parseClient(await (await fetch(v.url)).json());
 

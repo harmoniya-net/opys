@@ -87,6 +87,10 @@ jobs:
         run: npx napi build --platform --release --target ${{ matrix.target }} ${{ contains(matrix.target, '-musl') && '--zig' || '' }}
         working-directory: crates/opys-runtime-napi
 
+      - name: Build @opys/mojang-binding
+        run: npx napi build --platform --release --target ${{ matrix.target }} ${{ contains(matrix.target, '-musl') && '--zig' || '' }}
+        working-directory: crates/opys-mojang-napi
+
       - name: Upload @opys/core-binding artifact
         uses: actions/upload-artifact@v7
         with:
@@ -99,6 +103,13 @@ jobs:
         with:
           name: runtime-binding-${{ matrix.target }}
           path: crates/opys-runtime-napi/*.node
+          if-no-files-found: error
+
+      - name: Upload @opys/mojang-binding artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: mojang-binding-${{ matrix.target }}
+          path: crates/opys-mojang-napi/*.node
           if-no-files-found: error
 
   # ─────────────────────────────────────────────────────────────
@@ -138,6 +149,12 @@ jobs:
           path: crates/opys-runtime-napi/artifacts
           merge-multiple: true
 
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: mojang-binding-*
+          path: crates/opys-mojang-napi/artifacts
+          merge-multiple: true
+
       # The `npm/<target>/` per-platform sub-package scaffolding is checked
       # into git (see `crates/opys-*-napi/npm/`). `napi artifacts` walks
       # the downloaded `.node` files (filename encodes the target) and
@@ -145,7 +162,7 @@ jobs:
       - name: Route .node files into per-platform sub-packages
         run: |
           set -eux
-          for c in crates/opys-core-napi crates/opys-runtime-napi; do
+          for c in crates/opys-core-napi crates/opys-runtime-napi crates/opys-mojang-napi; do
             (cd "$c" && npx napi artifacts)
             ls -R "$c/npm"
           done
@@ -162,6 +179,13 @@ jobs:
       - name: Publish @opys/runtime-binding (loader + platform sub-packages)
         run: npx napi prepublish -t npm --skip-gh-release
         working-directory: crates/opys-runtime-napi
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish @opys/mojang-binding (loader + platform sub-packages)
+        run: npx napi prepublish -t npm --skip-gh-release
+        working-directory: crates/opys-mojang-napi
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
@@ -192,6 +216,8 @@ jobs:
       # `cargo publish` since 1.66 waits for crates.io indexing between
       # packages, so a sequential publish in dep order just works.
       - run: cargo publish -p opys-mojang-rules
+        env: { CARGO_REGISTRY_TOKEN: '${{ secrets.CARGO_REGISTRY_TOKEN }}' }
+      - run: cargo publish -p opys-mojang
         env: { CARGO_REGISTRY_TOKEN: '${{ secrets.CARGO_REGISTRY_TOKEN }}' }
       - run: cargo publish -p opys-core
         env: { CARGO_REGISTRY_TOKEN: '${{ secrets.CARGO_REGISTRY_TOKEN }}' }

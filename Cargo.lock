@@ -852,6 +852,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "opys-mojang"
+version = "0.2.0"
+dependencies = [
+ "opys-mojang-rules",
+ "serde",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
+name = "opys-mojang-napi"
+version = "0.2.0"
+dependencies = [
+ "napi",
+ "napi-build",
+ "napi-derive",
+ "opys-mojang",
+ "opys-mojang-rules",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "opys-mojang-rules"
 version = "0.2.0"
 dependencies = [

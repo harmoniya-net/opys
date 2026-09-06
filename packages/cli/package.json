@@ -18,8 +18,7 @@
     "@opys/core": "^0.2.0",
     "@opys/dev": "^0.2.0",
     "@opys/runtime": "^0.2.0",
-    "@opys/minecraft": "^0.2.0",
-    "@opys/mojang": "^0.2.0"
+    "@opys/minecraft": "^0.2.0"
   },
   "peerDependencies": {
     "zod": "^4.0.0"

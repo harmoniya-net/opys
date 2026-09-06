@@ -36,7 +36,8 @@ Eight packages, a clean DAG, no cycles:
 
 ```
 @opys/mojang-rules  Mojang-standard rule format (os / features / rule / ruleset).  leaf
-@opys/mojang        Mojang protocol parsers (version JSON, libraries, assets, …).  → core
+@opys/mojang        Mojang protocol parsers (version JSON, libraries, assets, …).
+                     Thin wrapper over the `opys-mojang` crate. → mojang-rules
 @opys/core          Manifest data model + opys shorthand + Val/Valset.
                      The reference implementation of opys.json.           → mojang-rules
 @opys/dev           Build SDK: defineConfig, the build engine, the plugin contract,
@@ -57,10 +58,18 @@ Eight packages, a clean DAG, no cycles:
   `tar-stream`), and `node:`. It is a clean reimplementation target.
 - **`dev` and `runtime` never see each other.** `core` is the only plank across
   the build-time / runtime wall; they are joined solely by `opys.json`.
-- **One rule schema, one evaluator** — `RuleSchema` + `satisfiesRuleset`,
-  monorepo-wide. `mojang-rules` holds only the Mojang-standard format; the
-  opys **shorthand** (`'osx'` → `[{action:'allow',os:{name:'osx'}}]`) and the
-  rule-tagged-value primitives `Val`/`Valset` are opys's own flavor, in `core`.
+- **One rule format, one implementation** — the `opys-mojang-rules` crate owns
+  the Mojang-standard format and is its only implementation. It reaches JS
+  through two addons with deliberately different contracts: `@opys/mojang`
+  exposes it **strictly**, while `@opys/core` first expands the opys
+  **shorthand** (`'allow.os.osx'` → `[{action:'allow',os:{name:'osx'}}]`) and
+  so accepts both spellings. The rule-tagged-value primitives `Val`/`Valset`
+  are opys's own flavor, in `core`.
+- **The `@opys/mojang-rules` npm package carries types only** — no zod, no
+  native code, no dependencies. Both sides of the build/runtime wall can name
+  the rule contract without pulling anything in. A hand-written TS
+  implementation living beside the Rust one is what silently drifted before;
+  there must not be a second one.
 
 ## Plugin model — bundler-style
 

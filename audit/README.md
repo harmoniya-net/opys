@@ -13,8 +13,8 @@ fixed (see git history); one file per package below.
 | File                               | What's left                                  |
 | ---------------------------------- | -------------------------------------------- |
 | [core.md](core.md)                 | 2 cosmetic LOW items                         |
-| [mojang-rules.md](mojang-rules.md) | 1 totality wart (`satisfiesOs`) + polish     |
-| [mojang.md](mojang.md)             | 1 real bug (`encodeMaven`) + consistency     |
+| [mojang-rules.md](mojang-rules.md) | 4 LOW polish items (crate; TS impl removed)  |
+| [mojang.md](mojang.md)             | 1 real bug (`encodeMaven`) + 3 LOW polish    |
 | [dev.md](dev.md)                   | 3 LOW polish items                           |
 | [minecraft.md](minecraft.md)       | `lwjgl3ify/template` casts + forge-family    |
 | [java.md](java.md)                 | 2 low-stakes polish items                    |
@@ -32,15 +32,16 @@ fixed (see git history); one file per package below.
 
 ## Cross-cutting themes still open
 
-- **"Parse, don't validate" applied unevenly.** `mojang/client.ts` punts
-  `arguments`/`libraries` to `z.unknown()`; `minecraft` cleanroom/lwjgl3ify
-  parse installer JSON via `interface` + `as T`.
-- **Bare `Error` vs structured errors.** `mojang` throws a structured
-  `VersionFetchError` in one fetcher and a bare `Error` in `parseClient` /
-  `fetchAssetManifest` / `latestRelease`. Pick one.
-- **Hand-written interfaces vs `z.infer`.** `mojang` (`VersionManifest`,
-  `Client`) and `minecraft` (four near-identical `*Template` interfaces) keep
-  hand-maintained types beside schemas — drift risk.
+- **"Parse, don't validate" applied unevenly.** `minecraft`
+  cleanroom/lwjgl3ify parse installer JSON via `interface` + `as T`. (`mojang`
+  is resolved: serde types the envelope since the Rust port.)
+- **Bare `Error` vs structured errors.** `minecraft-vanilla/mojang-fetch.ts`
+  throws a structured `VersionFetchError` from one fetcher and a bare `Error`
+  from `fetchAssetManifest`. Pick one.
+- **Hand-written types beside a generated source of truth.** `minecraft`
+  keeps four near-identical `*Template` interfaces beside its schemas, and the
+  napi wrappers (`core`, `mojang`) restate the Rust structs by hand. Drift
+  risk in both; codegen would close it.
 - **Speculative generality.** `ArgItem`'s bare-`Val` arm (`dev`) and the
   `forgeWrapper` option (`minecraft`) carry surface no caller uses.
 

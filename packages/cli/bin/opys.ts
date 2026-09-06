@@ -2,7 +2,7 @@
 import { cmdBuild } from '../lib/commands/build';
 import { cmdLaunch } from '../lib/commands/launch';
 import { NetworkError, IntegrityError, ExtractionError } from '@opys/runtime';
-import { VersionFetchError } from '@opys/mojang';
+import { VersionFetchError } from '@opys/minecraft';
 import { UsageError } from '../lib/errors';
 import { Logger, parseLogLevel, type LogLevel } from '../lib/logger';
 
