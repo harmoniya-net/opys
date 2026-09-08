@@ -8,8 +8,9 @@ substrate every forge-family loader (forge, neoforge, fabric,
 cleanroom, lwjgl3ify) builds on.
 
 Resolution and mapping live in the `opys-minecraft-vanilla` crate and reach JS
-through `@opys/minecraft-binding`; this package is the typed surface
+through `@opys/minecraft-vanilla-binding`; this package is the typed surface
 over it, plus the `minecraft()` plugin closure the build engine calls.
+Each loader built on it ships its own crate and its own binding.
 A native builder embedding the crate gets the same mappers and the same
 contribution.
 

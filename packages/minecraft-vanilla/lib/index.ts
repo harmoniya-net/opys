@@ -2,9 +2,9 @@
  * `@opys/minecraft-vanilla` — vanilla Minecraft as manifest artifacts.
  *
  * Behaviour lives in the `opys-minecraft-vanilla` crate and reaches JS through
- * `@opys/minecraft-binding`; this module is the typed surface over it. The
- * codegen'd binding types everything as `Json` (≈ `unknown`), so each wrapper
- * carries one `as`-cast at the boundary. No `as unknown as`.
+ * `@opys/minecraft-vanilla-binding`; this module is the typed surface over it.
+ * The codegen'd binding types everything as `Json` (≈ `unknown`), so each
+ * wrapper carries one `as`-cast at the boundary. No `as unknown as`.
  *
  * What stays here is the half that cannot cross: `minecraft()` is a closure
  * the build engine calls with a `BuildContext`, so the plugin wrapper — and
@@ -16,7 +16,7 @@
  * library mapping.
  */
 
-import * as napi from '@opys/minecraft-binding';
+import * as napi from '@opys/minecraft-vanilla-binding';
 import { definePlugin, launchGroups, type ChainablePlugin } from '@opys/dev';
 import type {
   Artifact,

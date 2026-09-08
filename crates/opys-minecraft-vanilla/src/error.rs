@@ -2,12 +2,11 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum MinecraftError {
+    /// A failed JSON GET — transport, a non-2xx status, or an undecodable body.
     #[error(transparent)]
-    Http(#[from] opys_dev::HttpError),
+    Fetch(#[from] opys_dev::JsonGetError),
     #[error(transparent)]
     Mojang(#[from] opys_mojang::MojangError),
-    #[error("{url} returned HTTP {status}")]
-    Api { url: String, status: u16 },
     #[error("Version '{0}' not found in the Mojang version manifest")]
     VersionNotFound(String),
     #[error("The Mojang version manifest lists no current release")]

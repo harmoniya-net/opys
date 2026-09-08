@@ -72,6 +72,24 @@ impl MavenCoord {
             .is_some_and(|c| c.starts_with("natives"))
     }
 
+    /// The coordinate's path under a Maven repository root:
+    /// `<group as dirs>/<artifact>/<version>/<artifact>-<version>[-<classifier>].<ext>`.
+    ///
+    /// `None` when the coordinate carries no version — a versionless coordinate
+    /// names an artifact, not a file, so there is no path to give. Callers that
+    /// require one say so in their own error; this is Maven layout, not policy.
+    pub fn path(&self) -> Option<String> {
+        let version = self.version.as_deref()?;
+        let group = self.group_id.replace('.', "/");
+        let ext = self.packaging.as_deref().unwrap_or("jar");
+        let artifact = &self.artifact_id;
+        let file = match self.classifier.as_deref() {
+            Some(classifier) => format!("{artifact}-{version}-{classifier}.{ext}"),
+            None => format!("{artifact}-{version}.{ext}"),
+        };
+        Some(format!("{group}/{artifact}/{version}/{file}"))
+    }
+
     /// Compare on every field except [`version`](MavenCoord::version).
     pub fn matches_ignoring_version(&self, other: &Self) -> bool {
         self.group_id == other.group_id

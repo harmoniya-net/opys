@@ -884,6 +884,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "opys-fabric"
+version = "0.2.0"
+dependencies = [
+ "opys-core",
+ "opys-dev",
+ "opys-minecraft-vanilla",
+ "opys-mojang",
+ "serde",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
+name = "opys-fabric-napi"
+version = "0.2.0"
+dependencies = [
+ "napi",
+ "napi-build",
+ "napi-derive",
+ "opys-fabric",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "opys-java"
 version = "0.2.0"
 dependencies = [
@@ -909,19 +934,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "opys-minecraft-napi"
-version = "0.2.0"
-dependencies = [
- "napi",
- "napi-build",
- "napi-derive",
- "opys-minecraft-vanilla",
- "opys-mojang",
- "serde",
- "serde_json",
-]
-
-[[package]]
 name = "opys-minecraft-vanilla"
 version = "0.2.0"
 dependencies = [
@@ -933,6 +945,19 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror",
+]
+
+[[package]]
+name = "opys-minecraft-vanilla-napi"
+version = "0.2.0"
+dependencies = [
+ "napi",
+ "napi-build",
+ "napi-derive",
+ "opys-minecraft-vanilla",
+ "opys-mojang",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

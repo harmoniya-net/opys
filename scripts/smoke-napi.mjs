@@ -1,10 +1,10 @@
 #!/usr/bin/env node
-// End-to-end smoke test for the napi bindings. Loads all six .node files,
+// End-to-end smoke test for the napi bindings. Loads all seven .node files,
 // exercises core decode/encode/resolve, the mojang parsers, the dev engine's
-// merge, a java resolve against a loopback stand-in for the Adoptium API and
-// a vanilla Minecraft resolve against one for the Mojang endpoints, then runs
-// an actual `install` from runtime-napi against a tmpdir with a string
-// source.
+// merge, a java resolve against a loopback stand-in for the Adoptium API, a
+// vanilla Minecraft resolve against one for the Mojang endpoints and a fabric
+// resolve against stand-ins for both Fabric Meta and Mojang, then runs an
+// actual `install` from runtime-napi against a tmpdir with a string source.
 //
 // Run from the repo root:  node scripts/smoke-napi.mjs
 
@@ -20,7 +20,8 @@ const runtime = require('../crates/opys-runtime-napi/index.js');
 const mojang = require('../crates/opys-mojang-napi/index.js');
 const dev = require('../crates/opys-dev-napi/index.js');
 const java = require('../crates/opys-java-napi/index.js');
-const minecraft = require('../crates/opys-minecraft-napi/index.js');
+const minecraft = require('../crates/opys-minecraft-vanilla-napi/index.js');
+const fabricNapi = require('../crates/opys-fabric-napi/index.js');
 
 let ok = 0;
 let fail = 0;
@@ -363,6 +364,87 @@ check(
     withMc.manifest.launch.args[0] === 'net.minecraft.client.main.Main',
 );
 
+// ── fabric ────────────────────────────────────────────────────────────────
+// Its own `.node`, but the same Mojang stand-in: the profile names `1.20.1`
+// as what it inherits from, so the crossing exercised here is Meta → profile
+// → the vanilla chain → the fold.
+console.log('\n— fabric —');
+
+const FABRIC_PROFILE = {
+  id: 'fabric-loader-0.16.10-1.20.1',
+  inheritsFrom: '1.20.1',
+  mainClass: 'net.fabricmc.loader.impl.launch.knot.KnotClient',
+  arguments: {
+    game: [],
+    jvm: ['-DFabricMcEmu= net.minecraft.client.main.Main '],
+  },
+  libraries: [
+    {
+      name: 'net.fabricmc:fabric-loader:0.16.10',
+      url: 'https://maven.fabricmc.net/',
+      sha1: 'a'.repeat(40),
+      size: 2000,
+    },
+  ],
+};
+
+let metaBase = '';
+const fabricMeta = createServer((req, res) => {
+  const target = req.url ?? '';
+  const body = target.endsWith('/profile/json')
+    ? FABRIC_PROFILE
+    : [{ loader: { version: '0.16.10', stable: true } }];
+  res
+    .writeHead(200, { 'content-type': 'application/json' })
+    .end(JSON.stringify(body));
+});
+await new Promise((resolve) => fabricMeta.listen(0, '127.0.0.1', resolve));
+metaBase = `http://127.0.0.1:${fabricMeta.address().port}`;
+const fabricOpts = { ...mcOpts, source: metaBase };
+
+check(
+  'defaultFabricMeta is the canonical URL',
+  fabricNapi.defaultFabricMeta() === 'https://meta.fabricmc.net',
+);
+
+const release = await fabricNapi.resolveFabricVersion('1.20.1', metaBase, null);
+check(
+  'resolveFabricVersion picks the stable build and spells the profile URL',
+  release.loaderVersion === '0.16.10' &&
+    release.profileUrl ===
+      `${metaBase}/v2/versions/loader/1.20.1/0.16.10/profile/json`,
+);
+
+const fab = await fabricNapi.resolveFabric(fabricOpts);
+check(
+  'resolveFabric appends the loader jar after the vanilla artifacts',
+  fab.artifacts.at(-1).path ===
+    '${library_directory}/net/fabricmc/fabric-loader/0.16.10/fabric-loader-0.16.10.jar',
+);
+check(
+  'resolveFabric launches the loader, not vanilla',
+  fab.mainClass === 'net.fabricmc.loader.impl.launch.knot.KnotClient',
+);
+check(
+  "resolveFabric merges the profile jvm args after vanilla's",
+  fab.jvmArgs.at(-1) === '-DFabricMcEmu= net.minecraft.client.main.Main ',
+);
+
+const fabBuilt = await fabricNapi.buildFabric(fabricOpts);
+check('buildFabric names the plugin', fabBuilt.name === 'fabric');
+
+const withFabric = dev.assemble([fabBuilt], {
+  command: '${java_bin}',
+  args: [fabBuilt.contribution.launch.mainClass],
+});
+check(
+  'assemble accepts the fabric contribution end to end',
+  withFabric.manifest.artifacts.length === 4 &&
+    withFabric.manifest.launch.args[0] ===
+      'net.fabricmc.loader.impl.launch.knot.KnotClient',
+);
+
+fabricMeta.close();
 mojangApi.close();
 
 console.log(`\nresult: ${ok} passed, ${fail} failed`);

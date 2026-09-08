@@ -54,12 +54,12 @@ Eight packages, a clean DAG, no cycles:
                      artifact overrides, artifactScanner, userDataDir.
                      The contribution merge is the `opys-dev` crate.               → core
 @opys/runtime       install + launch executor.                              → core ONLY
-@opys/minecraft     Minecraft-domain plugins — minecraft / forge / cleanroom /
-                     lwjgl3ify / curseforge / authliberty — + bifrost / serverlist
-                     helpers. Vanilla is a thin wrapper over the
-                     `opys-minecraft-vanilla` crate; the loaders get a crate
-                     apiece on top of it, all behind one shared `.node`
-                     (`@opys/minecraft-binding`).             → dev, core, mojang
+@opys/minecraft     Minecraft-domain plugins — minecraft / forge / fabric /
+                     cleanroom / lwjgl3ify / curseforge / authliberty — + bifrost /
+                     serverlist helpers. Vanilla and fabric are thin wrappers over
+                     the `opys-minecraft-vanilla` and `opys-fabric` crates, each
+                     with its own `.node`; the remaining loaders get a crate and a
+                     binding apiece on top of vanilla.        → dev, core, mojang
 @opys/java          JDK provisioning — Temurin / Zulu / GraalVM CE.
                      Thin wrapper over the `opys-java` crate.                → dev, core
 @opys/cli           the `opys` binary.                 → dev, runtime, minecraft, java
@@ -106,9 +106,15 @@ Eight packages, a clean DAG, no cycles:
   half of the loader family. Forge, fabric, neoforge, cleanroom and lwjgl3ify
   each resolve a version JSON their own way and then call the same mappers, so
   a fix to the natives dump rule or the per-OS classpath lands once. Each is
-  its own crate on top of `opys-minecraft-vanilla`, but they share a single
-  addon — `opys-minecraft-napi` links them all, so the release matrix stays at
-  one `.node` per target rather than one per loader.
+  its own crate on top of `opys-minecraft-vanilla`.
+- **One binding per crate.** `opys-<x>-napi` → `@opys/<x>-binding`, named after
+  the module it exposes and nothing else; a JS package imports its own binding,
+  never a sibling's. Every addon statically links the same ~4 MB of
+  ureq/rustls/serde across seven triples, and that cost is accepted on purpose:
+  the crate split is the architecture and the binding count must not be allowed
+  to shape it. Collapsing addons into one `.node` stays a live option, but it
+  is one decision taken for all of them at once — not a family at a time, which
+  only yields a half-merged layout that is neither.
 - **One merge, one implementation.** Folding plugin contributions into a
   `Manifest` is `opys-dev`'s `assemble`; `@opys/dev` calls it through
   `@opys/dev-binding`. Driving the plugins stays in JS because plugins and the
@@ -119,6 +125,12 @@ Eight packages, a clean DAG, no cycles:
   the install path has its own downloader in `opys-runtime`, and the two must
   never be confused for one another. `opys-dev-napi` builds with the `net`
   feature off, since merging contributions needs no network.
+  `http::get_json` is the layer every resolver actually calls — GET, reject a
+  non-2xx as `JsonGetError::Status`, decode. It lives in `opys-dev` rather
+  than in each loader crate because the status check and the decode must have
+  one spelling across the family; `http::get` stays underneath it for the
+  callers that treat a status as data (a 404 for a platform a release doesn't
+  ship).
 - **A resolver is a pure core with one impure call.** Version normalisation,
   query spelling, asset matching and template assembly are plain functions
   with plain unit tests; the request is the only part that touches the world.

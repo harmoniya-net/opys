@@ -3,6 +3,7 @@
 mod common;
 
 use common::{Reply, TestServer};
+use opys_dev::JsonGetError;
 use opys_minecraft_vanilla::{
     fetch_asset_manifest, fetch_client, fetch_version_manifest, MinecraftError,
 };
@@ -126,7 +127,10 @@ fn a_non_2xx_carries_the_url_and_the_status() {
     let server = TestServer::start(|_| Reply::status(503));
     let url = format!("{}/manifest.json", server.base);
     let err = fetch_version_manifest(Some(&url)).unwrap_err();
-    assert!(matches!(err, MinecraftError::Api { status: 503, .. }));
+    assert!(matches!(
+        err,
+        MinecraftError::Fetch(JsonGetError::Status { status: 503, .. })
+    ));
     assert!(err.to_string().contains(&url));
 }
 
@@ -147,7 +151,7 @@ fn a_malformed_body_is_a_json_error_not_a_panic() {
     let server = TestServer::start(|_| Reply::json("{ not json"));
     assert!(matches!(
         fetch_asset_manifest(&format!("{}/5.json", server.base)).unwrap_err(),
-        MinecraftError::Json(_)
+        MinecraftError::Fetch(JsonGetError::Decode(_))
     ));
 }
 

@@ -1,0 +1,26 @@
+{
+  "name": "@opys/fabric-binding-darwin-arm64",
+  "version": "0.2.0",
+  "os": [
+    "darwin"
+  ],
+  "cpu": [
+    "arm64"
+  ],
+  "main": "index.darwin-arm64.node",
+  "files": [
+    "index.darwin-arm64.node"
+  ],
+  "description": "napi-rs binary binding for @opys/fabric. Not consumed directly \u2014 re-exported by @opys/fabric.",
+  "engines": {
+    "node": ">=20"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/harmoniya-net/opys.git",
+    "directory": "crates/opys-fabric-napi"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

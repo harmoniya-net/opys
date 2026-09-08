@@ -17,11 +17,8 @@
   "dependencies": {
     "@opys/core": "^0.2.0",
     "@opys/dev": "^0.2.0",
-    "@opys/mojang": "^0.2.0",
-    "@opys/minecraft-vanilla": "^0.2.0"
-  },
-  "peerDependencies": {
-    "zod": "^4.0.0"
+    "@opys/minecraft-vanilla": "^0.2.0",
+    "@opys/fabric-binding": "^0.2.0"
   },
   "devDependencies": {
     "tsdown": "*",

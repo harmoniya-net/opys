@@ -49,6 +49,29 @@ fn is_native_keys_off_the_classifier_prefix() {
 }
 
 #[test]
+fn maven_path_is_the_repository_layout() {
+    let path = |s: &str| coord(s).path();
+    assert_eq!(
+        path("com.google.guava:guava:31.1-jre").as_deref(),
+        Some("com/google/guava/guava/31.1-jre/guava-31.1-jre.jar")
+    );
+    assert_eq!(
+        path("org.lwjgl:lwjgl:3.3.1:natives-linux").as_deref(),
+        Some("org/lwjgl/lwjgl/3.3.1/lwjgl-3.3.1-natives-linux.jar")
+    );
+    // The 5-segment form carries the packaging, which becomes the extension.
+    assert_eq!(
+        path("group.id:artifact.id:zip:tests:1.0.0").as_deref(),
+        Some("group/id/artifact.id/1.0.0/artifact.id-1.0.0-tests.zip")
+    );
+}
+
+#[test]
+fn a_versionless_coordinate_has_no_path() {
+    assert!(coord("net.fabricmc:intermediary").path().is_none());
+}
+
+#[test]
 fn maven_rejects_malformed_coordinates() {
     assert!("".parse::<MavenCoord>().is_err());
     assert!("one-part".parse::<MavenCoord>().is_err());

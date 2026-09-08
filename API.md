@@ -100,6 +100,10 @@ Minecraft-domain plugins — `@opys/minecraft`:
   Mojang; every loader below takes it too, since each starts from a vanilla
   version JSON.
 - **`forge(version, opts?)`** — Forge (1.7–1.12 legacy + 1.13+ processor eras).
+- **`neoforge(version, opts?)`** — NeoForge.
+- **`fabric(version, opts?)`** — Fabric. `version` is the Minecraft version;
+  `opts.loader` pins a loader build, otherwise the newest stable one targeting
+  it is resolved from Fabric Meta (`opts.source` points elsewhere).
 - **`cleanroom(version, opts?)`** — a 1.12.2 Forge variant.
 - **`lwjgl3ify(version, opts?)`** — a 1.7.10 Forge variant on LWJGL3.
 - **`curseforge({ token, path, files })`** — mod files from the CurseForge API.

@@ -1,0 +1,26 @@
+{
+  "name": "@opys/minecraft-vanilla-binding-win32-x64-msvc",
+  "version": "0.2.0",
+  "os": [
+    "win32"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "main": "index.win32-x64-msvc.node",
+  "files": [
+    "index.win32-x64-msvc.node"
+  ],
+  "description": "napi-rs binary binding for @opys/minecraft-vanilla. Not consumed directly \u2014 re-exported by @opys/minecraft-vanilla.",
+  "engines": {
+    "node": ">=20"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/harmoniya-net/opys.git",
+    "directory": "crates/opys-minecraft-vanilla-napi"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

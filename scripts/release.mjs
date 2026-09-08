@@ -84,12 +84,14 @@ for (const crate of [
   'crates/opys-dev',
   'crates/opys-java',
   'crates/opys-minecraft-vanilla',
+  'crates/opys-fabric',
   'crates/opys-runtime',
   'crates/opys-core-napi',
   'crates/opys-mojang-napi',
   'crates/opys-dev-napi',
   'crates/opys-java-napi',
-  'crates/opys-minecraft-napi',
+  'crates/opys-minecraft-vanilla-napi',
+  'crates/opys-fabric-napi',
   'crates/opys-runtime-napi',
 ]) {
   stampCargoCrate(`${crate}/Cargo.toml`);

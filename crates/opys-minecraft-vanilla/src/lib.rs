@@ -7,9 +7,9 @@
 //! the same classpath, launch, library and asset mapping, so each gets its own
 //! crate depending on this one — mirroring how the npm packages already sit.
 //!
-//! One `.node` serves all of them (`opys-minecraft-napi` →
-//! `@opys/minecraft-binding`); a crate per loader would otherwise mean a
-//! binding per loader across seven target triples.
+//! Each of those crates ships its own addon — this one is
+//! `opys-minecraft-vanilla-napi` → `@opys/minecraft-vanilla-binding` — so a
+//! binding is always named after the single module it exposes.
 //!
 //! Build-time only: the requests go through `opys-dev`'s one-shot blocking
 //! GET, which the runtime never links.

@@ -80,3 +80,39 @@ pub fn get(url: &str, headers: &[(&str, &str)]) -> Result<HttpResponse, HttpErro
         .map_err(|e| fail(&e))?;
     Ok(HttpResponse { status, body })
 }
+
+/// A build-time JSON GET that failed: the transport did, the server answered
+/// with a non-2xx, or the body was not the document expected.
+///
+/// Kept apart from [`HttpError`] because [`get`] deliberately treats a status
+/// as data — a resolver soft-skips a 404 for a platform a release doesn't
+/// ship. [`get_json`] is the other half of that split: the callers who want a
+/// document and have nothing to do with a status that isn't 200.
+#[derive(Debug, thiserror::Error)]
+pub enum JsonGetError {
+    #[error(transparent)]
+    Transport(#[from] HttpError),
+    #[error("{url} returned HTTP {status}")]
+    Status { url: String, status: u16 },
+    #[error(transparent)]
+    Decode(#[from] serde_json::Error),
+}
+
+/// GET `url` and parse the body as `T`.
+///
+/// Every loader resolver starts here — a small JSON API, one request, no
+/// retry. Shared so that the status check and the decode have one spelling
+/// across the family rather than one per crate.
+pub fn get_json<T: serde::de::DeserializeOwned>(
+    url: &str,
+    headers: &[(&str, &str)],
+) -> Result<T, JsonGetError> {
+    let response = get(url, headers)?;
+    if !response.ok() {
+        return Err(JsonGetError::Status {
+            url: url.to_owned(),
+            status: response.status,
+        });
+    }
+    Ok(serde_json::from_str(&response.body)?)
+}

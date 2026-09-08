@@ -99,9 +99,13 @@ jobs:
         run: npx napi build --platform --release --target ${{ matrix.target }} ${{ contains(matrix.target, '-musl') && '--zig' || '' }}
         working-directory: crates/opys-java-napi
 
-      - name: Build @opys/minecraft-binding
+      - name: Build @opys/minecraft-vanilla-binding
         run: npx napi build --platform --release --target ${{ matrix.target }} ${{ contains(matrix.target, '-musl') && '--zig' || '' }}
-        working-directory: crates/opys-minecraft-napi
+        working-directory: crates/opys-minecraft-vanilla-napi
+
+      - name: Build @opys/fabric-binding
+        run: npx napi build --platform --release --target ${{ matrix.target }} ${{ contains(matrix.target, '-musl') && '--zig' || '' }}
+        working-directory: crates/opys-fabric-napi
 
       - name: Upload @opys/core-binding artifact
         uses: actions/upload-artifact@v7
@@ -138,11 +142,18 @@ jobs:
           path: crates/opys-java-napi/*.node
           if-no-files-found: error
 
-      - name: Upload @opys/minecraft-binding artifact
+      - name: Upload @opys/minecraft-vanilla-binding artifact
         uses: actions/upload-artifact@v7
         with:
-          name: minecraft-binding-${{ matrix.target }}
-          path: crates/opys-minecraft-napi/*.node
+          name: minecraft-vanilla-binding-${{ matrix.target }}
+          path: crates/opys-minecraft-vanilla-napi/*.node
+          if-no-files-found: error
+
+      - name: Upload @opys/fabric-binding artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: fabric-binding-${{ matrix.target }}
+          path: crates/opys-fabric-napi/*.node
           if-no-files-found: error
 
   # ─────────────────────────────────────────────────────────────
@@ -202,8 +213,14 @@ jobs:
 
       - uses: actions/download-artifact@v8
         with:
-          pattern: minecraft-binding-*
-          path: crates/opys-minecraft-napi/artifacts
+          pattern: minecraft-vanilla-binding-*
+          path: crates/opys-minecraft-vanilla-napi/artifacts
+          merge-multiple: true
+
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: fabric-binding-*
+          path: crates/opys-fabric-napi/artifacts
           merge-multiple: true
 
       # The `npm/<target>/` per-platform sub-package scaffolding is checked
@@ -213,7 +230,7 @@ jobs:
       - name: Route .node files into per-platform sub-packages
         run: |
           set -eux
-          for c in crates/opys-core-napi crates/opys-runtime-napi crates/opys-mojang-napi crates/opys-dev-napi crates/opys-java-napi crates/opys-minecraft-napi; do
+          for c in crates/opys-core-napi crates/opys-runtime-napi crates/opys-mojang-napi crates/opys-dev-napi crates/opys-java-napi crates/opys-minecraft-vanilla-napi crates/opys-fabric-napi; do
             (cd "$c" && npx napi artifacts)
             ls -R "$c/npm"
           done
@@ -255,9 +272,16 @@ jobs:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      - name: Publish @opys/minecraft-binding (loader + platform sub-packages)
+      - name: Publish @opys/minecraft-vanilla-binding (loader + platform sub-packages)
         run: npx napi prepublish -t npm --skip-gh-release
-        working-directory: crates/opys-minecraft-napi
+        working-directory: crates/opys-minecraft-vanilla-napi
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish @opys/fabric-binding (loader + platform sub-packages)
+        run: npx napi prepublish -t npm --skip-gh-release
+        working-directory: crates/opys-fabric-napi
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
@@ -298,6 +322,8 @@ jobs:
       - run: cargo publish -p opys-java
         env: { CARGO_REGISTRY_TOKEN: '${{ secrets.CARGO_REGISTRY_TOKEN }}' }
       - run: cargo publish -p opys-minecraft-vanilla
+        env: { CARGO_REGISTRY_TOKEN: '${{ secrets.CARGO_REGISTRY_TOKEN }}' }
+      - run: cargo publish -p opys-fabric
         env: { CARGO_REGISTRY_TOKEN: '${{ secrets.CARGO_REGISTRY_TOKEN }}' }
       - run: cargo publish -p opys-runtime
         env: { CARGO_REGISTRY_TOKEN: '${{ secrets.CARGO_REGISTRY_TOKEN }}' }
