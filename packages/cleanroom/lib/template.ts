@@ -39,6 +39,12 @@ export interface CleanroomOptions {
   repo?: string;
   /** Optional GitHub token for higher rate limits while resolving releases. */
   token?: string;
+  /**
+   * URL of the Mojang version manifest, when it is not Mojang's own — a
+   * mirror, or a stand-in server under test. Passed straight to
+   * `fetchClient`.
+   */
+  manifestBase?: string;
 }
 
 export interface CleanroomTemplate {
@@ -120,7 +126,9 @@ export async function resolveCleanroom(
   );
 
   const vanillaId = versionJson.inheritsFrom;
-  const { client } = await fetchClient(vanillaId);
+  const { client } = await fetchClient(vanillaId, {
+    manifestBase: options.manifestBase,
+  });
   const mc = await clientToTemplate(client);
 
   const runtimeLibs = parseLibraries(versionJson.libraries);

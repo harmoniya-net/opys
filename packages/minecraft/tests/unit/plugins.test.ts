@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { zipSync, strToU8 } from 'fflate';
 import {
   minecraft,
@@ -13,15 +13,25 @@ import {
 } from '../../lib';
 import type { BuildContext } from '@opys/dev';
 import {
-  ASSET_MANIFEST,
-  VERSION_MANIFEST,
   clientJson,
   lib,
+  mojangServer,
   routedFetch,
-  vanillaRoutes,
+  type MojangServer,
 } from './fixtures';
 
-afterEach(() => vi.unstubAllGlobals());
+// Each loader's own API keeps the `fetch` stub; the vanilla client is fetched
+// natively and gets a real socket.
+let mojang: MojangServer;
+
+beforeEach(async () => {
+  mojang = await mojangServer({ '1.7.10': clientJson('1.7.10') });
+});
+
+afterEach(async () => {
+  vi.unstubAllGlobals();
+  await mojang.close();
+});
 
 const logs: string[] = [];
 const ctx: BuildContext = {
@@ -37,8 +47,8 @@ function reset() {
 describe('minecraft plugin', () => {
   it('builds vanilla artifacts + launch groups', async () => {
     reset();
-    routedFetch(vanillaRoutes());
-    const plugin = minecraft('1.20.1');
+    routedFetch([]);
+    const plugin = minecraft('1.20.1', { manifestBase: mojang.manifestBase });
     expect(plugin.name).toBe('minecraft');
     const c = await plugin.build(ctx);
     expect(c.artifacts!.length).toBeGreaterThan(0);
@@ -51,8 +61,10 @@ describe('minecraft plugin', () => {
 
   it('logs "latest" when no version is supplied', async () => {
     reset();
-    routedFetch(vanillaRoutes());
-    await minecraft().build(ctx);
+    routedFetch([]);
+    await minecraft(undefined, { manifestBase: mojang.manifestBase }).build(
+      ctx,
+    );
     expect(logs.some((l) => l.includes('vanilla latest'))).toBe(true);
   });
 });
@@ -106,11 +118,8 @@ describe('forge plugin', () => {
         },
       ],
       ['/install_profile.json', { libraries: [] }],
-      ['version_manifest', VERSION_MANIFEST],
-      ['/1.20.1.json', clientJson('1.20.1')],
-      ['/assets/5.json', ASSET_MANIFEST],
     ]);
-    const plugin = forge(F);
+    const plugin = forge(F, { manifestBase: mojang.manifestBase });
     expect(plugin.name).toBe('forge');
     const c = await plugin.build(ctx);
     expect(c.artifacts!.length).toBeGreaterThan(0);
@@ -154,23 +163,8 @@ describe('neoforge plugin', () => {
     routedFetch([
       [`neoforge-${NF}-installer.jar.sha1`, new Response('abc123')],
       [`neoforge-${NF}-installer.jar`, new Response(zip)],
-      [
-        'version_manifest',
-        {
-          ...VERSION_MANIFEST,
-          versions: [
-            {
-              ...VERSION_MANIFEST.versions[0]!,
-              id: MC,
-              url: `https://meta/${MC}.json`,
-            },
-          ],
-        },
-      ],
-      [`/${MC}.json`, clientJson(MC)],
-      ['/assets/5.json', ASSET_MANIFEST],
     ]);
-    const plugin = neoforge(NF);
+    const plugin = neoforge(NF, { manifestBase: mojang.manifestBase });
     expect(plugin.name).toBe('neoforge');
     const c = await plugin.build(ctx);
     expect(c.artifacts!.length).toBeGreaterThan(0);
@@ -200,8 +194,11 @@ describe('fabric plugin', () => {
         { name: 'org.ow2.asm:asm:9.7.1', url: 'https://maven.fabricmc.net/' },
       ],
     };
-    routedFetch([['/profile/json', profile], ...vanillaRoutes()]);
-    const plugin = fabric('1.20.1', { loader: LOADER });
+    routedFetch([['/profile/json', profile]]);
+    const plugin = fabric('1.20.1', {
+      loader: LOADER,
+      manifestBase: mojang.manifestBase,
+    });
     expect(plugin.name).toBe('fabric');
     const c = await plugin.build(ctx);
     expect(c.artifacts!.length).toBeGreaterThan(0);
@@ -252,11 +249,10 @@ describe('cleanroom plugin', () => {
         ],
       ],
       ['cleanroom-0.5.9-alpha-installer.jar', new Response(zip)],
-      ['version_manifest', VERSION_MANIFEST],
-      ['/1.12.2.json', clientJson('1.12.2')],
-      ['/assets/5.json', ASSET_MANIFEST],
     ]);
-    const plugin = cleanroom('0.5.9-alpha');
+    const plugin = cleanroom('0.5.9-alpha', {
+      manifestBase: mojang.manifestBase,
+    });
     expect(plugin.name).toBe('cleanroom');
     const c = await plugin.build(ctx);
     expect(c.artifacts!.length).toBeGreaterThan(0);
@@ -291,8 +287,19 @@ describe('lwjgl3ify plugin', () => {
           },
         ],
       ],
-      ['gh/version.json', clientJson('1.7.10', { id: '1.7.10-lwjgl3ify' })],
-      ['/assets/5.json', ASSET_MANIFEST],
+      [
+        'gh/version.json',
+        clientJson('1.7.10', {
+          id: '1.7.10-lwjgl3ify',
+          assetIndex: {
+            id: '5',
+            sha1: 'e'.repeat(40),
+            size: 400,
+            totalSize: 5000,
+            url: mojang.assetsUrl,
+          },
+        }),
+      ],
     ]);
     const plugin = lwjgl3ify('3.0.16', { unimixins: false });
     expect(plugin.name).toBe('lwjgl3ify');

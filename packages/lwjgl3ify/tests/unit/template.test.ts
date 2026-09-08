@@ -1,8 +1,23 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { resolveLwjgl3ify } from '../../lib/template';
-import { ASSET_MANIFEST, clientJson, lib, routedFetch } from './fixtures';
+import {
+  assetServer,
+  clientJson,
+  lib,
+  routedFetch,
+  type AssetServer,
+} from './fixtures';
 
-afterEach(() => vi.unstubAllGlobals());
+let assets: AssetServer;
+
+beforeEach(async () => {
+  assets = await assetServer();
+});
+
+afterEach(async () => {
+  vi.unstubAllGlobals();
+  await assets.close();
+});
 
 function lwjgl3ifyReleases(tag = '3.0.16') {
   return [
@@ -54,6 +69,13 @@ function unimixinsReleases(tag = '1.0.0') {
 function lwjgl3ifyVersionJson() {
   return clientJson('1.7.10', {
     id: '1.7.10-lwjgl3ify',
+    assetIndex: {
+      id: '5',
+      sha1: 'e'.repeat(40),
+      size: 400,
+      totalSize: 5000,
+      url: assets.url,
+    },
     libraries: [
       lib('org.lwjgl:lwjgl:3.3.1', 'org/lwjgl/lwjgl/3.3.1/lwjgl-3.3.1.jar'),
       // repo-style entry: name + url, no downloads block
@@ -81,7 +103,6 @@ function routes(extra: Array<[string, unknown]> = []) {
     ['/repos/GTNewHorizons/lwjgl3ify/releases', lwjgl3ifyReleases()],
     ['/repos/LegacyModdingMC/UniMixins/releases', unimixinsReleases()],
     ['dl/version.json', lwjgl3ifyVersionJson()],
-    ['/assets/5.json', ASSET_MANIFEST],
     ...extra,
   ]);
 }
@@ -150,6 +171,13 @@ describe('resolveLwjgl3ify', () => {
         'dl/version.json',
         clientJson('1.7.10', {
           id: '1.7.10-lwjgl3ify',
+          assetIndex: {
+            id: '5',
+            sha1: 'e'.repeat(40),
+            size: 400,
+            totalSize: 5000,
+            url: assets.url,
+          },
           libraries: [
             lib('org.lwjgl:lwjgl:3.3.1', 'org/lwjgl/lwjgl/3.3.1/lwjgl.jar'),
             // repo-style entry: parseable coord but no version → skipped
@@ -157,7 +185,6 @@ describe('resolveLwjgl3ify', () => {
           ],
         }),
       ],
-      ['/assets/5.json', ASSET_MANIFEST],
     ]);
     const t = await resolveLwjgl3ify({
       version: '3.0.16',
@@ -182,7 +209,6 @@ describe('resolveLwjgl3ify', () => {
       ['/repos/GTNewHorizons/lwjgl3ify/releases', lwjgl3ifyReleases()],
       ['/repos/LegacyModdingMC/UniMixins/releases', unimixinsReleases('2.0.0')],
       ['dl/version.json', lwjgl3ifyVersionJson()],
-      ['/assets/5.json', ASSET_MANIFEST],
     ]);
     const t = await resolveLwjgl3ify({
       version: '3.0.16',
@@ -210,7 +236,6 @@ describe('resolveLwjgl3ify', () => {
       ['/repos/GTNewHorizons/lwjgl3ify/releases', lwjgl3ifyReleases()],
       ['/repos/LegacyModdingMC/UniMixins/releases', []],
       ['dl/version.json', lwjgl3ifyVersionJson()],
-      ['/assets/5.json', ASSET_MANIFEST],
     ]);
     await expect(
       resolveLwjgl3ify({ version: '3.0.16', unimixins: { version: 'x' } }),
@@ -238,7 +263,6 @@ describe('resolveLwjgl3ify', () => {
         ],
       ],
       ['dl/version.json', lwjgl3ifyVersionJson()],
-      ['/assets/5.json', ASSET_MANIFEST],
     ]);
     await expect(resolveLwjgl3ify({ version: '3.0.16' })).rejects.toThrow(
       /No (stable )?GitHub release/,
@@ -250,7 +274,6 @@ describe('resolveLwjgl3ify', () => {
       ['/repos/GTNewHorizons/lwjgl3ify/releases', lwjgl3ifyReleases()],
       ['/repos/LegacyModdingMC/UniMixins/releases', unimixinsReleases('9.9.9')],
       ['dl/version.json', lwjgl3ifyVersionJson()],
-      ['/assets/5.json', ASSET_MANIFEST],
     ]);
     const t = await resolveLwjgl3ify({
       version: '3.0.16',
@@ -267,7 +290,6 @@ describe('resolveLwjgl3ify', () => {
         new Response('x', { status: 404 }),
       ],
       ['dl/version.json', lwjgl3ifyVersionJson()],
-      ['/assets/5.json', ASSET_MANIFEST],
     ]);
     await expect(resolveLwjgl3ify({ version: '3.0.16' })).rejects.toThrow(
       /GitHub API 404/,

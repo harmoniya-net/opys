@@ -50,21 +50,21 @@ impl From<OsOptionsJs> for opys_mojang_rules::OsOptions {
 /// Parse a version-JSON client document into the domain shape.
 #[napi(js_name = "parseClient")]
 pub fn parse_client(raw: Json) -> Result<Json> {
-    let client: opys_mojang::Client = serde_json::from_value(raw).map_err(map_err)?;
+    let client = opys_mojang::Client::from_version_json(raw).map_err(map_err)?;
     serde_json::to_value(client).map_err(map_err)
 }
 
 /// Parse the `libraries` array of a version JSON.
 #[napi(js_name = "parseLibraries")]
 pub fn parse_libraries(raws: Json) -> Result<Json> {
-    let libs: opys_mojang::Libraries = serde_json::from_value(raws).map_err(map_err)?;
+    let libs = opys_mojang::Libraries::from_version_json(raws).map_err(map_err)?;
     serde_json::to_value(libs).map_err(map_err)
 }
 
 /// Parse `arguments` (modern object) or `minecraftArguments` (legacy string).
 #[napi(js_name = "parseArguments")]
 pub fn parse_arguments(raw: Json) -> Result<Json> {
-    let args: opys_mojang::Arguments = serde_json::from_value(raw).map_err(map_err)?;
+    let args = opys_mojang::Arguments::from_version_json(raw).map_err(map_err)?;
     serde_json::to_value(args).map_err(map_err)
 }
 

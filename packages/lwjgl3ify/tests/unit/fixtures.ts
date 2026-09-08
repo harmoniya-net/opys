@@ -3,6 +3,8 @@
  * network-driven template/plugin tests.
  */
 import { vi } from 'vitest';
+import { createServer } from 'node:http';
+import type { AddressInfo } from 'node:net';
 
 export const VERSION_MANIFEST = {
   latest: { release: '1.20.1', snapshot: '1.20.1' },
@@ -133,4 +135,34 @@ export function vanillaRoutes(id = '1.20.1'): Array<[string, unknown]> {
     [`/${id}.json`, clientJson(id)],
     ['/assets/5.json', ASSET_MANIFEST],
   ];
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// The asset manifest, on loopback.
+//
+// lwjgl3ify carries its own self-contained version JSON, so the only Mojang
+// document it needs is the asset manifest — and that is now fetched inside
+// the `opys-minecraft-vanilla` crate, where a `vi.stubGlobal('fetch', …)` route
+// cannot reach it. The GitHub release listings still go through
+// `fetchWithRetry` and keep their stub.
+// ──────────────────────────────────────────────────────────────────────────
+
+export interface AssetServer {
+  /** Put this in the version JSON's `assetIndex.url`. */
+  url: string;
+  close: () => Promise<void>;
+}
+
+export async function assetServer(): Promise<AssetServer> {
+  const server = createServer((_req, res) => {
+    res
+      .writeHead(200, { 'content-type': 'application/json' })
+      .end(JSON.stringify(ASSET_MANIFEST));
+  });
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+  const { port } = server.address() as AddressInfo;
+  return {
+    url: `http://127.0.0.1:${port}/assets/5.json`,
+    close: () => new Promise<void>((resolve) => server.close(() => resolve())),
+  };
 }

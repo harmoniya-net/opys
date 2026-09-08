@@ -95,7 +95,10 @@ integrity? }` patch — and the `Selector` type), and the `userDataDir` helper.
 
 Minecraft-domain plugins — `@opys/minecraft`:
 
-- **`minecraft(version?)`** — vanilla client + libraries + assets.
+- **`minecraft(version?, opts?)`** — vanilla client + libraries + assets.
+  `opts.manifestBase` points the version-manifest fetch somewhere other than
+  Mojang; every loader below takes it too, since each starts from a vanilla
+  version JSON.
 - **`forge(version, opts?)`** — Forge (1.7–1.12 legacy + 1.13+ processor eras).
 - **`cleanroom(version, opts?)`** — a 1.12.2 Forge variant.
 - **`lwjgl3ify(version, opts?)`** — a 1.7.10 Forge variant on LWJGL3.
@@ -128,12 +131,15 @@ possible are internal to the crate; no consumer names one.
 - `Manifest`, `decodeManifest`, `parseManifest`, `encodeManifest`
 - `filterManifest(m, os, feats?)`
 - `Artifact`, `deduplicateArtifacts`
-- Subtypes: `Source`, `Integrity`/`HashEntry`, `ExtractRule` (`Pick`/`Scan`/`Dump`), `Launch`, `ValDefs`/`ConditionalVal`, `Val`/`Valset`
+- Subtypes: `Source`, `Integrity`/`HashEntry`, `ExtractRule` (`Pick`/`Scan`/`Dump`), `Launch`, `ValDefs`/`ConditionalVal`, `Val`/`ValObject`/`Valset`
+- A `Val` is `string | { rules?, value: string | string[] }` — all of which the
+  manifest format allows, and a rule-free single value encodes back to the bare
+  string. Read one with `valValues(val): string[]` rather than `.value`.
 - Pointer: `PointerDescriptor`
 - Discovery: `Discovery`, `HashRef`, `IntegrityProbes`, `SizeProbes`
 - Source/Extract factories: `sourceUrl`/`sourceFile`/`sourceString`/`sourcePointer`/`sourceBytes`, `extractPick`/`extractScan`/`extractDump`
 - Glob: `globToRegex`, `globToRegexSource`, `globBase`
-- Vars / interpolation: `parseValset`, `resolveVars`, `interpolate`, `resolvedArgs`, `resolvedEnvs`
+- Vars / interpolation: `valValues`, `resolveVars`, `interpolate`, `resolvedArgs`, `resolvedEnvs`
 - Rules come in two named spellings, and the distinction is the point:
   `MojangRule` / `MojangRuleset` (re-exported from `@opys/mojang-rules`) are
   the expanded, canonical form the evaluator takes; `Rule` / `Ruleset`

@@ -1,6 +1,6 @@
 //! Version-JSON `libraries`.
 
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::ops::Deref;
 
 use opys_mojang_rules::{MojangRule, MojangRuleset, OsConstraint, OsName, RuleAction};
@@ -28,12 +28,21 @@ pub struct Library {
 
 /// The `libraries` array, flattened.
 ///
-/// A newtype because the wire shape and the domain shape differ in length:
-/// one wire entry expands into a main artifact plus one entry per declared
-/// native classifier. Serialises as a plain array.
+/// A newtype because the version-JSON shape and the domain shape differ in
+/// length: one JSON entry expands into a main artifact plus one entry per
+/// declared native classifier. De/serialises as a plain array of [`Library`],
+/// symmetrically; reading the version-JSON spelling is
+/// [`Libraries::from_version_json`].
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(try_from = "Vec<LibraryWire>")]
+#[serde(transparent)]
 pub struct Libraries(Vec<Library>);
+
+impl Libraries {
+    /// Read (and flatten) the `libraries` array of a version JSON.
+    pub fn from_version_json(raw: serde_json::Value) -> Result<Self, MojangError> {
+        serde_json::from_value::<Vec<LibraryWire>>(raw)?.try_into()
+    }
+}
 
 impl Deref for Libraries {
     type Target = [Library];
@@ -61,17 +70,21 @@ struct DownloadsWire {
     #[serde(default)]
     artifact: Option<Artifact>,
     #[serde(default)]
-    classifiers: HashMap<String, Artifact>,
+    classifiers: BTreeMap<String, Artifact>,
 }
 
 #[derive(Deserialize)]
-struct LibraryWire {
+pub(crate) struct LibraryWire {
     downloads: DownloadsWire,
     name: String,
     #[serde(default)]
     rules: MojangRuleset,
+    /// Ordered, not hashed: each entry expands into an artifact, and the
+    /// order they expand in is the order they appear in the manifest. A
+    /// `HashMap` here made an `opys.json` differ between two builds of the
+    /// same version.
     #[serde(default)]
-    natives: HashMap<String, String>,
+    natives: BTreeMap<String, String>,
 }
 
 fn os_name(raw: &str) -> Result<OsName, MojangError> {

@@ -3,6 +3,8 @@
 use opys_mojang_rules::MojangRuleset;
 use serde::{Deserialize, Serialize};
 
+use crate::error::MojangError;
+
 /// `value` keeps the shape it arrived in — a bare string stays a string, an
 /// array stays an array. Normalising here would change the encoded manifest.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -26,18 +28,28 @@ pub enum MojangArgValue {
     },
 }
 
-/// Either form of the arguments field: the modern `{ game, jvm }` object, or
-/// the legacy whitespace-separated string.
+/// The resolved arguments of a version JSON.
+///
+/// Symmetric: what this serialises to is what it deserialises from. Reading
+/// the *version JSON* spelling — the modern `{ game, jvm }` object or the
+/// legacy whitespace-separated string — is [`Arguments::from_version_json`],
+/// a named operation rather than a `Deserialize` impl, so that a domain value
+/// handed back across a boundary round-trips unchanged (`legacy` included).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(from = "ArgumentsWire")]
 pub struct Arguments {
     pub game: Vec<MojangArgValue>,
     pub jvm: Vec<MojangArgValue>,
     /// True when parsed from the legacy `minecraftArguments` string field.
+    #[serde(default)]
     pub legacy: bool,
 }
 
 impl Arguments {
+    /// Read the `arguments` / `minecraftArguments` field of a version JSON.
+    pub fn from_version_json(raw: serde_json::Value) -> Result<Self, MojangError> {
+        Ok(serde_json::from_value::<ArgumentsWire>(raw)?.into())
+    }
+
     /// JVM arguments implied by a legacy `minecraftArguments` version JSON.
     pub fn legacy_jvm_args() -> Vec<MojangArgValue> {
         [
@@ -66,7 +78,7 @@ impl Arguments {
 
 #[derive(Deserialize)]
 #[serde(untagged)]
-enum ArgumentsWire {
+pub(crate) enum ArgumentsWire {
     Legacy(String),
     Modern {
         #[serde(default)]

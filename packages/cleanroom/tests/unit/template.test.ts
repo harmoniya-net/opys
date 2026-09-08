@@ -1,15 +1,27 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { valValues } from '@opys/core';
 import { zipSync, strToU8 } from 'fflate';
 import { resolveCleanroom } from '../../lib/template';
 import {
-  ASSET_MANIFEST,
-  VERSION_MANIFEST,
   clientJson,
   lib,
+  mojangServer,
   routedFetch,
+  type MojangServer,
 } from './fixtures';
 
-afterEach(() => vi.unstubAllGlobals());
+// The GitHub release listing and the installer zip keep the `fetch` stub;
+// the vanilla client is fetched natively and gets a real socket.
+let mojang: MojangServer;
+
+beforeEach(async () => {
+  mojang = await mojangServer({ '1.12.2': vanilla1122() });
+});
+
+afterEach(async () => {
+  vi.unstubAllGlobals();
+  await mojang.close();
+});
 
 function ghReleases(tag = '0.5.9-alpha') {
   return [
@@ -98,24 +110,27 @@ function routes(zip: Uint8Array) {
   return routedFetch([
     ['/releases', ghReleases()],
     ['cleanroom-0.5.9-alpha-installer.jar', new Response(zip)],
-    ['version_manifest', VERSION_MANIFEST],
-    ['/1.12.2.json', vanilla1122()],
-    ['/assets/5.json', ASSET_MANIFEST],
   ]);
 }
 
 describe('resolveCleanroom', () => {
   it('builds a template with the Foundation main class', async () => {
     routes(installerZip(versionJson, installProfileJson));
-    const t = await resolveCleanroom({ version: '0.5.9-alpha' });
-    expect(t.mainClass.value[0]).toBe(
+    const t = await resolveCleanroom({
+      version: '0.5.9-alpha',
+      manifestBase: mojang.manifestBase,
+    });
+    expect(valValues(t.mainClass)[0]).toBe(
       'top.outlands.foundation.boot.Foundation',
     );
   });
 
   it('emits the installer artifact with a maven/ scan extract rule', async () => {
     routes(installerZip(versionJson, installProfileJson));
-    const t = await resolveCleanroom({ version: '0.5.9-alpha' });
+    const t = await resolveCleanroom({
+      version: '0.5.9-alpha',
+      manifestBase: mojang.manifestBase,
+    });
     const installer = t.artifacts.find((a) =>
       a.path.includes('cleanroom-0.5.9-alpha-installer.jar'),
     )!;
@@ -131,7 +146,10 @@ describe('resolveCleanroom', () => {
 
   it('skips runtime libraries with an empty url from the download set', async () => {
     routes(installerZip(versionJson, installProfileJson));
-    const t = await resolveCleanroom({ version: '0.5.9-alpha' });
+    const t = await resolveCleanroom({
+      version: '0.5.9-alpha',
+      manifestBase: mojang.manifestBase,
+    });
     expect(
       t.artifacts.some((a) => a.path.includes('cleanroom-0.5.9.jar')),
     ).toBe(false);
@@ -141,7 +159,10 @@ describe('resolveCleanroom', () => {
 
   it('drops the lwjgl 2 family from vanilla artifacts', async () => {
     routes(installerZip(versionJson, installProfileJson));
-    const t = await resolveCleanroom({ version: '0.5.9-alpha' });
+    const t = await resolveCleanroom({
+      version: '0.5.9-alpha',
+      manifestBase: mojang.manifestBase,
+    });
     expect(t.artifacts.some((a) => a.path.includes('lwjgl/lwjgl/2.9.4'))).toBe(
       false,
     );
@@ -156,8 +177,11 @@ describe('resolveCleanroom', () => {
       arguments: { game: ['--demo'], jvm: [] },
     };
     routes(installerZip(vj, installProfileJson));
-    const t = await resolveCleanroom({ version: '0.5.9-alpha' });
-    expect(t.gameArgs.flatMap((v) => v.value)).toContain('--demo');
+    const t = await resolveCleanroom({
+      version: '0.5.9-alpha',
+      manifestBase: mojang.manifestBase,
+    });
+    expect(t.gameArgs.flatMap(valValues)).toContain('--demo');
   });
 
   it('handles a version.json with no args fields at all', async () => {
@@ -167,7 +191,10 @@ describe('resolveCleanroom', () => {
       arguments: undefined,
     };
     routes(installerZip(vj, installProfileJson));
-    const t = await resolveCleanroom({ version: '0.5.9-alpha' });
+    const t = await resolveCleanroom({
+      version: '0.5.9-alpha',
+      manifestBase: mojang.manifestBase,
+    });
     expect(t.gameArgs).toEqual([]);
   });
 
@@ -179,9 +206,12 @@ describe('resolveCleanroom', () => {
         new Response('gone', { status: 404 }),
       ],
     ]);
-    await expect(resolveCleanroom({ version: '0.5.9-alpha' })).rejects.toThrow(
-      /Failed to download Cleanroom installer/,
-    );
+    await expect(
+      resolveCleanroom({
+        version: '0.5.9-alpha',
+        manifestBase: mojang.manifestBase,
+      }),
+    ).rejects.toThrow(/Failed to download Cleanroom installer/);
   });
 
   it('throws when the installer zip is missing version.json', async () => {
@@ -192,8 +222,11 @@ describe('resolveCleanroom', () => {
       ['/releases', ghReleases()],
       ['cleanroom-0.5.9-alpha-installer.jar', new Response(zip)],
     ]);
-    await expect(resolveCleanroom({ version: '0.5.9-alpha' })).rejects.toThrow(
-      /missing entry 'version.json'/,
-    );
+    await expect(
+      resolveCleanroom({
+        version: '0.5.9-alpha',
+        manifestBase: mojang.manifestBase,
+      }),
+    ).rejects.toThrow(/missing entry 'version.json'/);
   });
 });

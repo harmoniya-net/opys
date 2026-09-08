@@ -3,6 +3,8 @@
  * network-driven template/plugin tests.
  */
 import { vi } from 'vitest';
+import { createServer } from 'node:http';
+import type { AddressInfo } from 'node:net';
 
 export const VERSION_MANIFEST = {
   latest: { release: '1.20.1', snapshot: '1.20.1' },
@@ -133,4 +135,78 @@ export function vanillaRoutes(id = '1.20.1'): Array<[string, unknown]> {
     [`/${id}.json`, clientJson(id)],
     ['/assets/5.json', ASSET_MANIFEST],
   ];
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// The Mojang endpoints, on loopback.
+//
+// The vanilla client is fetched inside the `opys-minecraft-vanilla` crate now, not
+// through `globalThis.fetch`, so a `vi.stubGlobal('fetch', …)` route can no
+// longer intercept it. The loader's own APIs (fuckforge, the recipe,
+// install_profile) still go through `fetchWithRetry` and keep their stub —
+// only the Mojang half needs a real socket.
+// ──────────────────────────────────────────────────────────────────────────
+
+export interface MojangServer {
+  /** Pass as the resolver's `manifestBase`. */
+  manifestBase: string;
+  /** Put this in a version JSON the test serves itself. */
+  assetsUrl: string;
+  /** Every path the server was asked for, in arrival order. */
+  targets: string[];
+  close: () => Promise<void>;
+}
+
+/**
+ * Serve the version manifest, one version JSON per id, and the asset
+ * manifest. `clients` overrides the JSON served for a given id; any id not
+ * listed gets {@link clientJson}. Every URL the documents point at is
+ * rewritten to this server, so nothing escapes to the real Mojang.
+ */
+export async function mojangServer(
+  clients: Record<string, Record<string, unknown>> = {},
+): Promise<MojangServer> {
+  const targets: string[] = [];
+  let base = '';
+
+  const server = createServer((req, res) => {
+    const target = req.url ?? '';
+    targets.push(target);
+
+    let body: unknown;
+    if (target.startsWith('/versions/')) {
+      const id = target.slice('/versions/'.length).replace(/\.json$/, '');
+      const client = clients[id] ?? clientJson(id);
+      body = {
+        ...client,
+        assetIndex: {
+          ...(client.assetIndex as Record<string, unknown>),
+          url: `${base}/assets/5.json`,
+        },
+      };
+    } else if (target.startsWith('/assets/')) {
+      body = ASSET_MANIFEST;
+    } else {
+      body = {
+        ...VERSION_MANIFEST,
+        versions: VERSION_MANIFEST.versions.map((v) => ({
+          ...v,
+          url: `${base}/versions/${v.id}.json`,
+        })),
+      };
+    }
+    res
+      .writeHead(200, { 'content-type': 'application/json' })
+      .end(JSON.stringify(body));
+  });
+
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+  base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+
+  return {
+    manifestBase: `${base}/version_manifest_v2.json`,
+    assetsUrl: `${base}/assets/5.json`,
+    targets,
+    close: () => new Promise<void>((resolve) => server.close(() => resolve())),
+  };
 }

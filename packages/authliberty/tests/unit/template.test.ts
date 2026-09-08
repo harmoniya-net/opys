@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { valValues, type Valset } from '@opys/core';
 import { resolveAuthliberty } from '../../lib/template';
 
 afterEach(() => vi.unstubAllGlobals());
@@ -36,8 +37,8 @@ function mockApi(theFile = file()) {
 }
 
 /** Flatten a Valset's Val values into a string list. */
-function flat(valset: { value: string[] }[]): string[] {
-  return valset.flatMap((v) => v.value);
+function flat(valset: Valset): string[] {
+  return valset.flatMap(valValues);
 }
 
 describe('resolveAuthliberty', () => {

@@ -44,6 +44,12 @@ export interface ForgeOptions {
   source?: string;
   /** Override the bundled ForgeWrapper JAR (processor era only). */
   forgeWrapper?: ForgeWrapperOptions;
+  /**
+   * URL of the Mojang version manifest, when it is not Mojang's own — a
+   * mirror, or a stand-in server under test. Passed straight to
+   * `fetchClient`.
+   */
+  manifestBase?: string;
 }
 
 export interface ForgeTemplate {
@@ -93,7 +99,7 @@ export async function resolveForge(
   }
 
   if (recipe.kind === 'legacy') {
-    return buildLegacyTemplate(recipe, indexEntry);
+    return buildLegacyTemplate(recipe, indexEntry, options);
   }
   return buildProcessorTemplate(recipe, indexEntry, options);
 }
@@ -119,6 +125,7 @@ function legacyLibraryToArtifact(lib: LegacyLibrary): Artifact {
 async function buildLegacyTemplate(
   recipe: Extract<ForgeRecipe, { kind: 'legacy' }>,
   indexEntry: ForgeIndexEntry,
+  options: ForgeOptions,
 ): Promise<ForgeTemplate> {
   if (!indexEntry.files.universal) {
     throw new Error(
@@ -126,7 +133,9 @@ async function buildLegacyTemplate(
     );
   }
 
-  const { client } = await fetchClient(indexEntry.id);
+  const { client } = await fetchClient(indexEntry.id, {
+    manifestBase: options.manifestBase,
+  });
   const mc = await clientToTemplate(client);
 
   const forgeLibArtifacts = recipe.libraries.map(legacyLibraryToArtifact);
@@ -200,7 +209,9 @@ async function buildProcessorTemplate(
   };
   const installProfileLibs = parseLibraries(installProfile.libraries ?? []);
 
-  const { client } = await fetchClient(indexEntry.id);
+  const { client } = await fetchClient(indexEntry.id, {
+    manifestBase: options.manifestBase,
+  });
   const mc = await clientToTemplate(client);
 
   // Forge's args APPEND to vanilla's args. Recipe paths are already fixed

@@ -909,6 +909,33 @@ dependencies = [
 ]
 
 [[package]]
+name = "opys-minecraft-napi"
+version = "0.2.0"
+dependencies = [
+ "napi",
+ "napi-build",
+ "napi-derive",
+ "opys-minecraft-vanilla",
+ "opys-mojang",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "opys-minecraft-vanilla"
+version = "0.2.0"
+dependencies = [
+ "indexmap",
+ "opys-core",
+ "opys-dev",
+ "opys-mojang",
+ "opys-mojang-rules",
+ "serde",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
 name = "opys-mojang"
 version = "0.2.0"
 dependencies = [

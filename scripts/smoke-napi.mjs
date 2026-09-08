@@ -1,9 +1,10 @@
 #!/usr/bin/env node
-// End-to-end smoke test for the napi bindings. Loads all five .node files,
+// End-to-end smoke test for the napi bindings. Loads all six .node files,
 // exercises core decode/encode/resolve, the mojang parsers, the dev engine's
-// merge and a java resolve against a loopback stand-in for the Adoptium API,
-// then runs an actual `install` from runtime-napi against a tmpdir with a
-// string source.
+// merge, a java resolve against a loopback stand-in for the Adoptium API and
+// a vanilla Minecraft resolve against one for the Mojang endpoints, then runs
+// an actual `install` from runtime-napi against a tmpdir with a string
+// source.
 //
 // Run from the repo root:  node scripts/smoke-napi.mjs
 
@@ -19,6 +20,7 @@ const runtime = require('../crates/opys-runtime-napi/index.js');
 const mojang = require('../crates/opys-mojang-napi/index.js');
 const dev = require('../crates/opys-dev-napi/index.js');
 const java = require('../crates/opys-java-napi/index.js');
+const minecraft = require('../crates/opys-minecraft-napi/index.js');
 
 let ok = 0;
 let fail = 0;
@@ -273,6 +275,95 @@ check(
 );
 
 adoptium.close();
+
+// ── minecraft ─────────────────────────────────────────────────────────────
+console.log('— minecraft —');
+
+const CLIENT_JSON = (id, base) => ({
+  id,
+  type: 'release',
+  time: '2023-06-12T00:00:00+00:00',
+  releaseTime: '2023-06-12T00:00:00+00:00',
+  minimumLauncherVersion: 21,
+  assets: '5',
+  complianceLevel: 1,
+  mainClass: 'net.minecraft.client.main.Main',
+  assetIndex: {
+    id: '5',
+    sha1: 'c'.repeat(40),
+    size: 1,
+    totalSize: 2,
+    url: `${base}/assets/5.json`,
+  },
+  downloads: {
+    client: {
+      sha1: 'd'.repeat(40),
+      size: 3,
+      url: 'https://example.invalid/c.jar',
+    },
+  },
+  libraries: [],
+  arguments: { game: ['--demo'], jvm: ['-Xmx2G'] },
+});
+
+let mojangBase = '';
+const mojangApi = createServer((req, res) => {
+  const target = req.url ?? '';
+  const body = target.startsWith('/versions/')
+    ? CLIENT_JSON('1.20.1', mojangBase)
+    : target.startsWith('/assets/')
+      ? { objects: { 'pack.mcmeta': { hash: '0f00', size: 2 } } }
+      : {
+          latest: { release: '1.20.1', snapshot: '1.20.1' },
+          versions: [
+            {
+              id: '1.20.1',
+              type: 'release',
+              url: `${mojangBase}/versions/1.20.1.json`,
+              time: '2023-06-12T00:00:00+00:00',
+              releaseTime: '2023-06-12T00:00:00+00:00',
+              sha1: 'a'.repeat(40),
+              complianceLevel: 1,
+            },
+          ],
+        };
+  res
+    .writeHead(200, { 'content-type': 'application/json' })
+    .end(JSON.stringify(body));
+});
+await new Promise((resolve) => mojangApi.listen(0, '127.0.0.1', resolve));
+mojangBase = `http://127.0.0.1:${mojangApi.address().port}`;
+const mcOpts = { version: '1.20.1', manifestBase: `${mojangBase}/m.json` };
+
+const mc = await minecraft.resolveMinecraft(mcOpts);
+check(
+  'resolveMinecraft emits client jar, asset index and asset object',
+  mc.artifacts.map((a) => a.path).join(',') ===
+    '${version_dir}/client.jar,${assets_root}/indexes/5.json,${assets_root}/objects/0f/0f00',
+);
+check('resolveMinecraft names the version', mc.vars.version_name === '1.20.1');
+check('resolveMinecraft gates the classpath per OS', mc.classpath.length === 3);
+
+const { client } = await minecraft.fetchClient(mcOpts);
+check(
+  'a Client survives the round trip back into clientToTemplate',
+  (await minecraft.clientToTemplate(client)).vars.version_name === '1.20.1',
+);
+
+const mcBuilt = await minecraft.buildMinecraft(mcOpts);
+check('buildMinecraft names the plugin', mcBuilt.name === 'minecraft');
+
+const withMc = dev.assemble([mcBuilt], {
+  command: '${java_bin}',
+  args: [mcBuilt.contribution.launch.mainClass],
+});
+check(
+  'assemble accepts the minecraft contribution end to end',
+  withMc.manifest.artifacts.length === 3 &&
+    withMc.manifest.launch.args[0] === 'net.minecraft.client.main.Main',
+);
+
+mojangApi.close();
 
 console.log(`\nresult: ${ok} passed, ${fail} failed`);
 process.exit(fail === 0 ? 0 : 1);

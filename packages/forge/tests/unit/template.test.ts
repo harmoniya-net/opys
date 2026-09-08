@@ -1,14 +1,31 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { valValues } from '@opys/core';
 import { resolveForge } from '../../lib/template';
-import {
-  ASSET_MANIFEST,
-  VERSION_MANIFEST,
-  clientJson,
-  lib,
-  routedFetch,
-} from './fixtures';
+import { lib, mojangServer, routedFetch, type MojangServer } from './fixtures';
 
-afterEach(() => vi.unstubAllGlobals());
+// fuckforge, the recipe and install_profile still travel through
+// `fetchWithRetry`, so they keep the `fetch` stub. The vanilla client does
+// not — it is fetched inside the `opys-minecraft-vanilla` crate — so Mojang gets a
+// real socket instead.
+let mojang: MojangServer;
+
+beforeEach(async () => {
+  mojang = await mojangServer();
+});
+
+afterEach(async () => {
+  vi.unstubAllGlobals();
+  await mojang.close();
+});
+
+/** `resolveForge` with the source and the stand-in Mojang already wired. */
+const forge = (version: string, extra: Record<string, unknown> = {}) =>
+  resolveForge({
+    version,
+    source: SOURCE,
+    manifestBase: mojang.manifestBase,
+    ...extra,
+  });
 
 const SOURCE = 'https://fuckforge.test';
 
@@ -89,12 +106,11 @@ describe('resolveForge — legacy era', () => {
         }),
       ],
       [`/recipe/${LEGACY_FORGE}.json`, legacyRecipe()],
-      ['version_manifest', VERSION_MANIFEST],
-      ['/1.12.2.json', clientJson('1.12.2')],
-      ['/assets/5.json', ASSET_MANIFEST],
     ]);
-    const t = await resolveForge({ version: LEGACY_FORGE, source: SOURCE });
-    expect(t.mainClass.value[0]).toBe('net.minecraft.launchwrapper.Launch');
+    const t = await forge(LEGACY_FORGE);
+    expect(valValues(t.mainClass)[0]).toBe(
+      'net.minecraft.launchwrapper.Launch',
+    );
     // forge universal + asm jars appended after the vanilla artifacts
     expect(t.artifacts.some((a) => a.path.includes('asm-debug-all'))).toBe(
       true,
@@ -114,9 +130,9 @@ describe('resolveForge — legacy era', () => {
       ['/e.json', indexEntry(LEGACY_FORGE)],
       [`/recipe/${LEGACY_FORGE}.json`, legacyRecipe()],
     ]);
-    await expect(
-      resolveForge({ version: LEGACY_FORGE, source: SOURCE }),
-    ).rejects.toThrow(/has no URL and no fallback/);
+    await expect(forge(LEGACY_FORGE)).rejects.toThrow(
+      /has no URL and no fallback/,
+    );
   });
 
   it('throws "No universal JAR listed" for a legacy recipe with no universal lib', async () => {
@@ -131,9 +147,9 @@ describe('resolveForge — legacy era', () => {
       ['/e.json', indexEntry(LEGACY_FORGE)],
       [`/recipe/${LEGACY_FORGE}.json`, recipeNoUniversal],
     ]);
-    await expect(
-      resolveForge({ version: LEGACY_FORGE, source: SOURCE }),
-    ).rejects.toThrow(/No universal JAR listed/);
+    await expect(forge(LEGACY_FORGE)).rejects.toThrow(
+      /No universal JAR listed/,
+    );
   });
 });
 
@@ -195,24 +211,21 @@ function processorRoutes(extra: Record<string, unknown> = {}) {
     ],
     [`/recipe/${PROC_FORGE}.json`, processorRecipe()],
     ['/install_profile.json', installProfile],
-    ['version_manifest', VERSION_MANIFEST],
-    ['/1.20.1.json', clientJson('1.20.1')],
-    ['/assets/5.json', ASSET_MANIFEST],
   ]);
 }
 
 describe('resolveForge — processor era', () => {
   it('builds a processor template with the ForgeWrapper main class', async () => {
     processorRoutes();
-    const t = await resolveForge({ version: PROC_FORGE, source: SOURCE });
-    expect(t.mainClass.value[0]).toBe(
+    const t = await forge(PROC_FORGE);
+    expect(valValues(t.mainClass)[0]).toBe(
       'io.github.zekerzhayard.forgewrapper.installer.Main',
     );
   });
 
   it('includes installer + ForgeWrapper artifacts', async () => {
     processorRoutes();
-    const t = await resolveForge({ version: PROC_FORGE, source: SOURCE });
+    const t = await forge(PROC_FORGE);
     expect(
       t.artifacts.some((a) =>
         a.path.includes('forge-' + PROC_FORGE + '-installer.jar'),
@@ -223,8 +236,8 @@ describe('resolveForge — processor era', () => {
 
   it('includes forgewrapper -D jvm args', async () => {
     processorRoutes();
-    const t = await resolveForge({ version: PROC_FORGE, source: SOURCE });
-    const jvm = t.jvmArgs.flatMap((v) => v.value);
+    const t = await forge(PROC_FORGE);
+    const jvm = t.jvmArgs.flatMap(valValues);
     expect(jvm.some((a) => a.startsWith('-Dforgewrapper.installer='))).toBe(
       true,
     );
@@ -235,15 +248,15 @@ describe('resolveForge — processor era', () => {
 
   it('strips module-path JVM args', async () => {
     processorRoutes();
-    const t = await resolveForge({ version: PROC_FORGE, source: SOURCE });
-    const jvm = t.jvmArgs.flatMap((v) => v.value);
+    const t = await forge(PROC_FORGE);
+    const jvm = t.jvmArgs.flatMap(valValues);
     expect(jvm.some((a) => a === '-p')).toBe(false);
     expect(jvm.some((a) => a.startsWith('-DignoreList='))).toBe(false);
   });
 
   it('uses the bundled ForgeWrapper sha1 by default (PrismLauncher fork)', async () => {
     processorRoutes();
-    const t = await resolveForge({ version: PROC_FORGE, source: SOURCE });
+    const t = await forge(PROC_FORGE);
     const fw = t.artifacts.find((a) => a.path.includes('ForgeWrapper'))!;
     expect(fw.integrity).toEqual({
       sha1: '4c4653d80409e7e968d3e3209196ffae778b7b4e',
@@ -253,9 +266,7 @@ describe('resolveForge — processor era', () => {
 
   it('honours a custom ForgeWrapper url without bundled integrity', async () => {
     processorRoutes();
-    const t = await resolveForge({
-      version: PROC_FORGE,
-      source: SOURCE,
+    const t = await forge(PROC_FORGE, {
       forgeWrapper: {
         url: 'https://example/fw.jar',
         path: '${library_directory}/fw.jar',
@@ -271,9 +282,7 @@ describe('resolveForge — processor era', () => {
 
   it('honours an explicit ForgeWrapper sha1 and size', async () => {
     processorRoutes();
-    const t = await resolveForge({
-      version: PROC_FORGE,
-      source: SOURCE,
+    const t = await forge(PROC_FORGE, {
       forgeWrapper: { url: 'https://x/fw.jar', sha1: 'aa', size: 5 },
     });
     const fw = t.artifacts.find((a) => a.path.includes('ForgeWrapper'))!;
@@ -310,12 +319,9 @@ describe('resolveForge — processor era', () => {
         },
       ],
       ['/install_profile.json', installProfile],
-      ['version_manifest', VERSION_MANIFEST],
-      ['/1.20.1.json', clientJson('1.20.1')],
-      ['/assets/5.json', ASSET_MANIFEST],
     ]);
-    const t = await resolveForge({ version: PROC_FORGE, source: SOURCE });
-    const jvm = t.jvmArgs.flatMap((v) => v.value);
+    const t = await forge(PROC_FORGE);
+    const jvm = t.jvmArgs.flatMap(valValues);
     // the ../libraries/ prefix is rewritten to the opys var
     expect(
       jvm.some((a) => a.includes('${library_directory}/cpw/mods/foo.jar')),
@@ -335,9 +341,7 @@ describe('resolveForge — processor era', () => {
       ],
       [`/recipe/${PROC_FORGE}.json`, processorRecipe()],
     ]);
-    await expect(
-      resolveForge({ version: PROC_FORGE, source: SOURCE }),
-    ).rejects.toThrow(/No installer file listed/);
+    await expect(forge(PROC_FORGE)).rejects.toThrow(/No installer file listed/);
   });
 
   it('throws when no install_profile URL is listed', async () => {
@@ -353,9 +357,9 @@ describe('resolveForge — processor era', () => {
       ],
       [`/recipe/${PROC_FORGE}.json`, processorRecipe()],
     ]);
-    await expect(
-      resolveForge({ version: PROC_FORGE, source: SOURCE }),
-    ).rejects.toThrow(/No install_profile URL listed/);
+    await expect(forge(PROC_FORGE)).rejects.toThrow(
+      /No install_profile URL listed/,
+    );
   });
 
   it('throws when install_profile fetch is not ok', async () => {
@@ -371,9 +375,9 @@ describe('resolveForge — processor era', () => {
       [`/recipe/${PROC_FORGE}.json`, processorRecipe()],
       ['/install_profile.json', new Response('boom', { status: 404 })],
     ]);
-    await expect(
-      resolveForge({ version: PROC_FORGE, source: SOURCE }),
-    ).rejects.toThrow(/Failed to fetch install_profile/);
+    await expect(forge(PROC_FORGE)).rejects.toThrow(
+      /Failed to fetch install_profile/,
+    );
   });
 });
 
@@ -385,9 +389,7 @@ describe('resolveForge — errors', () => {
       ['versions.json', master(PROC_FORGE, `${SOURCE}/e.json`)],
       ['/e.json', indexEntry(PROC_FORGE, { recipe: null })],
     ]);
-    await expect(
-      resolveForge({ version: PROC_FORGE, source: SOURCE }),
-    ).rejects.toThrow(/No recipe URL listed/);
+    await expect(forge(PROC_FORGE)).rejects.toThrow(/No recipe URL listed/);
   });
 
   it('throws when the recipe fetch is not ok', async () => {
@@ -396,9 +398,9 @@ describe('resolveForge — errors', () => {
       ['/e.json', indexEntry(PROC_FORGE)],
       [`/recipe/${PROC_FORGE}.json`, new Response('nope', { status: 404 })],
     ]);
-    await expect(
-      resolveForge({ version: PROC_FORGE, source: SOURCE }),
-    ).rejects.toThrow(/Failed to fetch Forge recipe/);
+    await expect(forge(PROC_FORGE)).rejects.toThrow(
+      /Failed to fetch Forge recipe/,
+    );
   });
 
   it('throws for an unsupported (jarmod) era recipe', async () => {
@@ -410,8 +412,6 @@ describe('resolveForge — errors', () => {
         { type: 'jarmod', forge: '1.5.2-7.8.1', id: '1.5.2' },
       ],
     ]);
-    await expect(
-      resolveForge({ version: '1.5.2-7.8.1', source: SOURCE }),
-    ).rejects.toThrow(/is not yet supported/);
+    await expect(forge('1.5.2-7.8.1')).rejects.toThrow(/is not yet supported/);
   });
 });

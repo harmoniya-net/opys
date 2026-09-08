@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
-import { parseShortRuleset, sourceUrl } from '../../lib';
-import type { Artifact, ConditionalVal, Ruleset } from '../../lib';
+import { parseShortRuleset, sourceUrl, valValues } from '../../lib';
+import type { Artifact, ConditionalVal, Ruleset, Val } from '../../lib';
 
 describe('parseShortRuleset', () => {
   test('action-only shorthand', () => {
@@ -116,5 +116,22 @@ describe('Rule / Ruleset — the manifest spelling', () => {
     expect(parseShortRuleset(arm.rules ?? [])).toEqual([
       { action: 'allow', os: { name: 'osx' } },
     ]);
+  });
+});
+
+describe('Val — the manifest spelling', () => {
+  test('a bare string is a Val, and valValues reads it', () => {
+    const val: Val = '-Xmx2G';
+    expect(valValues(val)).toEqual(['-Xmx2G']);
+  });
+
+  test('a single-string value needs no array', () => {
+    const val: Val = { value: '--demo', rules: 'allow.os.linux' };
+    expect(valValues(val)).toEqual(['--demo']);
+  });
+
+  test('a multi-value arm keeps every value', () => {
+    const val: Val = { value: ['-XstartOnFirstThread', '-Xdock:name=MC'] };
+    expect(valValues(val)).toEqual(['-XstartOnFirstThread', '-Xdock:name=MC']);
   });
 });

@@ -1,8 +1,20 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { createServer } from 'node:http';
+import type { AddressInfo } from 'node:net';
+import { valValues } from '@opys/core';
 import { zipSync, strToU8 } from 'fflate';
 import { resolveNeoForge } from '../../lib/template';
 
-afterEach(() => vi.unstubAllGlobals());
+let mojang: MojangServer;
+
+beforeEach(async () => {
+  mojang = await mojangServer();
+});
+
+afterEach(async () => {
+  vi.unstubAllGlobals();
+  await mojang.close();
+});
 
 const SOURCE = 'https://neoforge.test/releases';
 const NF_VERSION = '20.4.80-beta';
@@ -152,12 +164,57 @@ function baseInstallProfile() {
   };
 }
 
-function vanillaRoutes(): Array<[string, unknown]> {
-  return [
-    ['version_manifest', VERSION_MANIFEST],
-    [`/${MC_VERSION}.json`, clientJson()],
-    ['/assets/5.json', ASSET_MANIFEST],
-  ];
+// ──────────────────────────────────────────────────────────────────────────
+// The Mojang endpoints, on loopback.
+//
+// The vanilla client is fetched inside the `opys-minecraft-vanilla` crate now, not
+// through `globalThis.fetch`, so a `vi.stubGlobal('fetch', …)` route can no
+// longer intercept it. The NeoForge maven and the installer zip still goes through `fetchWithRetry` and keeps
+// the stub — only the Mojang half needs a real socket.
+// ──────────────────────────────────────────────────────────────────────────
+
+interface MojangServer {
+  /** Pass as the resolver's `manifestBase`. */
+  manifestBase: string;
+  close: () => Promise<void>;
+}
+
+/**
+ * Serve the version manifest, the version JSON and the asset manifest, with
+ * every URL they point at rewritten to this server so nothing escapes to the
+ * real Mojang.
+ */
+async function mojangServer(): Promise<MojangServer> {
+  let base = '';
+  const server = createServer((req, res) => {
+    const target = req.url ?? '';
+    const client = clientJson();
+    const body = target.startsWith('/versions/')
+      ? {
+          ...client,
+          assetIndex: { ...client.assetIndex, url: `${base}/assets/5.json` },
+        }
+      : target.startsWith('/assets/')
+        ? ASSET_MANIFEST
+        : {
+            ...VERSION_MANIFEST,
+            versions: VERSION_MANIFEST.versions.map((v) => ({
+              ...v,
+              url: `${base}/versions/${v.id}.json`,
+            })),
+          };
+    res
+      .writeHead(200, { 'content-type': 'application/json' })
+      .end(JSON.stringify(body));
+  });
+
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+  base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+
+  return {
+    manifestBase: `${base}/version_manifest_v2.json`,
+    close: () => new Promise<void>((resolve) => server.close(() => resolve())),
+  };
 }
 
 describe('resolveNeoForge', () => {
@@ -166,10 +223,13 @@ describe('resolveNeoForge', () => {
     routedFetch([
       [`neoforge-${NF_VERSION}-installer.jar.sha1`, 'abc123'],
       [`neoforge-${NF_VERSION}-installer.jar`, zip],
-      ...vanillaRoutes(),
     ]);
 
-    const t = await resolveNeoForge({ version: NF_VERSION, source: SOURCE });
+    const t = await resolveNeoForge({
+      version: NF_VERSION,
+      source: SOURCE,
+      manifestBase: mojang.manifestBase,
+    });
 
     expect(t.artifacts.length).toBeGreaterThan(0);
     expect(t.mainClass).toBeDefined();
@@ -183,10 +243,13 @@ describe('resolveNeoForge', () => {
     routedFetch([
       [`neoforge-${NF_VERSION}-installer.jar.sha1`, 'deadbeef'],
       [`neoforge-${NF_VERSION}-installer.jar`, zip],
-      ...vanillaRoutes(),
     ]);
 
-    const t = await resolveNeoForge({ version: NF_VERSION, source: SOURCE });
+    const t = await resolveNeoForge({
+      version: NF_VERSION,
+      source: SOURCE,
+      manifestBase: mojang.manifestBase,
+    });
 
     // The installer artifact is uniquely identified by its extract directive.
     const installer = t.artifacts.find((a) => a.extract !== undefined);
@@ -206,10 +269,13 @@ describe('resolveNeoForge', () => {
         new Response('err', { status: 404 }),
       ],
       [`neoforge-${NF_VERSION}-installer.jar`, zip],
-      ...vanillaRoutes(),
     ]);
 
-    const t = await resolveNeoForge({ version: NF_VERSION, source: SOURCE });
+    const t = await resolveNeoForge({
+      version: NF_VERSION,
+      source: SOURCE,
+      manifestBase: mojang.manifestBase,
+    });
 
     const installer = t.artifacts.find((a) => a.extract !== undefined);
     expect(installer!.integrity).toBeUndefined();
@@ -236,10 +302,13 @@ describe('resolveNeoForge', () => {
     routedFetch([
       [`neoforge-${NF_VERSION}-installer.jar.sha1`, 'abc'],
       [`neoforge-${NF_VERSION}-installer.jar`, zip],
-      ...vanillaRoutes(),
     ]);
 
-    const t = await resolveNeoForge({ version: NF_VERSION, source: SOURCE });
+    const t = await resolveNeoForge({
+      version: NF_VERSION,
+      source: SOURCE,
+      manifestBase: mojang.manifestBase,
+    });
 
     const gsonPath =
       '${library_directory}/com/google/code/gson/gson/2.10.1/gson-2.10.1.jar';
@@ -273,10 +342,13 @@ describe('resolveNeoForge', () => {
     routedFetch([
       [`neoforge-${NF_VERSION}-installer.jar.sha1`, 'abc'],
       [`neoforge-${NF_VERSION}-installer.jar`, zip],
-      ...vanillaRoutes(),
     ]);
 
-    const t = await resolveNeoForge({ version: NF_VERSION, source: SOURCE });
+    const t = await resolveNeoForge({
+      version: NF_VERSION,
+      source: SOURCE,
+      manifestBase: mojang.manifestBase,
+    });
 
     const classpathArms = t.vars.classpath as unknown as { value: string }[];
     for (const arm of classpathArms) {
@@ -294,10 +366,13 @@ describe('resolveNeoForge', () => {
     routedFetch([
       [`neoforge-${NF_VERSION}-installer.jar.sha1`, 'abc'],
       [`neoforge-${NF_VERSION}-installer.jar`, zip],
-      ...vanillaRoutes(),
     ]);
 
-    const t = await resolveNeoForge({ version: NF_VERSION, source: SOURCE });
+    const t = await resolveNeoForge({
+      version: NF_VERSION,
+      source: SOURCE,
+      manifestBase: mojang.manifestBase,
+    });
 
     // The neoforge universal lib has url:"" — it must not appear as a separate artifact
     const hasEmptyUrlArtifact = t.artifacts.some(
@@ -316,12 +391,15 @@ describe('resolveNeoForge', () => {
     routedFetch([
       [`neoforge-${NF_VERSION}-installer.jar.sha1`, 'abc'],
       [`neoforge-${NF_VERSION}-installer.jar`, zip],
-      ...vanillaRoutes(),
     ]);
 
-    const t = await resolveNeoForge({ version: NF_VERSION, source: SOURCE });
+    const t = await resolveNeoForge({
+      version: NF_VERSION,
+      source: SOURCE,
+      manifestBase: mojang.manifestBase,
+    });
 
-    expect(t.mainClass.value[0]).toBe(
+    expect(valValues(t.mainClass)[0]).toBe(
       'io.github.zekerzhayard.forgewrapper.installer.Main',
     );
   });
@@ -331,10 +409,13 @@ describe('resolveNeoForge', () => {
     routedFetch([
       [`neoforge-${NF_VERSION}-installer.jar.sha1`, 'abc'],
       [`neoforge-${NF_VERSION}-installer.jar`, zip],
-      ...vanillaRoutes(),
     ]);
 
-    const t = await resolveNeoForge({ version: NF_VERSION, source: SOURCE });
+    const t = await resolveNeoForge({
+      version: NF_VERSION,
+      source: SOURCE,
+      manifestBase: mojang.manifestBase,
+    });
 
     const hasForgeWrapperArtifact = t.artifacts.some((a) =>
       a.path.includes('ForgeWrapper'),
@@ -368,12 +449,15 @@ describe('resolveNeoForge', () => {
     routedFetch([
       [`neoforge-${NF_VERSION}-installer.jar.sha1`, 'abc'],
       [`neoforge-${NF_VERSION}-installer.jar`, zip],
-      ...vanillaRoutes(),
     ]);
 
-    const t = await resolveNeoForge({ version: NF_VERSION, source: SOURCE });
+    const t = await resolveNeoForge({
+      version: NF_VERSION,
+      source: SOURCE,
+      manifestBase: mojang.manifestBase,
+    });
 
-    const jvmArgs = t.jvmArgs.flatMap((v) => v.value);
+    const jvmArgs = t.jvmArgs.flatMap(valValues);
     expect(jvmArgs.some((a) => a === '-p')).toBe(false);
     expect(jvmArgs.some((a) => a === '--module-path')).toBe(false);
     expect(jvmArgs.some((a) => a === '--add-modules')).toBe(false);
@@ -386,12 +470,15 @@ describe('resolveNeoForge', () => {
     routedFetch([
       [`neoforge-${NF_VERSION}-installer.jar.sha1`, 'abc'],
       [`neoforge-${NF_VERSION}-installer.jar`, zip],
-      ...vanillaRoutes(),
     ]);
 
-    const t = await resolveNeoForge({ version: NF_VERSION, source: SOURCE });
+    const t = await resolveNeoForge({
+      version: NF_VERSION,
+      source: SOURCE,
+      manifestBase: mojang.manifestBase,
+    });
 
-    const jvmArgs = t.jvmArgs.flatMap((v) => v.value);
+    const jvmArgs = t.jvmArgs.flatMap(valValues);
     expect(
       jvmArgs.some((a) => a.includes('-Dforgewrapper.librariesDir=')),
     ).toBe(true);
@@ -408,7 +495,6 @@ describe('resolveNeoForge', () => {
     routedFetch([
       [`neoforge-${NF_VERSION}-installer.jar.sha1`, 'abc'],
       [`neoforge-${NF_VERSION}-installer.jar`, zip],
-      ...vanillaRoutes(),
     ]);
 
     const customUrl = 'https://custom.example.com/ForgeWrapper-custom.jar';
@@ -418,6 +504,7 @@ describe('resolveNeoForge', () => {
     const t = await resolveNeoForge({
       version: NF_VERSION,
       source: SOURCE,
+      manifestBase: mojang.manifestBase,
       forgeWrapper: { url: customUrl, sha1: customSha1, path: customPath },
     });
 
@@ -432,12 +519,12 @@ describe('resolveNeoForge', () => {
     routedFetch([
       [`neoforge-${NF_VERSION}-installer.jar.sha1`, 'abc'],
       [`neoforge-${NF_VERSION}-installer.jar`, zip],
-      ...vanillaRoutes(),
     ]);
 
     const t = await resolveNeoForge({
       version: NF_VERSION,
       source: SOURCE,
+      manifestBase: mojang.manifestBase,
       forgeWrapper: {
         url: 'https://custom.example.com/ForgeWrapper-custom.jar',
       },
@@ -453,13 +540,16 @@ describe('resolveNeoForge', () => {
     routedFetch([
       [`neoforge-${NF_VERSION}-installer.jar.sha1`, 'abc'],
       [`neoforge-${NF_VERSION}-installer.jar`, zip],
-      ...vanillaRoutes(),
     ]);
 
-    const t = await resolveNeoForge({ version: NF_VERSION, source: SOURCE });
+    const t = await resolveNeoForge({
+      version: NF_VERSION,
+      source: SOURCE,
+      manifestBase: mojang.manifestBase,
+    });
 
     // Valset is Val[] — flatten all value arrays into one list of strings.
-    const gameArgs = t.gameArgs.flatMap((v) => v.value);
+    const gameArgs = t.gameArgs.flatMap(valValues);
     const vanillaIdx = gameArgs.findIndex((a) => a === '--username');
     const nfIdx = gameArgs.findIndex((a) => a === '--fml.neoForgeVersion');
     expect(vanillaIdx).toBeGreaterThanOrEqual(0);
@@ -477,12 +567,15 @@ describe('resolveNeoForge', () => {
     routedFetch([
       [`neoforge-${NF_VERSION}-installer.jar.sha1`, 'abc'],
       [`neoforge-${NF_VERSION}-installer.jar`, zip],
-      ...vanillaRoutes(),
     ]);
 
-    const t = await resolveNeoForge({ version: NF_VERSION, source: SOURCE });
+    const t = await resolveNeoForge({
+      version: NF_VERSION,
+      source: SOURCE,
+      manifestBase: mojang.manifestBase,
+    });
 
-    const jvmArgs = t.jvmArgs.flatMap((v) => v.value);
+    const jvmArgs = t.jvmArgs.flatMap(valValues);
     expect(jvmArgs.some((a) => a.includes('../libraries/'))).toBe(false);
     expect(jvmArgs.some((a) => a.includes('${library_directory}'))).toBe(true);
   });
@@ -497,7 +590,11 @@ describe('resolveNeoForge', () => {
     ]);
 
     await expect(
-      resolveNeoForge({ version: NF_VERSION, source: SOURCE }),
+      resolveNeoForge({
+        version: NF_VERSION,
+        source: SOURCE,
+        manifestBase: mojang.manifestBase,
+      }),
     ).rejects.toThrow(/Failed to download NeoForge installer/);
   });
 
@@ -508,11 +605,14 @@ describe('resolveNeoForge', () => {
     routedFetch([
       [`neoforge-${NF_VERSION}-installer.jar.sha1`, 'abc'],
       [`neoforge-${NF_VERSION}-installer.jar`, zip],
-      ...vanillaRoutes(),
     ]);
 
     await expect(
-      resolveNeoForge({ version: NF_VERSION, source: SOURCE }),
+      resolveNeoForge({
+        version: NF_VERSION,
+        source: SOURCE,
+        manifestBase: mojang.manifestBase,
+      }),
     ).rejects.toThrow(/missing entry 'version\.json'/);
   });
 
@@ -523,11 +623,14 @@ describe('resolveNeoForge', () => {
     routedFetch([
       [`neoforge-${NF_VERSION}-installer.jar.sha1`, 'abc'],
       [`neoforge-${NF_VERSION}-installer.jar`, zip],
-      ...vanillaRoutes(),
     ]);
 
     await expect(
-      resolveNeoForge({ version: NF_VERSION, source: SOURCE }),
+      resolveNeoForge({
+        version: NF_VERSION,
+        source: SOURCE,
+        manifestBase: mojang.manifestBase,
+      }),
     ).rejects.toThrow(/missing entry 'install_profile\.json'/);
   });
 });

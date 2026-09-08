@@ -32,6 +32,12 @@ export interface FabricOptions {
   loader?: string;
   /** Fabric Meta base URL. Default: `https://meta.fabricmc.net`. */
   source?: string;
+  /**
+   * URL of the Mojang version manifest, when it is not Mojang's own — a
+   * mirror, or a stand-in server under test. Passed straight to
+   * `fetchClient`.
+   */
+  manifestBase?: string;
 }
 
 export interface FabricTemplate {
@@ -134,7 +140,9 @@ export async function resolveFabric(
 
   const profile = await fetchProfile(release.profileUrl);
 
-  const { client } = await fetchClient(profile.inheritsFrom);
+  const { client } = await fetchClient(profile.inheritsFrom, {
+    manifestBase: options.manifestBase,
+  });
   const mc = await clientToTemplate(client);
 
   // Fabric profile libraries are Maven coord + repo base, no OS rules and no

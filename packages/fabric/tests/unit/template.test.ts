@@ -1,7 +1,19 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { createServer } from 'node:http';
+import type { AddressInfo } from 'node:net';
+import { valValues } from '@opys/core';
 import { resolveFabric } from '../../lib/template';
 
-afterEach(() => vi.unstubAllGlobals());
+let mojang: MojangServer;
+
+beforeEach(async () => {
+  mojang = await mojangServer();
+});
+
+afterEach(async () => {
+  vi.unstubAllGlobals();
+  await mojang.close();
+});
 
 const META = 'https://meta.fabric.test';
 const MC = '1.20.1';
@@ -115,38 +127,85 @@ function routedFetch(routes: Array<[match: string, body: unknown]>) {
   );
 }
 
-function vanillaRoutes(): Array<[string, unknown]> {
-  return [
-    ['version_manifest', VERSION_MANIFEST],
-    [`/${MC}.json`, clientJson()],
-    ['/assets/5.json', ASSET_MANIFEST],
-  ];
+// ──────────────────────────────────────────────────────────────────────────
+// The Mojang endpoints, on loopback.
+//
+// The vanilla client is fetched inside the `opys-minecraft-vanilla` crate now, not
+// through `globalThis.fetch`, so a `vi.stubGlobal('fetch', …)` route can no
+// longer intercept it. Fabric Meta still goes through `fetchWithRetry` and
+// keeps the stub — only the Mojang half needs a real socket.
+// ──────────────────────────────────────────────────────────────────────────
+
+interface MojangServer {
+  /** Pass as the resolver's `manifestBase`. */
+  manifestBase: string;
+  close: () => Promise<void>;
+}
+
+/**
+ * Serve the version manifest, the version JSON and the asset manifest, with
+ * every URL they point at rewritten to this server so nothing escapes to the
+ * real Mojang.
+ */
+async function mojangServer(): Promise<MojangServer> {
+  let base = '';
+  const server = createServer((req, res) => {
+    const target = req.url ?? '';
+    const client = clientJson();
+    const body = target.startsWith('/versions/')
+      ? {
+          ...client,
+          assetIndex: { ...client.assetIndex, url: `${base}/assets/5.json` },
+        }
+      : target.startsWith('/assets/')
+        ? ASSET_MANIFEST
+        : {
+            ...VERSION_MANIFEST,
+            versions: VERSION_MANIFEST.versions.map((v) => ({
+              ...v,
+              url: `${base}/versions/${v.id}.json`,
+            })),
+          };
+    res
+      .writeHead(200, { 'content-type': 'application/json' })
+      .end(JSON.stringify(body));
+  });
+
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+  base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+
+  return {
+    manifestBase: `${base}/version_manifest_v2.json`,
+    close: () => new Promise<void>((resolve) => server.close(() => resolve())),
+  };
 }
 
 describe('resolveFabric', () => {
   it('builds a template with vanilla + Fabric artifacts and launch groups', async () => {
-    routedFetch([['/profile/json', profileJson()], ...vanillaRoutes()]);
+    routedFetch([['/profile/json', profileJson()]]);
 
     const t = await resolveFabric({
       version: MC,
       loader: LOADER,
       source: META,
+      manifestBase: mojang.manifestBase,
     });
 
     expect(t.artifacts.length).toBeGreaterThan(0);
-    expect(t.mainClass.value[0]).toBe(
+    expect(valValues(t.mainClass)[0]).toBe(
       'net.fabricmc.loader.impl.launch.knot.KnotClient',
     );
     expect(t.launch.command).toBe('${java_bin}');
   });
 
   it('maps Fabric libraries to library_directory paths with maven layout', async () => {
-    routedFetch([['/profile/json', profileJson()], ...vanillaRoutes()]);
+    routedFetch([['/profile/json', profileJson()]]);
 
     const t = await resolveFabric({
       version: MC,
       loader: LOADER,
       source: META,
+      manifestBase: mojang.manifestBase,
     });
 
     const loaderArtifact = t.artifacts.find((a) =>
@@ -161,12 +220,13 @@ describe('resolveFabric', () => {
   });
 
   it('omits integrity and size when the profile library has no hash', async () => {
-    routedFetch([['/profile/json', profileJson()], ...vanillaRoutes()]);
+    routedFetch([['/profile/json', profileJson()]]);
 
     const t = await resolveFabric({
       version: MC,
       loader: LOADER,
       source: META,
+      manifestBase: mojang.manifestBase,
     });
 
     const intermediary = t.artifacts.find((a) =>
@@ -178,12 +238,13 @@ describe('resolveFabric', () => {
   });
 
   it('builds a download URL from the library repo base and maven path', async () => {
-    routedFetch([['/profile/json', profileJson()], ...vanillaRoutes()]);
+    routedFetch([['/profile/json', profileJson()]]);
 
     const t = await resolveFabric({
       version: MC,
       loader: LOADER,
       source: META,
+      manifestBase: mojang.manifestBase,
     });
 
     const loaderArtifact = t.artifacts.find((a) =>
@@ -195,12 +256,13 @@ describe('resolveFabric', () => {
   });
 
   it('appends Fabric libs onto the per-OS classpath and merges jvm args', async () => {
-    routedFetch([['/profile/json', profileJson()], ...vanillaRoutes()]);
+    routedFetch([['/profile/json', profileJson()]]);
 
     const t = await resolveFabric({
       version: MC,
       loader: LOADER,
       source: META,
+      manifestBase: mojang.manifestBase,
     });
 
     const cp = t.vars.classpath;
@@ -212,7 +274,7 @@ describe('resolveFabric', () => {
       expect(value).toContain(`net/fabricmc/fabric-loader/${LOADER}`);
     }
     // The Fabric JVM arg is merged after the vanilla ones.
-    const jvmValues = t.jvmArgs.flatMap((v) => v.value);
+    const jvmValues = t.jvmArgs.flatMap(valValues);
     expect(jvmValues).toContain(
       '-DFabricMcEmu= net.minecraft.client.main.Main ',
     );
@@ -228,21 +290,26 @@ describe('resolveFabric', () => {
           { loader: { version: LOADER, stable: true } },
         ],
       ],
-      ...vanillaRoutes(),
     ]);
 
-    const t = await resolveFabric({ version: MC, source: META });
+    const t = await resolveFabric({
+      version: MC,
+      source: META,
+      manifestBase: mojang.manifestBase,
+    });
     expect(t.artifacts.length).toBeGreaterThan(0);
   });
 
   it('throws when the profile fetch fails', async () => {
-    routedFetch([
-      ['/profile/json', new Response('nope', { status: 404 })],
-      ...vanillaRoutes(),
-    ]);
+    routedFetch([['/profile/json', new Response('nope', { status: 404 })]]);
 
     await expect(
-      resolveFabric({ version: MC, loader: LOADER, source: META }),
+      resolveFabric({
+        version: MC,
+        loader: LOADER,
+        source: META,
+        manifestBase: mojang.manifestBase,
+      }),
     ).rejects.toThrow(/Failed to download Fabric profile/);
   });
 });

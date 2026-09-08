@@ -1,0 +1,29 @@
+{
+  "name": "@opys/minecraft-binding-linux-x64-gnu",
+  "version": "0.2.0",
+  "os": [
+    "linux"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "main": "index.linux-x64-gnu.node",
+  "files": [
+    "index.linux-x64-gnu.node"
+  ],
+  "description": "napi-rs binary binding for the opys Minecraft loader family. Not consumed directly \u2014 re-exported by @opys/minecraft-vanilla and the loaders built on it.",
+  "engines": {
+    "node": ">=20"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/harmoniya-net/opys.git",
+    "directory": "crates/opys-minecraft-napi"
+  },
+  "libc": [
+    "glibc"
+  ],
+  "publishConfig": {
+    "access": "public"
+  }
+}

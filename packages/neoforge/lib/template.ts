@@ -49,6 +49,12 @@ export interface NeoForgeOptions {
   source?: string;
   /** Override the bundled ForgeWrapper JAR (PrismLauncher fork). */
   forgeWrapper?: ForgeWrapperOptions;
+  /**
+   * URL of the Mojang version manifest, when it is not Mojang's own — a
+   * mirror, or a stand-in server under test. Passed straight to
+   * `fetchClient`.
+   */
+  manifestBase?: string;
 }
 
 export interface NeoForgeTemplate {
@@ -142,7 +148,9 @@ export async function resolveNeoForge(
     'install_profile.json',
   );
 
-  const { client } = await fetchClient(versionJson.inheritsFrom);
+  const { client } = await fetchClient(versionJson.inheritsFrom, {
+    manifestBase: options.manifestBase,
+  });
   const mc = await clientToTemplate(client);
 
   const runtimeLibs = parseLibraries(versionJson.libraries);

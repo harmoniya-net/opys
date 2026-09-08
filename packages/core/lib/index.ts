@@ -208,11 +208,30 @@ export interface Artifact {
   readonly extract?: ExtractRule[];
 }
 
-export interface Val {
+/**
+ * The object spelling of a launch argument. `value` is one string or many —
+ * both are the manifest format, and the encoder collapses a rule-free single
+ * value back to a bare string.
+ */
+export interface ValObject {
   readonly rules?: Ruleset;
-  readonly value: string[];
+  readonly value: string | string[];
 }
+
+/**
+ * A launch argument as a manifest writes it: a bare string, or the rule-gated
+ * object form. The bare spelling is not a shorthand on the way to the object —
+ * it is what a rule-free single value encodes to, so it is what comes back out
+ * of `@opys/dev` and the loaders.
+ */
+export type Val = string | ValObject;
 export type Valset = Val[];
+
+/** The strings a `Val` contributes, whichever spelling it arrived in. */
+export function valValues(val: Val): string[] {
+  if (typeof val === 'string') return [val];
+  return Array.isArray(val.value) ? val.value : [val.value];
+}
 
 export interface ConditionalVal {
   readonly value: string;
@@ -335,25 +354,4 @@ function parseShortRule(raw: Rule): MojangRule {
 export function parseShortRuleset(raw: Ruleset): MojangRuleset {
   const arr: Rule[] = Array.isArray(raw) ? raw : [raw];
   return arr.map(parseShortRule);
-}
-
-// ──────────────────────────────────────────────────────────────────────────
-// `parseValset` — used by the Mojang version-JSON mapper. Build-time-only;
-// not part of the napi boundary surface.
-// ──────────────────────────────────────────────────────────────────────────
-
-export function parseValset(raw: unknown): Valset {
-  if (!Array.isArray(raw)) {
-    throw new Error('parseValset: expected an array');
-  }
-  return raw.map((entry): Val => {
-    if (typeof entry === 'string') return { rules: [], value: [entry] };
-    if (entry && typeof entry === 'object') {
-      const obj = entry as { rules?: unknown; value: string | string[] };
-      const rules = obj.rules ? parseShortRuleset(obj.rules as Ruleset) : [];
-      const value = Array.isArray(obj.value) ? obj.value : [obj.value];
-      return { rules, value };
-    }
-    throw new Error('parseValset: invalid entry');
-  });
 }

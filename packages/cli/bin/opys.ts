@@ -2,7 +2,6 @@
 import { cmdBuild } from '../lib/commands/build';
 import { cmdLaunch } from '../lib/commands/launch';
 import { NetworkError, IntegrityError, ExtractionError } from '@opys/runtime';
-import { VersionFetchError } from '@opys/minecraft';
 import { UsageError } from '../lib/errors';
 import { Logger, parseLogLevel, type LogLevel } from '../lib/logger';
 
@@ -87,8 +86,12 @@ main().catch((err) => {
     process.stderr.write(`Error: ${err.message}\n`);
     process.exit(1);
   }
-  // Network errors — exit 2: transient / connectivity issues
-  if (err instanceof NetworkError || err instanceof VersionFetchError) {
+  // Install-phase network error — exit 2: transient / connectivity issues.
+  // Exit codes 2-4 classify the *install* pipeline only. A build-time resolver
+  // that cannot reach its API throws a plain error and exits 1, like any other
+  // build failure — a Mojang 503 used to be the one exception, which made the
+  // classification inconsistent rather than useful.
+  if (err instanceof NetworkError) {
     process.stderr.write(`Network error: ${err.message}\n`);
     process.exit(2);
   }

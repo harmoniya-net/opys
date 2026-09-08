@@ -4,10 +4,6 @@
 use opys_mojang::*;
 use serde_json::json;
 
-fn parse<T: serde::de::DeserializeOwned>(v: serde_json::Value) -> Result<T, serde_json::Error> {
-    serde_json::from_value(v)
-}
-
 // ── maven ────────────────────────────────────────────────────────────────
 
 fn coord(s: &str) -> MavenCoord {
@@ -90,7 +86,7 @@ fn artifact(path: &str) -> serde_json::Value {
 
 #[test]
 fn library_without_natives() {
-    let libs: Libraries = parse(json!([{
+    let libs = Libraries::from_version_json(json!([{
         "name": "com.google.code.gson:gson:2.10.1",
         "downloads": { "artifact": artifact("gson-2.10.1.jar") },
     }]))
@@ -103,7 +99,7 @@ fn library_without_natives() {
 
 #[test]
 fn native_classifiers_produce_one_entry_each() {
-    let libs: Libraries = parse(json!([{
+    let libs = Libraries::from_version_json(json!([{
         "name": "org.lwjgl:lwjgl:3.3.1",
         "downloads": {
             "artifact": artifact("lwjgl-3.3.1.jar"),
@@ -140,7 +136,7 @@ fn native_classifiers_produce_one_entry_each() {
 
 #[test]
 fn natives_entry_without_a_matching_classifier_is_skipped() {
-    let libs: Libraries = parse(json!([{
+    let libs = Libraries::from_version_json(json!([{
         "name": "org.lwjgl:lwjgl:3.3.1",
         "downloads": {
             "classifiers": { "natives-linux": artifact("lwjgl-natives-linux.jar") },
@@ -155,7 +151,7 @@ fn natives_entry_without_a_matching_classifier_is_skipped() {
 
 #[test]
 fn arch_placeholder_is_substituted_in_the_classifier_key() {
-    let libs: Libraries = parse(json!([{
+    let libs = Libraries::from_version_json(json!([{
         "name": "ca.weblite:java-objc-bridge:1.1",
         "downloads": {
             "classifiers": { "natives-osx-64": artifact("java-objc-bridge-1.1-natives-osx-64.jar") },
@@ -171,7 +167,7 @@ fn arch_placeholder_is_substituted_in_the_classifier_key() {
 
 #[test]
 fn legacy_arguments_string_splits_and_implies_jvm_args() {
-    let args = parse::<Arguments>(json!(
+    let args = Arguments::from_version_json(json!(
         "--username ${auth_player_name} --version ${version_name}"
     ))
     .unwrap();
@@ -182,7 +178,7 @@ fn legacy_arguments_string_splits_and_implies_jvm_args() {
 
 #[test]
 fn modern_arguments_object_defaults_missing_arrays() {
-    let args = parse::<Arguments>(json!({ "game": ["--demo"] })).unwrap();
+    let args = Arguments::from_version_json(json!({ "game": ["--demo"] })).unwrap();
     assert!(!args.legacy);
     assert_eq!(args.game.len(), 1);
     assert!(args.jvm.is_empty());
@@ -190,7 +186,7 @@ fn modern_arguments_object_defaults_missing_arrays() {
 
 #[test]
 fn conditional_argument_objects_keep_their_value_shape() {
-    let args = parse::<Arguments>(json!({
+    let args = Arguments::from_version_json(json!({
         "game": [
             "--plain",
             { "rules": [{ "action": "allow", "os": { "name": "osx" } }], "value": "-XstartOnFirstThread" },
@@ -217,8 +213,8 @@ fn conditional_argument_objects_keep_their_value_shape() {
 
 #[test]
 fn merge_args_concatenates_base_then_patch() {
-    let base = parse::<Arguments>(json!({ "game": ["a"], "jvm": ["x"] })).unwrap();
-    let patch = parse::<Arguments>(json!({ "game": ["b"], "jvm": ["y"] })).unwrap();
+    let base = Arguments::from_version_json(json!({ "game": ["a"], "jvm": ["x"] })).unwrap();
+    let patch = Arguments::from_version_json(json!({ "game": ["b"], "jvm": ["y"] })).unwrap();
     let merged = base.merge(&patch);
     assert_eq!(merged.game.len(), 2);
     assert_eq!(merged.jvm.len(), 2);
@@ -227,8 +223,8 @@ fn merge_args_concatenates_base_then_patch() {
 
 #[test]
 fn merge_args_returns_base_when_the_patch_is_legacy() {
-    let base = parse::<Arguments>(json!({ "game": ["a"], "jvm": ["x"] })).unwrap();
-    let patch = parse::<Arguments>(json!("--legacy arg")).unwrap();
+    let base = Arguments::from_version_json(json!({ "game": ["a"], "jvm": ["x"] })).unwrap();
+    let patch = Arguments::from_version_json(json!("--legacy arg")).unwrap();
     assert_eq!(base.merge(&patch), base);
 }
 
@@ -271,7 +267,7 @@ fn minimal_client() -> serde_json::Value {
 
 #[test]
 fn parses_a_minimal_client_json() {
-    let c = parse::<Client>(minimal_client()).unwrap();
+    let c = Client::from_version_json(minimal_client()).unwrap();
     assert_eq!(c.id, "1.20.1");
     assert_eq!(c.java.major_version, 17);
     assert_eq!(c.metadata.compliance_level, 0);
@@ -283,7 +279,7 @@ fn parses_a_minimal_client_json() {
 fn client_without_java_version_falls_back_to_jre_legacy() {
     let mut raw = minimal_client();
     raw.as_object_mut().unwrap().remove("javaVersion");
-    let c = parse::<Client>(raw).unwrap();
+    let c = Client::from_version_json(raw).unwrap();
     assert_eq!(c.java.component, "jre-legacy");
     assert_eq!(c.java.major_version, 8);
 }
@@ -292,7 +288,7 @@ fn client_without_java_version_falls_back_to_jre_legacy() {
 fn client_without_any_arguments_is_rejected() {
     let mut raw = minimal_client();
     raw.as_object_mut().unwrap().remove("minecraftArguments");
-    assert!(parse::<Client>(raw).is_err());
+    assert!(Client::from_version_json(raw).is_err());
 }
 
 #[test]
@@ -300,7 +296,7 @@ fn downloads_reads_the_snake_case_wire_keys() {
     let mut raw = minimal_client();
     raw["downloads"]["server"] = json!({ "sha1": "s", "size": 9, "url": "https://s" });
     raw["downloads"]["client_mappings"] = json!({ "sha1": "m", "size": 8, "url": "https://m" });
-    let c = parse::<Client>(raw).unwrap();
+    let c = Client::from_version_json(raw).unwrap();
     assert!(c.downloads.server.is_some());
     assert!(c.downloads.client_mappings.is_some());
 }
@@ -334,4 +330,55 @@ fn latest_release_is_none_when_the_pointer_dangles() {
     let mut m = manifest();
     m.latest.release = "missing".into();
     assert!(m.latest_release().is_none());
+}
+
+// ── round-trip ───────────────────────────────────────────────────────────
+//
+// A domain value crosses the napi boundary as JSON and comes back — a loader
+// calls `parseClient`, holds the result, then hands it to `clientToTemplate`.
+// So `serialize` must be the inverse of `deserialize` for every domain type,
+// which is why reading a *version JSON* is `from_version_json` rather than a
+// `Deserialize` impl.
+
+fn roundtrips<T>(value: &T)
+where
+    T: serde::Serialize + serde::de::DeserializeOwned + PartialEq + std::fmt::Debug,
+{
+    let json = serde_json::to_value(value).unwrap();
+    let back: T = serde_json::from_value(json.clone()).unwrap();
+    assert_eq!(&back, value);
+    assert_eq!(serde_json::to_value(&back).unwrap(), json);
+}
+
+#[test]
+fn client_roundtrips_through_its_own_json() {
+    roundtrips(&Client::from_version_json(minimal_client()).unwrap());
+}
+
+#[test]
+fn libraries_roundtrip_after_natives_are_flattened() {
+    let libs = Libraries::from_version_json(json!([{
+        "name": "org.lwjgl:lwjgl:3.3.1",
+        "downloads": {
+            "artifact": artifact("lwjgl-3.3.1.jar"),
+            "classifiers": { "natives-linux": artifact("lwjgl-3.3.1-natives-linux.jar") },
+        },
+        "natives": { "linux": "natives-linux" },
+    }]))
+    .unwrap();
+    assert_eq!(libs.len(), 2);
+    roundtrips(&libs);
+}
+
+#[test]
+fn legacy_arguments_stay_legacy_across_a_roundtrip() {
+    let args = Arguments::from_version_json(json!("--username ${auth_player_name}")).unwrap();
+    assert!(args.legacy);
+    roundtrips(&args);
+
+    // The flag surviving is what makes `merge` correct on the far side of the
+    // boundary: a legacy patch carries no structured delta, so the base wins.
+    let back: Arguments = serde_json::from_value(serde_json::to_value(&args).unwrap()).unwrap();
+    let base = Arguments::from_version_json(json!({ "game": ["a"], "jvm": ["x"] })).unwrap();
+    assert_eq!(base.merge(&back), base);
 }

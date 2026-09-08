@@ -56,7 +56,10 @@ Eight packages, a clean DAG, no cycles:
 @opys/runtime       install + launch executor.                              → core ONLY
 @opys/minecraft     Minecraft-domain plugins — minecraft / forge / cleanroom /
                      lwjgl3ify / curseforge / authliberty — + bifrost / serverlist
-                     helpers.                                         → dev, core, mojang
+                     helpers. Vanilla is a thin wrapper over the
+                     `opys-minecraft-vanilla` crate; the loaders get a crate
+                     apiece on top of it, all behind one shared `.node`
+                     (`@opys/minecraft-binding`).             → dev, core, mojang
 @opys/java          JDK provisioning — Temurin / Zulu / GraalVM CE.
                      Thin wrapper over the `opys-java` crate.                → dev, core
 @opys/cli           the `opys` binary.                 → dev, runtime, minecraft, java
@@ -72,8 +75,20 @@ Eight packages, a clean DAG, no cycles:
   2). That is why `Source` and `ExtractRule` are discriminated by which field
   is present rather than by a `kind` tag — a tag with no counterpart in the
   format is a second spelling waiting to drift — and why `Artifact.rules` is
-  optional and accepts shorthand: the format has always allowed both, so a
-  type that doesn't is simply wrong.
+  optional and accepts shorthand, and `Val` is `string | { rules?, value }`:
+  the format has always allowed both, so a type that doesn't is simply wrong.
+  Read a `Val` with `valValues`, never `.value`.
+- **A domain type that crosses napi round-trips.** What it serialises to is
+  what it deserialises from, because a loader gets a `Client` back from
+  `fetchClient` and hands it straight to `clientToTemplate`. Reading a
+  _foreign_ spelling is therefore a named operation —
+  `Client::from_version_json`, not a `Deserialize` impl — so the wire type
+  stays the one-way decode principle 2 describes.
+- **Nothing that produces manifest artifacts iterates a `HashMap`.** An
+  artifact list must not reorder between two builds of the same version, so
+  the version JSON's `natives` / `classifiers` maps and the asset manifest's
+  `objects` are `BTreeMap`s. Both were `HashMap`s and both made `opys.json`
+  differ run to run.
 - **`runtime` depends on `core` alone** among `@opys/*` — verified: `runtime/lib`
   imports only `@opys/core`, a few tiny third-party libs (`fflate`,
   `tar-stream`), and `node:`. It is a clean reimplementation target.
@@ -86,6 +101,14 @@ Eight packages, a clean DAG, no cycles:
   (`'allow.os.osx'` → `[{action:'allow',os:{name:'osx'}}]`) and so accepts
   either spelling. `Rule` / `Ruleset` — the manifest spelling — and the
   rule-tagged-value primitives `Val`/`Valset` are opys's own, in `core`.
+- **One version-JSON mapping, one implementation.** `opys-minecraft-vanilla`'s
+  mappers — client jar, libraries, assets, classpath, launch — are the shared
+  half of the loader family. Forge, fabric, neoforge, cleanroom and lwjgl3ify
+  each resolve a version JSON their own way and then call the same mappers, so
+  a fix to the natives dump rule or the per-OS classpath lands once. Each is
+  its own crate on top of `opys-minecraft-vanilla`, but they share a single
+  addon — `opys-minecraft-napi` links them all, so the release matrix stays at
+  one `.node` per target rather than one per loader.
 - **One merge, one implementation.** Folding plugin contributions into a
   `Manifest` is `opys-dev`'s `assemble`; `@opys/dev` calls it through
   `@opys/dev-binding`. Driving the plugins stays in JS because plugins and the

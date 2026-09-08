@@ -1,0 +1,19 @@
+[package]
+name = "opys-minecraft-vanilla"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "Vanilla Minecraft as manifest artifacts, plus the version-JSON mappers every opys loader reuses."
+
+[dependencies]
+opys-core = { path = "../opys-core", version = "0.2.0" }
+opys-dev = { path = "../opys-dev", version = "0.2.0" }
+opys-mojang = { path = "../opys-mojang", version = "0.2.0" }
+opys-mojang-rules = { path = "../opys-mojang-rules", version = "0.2.0" }
+indexmap = { version = "2", features = ["serde"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }

@@ -4,10 +4,37 @@ use serde::{Deserialize, Serialize};
 
 use crate::shorthand::{encode_short_ruleset, parse_short_ruleset, Ruleset, ShorthandError};
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+/// One arm of a rule-gated var: a value and the rules that select it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(try_from = "ConditionalValWire", into = "ConditionalValWire")]
 pub struct ConditionalVal {
     pub value: String,
     pub rules: MojangRuleset,
+}
+
+impl TryFrom<ConditionalValWire> for ConditionalVal {
+    type Error = ShorthandError;
+
+    fn try_from(raw: ConditionalValWire) -> Result<Self, Self::Error> {
+        Ok(ConditionalVal {
+            value: raw.value,
+            rules: raw
+                .rules
+                .map(parse_short_ruleset)
+                .transpose()?
+                .unwrap_or_default(),
+        })
+    }
+}
+
+impl From<ConditionalVal> for ConditionalValWire {
+    /// Unlike `Val`, an arm drops `rules` entirely when empty.
+    fn from(arm: ConditionalVal) -> Self {
+        ConditionalValWire {
+            value: arm.value,
+            rules: (!arm.rules.is_empty()).then(|| encode_short_ruleset(&arm.rules)),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -45,16 +72,7 @@ impl TryFrom<ValDefWire> for ValDef {
             ValDefWire::Flat(s) => ValDef::Flat(s),
             ValDefWire::Arms(arms) => ValDef::Arms(
                 arms.into_iter()
-                    .map(|arm| {
-                        Ok(ConditionalVal {
-                            value: arm.value,
-                            rules: arm
-                                .rules
-                                .map(parse_short_ruleset)
-                                .transpose()?
-                                .unwrap_or_default(),
-                        })
-                    })
+                    .map(ConditionalVal::try_from)
                     .collect::<Result<_, ShorthandError>>()?,
             ),
         })
@@ -62,18 +80,12 @@ impl TryFrom<ValDefWire> for ValDef {
 }
 
 impl From<ValDef> for ValDefWire {
-    /// Unlike `Val`, an arm drops `rules` entirely when empty.
     fn from(def: ValDef) -> Self {
         match def {
             ValDef::Flat(s) => ValDefWire::Flat(s),
-            ValDef::Arms(arms) => ValDefWire::Arms(
-                arms.into_iter()
-                    .map(|arm| ConditionalValWire {
-                        value: arm.value,
-                        rules: (!arm.rules.is_empty()).then(|| encode_short_ruleset(&arm.rules)),
-                    })
-                    .collect(),
-            ),
+            ValDef::Arms(arms) => {
+                ValDefWire::Arms(arms.into_iter().map(ConditionalValWire::from).collect())
+            }
         }
     }
 }

@@ -1,6 +1,6 @@
 //! Asset index + asset manifest. Mirrors `packages/mojang/lib/client/assets.ts`.
 
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
@@ -20,9 +20,14 @@ pub struct AssetObject {
     pub size: u64,
 }
 
+/// A `BTreeMap` rather than a `HashMap`: the objects are a keyed set to
+/// Mojang, but iterating them produces manifest artifacts, and an artifact
+/// list must not reorder between builds. Sorting by name is also exactly the
+/// order this map already reaches JS in, since `serde_json::Value` keeps its
+/// object keys sorted.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AssetManifest {
-    pub objects: HashMap<String, AssetObject>,
+    pub objects: BTreeMap<String, AssetObject>,
 }
 
 /// First two characters of a hash — the shard directory. Total: a hash
