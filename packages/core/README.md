@@ -51,8 +51,29 @@ extractDump('${natives_directory}', { clean: true, excludes: ['META-INF/'] });
 ### `Artifact` — a single installable artifact
 
 An artifact has a source, optional integrity/size checks, optional
-extract rules, and optional rulesets that gate it per platform or
+extract rules, and an optional ruleset that gates it per platform or
 feature.
+
+### `Rule` / `Ruleset` — how a rule is written
+
+A rule may be written two ways, and both are first-class: the opys shorthand
+string, or the expanded Mojang object. A ruleset is one rule or an array of
+them, and may be omitted entirely.
+
+```ts
+import type { Ruleset } from '@opys/core';
+
+const rules: Ruleset = 'allow.os.linux';
+const mixed: Ruleset = [
+  'allow.os.osx@^10\\.',
+  { action: 'disallow', features: { demo: true } },
+];
+```
+
+`parseShortRuleset` expands either spelling into a `MojangRuleset` — the
+canonical form, re-exported from `@opys/mojang-rules`, and the only one the
+evaluator takes. `satisfiesRuleset` here accepts both spellings; the strict
+Mojang-only predicate lives in `@opys/mojang`.
 
 ### `Manifest` — the frozen wire shape
 
@@ -71,9 +92,9 @@ const wire = encodeManifest(filtered);
 ### `ValDefs` — interpolation variables with OS-conditional arms
 
 ```ts
-import { resolveValDefs, resolveVars, interpolate } from '@opys/core';
+import { filterManifest, resolveVars, interpolate } from '@opys/core';
 
-const flat = resolveValDefs(defs, platform); // pick OS-appropriate values
+const flat = filterManifest(manifest, platform).vars; // OS-appropriate values
 const vars = resolveVars(flat); // resolve ${ref} chains
 const result = interpolate('${root}/assets', vars);
 ```

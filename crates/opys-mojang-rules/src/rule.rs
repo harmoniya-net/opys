@@ -17,7 +17,7 @@ pub enum RuleAction {
 /// strip-unknown behavior).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(untagged)]
-pub enum Rule {
+pub enum MojangRule {
     Os {
         action: RuleAction,
         os: OsConstraint,
@@ -31,25 +31,25 @@ pub enum Rule {
     },
 }
 
-impl Rule {
+impl MojangRule {
     pub fn action(&self) -> RuleAction {
         match self {
-            Rule::Os { action, .. } | Rule::Features { action, .. } | Rule::Plain { action } => {
-                *action
-            }
+            MojangRule::Os { action, .. }
+            | MojangRule::Features { action, .. }
+            | MojangRule::Plain { action } => *action,
         }
     }
 }
 
 pub fn satisfies_rule(
-    rule: &Rule,
+    rule: &MojangRule,
     os: &OsOptions,
     feats: &[String],
 ) -> Result<bool, RuleError> {
     let allow = matches!(rule.action(), RuleAction::Allow);
     match rule {
-        Rule::Os { os: c, .. } => Ok(satisfies_os(c, os)? == allow),
-        Rule::Features { features, .. } => Ok(satisfies_features(features, feats) == allow),
-        Rule::Plain { .. } => Ok(allow),
+        MojangRule::Os { os: c, .. } => Ok(satisfies_os(c, os)? == allow),
+        MojangRule::Features { features, .. } => Ok(satisfies_features(features, feats) == allow),
+        MojangRule::Plain { .. } => Ok(allow),
     }
 }

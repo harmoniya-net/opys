@@ -15,18 +15,23 @@ npm install @opys/mojang-rules
 
 ## Concepts
 
-A **Rule** either allows or disallows based on OS constraints, feature flags,
-or unconditionally:
+A **MojangRule** either allows or disallows based on OS constraints, feature
+flags, or unconditionally:
 
 ```ts
-type Rule =
+type MojangRule =
   | { action: 'allow' | 'disallow'; os: OsConstraint }
   | { action: 'allow' | 'disallow'; features: FeatureConstraint }
   | { action: 'allow' | 'disallow' };
 ```
 
-A **Ruleset** is an array of rules. All rules must be satisfied for the ruleset
-to pass.
+A **MojangRuleset** is an array of rules. All rules must be satisfied for the
+ruleset to pass.
+
+The `Mojang` prefix is load-bearing: an opys manifest may also spell a rule as
+a shorthand string (`'allow.os.linux'`), and the type that admits both
+spellings is `@opys/core`'s `Rule` / `Ruleset`. Everything here is the
+expanded form those parse into, and the only form the evaluator sees.
 
 ## Helpers
 

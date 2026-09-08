@@ -1,4 +1,4 @@
-import type { Val, Valset, OsOptions, Ruleset } from '@opys/core';
+import type { Val, Valset, OsOptions, MojangRuleset } from '@opys/core';
 import { parseValset, allowOsRuleset, satisfiesRuleset } from '@opys/core';
 import type { MojangArgValue } from '@opys/mojang';
 import type { Launch, ConditionalVal } from '@opys/core';
@@ -33,7 +33,7 @@ export interface LaunchParts {
  * appears in a version JSON, this must become per-(os, arch).
  */
 export function buildClasspath(
-  libs: { rules: Ruleset; artifactPath: string }[],
+  libs: { rules: MojangRuleset; artifactPath: string }[],
   clientJarPath: string,
 ): ConditionalVal[] {
   const oses: ('linux' | 'windows' | 'osx')[] = ['linux', 'windows', 'osx'];

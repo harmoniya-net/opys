@@ -3,7 +3,7 @@
 use std::collections::HashMap;
 use std::ops::Deref;
 
-use opys_mojang_rules::{OsConstraint, OsName, Rule, RuleAction, Ruleset};
+use opys_mojang_rules::{MojangRule, MojangRuleset, OsConstraint, OsName, RuleAction};
 use serde::{Deserialize, Serialize};
 
 use crate::error::MojangError;
@@ -21,7 +21,7 @@ pub struct Artifact {
 pub struct Library {
     pub name: MavenCoord,
     /// Mojang OS/feature rules — the `opys-mojang-rules` format.
-    pub rules: Ruleset,
+    pub rules: MojangRuleset,
     pub artifact: Artifact,
     pub native: bool,
 }
@@ -69,7 +69,7 @@ struct LibraryWire {
     downloads: DownloadsWire,
     name: String,
     #[serde(default)]
-    rules: Ruleset,
+    rules: MojangRuleset,
     #[serde(default)]
     natives: HashMap<String, String>,
 }
@@ -112,7 +112,7 @@ impl TryFrom<Vec<LibraryWire>> for Libraries {
                 };
                 out.push(Library {
                     name: name.clone(),
-                    rules: vec![Rule::Os {
+                    rules: vec![MojangRule::Os {
                         action: RuleAction::Allow,
                         os: OsConstraint {
                             name: Some(os_name(os)?),

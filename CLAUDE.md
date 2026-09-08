@@ -12,10 +12,20 @@ Treat every claim here as auditable against the code.
 1. **Functional.** Pure functions, total transforms, no incidental classes, no
    shared mutable state. A `class` in a package's `lib/` is a smell — justify
    it in a comment or remove it.
-2. **Parse, don't validate.** Every wire type has a zod schema plus a total
-   `decode`/`encode` pair — `parseX = decodeX(XWireSchema.parse(input))`. No
-   `as unknown as` casts; the domain model never carries wire-only shapes
-   (e.g. rule shorthand) past `decode`.
+2. **Parse, don't validate.** Every domain type de/serializes itself
+   (`#[serde(try_from = "…Wire", into = "…Wire")]`), normalizing as it
+   decodes. A `…Wire` type is `pub(crate)`, lives in the one file that owns
+   its domain type, and exists for nothing but that decode — no consumer,
+   Rust or JS, ever names one. No `as unknown as` casts.
+
+   **Shorthand is not wire.** `'allow.os.osx'` is a first-class way to write a
+   rule _in a manifest_, not a transitional spelling on the way to a real one.
+   Hence the naming: `Rule` / `Ruleset` (in `core`) are how a rule is written
+   and admit both spellings; `MojangRule` / `MojangRuleset` (in
+   `mojang-rules`) are the expanded form they parse into, and the only form
+   the evaluator sees. The TS types mirror the first — an author writing
+   `rules: 'allow.os.linux'` must typecheck.
+
 3. **Typed contracts, no footguns.** The public API is typed end to end; a
    misuse should be a compile error, not a runtime check.
 4. **No dirty workarounds.** Every special-case is justified in a comment or
@@ -35,7 +45,7 @@ change; the manifest wire format may not.
 Eight packages, a clean DAG, no cycles:
 
 ```
-@opys/mojang-rules  Mojang-standard rule format (os / features / rule / ruleset).  leaf
+@opys/mojang-rules  Mojang-standard rule format — MojangRule / MojangRuleset.   leaf
 @opys/mojang        Mojang protocol parsers (version JSON, libraries, assets, …).
                      Thin wrapper over the `opys-mojang` crate. → mojang-rules
 @opys/core          Manifest data model + opys shorthand + Val/Valset.
@@ -58,24 +68,24 @@ Eight packages, a clean DAG, no cycles:
 - **`core` holds only what _both_ sides need.** A contract named by build-time
   alone — `Contribution`, the plugin output — belongs in `dev`; one named by
   runtime alone belongs in `runtime`. `core` is the intersection, not the union.
-- **Wire types are internal.** Every domain type de/serializes itself
-  (`#[serde(try_from = "…Wire")]`), so `…Wire` is `pub(crate)` and no consumer
-  ever names one — a caller writes `serde_json::from_value::<Manifest>(v)`. The
-  TS types mirror the wire exactly, which is why `Source` and `ExtractRule` are
-  discriminated by which field is present rather than by a `kind` tag: a tag
-  with no counterpart on the wire is a second spelling waiting to drift.
+- **The TS types describe the manifest, not the Rust domain** (see principle
+  2). That is why `Source` and `ExtractRule` are discriminated by which field
+  is present rather than by a `kind` tag — a tag with no counterpart in the
+  format is a second spelling waiting to drift — and why `Artifact.rules` is
+  optional and accepts shorthand: the format has always allowed both, so a
+  type that doesn't is simply wrong.
 - **`runtime` depends on `core` alone** among `@opys/*` — verified: `runtime/lib`
   imports only `@opys/core`, a few tiny third-party libs (`fflate`,
   `tar-stream`), and `node:`. It is a clean reimplementation target.
 - **`dev` and `runtime` never see each other.** `core` is the only plank across
   the build-time / runtime wall; they are joined solely by `opys.json`.
 - **One rule format, one implementation** — the `opys-mojang-rules` crate owns
-  the Mojang-standard format and is its only implementation. It reaches JS
+  `MojangRule` / `MojangRuleset` and is its only implementation. It reaches JS
   through two addons with deliberately different contracts: `@opys/mojang`
-  exposes it **strictly**, while `@opys/core` first expands the opys
-  **shorthand** (`'allow.os.osx'` → `[{action:'allow',os:{name:'osx'}}]`) and
-  so accepts both spellings. The rule-tagged-value primitives `Val`/`Valset`
-  are opys's own flavor, in `core`.
+  exposes it **strictly**, while `@opys/core` first expands the shorthand
+  (`'allow.os.osx'` → `[{action:'allow',os:{name:'osx'}}]`) and so accepts
+  either spelling. `Rule` / `Ruleset` — the manifest spelling — and the
+  rule-tagged-value primitives `Val`/`Valset` are opys's own, in `core`.
 - **One merge, one implementation.** Folding plugin contributions into a
   `Manifest` is `opys-dev`'s `assemble`; `@opys/dev` calls it through
   `@opys/dev-binding`. Driving the plugins stays in JS because plugins and the

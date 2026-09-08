@@ -30,7 +30,7 @@ pub enum InstallError {
     },
 
     #[error(transparent)]
-    Rule(#[from] opys_mojang_rules::RuleError),
+    MojangRule(#[from] opys_mojang_rules::RuleError),
 
     #[error(transparent)]
     Core(#[from] opys_core::DecodeError),

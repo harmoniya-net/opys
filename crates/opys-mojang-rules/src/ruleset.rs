@@ -1,10 +1,10 @@
 use crate::os::{OsName, OsOptions, RuleError};
-use crate::rule::{satisfies_rule, Rule, RuleAction};
+use crate::rule::{satisfies_rule, MojangRule, RuleAction};
 
-pub type Ruleset = Vec<Rule>;
+pub type MojangRuleset = Vec<MojangRule>;
 
 pub fn satisfies_ruleset(
-    ruleset: &Ruleset,
+    ruleset: &MojangRuleset,
     os: &OsOptions,
     feats: &[String],
 ) -> Result<bool, RuleError> {
@@ -16,12 +16,12 @@ pub fn satisfies_ruleset(
     Ok(true)
 }
 
-pub fn empty_ruleset() -> Ruleset {
+pub fn empty_ruleset() -> MojangRuleset {
     Vec::new()
 }
 
-pub fn allow_os_ruleset(name: OsName) -> Ruleset {
-    vec![Rule::Os {
+pub fn allow_os_ruleset(name: OsName) -> MojangRuleset {
+    vec![MojangRule::Os {
         action: RuleAction::Allow,
         os: crate::os::OsConstraint {
             name: Some(name),

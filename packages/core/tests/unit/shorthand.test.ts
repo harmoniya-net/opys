@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest';
-import { parseShortRuleset } from '../../lib';
+import { parseShortRuleset, sourceUrl } from '../../lib';
+import type { Artifact, ConditionalVal, Ruleset } from '../../lib';
 
 describe('parseShortRuleset', () => {
   test('action-only shorthand', () => {
@@ -73,5 +74,47 @@ describe('parseShortRuleset', () => {
       /missing feature name/,
     );
     expect(() => parseShortRuleset('allow.arch')).toThrow(/missing arch/);
+  });
+});
+
+describe('Rule / Ruleset — the manifest spelling', () => {
+  // These assertions are mostly for the compiler: before `Ruleset` widened,
+  // every one of these shapes was a type error, even though the manifest
+  // format has always accepted them and configs have always written them.
+  test('accepts a bare shorthand string wherever a manifest takes rules', () => {
+    const artifact: Artifact = {
+      path: 'a.jar',
+      source: sourceUrl('https://x/a.jar'),
+      rules: 'allow.os.linux',
+    };
+    expect(parseShortRuleset(artifact.rules ?? [])).toEqual([
+      { action: 'allow', os: { name: 'linux' } },
+    ]);
+  });
+
+  test('accepts the expanded Mojang object, and a mix of both', () => {
+    const rules: Ruleset = [
+      'allow.os.linux',
+      { action: 'disallow', features: { demo: true } },
+    ];
+    expect(parseShortRuleset(rules)).toEqual([
+      { action: 'allow', os: { name: 'linux' } },
+      { action: 'disallow', features: { demo: true } },
+    ]);
+  });
+
+  test('lets an artifact omit rules entirely', () => {
+    const artifact: Artifact = {
+      path: 'a.jar',
+      source: sourceUrl('https://x/a.jar'),
+    };
+    expect(artifact.rules).toBeUndefined();
+  });
+
+  test('accepts a conditional var arm written in shorthand', () => {
+    const arm: ConditionalVal = { value: '/x', rules: 'allow.os.osx' };
+    expect(parseShortRuleset(arm.rules ?? [])).toEqual([
+      { action: 'allow', os: { name: 'osx' } },
+    ]);
   });
 });

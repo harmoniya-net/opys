@@ -1,10 +1,10 @@
 //! Mirrors core/tests/unit/shorthand.test.ts.
 
-use serde_json::json;
 use opys_core::{
     encode_short_rule, encode_short_ruleset, parse_short_rule, parse_short_ruleset,
-    satisfies_ruleset, OsOptions, RawRuleset, RawSingle, Rule,
+    satisfies_ruleset, MojangRule, OsOptions, Rule, Ruleset,
 };
+use serde_json::json;
 
 fn linux() -> OsOptions {
     OsOptions {
@@ -35,35 +35,35 @@ fn windows_7() -> OsOptions {
     }
 }
 
-fn parse_single(s: &str) -> Rule {
-    parse_short_rule(RawSingle::Short(s.to_owned())).expect("parse")
+fn parse_single(s: &str) -> MojangRule {
+    parse_short_rule(Rule::Short(s.to_owned())).expect("parse")
 }
 
-fn parse_set(input: serde_json::Value) -> Vec<Rule> {
-    let raw: RawRuleset = serde_json::from_value(input).expect("decode raw");
+fn parse_set(input: serde_json::Value) -> Vec<MojangRule> {
+    let raw: Ruleset = serde_json::from_value(input).expect("decode raw");
     parse_short_ruleset(raw).expect("parse ruleset")
 }
 
-fn encode_one(rule: &Rule) -> String {
+fn encode_one(rule: &MojangRule) -> String {
     match encode_short_rule(rule) {
-        RawSingle::Short(s) => s,
-        RawSingle::Expanded(_) => panic!("expected short form"),
+        Rule::Short(s) => s,
+        Rule::Expanded(_) => panic!("expected short form"),
     }
 }
 
-fn encode_set(rs: &[Rule]) -> RawRuleset {
+fn encode_set(rs: &[MojangRule]) -> Ruleset {
     encode_short_ruleset(&rs.to_vec())
 }
 
-fn ok(rules: &[Rule]) -> bool {
+fn ok(rules: &[MojangRule]) -> bool {
     satisfies_ruleset(&rules.to_vec(), &linux(), &[]).unwrap()
 }
 
-fn os_check(rules: &[Rule], opt: &OsOptions) -> bool {
+fn os_check(rules: &[MojangRule], opt: &OsOptions) -> bool {
     satisfies_ruleset(&rules.to_vec(), opt, &[]).unwrap()
 }
 
-fn feats_check(rules: &[Rule], feats: &[&str]) -> bool {
+fn feats_check(rules: &[MojangRule], feats: &[&str]) -> bool {
     let f: Vec<String> = feats.iter().map(|s| (*s).into()).collect();
     satisfies_ruleset(&rules.to_vec(), &linux(), &f).unwrap()
 }
@@ -87,7 +87,10 @@ fn roundtrip_allow() {
 
 #[test]
 fn roundtrip_allow_os_linux() {
-    assert_eq!(encode_one(&parse_single("allow.os.linux")), "allow.os.linux");
+    assert_eq!(
+        encode_one(&parse_single("allow.os.linux")),
+        "allow.os.linux"
+    );
 }
 
 #[test]
@@ -116,46 +119,46 @@ fn roundtrip_allow_features_demo() {
 
 #[test]
 fn throws_on_unknown_os_name() {
-    assert!(parse_short_rule(RawSingle::Short("allow.os.dos".into())).is_err());
+    assert!(parse_short_rule(Rule::Short("allow.os.dos".into())).is_err());
 }
 
 #[test]
 fn throws_on_unknown_rule_type() {
-    assert!(parse_short_rule(RawSingle::Short("allow.unknown.type".into())).is_err());
+    assert!(parse_short_rule(Rule::Short("allow.unknown.type".into())).is_err());
 }
 
 #[test]
 fn throws_on_missing_os_name() {
-    let err = parse_short_rule(RawSingle::Short("allow.os".into())).unwrap_err();
+    let err = parse_short_rule(Rule::Short("allow.os".into())).unwrap_err();
     assert!(err.to_string().contains("missing OS name"));
 }
 
 #[test]
 fn throws_on_missing_feature_name() {
-    let err = parse_short_rule(RawSingle::Short("allow.features".into())).unwrap_err();
+    let err = parse_short_rule(Rule::Short("allow.features".into())).unwrap_err();
     assert!(err.to_string().contains("missing feature name"));
 }
 
 #[test]
 fn throws_on_unknown_action() {
-    let err = parse_short_rule(RawSingle::Short("maybe.os.linux".into())).unwrap_err();
+    let err = parse_short_rule(Rule::Short("maybe.os.linux".into())).unwrap_err();
     assert!(err.to_string().contains("Unknown action 'maybe'"));
 }
 
 #[test]
 fn throws_on_missing_arch() {
-    let err = parse_short_rule(RawSingle::Short("allow.arch".into())).unwrap_err();
+    let err = parse_short_rule(Rule::Short("allow.arch".into())).unwrap_err();
     assert!(err.to_string().contains("missing arch"));
 }
 
 #[test]
 fn passes_rule_object_through_unchanged() {
-    let raw: RawSingle = serde_json::from_value(json!({
+    let raw: Rule = serde_json::from_value(json!({
         "action": "allow", "os": { "name": "linux" }
     }))
     .unwrap();
     let parsed = parse_short_rule(raw).unwrap();
-    if let Rule::Os { os, .. } = &parsed {
+    if let MojangRule::Os { os, .. } = &parsed {
         assert_eq!(os.name, Some(opys_core::OsName::Linux));
     } else {
         panic!("expected Os variant");
@@ -168,7 +171,7 @@ fn encodes_multi_feature_rule_to_bare_action() {
     let mut feats = BTreeMap::new();
     feats.insert("a".to_owned(), true);
     feats.insert("b".to_owned(), true);
-    let rule = Rule::Features {
+    let rule = MojangRule::Features {
         action: opys_core::RuleAction::Allow,
         features: feats,
     };
@@ -178,7 +181,7 @@ fn encodes_multi_feature_rule_to_bare_action() {
     // divergence by asserting the variant is Expanded, equivalent to the TS
     // "encode to bare action" if downstream encoders flatten arbitrary cases.
     let encoded = encode_short_rule(&rule);
-    matches!(encoded, RawSingle::Expanded(_));
+    matches!(encoded, Rule::Expanded(_));
 }
 
 // ShortRuleset
@@ -249,7 +252,7 @@ fn mixed_string_and_object_rule() {
 fn roundtrip_single_string() {
     let parsed = parse_set(json!("allow"));
     let encoded = encode_set(&parsed);
-    assert!(matches!(encoded, RawRuleset::One(RawSingle::Short(ref s)) if s == "allow"));
+    assert!(matches!(encoded, Ruleset::One(Rule::Short(ref s)) if s == "allow"));
 }
 
 #[test]

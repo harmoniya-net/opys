@@ -1,12 +1,12 @@
-use opys_mojang_rules::{satisfies_ruleset, OsOptions, RuleError, Ruleset};
+use opys_mojang_rules::{satisfies_ruleset, MojangRuleset, OsOptions, RuleError};
 use serde::{Deserialize, Serialize};
 
-use crate::shorthand::{encode_short_ruleset, parse_short_ruleset, RawRuleset, ShorthandError};
+use crate::shorthand::{encode_short_ruleset, parse_short_ruleset, Ruleset, ShorthandError};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(try_from = "ValWire", into = "ValWire")]
 pub struct Val {
-    pub rules: Ruleset,
+    pub rules: MojangRuleset,
     pub value: Vec<String>,
 }
 
@@ -19,7 +19,7 @@ pub(crate) enum ValWire {
     Bare(String),
     Object {
         #[serde(default, skip_serializing_if = "Option::is_none")]
-        rules: Option<RawRuleset>,
+        rules: Option<Ruleset>,
         value: ValValueWire,
     },
 }

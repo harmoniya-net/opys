@@ -1,6 +1,6 @@
 //! Version-JSON `arguments` / `minecraftArguments`.
 
-use opys_mojang_rules::Ruleset;
+use opys_mojang_rules::MojangRuleset;
 use serde::{Deserialize, Serialize};
 
 /// `value` keeps the shape it arrived in — a bare string stays a string, an
@@ -20,7 +20,10 @@ pub enum ArgValue {
 #[serde(untagged)]
 pub enum MojangArgValue {
     Plain(String),
-    Conditional { rules: Ruleset, value: ArgValue },
+    Conditional {
+        rules: MojangRuleset,
+        value: ArgValue,
+    },
 }
 
 /// Either form of the arguments field: the modern `{ game, jvm }` object, or

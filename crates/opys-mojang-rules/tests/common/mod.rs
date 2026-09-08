@@ -1,4 +1,4 @@
-use opys_mojang_rules::{satisfies_ruleset, OsOptions, Ruleset};
+use opys_mojang_rules::{satisfies_ruleset, MojangRuleset, OsOptions};
 
 pub fn linux() -> OsOptions {
     OsOptions {
@@ -32,19 +32,19 @@ pub fn windows_10() -> OsOptions {
     }
 }
 
-pub fn parse_ruleset(json: &str) -> Ruleset {
+pub fn parse_ruleset(json: &str) -> MojangRuleset {
     serde_json::from_str(json).expect("ruleset parses")
 }
 
-pub fn os_check(rules: &Ruleset, opt: &OsOptions) -> bool {
+pub fn os_check(rules: &MojangRuleset, opt: &OsOptions) -> bool {
     satisfies_ruleset(rules, opt, &[]).expect("eval ok")
 }
 
-pub fn feats_check(rules: &Ruleset, feats: &[&str]) -> bool {
+pub fn feats_check(rules: &MojangRuleset, feats: &[&str]) -> bool {
     let owned: Vec<String> = feats.iter().map(|s| (*s).to_owned()).collect();
     satisfies_ruleset(rules, &linux(), &owned).expect("eval ok")
 }
 
-pub fn ok_check(rules: &Ruleset) -> bool {
+pub fn ok_check(rules: &MojangRuleset) -> bool {
     satisfies_ruleset(rules, &linux(), &[]).expect("eval ok")
 }

@@ -1,10 +1,11 @@
-import type { Rule } from './rule';
+import type { MojangRule } from './rule';
 import type { OsName } from './os';
 
-export type Ruleset = Rule[];
+/** Every rule expanded — an opys `Ruleset` parses into this. */
+export type MojangRuleset = MojangRule[];
 
-export const emptyRuleset = (): Ruleset => [];
+export const emptyRuleset = (): MojangRuleset => [];
 
-export const allowOsRuleset = (name: OsName): Ruleset => [
+export const allowOsRuleset = (name: OsName): MojangRuleset => [
   { action: 'allow', os: { name } },
 ];

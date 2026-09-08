@@ -120,24 +120,30 @@ Helpers (not plugins): **`bifrost({ privateKey, username, uuid })`**
 ## Manifest data model — `@opys/core`
 
 `core` is the reference implementation of the `opys.json` format. Every
-data-model file follows **parse, don't validate**: a zod wire schema validates
-the JSON shape, and a total `decode` function normalizes it into the domain
-type (`string | string[] → string[]`, rule shorthand → full `Ruleset`, …).
+data-model type follows **parse, don't validate**: the type de/serializes
+itself, normalizing as it decodes (`string | string[] → string[]`, rule
+shorthand → expanded `MojangRuleset`, …). The wire structs that make that
+possible are internal to the crate; no consumer names one.
 
-- `Manifest`, `ManifestWireSchema`, `decodeManifest`, `parseManifest`, `encodeManifest`
+- `Manifest`, `decodeManifest`, `parseManifest`, `encodeManifest`
 - `filterManifest(m, os, feats?)`
-- `Artifact`, `ArtifactWireSchema`, `decodeArtifact`, `encodeArtifact`, `deduplicateArtifacts`, `artifactApplies`
-- Subtypes: `Source`, `Integrity`/`HashEntry`, `ExtractRule` (`Pick`/`Scan`/`Dump`), `Launch`, `ValDefs`/`ConditionalVal`
-- Pointer: `PointerDescriptor`, `PointerDescriptorWireSchema`, `parsePointerDescriptor`, `encodePointerDescriptor`
-- Discovery: `Discovery`, `HashRef`, `DiscoveryWireSchema`, `decodeDiscovery`, `encodeDiscovery`
-- Source/Extract factories: `sourceUrl`/`sourceFile`/`sourceString`/`sourcePointer`, `extractPick`/`extractScan`/`extractDump`
-- Glob: `globToRegex`, `globBase`
-- Vars / interpolation: `parseValDefs`, `resolveValDefs`, `resolveVars`, `interpolate`
-- The `@opys/mojang-rules` rule types (`Rule`, `Ruleset`, `OsName`, …) plus
-  `emptyRuleset` / `allowOsRuleset` are re-exported from `core`. The
-  evaluator is not: `core`'s `satisfiesRuleset` expands opys shorthand
-  first, so it is strictly wider than the Mojang-standard predicate. For
-  the strict one, use `@opys/mojang`.
+- `Artifact`, `deduplicateArtifacts`
+- Subtypes: `Source`, `Integrity`/`HashEntry`, `ExtractRule` (`Pick`/`Scan`/`Dump`), `Launch`, `ValDefs`/`ConditionalVal`, `Val`/`Valset`
+- Pointer: `PointerDescriptor`
+- Discovery: `Discovery`, `HashRef`, `IntegrityProbes`, `SizeProbes`
+- Source/Extract factories: `sourceUrl`/`sourceFile`/`sourceString`/`sourcePointer`/`sourceBytes`, `extractPick`/`extractScan`/`extractDump`
+- Glob: `globToRegex`, `globToRegexSource`, `globBase`
+- Vars / interpolation: `parseValset`, `resolveVars`, `interpolate`, `resolvedArgs`, `resolvedEnvs`
+- Rules come in two named spellings, and the distinction is the point:
+  `MojangRule` / `MojangRuleset` (re-exported from `@opys/mojang-rules`) are
+  the expanded, canonical form the evaluator takes; `Rule` / `Ruleset`
+  (`core`'s own) are how a rule is written _in a manifest_ — either the
+  shorthand string `'allow.os.linux'` or the expanded object. Neither
+  spelling is transitional, and `parseShortRuleset` maps the second onto the
+  first. `emptyRuleset` / `allowOsRuleset` are re-exported too. The evaluator
+  is not: `core`'s `satisfiesRuleset` expands shorthand first, so it is
+  strictly wider than the Mojang-standard predicate. For the strict one, use
+  `@opys/mojang`.
 
 ### Pointer sources
 

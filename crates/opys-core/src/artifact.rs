@@ -1,10 +1,10 @@
-use opys_mojang_rules::{satisfies_ruleset, OsOptions, RuleError, Ruleset};
+use opys_mojang_rules::{satisfies_ruleset, MojangRuleset, OsOptions, RuleError};
 use serde::{Deserialize, Serialize};
 
 use crate::discovery::Discovery;
 use crate::extract::{decode_extract, encode_extract, ExtractRule, ExtractWire};
 use crate::integrity::Integrity;
-use crate::shorthand::{encode_short_ruleset, parse_short_ruleset, RawRuleset, ShorthandError};
+use crate::shorthand::{encode_short_ruleset, parse_short_ruleset, Ruleset, ShorthandError};
 use crate::source::Source;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -13,7 +13,7 @@ pub struct Artifact {
     pub path: String,
     pub source: Source,
     pub size: Option<u64>,
-    pub rules: Ruleset,
+    pub rules: MojangRuleset,
     pub integrity: Option<Integrity>,
     pub discovery: Option<Discovery>,
     pub metadata: Option<serde_json::Value>,
@@ -29,7 +29,7 @@ pub(crate) struct ArtifactWire {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     size: Option<u64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    rules: Option<RawRuleset>,
+    rules: Option<Ruleset>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     integrity: Option<Integrity>,
     #[serde(default, skip_serializing_if = "Option::is_none")]

@@ -2,7 +2,7 @@
 
 [![Crates.io](https://img.shields.io/crates/v/opys-mojang-rules.svg)](https://crates.io/crates/opys-mojang-rules)
 
-Mojang-standard rule format (`os` / `features` / `Rule` / `Ruleset`) — the
+Mojang-standard rule format (`os` / `features` / `MojangRule` / `MojangRuleset`) — the
 allow/disallow evaluator that gates entries in a `version.json` manifest.
 Pure Rust port of `@opys/mojang-rules`, no I/O.
 
@@ -12,9 +12,9 @@ opys-mojang-rules = "0.1"
 ```
 
 ```rust
-use opys_mojang_rules::{satisfies_ruleset, OsOptions, Rule, RuleAction};
+use opys_mojang_rules::{satisfies_ruleset, MojangRule, OsOptions, RuleAction};
 
-let ruleset = vec![Rule::Os {
+let ruleset = vec![MojangRule::Os {
     action: RuleAction::Allow,
     os: opys_mojang_rules::OsConstraint {
         name: Some(opys_mojang_rules::OsName::Linux),

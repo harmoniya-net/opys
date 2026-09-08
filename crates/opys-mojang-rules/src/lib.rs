@@ -11,5 +11,5 @@ mod ruleset;
 
 pub use features::{satisfies_features, FeatureConstraint};
 pub use os::{satisfies_os, OsArch, OsConstraint, OsName, OsOptions, RuleError};
-pub use rule::{satisfies_rule, Rule, RuleAction};
-pub use ruleset::{allow_os_ruleset, empty_ruleset, satisfies_ruleset, Ruleset};
+pub use rule::{satisfies_rule, MojangRule, RuleAction};
+pub use ruleset::{allow_os_ruleset, empty_ruleset, satisfies_ruleset, MojangRuleset};

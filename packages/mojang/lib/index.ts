@@ -21,8 +21,8 @@ import type {
   OsConstraint,
   OsOptions,
   FeatureConstraint,
-  Rule,
-  Ruleset,
+  MojangRule,
+  MojangRuleset,
 } from '@opys/mojang-rules';
 
 export type {
@@ -32,8 +32,8 @@ export type {
   OsConstraint,
   FeatureConstraint,
   RuleAction,
-  Rule,
-  Ruleset,
+  MojangRule,
+  MojangRuleset,
 } from '@opys/mojang-rules';
 export { emptyRuleset, allowOsRuleset } from '@opys/mojang-rules';
 
@@ -58,14 +58,14 @@ export interface Artifact {
 
 export interface Library {
   readonly name: MavenCoord;
-  readonly rules: Ruleset;
+  readonly rules: MojangRuleset;
   readonly artifact: Artifact;
   readonly native: boolean;
 }
 
 /** Raw Mojang argument: a plain string or a conditional `{ rules, value }`. */
 export type MojangArgValue =
-  string | { rules: Ruleset; value: string | string[] };
+  string | { rules: MojangRuleset; value: string | string[] };
 
 export interface Arguments {
   readonly game: MojangArgValue[];
@@ -258,16 +258,16 @@ export function mavenMatchesIgnoringVersion(
  * Decode a ruleset in strict Mojang form. A shorthand string such as
  * `'allow.os.linux'` throws here — that spelling belongs to `@opys/core`.
  */
-export function decodeRuleset(raw: unknown): Ruleset {
-  return napi.decodeRuleset(raw) as Ruleset;
+export function decodeRuleset(raw: unknown): MojangRuleset {
+  return napi.decodeRuleset(raw) as MojangRuleset;
 }
 
-export function encodeRuleset(ruleset: Ruleset): unknown {
+export function encodeRuleset(ruleset: MojangRuleset): unknown {
   return napi.encodeRuleset(ruleset);
 }
 
 export function satisfiesRuleset(
-  rules: Ruleset,
+  rules: MojangRuleset,
   platform: OsOptions,
   features: string[] = [],
 ): boolean {
@@ -275,7 +275,7 @@ export function satisfiesRuleset(
 }
 
 export function satisfiesRule(
-  rule: Rule,
+  rule: MojangRule,
   platform: OsOptions,
   features: string[] = [],
 ): boolean {

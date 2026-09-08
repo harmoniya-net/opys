@@ -27,9 +27,12 @@ pub use interpolate::{interpolate, resolve_vars, VarMap};
 pub use launch::{resolved_args, resolved_envs, Launch};
 pub use manifest::{filter_manifest, parse_manifest, Manifest};
 pub use pointer::{parse_pointer_descriptor, PointerDescriptor};
+// `Rule` / `Ruleset` are opys's own: how a rule is spelled in a manifest,
+// shorthand or expanded. `MojangRule` / `MojangRuleset` below are what either
+// expands to, and what the evaluator takes.
 pub use shorthand::{
-    encode_short_rule, encode_short_ruleset, parse_short_rule, parse_short_ruleset, RawRuleset,
-    RawSingle, ShorthandError,
+    encode_short_rule, encode_short_ruleset, parse_short_rule, parse_short_ruleset, Rule, Ruleset,
+    ShorthandError,
 };
 pub use source::Source;
 pub use val::{resolve_valset, Val, Valset};
@@ -37,8 +40,8 @@ pub use valdefs::{resolve_val_defs, ConditionalVal, ValDef, ValDefs};
 
 pub use opys_mojang_rules::{
     allow_os_ruleset, empty_ruleset, satisfies_features, satisfies_os, satisfies_rule,
-    satisfies_ruleset, FeatureConstraint, OsArch, OsConstraint, OsName, OsOptions, Rule,
-    RuleAction, RuleError, Ruleset,
+    satisfies_ruleset, FeatureConstraint, MojangRule, MojangRuleset, OsArch, OsConstraint, OsName,
+    OsOptions, RuleAction, RuleError,
 };
 
 #[derive(Debug, thiserror::Error)]

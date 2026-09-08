@@ -12,17 +12,17 @@
  *     crossing. They are sugar over the typed shapes.
  *   - `parseShortRuleset` is implemented in TS as the shorthand sugar — the
  *     Rust binding accepts shorthand directly via `satisfiesRuleset` so the
- *     TS impl exists for consumers that need expanded `Rule` objects.
+ *     TS impl exists for consumers that need expanded `MojangRule` objects.
  */
 
 import * as napi from '@opys/core-binding';
 import type {
+  MojangRule,
+  MojangRuleset,
   OsArch,
   OsName,
   OsOptions,
-  Rule,
   RuleAction,
-  Ruleset,
 } from '@opys/mojang-rules';
 
 // `fetchWithRetry` is a build-time HTTP utility (used by Mojang/Forge/Java
@@ -33,8 +33,8 @@ export type { FetchRetryOptions } from './fetch';
 
 // The Mojang rule format — types plus the two trivial factories — is owned
 // by `@opys/mojang-rules`. `core` re-exports it rather than restating it,
-// and extends it below with the opys shorthand codec (`parseShortRuleset` /
-// `encodeShortRuleset`) and the rule-tagged `Val`/`Valset`.
+// and extends it below with opys's own spelling (`Rule` / `Ruleset`, which
+// admit the shorthand string) and the rule-tagged `Val`/`Valset`.
 //
 // The evaluator is deliberately *not* re-exported: `satisfiesRuleset` here
 // expands shorthand first, so it is strictly wider than the Mojang-standard
@@ -46,10 +46,22 @@ export type {
   OsConstraint,
   FeatureConstraint,
   RuleAction,
-  Rule,
-  Ruleset,
+  MojangRule,
+  MojangRuleset,
 } from '@opys/mojang-rules';
 export { emptyRuleset, allowOsRuleset } from '@opys/mojang-rules';
+
+/**
+ * One rule as written in an opys manifest: the shorthand string
+ * (`'allow.os.linux'`, `'disallow.features.demo'`) or the expanded Mojang
+ * object. Both are first-class — neither is a transitional form, a manifest
+ * may mix them, and `parseShortRuleset` is what turns either into the
+ * `MojangRule` the evaluator takes.
+ */
+export type Rule = string | MojangRule;
+
+/** A ruleset as written in an opys manifest: one rule, or an array of them. */
+export type Ruleset = Rule | Rule[];
 
 // ──────────────────────────────────────────────────────────────────────────
 // Behaviors — typed wrappers around the Rust binding.
@@ -100,7 +112,7 @@ export function resolvedEnvs(
   return napi.resolvedEnvs(launch, platform, features);
 }
 export function satisfiesRuleset(
-  rules: Ruleset | string | unknown,
+  rules: Ruleset,
   platform: OsOptions,
   features: string[] = [],
 ): boolean {
@@ -189,7 +201,7 @@ export interface Artifact {
   readonly path: string;
   readonly source: Source;
   readonly size?: number;
-  readonly rules: Ruleset;
+  readonly rules?: Ruleset;
   readonly integrity?: Integrity;
   readonly discovery?: Discovery;
   readonly metadata?: unknown;
@@ -197,14 +209,14 @@ export interface Artifact {
 }
 
 export interface Val {
-  readonly rules: Ruleset;
+  readonly rules?: Ruleset;
   readonly value: string[];
 }
 export type Valset = Val[];
 
 export interface ConditionalVal {
   readonly value: string;
-  readonly rules: Ruleset;
+  readonly rules?: Ruleset;
 }
 export type ValDefs = Readonly<
   Record<string, string | readonly ConditionalVal[]>
@@ -279,13 +291,10 @@ export function deduplicateArtifacts(artifacts: Artifact[]): Artifact[] {
 }
 
 // ──────────────────────────────────────────────────────────────────────────
-// Shorthand expansion — pure TS sugar over canonical `Rule` objects.
+// Shorthand expansion — pure TS sugar over canonical `MojangRule` objects.
 // ──────────────────────────────────────────────────────────────────────────
 
-type RawSingle = string | Rule;
-type RawRuleset = RawSingle | RawSingle[];
-
-function parseShortRule(raw: RawSingle): Rule {
+function parseShortRule(raw: Rule): MojangRule {
   if (typeof raw !== 'string') return raw;
   const parts = raw.split('.');
   const action = parts[0] as RuleAction;
@@ -323,8 +332,8 @@ function parseShortRule(raw: RawSingle): Rule {
   }
 }
 
-export function parseShortRuleset(raw: RawRuleset): Ruleset {
-  const arr: RawSingle[] = Array.isArray(raw) ? raw : [raw];
+export function parseShortRuleset(raw: Ruleset): MojangRuleset {
+  const arr: Rule[] = Array.isArray(raw) ? raw : [raw];
   return arr.map(parseShortRule);
 }
 
@@ -341,7 +350,7 @@ export function parseValset(raw: unknown): Valset {
     if (typeof entry === 'string') return { rules: [], value: [entry] };
     if (entry && typeof entry === 'object') {
       const obj = entry as { rules?: unknown; value: string | string[] };
-      const rules = obj.rules ? parseShortRuleset(obj.rules as RawRuleset) : [];
+      const rules = obj.rules ? parseShortRuleset(obj.rules as Ruleset) : [];
       const value = Array.isArray(obj.value) ? obj.value : [obj.value];
       return { rules, value };
     }

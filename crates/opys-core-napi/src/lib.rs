@@ -121,7 +121,7 @@ pub fn satisfies_ruleset(
     platform: OsOptionsJs,
     features: Vec<String>,
 ) -> Result<bool> {
-    let raw: opys_core::RawRuleset = serde_json::from_value(rules).map_err(map_err)?;
+    let raw: opys_core::Ruleset = serde_json::from_value(rules).map_err(map_err)?;
     let parsed = opys_core::parse_short_ruleset(raw).map_err(map_err)?;
     opys_mojang_rules::satisfies_ruleset(&parsed, &platform.into(), &features).map_err(map_err)
 }

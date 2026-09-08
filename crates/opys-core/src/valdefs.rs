@@ -1,13 +1,13 @@
 use indexmap::IndexMap;
-use opys_mojang_rules::{satisfies_ruleset, OsOptions, RuleError, Ruleset};
+use opys_mojang_rules::{satisfies_ruleset, MojangRuleset, OsOptions, RuleError};
 use serde::{Deserialize, Serialize};
 
-use crate::shorthand::{encode_short_ruleset, parse_short_ruleset, RawRuleset, ShorthandError};
+use crate::shorthand::{encode_short_ruleset, parse_short_ruleset, Ruleset, ShorthandError};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ConditionalVal {
     pub value: String,
-    pub rules: Ruleset,
+    pub rules: MojangRuleset,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -23,7 +23,7 @@ pub type ValDefs = IndexMap<String, ValDef>;
 pub(crate) struct ConditionalValWire {
     value: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    rules: Option<RawRuleset>,
+    rules: Option<Ruleset>,
 }
 
 /// The arms are carried as wire structs rather than `Vec<ConditionalVal>`:

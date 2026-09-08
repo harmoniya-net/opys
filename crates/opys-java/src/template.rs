@@ -3,8 +3,8 @@
 
 use indexmap::IndexMap;
 use opys_core::{
-    Artifact, ConditionalVal, ExtractRule, ExtractScan, HashEntry, Integrity, OsConstraint, OsName,
-    Rule, RuleAction, Ruleset, Source, ValDef, ValDefs,
+    Artifact, ConditionalVal, ExtractRule, ExtractScan, HashEntry, Integrity, MojangRule,
+    MojangRuleset, OsConstraint, OsName, RuleAction, Source, ValDef, ValDefs,
 };
 use serde::{Deserialize, Serialize};
 
@@ -55,8 +55,8 @@ pub struct JavaTemplate {
     pub release: VendorRelease,
 }
 
-fn allow_os(os: OsName) -> Rule {
-    Rule::Os {
+fn allow_os(os: OsName) -> MojangRule {
+    MojangRule::Os {
         action: RuleAction::Allow,
         os: OsConstraint {
             name: Some(os),
@@ -65,10 +65,10 @@ fn allow_os(os: OsName) -> Rule {
     }
 }
 
-fn os_arch_ruleset(os: OsName, arch: SupportedArch) -> Ruleset {
+fn os_arch_ruleset(os: OsName, arch: SupportedArch) -> MojangRuleset {
     vec![
         allow_os(os),
-        Rule::Os {
+        MojangRule::Os {
             action: RuleAction::Allow,
             os: OsConstraint {
                 arch: Some(arch.as_os_arch()),
@@ -78,12 +78,12 @@ fn os_arch_ruleset(os: OsName, arch: SupportedArch) -> Ruleset {
     ]
 }
 
-fn os_ruleset(os: OsName) -> Ruleset {
+fn os_ruleset(os: OsName) -> MojangRuleset {
     vec![allow_os(os)]
 }
 
-fn feature_rule(action: RuleAction, name: &str, required: bool) -> Rule {
-    Rule::Features {
+fn feature_rule(action: RuleAction, name: &str, required: bool) -> MojangRule {
+    MojangRule::Features {
         action,
         features: [(name.to_owned(), required)].into_iter().collect(),
     }

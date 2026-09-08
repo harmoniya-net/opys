@@ -3,15 +3,16 @@ mod common;
 
 use common::{linux, osx, parse_ruleset, windows_10, windows_7};
 use opys_mojang_rules::{
-    satisfies_os, satisfies_rule, satisfies_ruleset, OsArch, OsConstraint, OsName, Rule, RuleAction,
+    satisfies_os, satisfies_rule, satisfies_ruleset, MojangRule, OsArch, OsConstraint, OsName,
+    RuleAction,
 };
 
-fn action_only(action: RuleAction) -> Rule {
-    Rule::Plain { action }
+fn action_only(action: RuleAction) -> MojangRule {
+    MojangRule::Plain { action }
 }
 
-fn allow_os(name: OsName) -> Rule {
-    Rule::Os {
+fn allow_os(name: OsName) -> MojangRule {
+    MojangRule::Os {
         action: RuleAction::Allow,
         os: OsConstraint {
             name: Some(name),
@@ -20,8 +21,8 @@ fn allow_os(name: OsName) -> Rule {
     }
 }
 
-fn disallow_os(name: OsName) -> Rule {
-    Rule::Os {
+fn disallow_os(name: OsName) -> MojangRule {
+    MojangRule::Os {
         action: RuleAction::Disallow,
         os: OsConstraint {
             name: Some(name),
@@ -155,6 +156,20 @@ fn satisfies_os_ignores_absent_fields() {
 
 #[test]
 fn satisfies_rule_bare_allow_and_disallow() {
-    assert!(satisfies_rule(&Rule::Plain { action: RuleAction::Allow }, &linux(), &[]).unwrap());
-    assert!(!satisfies_rule(&Rule::Plain { action: RuleAction::Disallow }, &linux(), &[]).unwrap());
+    assert!(satisfies_rule(
+        &MojangRule::Plain {
+            action: RuleAction::Allow
+        },
+        &linux(),
+        &[]
+    )
+    .unwrap());
+    assert!(!satisfies_rule(
+        &MojangRule::Plain {
+            action: RuleAction::Disallow
+        },
+        &linux(),
+        &[]
+    )
+    .unwrap());
 }

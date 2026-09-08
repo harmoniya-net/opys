@@ -51,8 +51,7 @@ export interface OpysPlugin {
  * current value, e.g. a mirror URL off the existing path).
  */
 export type ArtifactPatch =
-  | Partial<Artifact>
-  | ((artifact: Artifact) => Partial<Artifact>);
+  Partial<Artifact> | ((artifact: Artifact) => Partial<Artifact>);
 
 /**
  * A plugin you can post-process fluently. Every method returns a **new** plugin
@@ -114,7 +113,10 @@ function chainable(
       push(
         mapMatched(match, (a) => ({
           ...a,
-          rules: [...a.rules, ...parseShortRuleset(rules)],
+          rules: [
+            ...parseShortRuleset(a.rules ?? []),
+            ...parseShortRuleset(rules),
+          ],
         })),
       ),
     removeIntegrity: (match) =>

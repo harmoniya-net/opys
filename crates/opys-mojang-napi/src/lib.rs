@@ -19,7 +19,7 @@ use serde_json::Value as Json;
 
 use opys_mojang_rules::{
     satisfies_features, satisfies_os, satisfies_rule, satisfies_ruleset, FeatureConstraint,
-    OsConstraint, Rule, Ruleset,
+    MojangRule, MojangRuleset, OsConstraint,
 };
 
 fn map_err<E: std::fmt::Display>(e: E) -> napi::Error {
@@ -164,13 +164,13 @@ pub fn maven_matches_ignoring_version(a: Json, b: Json) -> Result<bool> {
 /// belongs to `@opys/core`.
 #[napi(js_name = "decodeRuleset")]
 pub fn decode_ruleset(raw: Json) -> Result<Json> {
-    let rules: Ruleset = serde_json::from_value(raw).map_err(map_err)?;
+    let rules: MojangRuleset = serde_json::from_value(raw).map_err(map_err)?;
     serde_json::to_value(rules).map_err(map_err)
 }
 
 #[napi(js_name = "encodeRuleset")]
 pub fn encode_ruleset(ruleset: Json) -> Result<Json> {
-    let rules: Ruleset = serde_json::from_value(ruleset).map_err(map_err)?;
+    let rules: MojangRuleset = serde_json::from_value(ruleset).map_err(map_err)?;
     serde_json::to_value(rules).map_err(map_err)
 }
 
@@ -181,13 +181,13 @@ pub fn satisfies_ruleset_js(
     platform: OsOptionsJs,
     features: Vec<String>,
 ) -> Result<bool> {
-    let rules: Ruleset = serde_json::from_value(rules).map_err(map_err)?;
+    let rules: MojangRuleset = serde_json::from_value(rules).map_err(map_err)?;
     satisfies_ruleset(&rules, &platform.into(), &features).map_err(map_err)
 }
 
 #[napi(js_name = "satisfiesRule")]
 pub fn satisfies_rule_js(rule: Json, platform: OsOptionsJs, features: Vec<String>) -> Result<bool> {
-    let rule: Rule = serde_json::from_value(rule).map_err(map_err)?;
+    let rule: MojangRule = serde_json::from_value(rule).map_err(map_err)?;
     satisfies_rule(&rule, &platform.into(), &features).map_err(map_err)
 }
 

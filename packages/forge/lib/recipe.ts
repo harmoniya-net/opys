@@ -6,7 +6,7 @@ import {
   type Library,
   type MojangArgValue,
 } from '@opys/mojang';
-import type { Ruleset } from '@opys/core';
+import type { MojangRuleset } from '@opys/core';
 
 /**
  * Local copy of the Mojang rule schema.
@@ -102,7 +102,7 @@ export interface LegacyLibrary {
   readonly name: string;
   readonly path: string;
   readonly url: string;
-  readonly rules: Ruleset;
+  readonly rules: MojangRuleset;
   readonly sha1?: string;
   readonly md5?: string;
   readonly size?: number;

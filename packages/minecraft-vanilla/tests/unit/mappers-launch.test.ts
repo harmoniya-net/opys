@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildClasspath, buildLaunch } from '../../lib/mappers/launch';
-import { allowOsRuleset } from '@opys/core';
+import { allowOsRuleset, parseShortRuleset } from '@opys/core';
 
 describe('buildClasspath', () => {
   it('produces one conditional arm per platform', () => {
@@ -25,7 +25,9 @@ describe('buildClasspath', () => {
     );
     const byOs = Object.fromEntries(
       arms.map((a) => {
-        const rule = a.rules[0] as { os: { name: string } };
+        const rule = parseShortRuleset(a.rules ?? [])[0] as {
+          os: { name: string };
+        };
         return [rule.os.name, a.value];
       }),
     );
@@ -42,7 +44,9 @@ describe('buildClasspath', () => {
   it('tags each arm with an allow-os ruleset', () => {
     const arms = buildClasspath([], 'c.jar');
     for (const arm of arms) {
-      expect(arm.rules[0]).toMatchObject({ action: 'allow' });
+      expect(parseShortRuleset(arm.rules ?? [])[0]).toMatchObject({
+        action: 'allow',
+      });
     }
   });
 });

@@ -6,8 +6,8 @@ mod common;
 
 use common::{Reply, Request, TestServer};
 use opys_core::{
-    ExtractRule, HashEntry, Integrity, OsArch, OsConstraint, OsName, Rule, RuleAction, Source,
-    ValDef,
+    ExtractRule, HashEntry, Integrity, MojangRule, OsArch, OsConstraint, OsName, RuleAction,
+    Source, ValDef,
 };
 use opys_java::{
     build_java, java_template, resolve_java, JavaOptions, JavaVendor, Platform, SupportedArch,
@@ -90,14 +90,14 @@ fn scopes_each_artifact_with_an_os_and_arch_ruleset() {
     assert_eq!(
         template.artifacts[0].rules,
         vec![
-            Rule::Os {
+            MojangRule::Os {
                 action: RuleAction::Allow,
                 os: OsConstraint {
                     name: Some(OsName::Osx),
                     ..Default::default()
                 }
             },
-            Rule::Os {
+            MojangRule::Os {
                 action: RuleAction::Allow,
                 os: OsConstraint {
                     arch: Some(OsArch::Aarch64),

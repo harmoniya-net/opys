@@ -1,11 +1,15 @@
-//! String-form shorthand for rules: `"allow.os.linux@10\\."` ↔ `Rule`.
+//! The opys spelling of a rule, and its codec to and from the Mojang one.
 //!
-//! Mirrors `core/lib/shorthand.ts`.
+//! [`Rule`] is what a rule looks like *in an opys manifest*: a shorthand
+//! string such as `"allow.os.linux@10\\."`, or the expanded Mojang object.
+//! Both are first-class — a manifest is not obliged to pick one, and neither
+//! spelling is a transitional form. [`MojangRule`] is what either expands to,
+//! and the only thing the evaluator sees.
 
+use opys_mojang_rules::{MojangRule, MojangRuleset, OsArch, OsConstraint, OsName, RuleAction};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use thiserror::Error;
-use opys_mojang_rules::{OsArch, OsConstraint, OsName, Rule, RuleAction, Ruleset};
 
 #[derive(Debug, Error)]
 pub enum ShorthandError {
@@ -25,21 +29,21 @@ pub enum ShorthandError {
     InvalidArch(String),
 }
 
-/// Wire form of a single rule entry: either a shorthand string or an expanded
-/// rule object.
+/// One rule as written in a manifest: a shorthand string, or the expanded
+/// Mojang object.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
-pub enum RawSingle {
+pub enum Rule {
     Short(String),
-    Expanded(Rule),
+    Expanded(MojangRule),
 }
 
-/// Wire form of a ruleset: a single entry or an array.
+/// A ruleset as written in a manifest: one rule, or an array of them.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
-pub enum RawRuleset {
-    One(RawSingle),
-    Many(Vec<RawSingle>),
+pub enum Ruleset {
+    One(Rule),
+    Many(Vec<Rule>),
 }
 
 fn parse_os_name(s: &str) -> Result<OsName, ShorthandError> {
@@ -62,10 +66,10 @@ fn parse_arch(s: &str) -> Result<OsArch, ShorthandError> {
     }
 }
 
-pub fn parse_short_rule(raw: RawSingle) -> Result<Rule, ShorthandError> {
+pub fn parse_short_rule(raw: Rule) -> Result<MojangRule, ShorthandError> {
     let s = match raw {
-        RawSingle::Expanded(r) => return Ok(r),
-        RawSingle::Short(s) => s,
+        Rule::Expanded(r) => return Ok(r),
+        Rule::Short(s) => s,
     };
 
     let mut parts = s.splitn(3, '.');
@@ -79,7 +83,7 @@ pub fn parse_short_rule(raw: RawSingle) -> Result<Rule, ShorthandError> {
     let rest = parts.next().unwrap_or("");
 
     let Some(typ) = type_part else {
-        return Ok(Rule::Plain { action });
+        return Ok(MojangRule::Plain { action });
     };
 
     match typ {
@@ -92,7 +96,7 @@ pub fn parse_short_rule(raw: RawSingle) -> Result<Rule, ShorthandError> {
                 None => (rest, None),
             };
             let name = parse_os_name(name_part)?;
-            Ok(Rule::Os {
+            Ok(MojangRule::Os {
                 action,
                 os: OsConstraint {
                     name: Some(name),
@@ -107,7 +111,7 @@ pub fn parse_short_rule(raw: RawSingle) -> Result<Rule, ShorthandError> {
             }
             let mut m = BTreeMap::new();
             m.insert(rest.to_owned(), true);
-            Ok(Rule::Features {
+            Ok(MojangRule::Features {
                 action,
                 features: m,
             })
@@ -116,7 +120,7 @@ pub fn parse_short_rule(raw: RawSingle) -> Result<Rule, ShorthandError> {
             if rest.is_empty() {
                 return Err(ShorthandError::MissingArch);
             }
-            Ok(Rule::Os {
+            Ok(MojangRule::Os {
                 action,
                 os: OsConstraint {
                     name: None,
@@ -147,51 +151,48 @@ fn arch_str(a: OsArch) -> &'static str {
     }
 }
 
-pub fn encode_short_rule(rule: &Rule) -> RawSingle {
+pub fn encode_short_rule(rule: &MojangRule) -> Rule {
     let action = match rule.action() {
         RuleAction::Allow => "allow",
         RuleAction::Disallow => "disallow",
     };
     match rule {
-        Rule::Os { os, .. } => {
+        MojangRule::Os { os, .. } => {
             if let Some(name) = os.name {
                 if let Some(ver) = &os.version {
-                    return RawSingle::Short(format!(
-                        "{action}.os.{}@{ver}",
-                        os_name_str(name)
-                    ));
+                    return Rule::Short(format!("{action}.os.{}@{ver}", os_name_str(name)));
                 }
-                return RawSingle::Short(format!("{action}.os.{}", os_name_str(name)));
+                return Rule::Short(format!("{action}.os.{}", os_name_str(name)));
             }
             if let Some(arch) = os.arch {
-                return RawSingle::Short(format!("{action}.arch.{}", arch_str(arch)));
+                return Rule::Short(format!("{action}.arch.{}", arch_str(arch)));
             }
-            RawSingle::Expanded(rule.clone())
+            Rule::Expanded(rule.clone())
         }
-        Rule::Features { features, .. } => {
+        MojangRule::Features { features, .. } => {
             if features.len() == 1 {
                 let (k, _) = features.iter().next().unwrap();
-                return RawSingle::Short(format!("{action}.features.{k}"));
+                return Rule::Short(format!("{action}.features.{k}"));
             }
-            RawSingle::Expanded(rule.clone())
+            Rule::Expanded(rule.clone())
         }
-        Rule::Plain { .. } => RawSingle::Short(action.to_owned()),
+        MojangRule::Plain { .. } => Rule::Short(action.to_owned()),
     }
 }
 
-pub fn parse_short_ruleset(raw: RawRuleset) -> Result<Ruleset, ShorthandError> {
+pub fn parse_short_ruleset(raw: Ruleset) -> Result<MojangRuleset, ShorthandError> {
     let arr = match raw {
-        RawRuleset::Many(v) => v,
-        RawRuleset::One(s) => vec![s],
+        Ruleset::Many(v) => v,
+        Ruleset::One(s) => vec![s],
     };
     arr.into_iter().map(parse_short_rule).collect()
 }
 
-pub fn encode_short_ruleset(ruleset: &Ruleset) -> RawRuleset {
-    let encoded: Vec<RawSingle> = ruleset.iter().map(encode_short_rule).collect();
+pub fn encode_short_ruleset(ruleset: &MojangRuleset) -> Ruleset {
+    let encoded: Vec<Rule> = ruleset.iter().map(encode_short_rule).collect();
     if encoded.len() == 1 {
-        RawRuleset::One(encoded.into_iter().next().unwrap())
+        Ruleset::One(encoded.into_iter().next().unwrap())
     } else {
-        RawRuleset::Many(encoded)
+        Ruleset::Many(encoded)
     }
 }
