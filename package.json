@@ -34,6 +34,7 @@
     "packages/runtime",
     "packages/cli",
     "crates/opys-dev-napi",
+    "crates/opys-java-napi",
     "crates/opys-mojang-napi",
     "crates/opys-core-napi",
     "crates/opys-runtime-napi"

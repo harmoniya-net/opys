@@ -7,6 +7,7 @@
 use std::collections::HashMap;
 
 use opys_core::{deduplicate_artifacts, Artifact, Launch, Manifest, Val, ValDefs, Valset};
+use serde::Deserialize;
 
 use crate::contribution::{Contribution, LaunchFragment, PluginOutput};
 
@@ -14,19 +15,29 @@ use crate::contribution::{Contribution, LaunchFragment, PluginOutput};
 /// (`command` / `args` / `workdir` / `envs`) already applied to the plugin map.
 /// Evaluating those is the caller's job; they are closures in JS and would not
 /// survive the trip into Rust.
-#[derive(Debug, Clone, Default)]
+///
+/// Every field but `command` defaults: the author writes what they mean and
+/// omits the rest. `command` is the one thing a launch cannot do without, so
+/// its absence is an error rather than an empty string.
+#[derive(Debug, Clone, Default, Deserialize)]
 pub struct ManifestConfig {
     /// Hand-written literal artifacts, appended after all plugin output.
+    #[serde(default)]
     pub artifacts: Vec<Artifact>,
     /// Override vars layered on top of the merged plugin vars — the sanctioned
     /// silent override, so no collision warning is raised for it.
+    #[serde(default)]
     pub vars: ValDefs,
     pub command: String,
     /// `None` means the manifest default, `"."`.
+    #[serde(default)]
     pub workdir: Option<String>,
+    #[serde(default)]
     pub args: Vec<LaunchFragment>,
+    #[serde(default)]
     pub envs: ValDefs,
     /// Emitted only when non-empty, matching the frozen wire format.
+    #[serde(default)]
     pub restrict: Vec<String>,
 }
 

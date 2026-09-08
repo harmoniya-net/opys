@@ -2,6 +2,8 @@
 
 JDK runtime support for opys — auto-installs a JDK (Temurin, Zulu, or GraalVM CE) and exposes `${java_home}` and `${java_bin}` as standardized vars so loader templates can reference a portable Java binary.
 
+Resolution lives in the `opys-java` crate and reaches JS through `@opys/java-binding`; this package is the typed surface over it, plus the `java()` plugin closure the build engine calls. A native builder embedding the crate gets the same resolvers and the same contribution.
+
 ## Install
 
 ```sh
@@ -51,7 +53,7 @@ resolveJava({
   version: string,
   vendor?: 'temurin' | 'zulu' | 'graalvm', // defaults to 'temurin'
   platforms?: Platform[],                  // override the default OS/arch matrix
-  apiBase?: string,                        // Adoptium/Azul API base URL override — temurin/zulu only
+  apiBase?: string,                        // API base URL override — an Adoptium/Azul mirror, or a GitHub Enterprise host
   token?: string,                          // GitHub token for higher rate limits — graalvm only
 });
 ```
@@ -59,7 +61,7 @@ resolveJava({
 ## How it works
 
 1. Resolves the requested `version` against the chosen vendor's API — Adoptium (`api.adoptium.net`) for `temurin`, Azul's Metadata API (`api.azul.com`) for `zulu`, or the `graalvm/graalvm-ce-builds` GitHub releases for `graalvm`.
-2. Queries each platform (linux/osx/windows × x86_64+aarch64) in parallel; soft-skips combinations that don't ship a binary. `temurin` and `zulu` additionally anchor every platform on the release version most of them agree on, since each platform is queried independently and can resolve to a different latest patch if a build hasn't rolled out everywhere yet.
+2. Queries each platform (linux/osx/windows × x86_64+aarch64) in parallel; soft-skips combinations that don't ship a binary. GraalVM CE needs a single request for all of them, since one GitHub release carries every platform's asset. `temurin` and `zulu` additionally anchor every platform on the release version most of them agree on, since each platform is queried independently and can resolve to a different latest patch if a build hasn't rolled out everywhere yet.
 3. Emits one `Artifact` per platform pointing at the vendor's hosted release asset, with a sha256 checksum and OS+arch rules so only the matching binary downloads at install time. When a vendor can't provide a checksum up front (older GraalVM CE releases predate GitHub's inline asset digest), the artifact instead carries an install-time `discovery` hint pointing at the vendor's sibling checksum file — never shipped unverified.
 4. Each artifact extracts into `${root}/runtimes/jdk-<major>/` with its own top-level directory stripped, whatever it's named — some vendors' archives embed a build identifier that isn't knowable at resolve time (GraalVM CE's do), so every vendor extracts the same flattened way rather than special-casing the ones whose directory name happens to be predictable.
 5. Sets `java_home` (per OS — macOS gets the `/Contents/Home` suffix) and `java_bin` (`${java_home}/bin/java` on POSIX; on Windows `${java_home}/bin/javaw.exe` by default — no console window — switching to `java.exe` when the `java_console` feature is enabled, e.g. `opys launch --feature java_console`).

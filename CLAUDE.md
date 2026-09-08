@@ -47,7 +47,8 @@ Eight packages, a clean DAG, no cycles:
 @opys/minecraft     Minecraft-domain plugins — minecraft / forge / cleanroom /
                      lwjgl3ify / curseforge / authliberty — + bifrost / serverlist
                      helpers.                                         → dev, core, mojang
-@opys/java          OpenJDK (Adoptium) provisioning plugin.                  → dev, core
+@opys/java          JDK provisioning — Temurin / Zulu / GraalVM CE.
+                     Thin wrapper over the `opys-java` crate.                → dev, core
 @opys/cli           the `opys` binary.                 → dev, runtime, minecraft, java
 ```
 
@@ -80,6 +81,16 @@ Eight packages, a clean DAG, no cycles:
   `@opys/dev-binding`. Driving the plugins stays in JS because plugins and the
   author's `command`/`args` accessors are closures — but a native builder
   running Rust plugins reaches the identical merge.
+- **Build-time HTTP is one blocking GET.** `opys-dev`'s `http::get` — no
+  retry, no streaming, no resume. Resolvers run once against small JSON APIs;
+  the install path has its own downloader in `opys-runtime`, and the two must
+  never be confused for one another. `opys-dev-napi` builds with the `net`
+  feature off, since merging contributions needs no network.
+- **A resolver is a pure core with one impure call.** Version normalisation,
+  query spelling, asset matching and template assembly are plain functions
+  with plain unit tests; the request is the only part that touches the world.
+  `opys-java` is the reference shape — every vendor takes an `apiBase`, so the
+  network path is testable against a loopback server rather than mocked away.
 - **The `@opys/mojang-rules` npm package carries types only** — no zod, no
   native code, no dependencies. Both sides of the build/runtime wall can name
   the rule contract without pulling anything in. A hand-written TS
@@ -167,6 +178,9 @@ Partial<Manifest>` is the launch-time patch, applied every launch (so e.g.
   (`tests/integration`) against the real Mojang / Forge / Adoptium /
   CurseForge APIs. It needs network and a `CURSEFORGE_TOKEN`, so it is run
   **locally only** — never in CI.
-- `audit/` holds the open code-quality backlog — one file per package, rated
-  against the principles above. Keep it pruned: resolved findings are removed,
-  not ticked.
+- **`cargo test --workspace`** runs the Rust suites. Behaviour ported into a
+  crate is tested there, not twice: `@opys/java`'s JS tests cover only what
+  the wrapper adds (the plugin closure, the typed surface), while the
+  resolvers are exercised in `crates/opys-java/tests`.
+- **`node scripts/smoke-napi.mjs`** loads every `.node` and crosses each
+  binding once — the check that the addons are actually built and loadable.

@@ -1,0 +1,26 @@
+{
+  "name": "@opys/java-binding-darwin-arm64",
+  "version": "0.2.0",
+  "os": [
+    "darwin"
+  ],
+  "cpu": [
+    "arm64"
+  ],
+  "main": "index.darwin-arm64.node",
+  "files": [
+    "index.darwin-arm64.node"
+  ],
+  "description": "napi-rs binary binding for @opys/java. Not consumed directly — re-exported by @opys/java.",
+  "engines": {
+    "node": ">=20"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/harmoniya-net/opys.git",
+    "directory": "crates/opys-java-napi"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

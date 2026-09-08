@@ -1,23 +1,21 @@
 [package]
-name = "opys-dev"
+name = "opys-java"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
 repository.workspace = true
 homepage.workspace = true
-description = "opys build-time SDK. Merges plugin contributions into a Manifest."
-
-[features]
-# The blocking `ureq` client. On by default; `opys-dev-napi` turns it off,
-# since folding contributions needs no network and the addon ships to npm.
-default = ["net"]
-net = ["dep:ureq"]
+description = "opys JDK provisioning plugin — Temurin, Zulu and GraalVM CE resolvers."
 
 [dependencies]
 opys-core = { path = "../opys-core", version = "0.2.0" }
+opys-dev = { path = "../opys-dev", version = "0.2.0" }
 indexmap = { version = "2", features = ["serde"] }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
-ureq = { version = "3", optional = true }
+percent-encoding = "2"
+
+[dev-dependencies]
+opys-dev = { path = "../opys-dev", version = "0.2.0" }

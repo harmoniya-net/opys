@@ -7,7 +7,7 @@
 //   npm run release major    # major bump
 //   npm run release 2.0.0    # explicit version
 //
-// npm and crates.io versions stay in lockstep. The two -napi crates are
+// npm and crates.io versions stay in lockstep. The -napi crates are
 // `publish = false` so cargo skips them; they ship through their npm-side
 // `@opys/*-binding` packages, which carry the same version.
 
@@ -82,10 +82,12 @@ for (const crate of [
   'crates/opys-core',
   'crates/opys-mojang',
   'crates/opys-dev',
+  'crates/opys-java',
   'crates/opys-runtime',
   'crates/opys-core-napi',
   'crates/opys-mojang-napi',
   'crates/opys-dev-napi',
+  'crates/opys-java-napi',
   'crates/opys-runtime-napi',
 ]) {
   stampCargoCrate(`${crate}/Cargo.toml`);

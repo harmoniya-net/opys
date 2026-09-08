@@ -1,12 +1,14 @@
 #!/usr/bin/env node
-// End-to-end smoke test for the napi bindings. Loads all four .node files,
-// exercises core decode/encode/resolve, the mojang parsers and the dev
-// engine's merge, then runs an actual `install` from runtime-napi against a
-// tmpdir with a string source.
+// End-to-end smoke test for the napi bindings. Loads all five .node files,
+// exercises core decode/encode/resolve, the mojang parsers, the dev engine's
+// merge and a java resolve against a loopback stand-in for the Adoptium API,
+// then runs an actual `install` from runtime-napi against a tmpdir with a
+// string source.
 //
 // Run from the repo root:  node scripts/smoke-napi.mjs
 
 import { mkdtempSync, readFileSync } from 'node:fs';
+import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createRequire } from 'node:module';
@@ -16,6 +18,7 @@ const core = require('../crates/opys-core-napi/index.js');
 const runtime = require('../crates/opys-runtime-napi/index.js');
 const mojang = require('../crates/opys-mojang-napi/index.js');
 const dev = require('../crates/opys-dev-napi/index.js');
+const java = require('../crates/opys-java-napi/index.js');
 
 let ok = 0;
 let fail = 0;
@@ -192,6 +195,84 @@ check(
   'buildLaunch passes through args',
   spec.args.length === 1 && spec.args[0] === '-version',
 );
+
+console.log('\n— java —');
+check(
+  'defaultPlatforms covers six (os, arch) pairs',
+  java.defaultPlatforms().length === 6,
+);
+
+// The resolvers do real HTTP, so stand in for Adoptium on loopback — that
+// keeps the smoke test hermetic while still crossing the whole boundary.
+const adoptium = createServer((_req, res) => {
+  res.writeHead(200, { 'content-type': 'application/json' }).end(
+    JSON.stringify([
+      {
+        release_name: 'jdk-21.0.11+10',
+        version_data: { major: 21 },
+        binaries: [
+          {
+            architecture: 'x64',
+            os: 'linux',
+            image_type: 'jdk',
+            jvm_impl: 'hotspot',
+            package: {
+              checksum: 'abc123',
+              link: 'https://example.invalid/a.tar.gz',
+              name: 'a.tar.gz',
+              size: 12345,
+            },
+          },
+        ],
+      },
+    ]),
+  );
+});
+await new Promise((resolve) => adoptium.listen(0, '127.0.0.1', resolve));
+const apiBase = `http://127.0.0.1:${adoptium.address().port}`;
+const javaOpts = {
+  version: '21',
+  platforms: [{ os: 'linux', arch: 'x86_64' }],
+  apiBase,
+};
+
+const template = await java.resolveJava(javaOpts);
+check(
+  'resolveJava labels the resolved release',
+  template.release.label === 'Temurin 21.0.11+10',
+);
+check(
+  'resolveJava emits one artifact per binary',
+  template.artifacts.length === 1 &&
+    template.artifacts[0].source.url === 'https://example.invalid/a.tar.gz',
+);
+check(
+  'resolveJava owns java_home / java_bin / java_runtime_dir',
+  ['java_home', 'java_bin', 'java_runtime_dir'].every(
+    (k) => k in template.vars,
+  ),
+);
+
+const built = await java.buildJava(javaOpts);
+check('buildJava names the plugin', built.output.name === 'java');
+check(
+  'buildJava exposes the bin launch group and JAVA_HOME',
+  built.output.contribution.launch.bin === '${java_bin}' &&
+    built.output.contribution.envs.JAVA_HOME === '${java_home}',
+);
+
+// The java contribution folds through the same engine the config uses.
+const withJava = dev.assemble([built.output], {
+  command: '${java_bin}',
+  args: ['-version'],
+});
+check(
+  'assemble accepts the java contribution end to end',
+  withJava.manifest.artifacts.length === 1 &&
+    withJava.manifest.vars.java_runtime_dir === '${root}/runtimes',
+);
+
+adoptium.close();
 
 console.log(`\nresult: ${ok} passed, ${fail} failed`);
 process.exit(fail === 0 ? 0 : 1);

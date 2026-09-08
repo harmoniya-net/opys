@@ -9,9 +9,20 @@
 //! SDK runs author closures, while a native builder runs Rust plugins. Both
 //! then hand their contributions to [`assemble`], so the manifest is folded
 //! exactly one way regardless of who produced it.
+//!
+//! It also carries the two pieces of plumbing every build-time resolver needs
+//! and the runtime must never inherit: a one-shot blocking HTTP GET, and the
+//! GitHub Releases listing several loaders resolve against. Retry, resume and
+//! download bookkeeping are the runtime's job and stay in `opys-runtime`.
 
 mod contribution;
 mod engine;
+#[cfg(feature = "net")]
+pub mod github;
+#[cfg(feature = "net")]
+pub mod http;
 
 pub use contribution::{Contribution, LaunchFragment, LaunchGroups, PluginOutput};
 pub use engine::{assemble, Assembled, ManifestConfig};
+#[cfg(feature = "net")]
+pub use http::{HttpError, HttpResponse, OPYS_USER_AGENT};
