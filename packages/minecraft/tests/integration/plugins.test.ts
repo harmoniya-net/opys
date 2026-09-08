@@ -37,16 +37,32 @@ describe('minecraft vanilla plugin (live)', () => {
 });
 
 describe('forge plugin (live)', () => {
-  it('resolves a 1.20.1 Forge build into a manifest contribution', async () => {
-    const c = await forge('1.20.1-best').build(ctx);
-    expect(c.artifacts!.length).toBeGreaterThan(0);
-    expect(c.launch).toHaveProperty('mainClass');
-    expect(c.launch).toHaveProperty('jvmArgs');
-    expect(c.launch).toHaveProperty('gameArgs');
-    for (const a of c.artifacts!) {
-      expect(a.path).toBeTruthy();
-    }
-  });
+  // One version per structural shape, not per Minecraft release: the legacy
+  // era (no ForgeWrapper, universal jar as a plain library), the processor
+  // versions whose install profile lists a generated jar with no URL, and a
+  // modern build. A 1.20.1-only test missed the empty-URL artifacts that
+  // 1.13.2–1.16.5 produce.
+  for (const version of [
+    '1.7.10-best',
+    '1.12.2-best',
+    '1.16.5-best',
+    '1.20.1-best',
+  ]) {
+    it(`resolves ${version} into a manifest contribution`, async () => {
+      const c = await forge(version).build(ctx);
+      expect(c.artifacts!.length).toBeGreaterThan(0);
+      expect(c.launch).toHaveProperty('mainClass');
+      expect(c.launch).toHaveProperty('jvmArgs');
+      expect(c.launch).toHaveProperty('gameArgs');
+      for (const a of c.artifacts!) {
+        expect(a.path).toBeTruthy();
+        // Every artifact must name something fetchable. An empty URL means a
+        // jar the installer generates leaked into the download set.
+        expect(a.source).toBeDefined();
+        if ('url' in a.source) expect(a.source.url).toBeTruthy();
+      }
+    });
+  }
 });
 
 const token = process.env.CURSEFORGE_TOKEN;

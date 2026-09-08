@@ -4,7 +4,6 @@ import {
   parseLibraries,
   type Arguments,
   type Library,
-  type MojangArgValue,
 } from '@opys/mojang';
 import type { MojangRuleset } from '@opys/core';
 
@@ -33,30 +32,6 @@ const RuleSchema = z.union([
   }),
   z.object({ action: RuleActionSchema }),
 ]);
-
-/**
- * Forge version JSONs sometimes embed raw `../libraries/` paths (relative to a
- * `.minecraft/versions/<id>/` layout). Rewrite to the opys var equivalent.
- */
-function fixPath(s: string): string {
-  return s.replace(/\.\.\/libraries\//g, '${library_directory}/');
-}
-
-function fixArg(arg: MojangArgValue): MojangArgValue {
-  if (typeof arg === 'string') return fixPath(arg);
-  const value = Array.isArray(arg.value)
-    ? arg.value.map(fixPath)
-    : fixPath(arg.value);
-  return { ...arg, value };
-}
-
-/**
- * Rewrite raw `../libraries/` paths in a recipe's parsed args to the opys
- * `${library_directory}` var. Only the JVM args carry such paths.
- */
-function fixArgs(args: Arguments): Arguments {
-  return { ...args, jvm: args.jvm.map(fixArg) };
-}
 
 const LegacyRawSchema = z.object({
   type: z.literal('legacy'),
@@ -92,11 +67,11 @@ const RecipeRawSchema = z.discriminatedUnion('type', [
 ]);
 
 /**
- * Legacy-era library entry. Unlike Mojang's `Library` (which requires sha1 and
- * size), the Forge universal jar's slot inside a legacy recipe's `libraries[]`
- * is a placeholder: only `name` and `path` are present, and the consumer is
- * expected to fill in `url` and `md5` from the per-build entry's
- * `files.universal`. Every other library in the recipe carries full sha1+size.
+ * Legacy-era library entry. Mojang's `Library` requires sha1 and size; a
+ * legacy recipe may carry neither, because the 1.6.x-era artifacts are gone
+ * from every maven and fuckforge can only serve the URL it found in the
+ * install profile. Those builds are unusable either way — the Forge universal
+ * jar itself 404s — but the parser stays total rather than rejecting them.
  */
 export interface LegacyLibrary {
   readonly name: string;
@@ -104,7 +79,6 @@ export interface LegacyLibrary {
   readonly url: string;
   readonly rules: MojangRuleset;
   readonly sha1?: string;
-  readonly md5?: string;
   readonly size?: number;
 }
 
@@ -123,35 +97,22 @@ const LegacyLibRawSchema = z.object({
     .default({}),
 });
 
-function parseLegacyLibraries(
-  raw: unknown[],
-  forgeId: string,
-  forgeUniversal?: { url?: string; md5?: string },
-): LegacyLibrary[] {
-  const universalCoord = `net.minecraftforge:forge:${forgeId}`;
+function parseLegacyLibraries(raw: unknown[]): LegacyLibrary[] {
   const out: LegacyLibrary[] = [];
   for (const item of raw) {
     const lib = LegacyLibRawSchema.parse(item);
-    if (!lib.downloads.artifact) continue;
-    const isUniversal = lib.name === universalCoord;
-    const url =
-      lib.downloads.artifact.url ||
-      (isUniversal ? forgeUniversal?.url : undefined) ||
-      '';
-    if (!url) {
-      throw new Error(
-        `Legacy Forge library '${lib.name}' has no URL and no fallback was provided`,
-      );
+    const artifact = lib.downloads.artifact;
+    if (!artifact) continue;
+    if (!artifact.url) {
+      throw new Error(`Legacy Forge library '${lib.name}' has no download URL`);
     }
-    const md5 = isUniversal ? forgeUniversal?.md5 : undefined;
     out.push({
       name: lib.name,
-      path: lib.downloads.artifact.path,
-      url,
+      path: artifact.path,
+      url: artifact.url,
       rules: lib.rules,
-      sha1: lib.downloads.artifact.sha1,
-      md5,
-      size: lib.downloads.artifact.size,
+      sha1: artifact.sha1,
+      size: artifact.size,
     });
   }
   return out;
@@ -181,25 +142,11 @@ export type ForgeRecipe =
       readonly id: string;
     };
 
-export interface ParseForgeRecipeOptions {
-  /**
-   * For legacy recipes, the Forge universal library's slot in `libraries[]`
-   * is a placeholder (no URL, no hash). fuckforge serves the real values on
-   * the per-build entry's `files.universal`. Pass them here and the parser
-   * will splice them onto the universal entry so it gets a real integrity
-   * check instead of being downloaded blind.
-   */
-  forgeUniversal?: { url?: string; md5?: string };
-}
-
 /**
  * Parses a fuckforge recipe document into a discriminated union over the four
  * Forge eras.
  */
-export function parseForgeRecipe(
-  raw: unknown,
-  options: ParseForgeRecipeOptions = {},
-): ForgeRecipe {
+export function parseForgeRecipe(raw: unknown): ForgeRecipe {
   const data = RecipeRawSchema.parse(raw);
 
   if (data.type === 'legacy') {
@@ -208,12 +155,8 @@ export function parseForgeRecipe(
       forge: data.forge,
       id: data.id,
       mainClass: data.mainClass,
-      args: fixArgs(parseArguments(data.minecraftArguments)),
-      libraries: parseLegacyLibraries(
-        data.libraries,
-        data.forge,
-        options.forgeUniversal,
-      ),
+      args: parseArguments(data.minecraftArguments),
+      libraries: parseLegacyLibraries(data.libraries),
     };
   }
   if (data.type === 'processor') {
@@ -222,7 +165,7 @@ export function parseForgeRecipe(
       forge: data.forge,
       id: data.id,
       mainClass: data.mainClass,
-      args: fixArgs(parseArguments(data.arguments)),
+      args: parseArguments(data.arguments),
       libraries: parseLibraries(data.libraries),
     };
   }

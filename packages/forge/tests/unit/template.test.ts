@@ -71,7 +71,10 @@ function legacyRecipe() {
         name: `net.minecraftforge:forge:${LEGACY_FORGE}`,
         downloads: {
           artifact: {
-            path: `net/minecraftforge/forge/${LEGACY_FORGE}/forge-${LEGACY_FORGE}.jar`,
+            path: `net/minecraftforge/forge/${LEGACY_FORGE}/forge-${LEGACY_FORGE}-universal.jar`,
+            url: `https://maven.minecraftforge.net/net/minecraftforge/forge/${LEGACY_FORGE}/forge-${LEGACY_FORGE}-universal.jar`,
+            sha1: '2'.repeat(40),
+            size: 4466108,
           },
         },
       },
@@ -94,17 +97,7 @@ describe('resolveForge — legacy era', () => {
   it('builds a legacy template with vanilla + forge artifacts', async () => {
     routedFetch([
       ['versions.json', master(LEGACY_FORGE, `${SOURCE}/e.json`)],
-      [
-        '/e.json',
-        indexEntry(LEGACY_FORGE, {
-          files: {
-            universal: {
-              url: 'https://fuckforge/universal.jar',
-              md5: 'abc',
-            },
-          },
-        }),
-      ],
+      ['/e.json', indexEntry(LEGACY_FORGE)],
       [`/recipe/${LEGACY_FORGE}.json`, legacyRecipe()],
     ]);
     const t = await forge(LEGACY_FORGE);
@@ -115,41 +108,14 @@ describe('resolveForge — legacy era', () => {
     expect(t.artifacts.some((a) => a.path.includes('asm-debug-all'))).toBe(
       true,
     );
-    expect(
-      t.artifacts.some((a) => a.path.includes('forge-' + LEGACY_FORGE)),
-    ).toBe(true);
+    // the universal jar comes from the recipe, hash and all — the index
+    // entry's `files.universal` is never consulted
+    const universal = t.artifacts.find((a) =>
+      a.path.includes(`forge-${LEGACY_FORGE}-universal`),
+    )!;
+    expect(universal.integrity).toEqual({ sha1: '2'.repeat(40) });
+    expect(universal.size).toBe(4466108);
     expect(t.vars.classpath).toBeDefined();
-  });
-
-  it('fails recipe parsing when the universal jar has no URL or fallback', async () => {
-    // With no `files.universal` on the index entry, the recipe's universal
-    // placeholder library (which carries no URL of its own) has no fallback
-    // — recipe parsing throws before buildLegacyTemplate's own guard runs.
-    routedFetch([
-      ['versions.json', master(LEGACY_FORGE, `${SOURCE}/e.json`)],
-      ['/e.json', indexEntry(LEGACY_FORGE)],
-      [`/recipe/${LEGACY_FORGE}.json`, legacyRecipe()],
-    ]);
-    await expect(forge(LEGACY_FORGE)).rejects.toThrow(
-      /has no URL and no fallback/,
-    );
-  });
-
-  it('throws "No universal JAR listed" for a legacy recipe with no universal lib', async () => {
-    // A legacy recipe whose libraries[] omits the universal placeholder
-    // entirely reaches buildLegacyTemplate's own files.universal guard.
-    const recipeNoUniversal = {
-      ...legacyRecipe(),
-      libraries: legacyRecipe().libraries.slice(1),
-    };
-    routedFetch([
-      ['versions.json', master(LEGACY_FORGE, `${SOURCE}/e.json`)],
-      ['/e.json', indexEntry(LEGACY_FORGE)],
-      [`/recipe/${LEGACY_FORGE}.json`, recipeNoUniversal],
-    ]);
-    await expect(forge(LEGACY_FORGE)).rejects.toThrow(
-      /No universal JAR listed/,
-    );
   });
 });
 
@@ -288,45 +254,6 @@ describe('resolveForge — processor era', () => {
     const fw = t.artifacts.find((a) => a.path.includes('ForgeWrapper'))!;
     expect(fw.integrity).toEqual({ sha1: 'aa' });
     expect(fw.size).toBe(5);
-  });
-
-  it('rewrites ../libraries/ paths in conditional array-value jvm args', async () => {
-    routedFetch([
-      ['versions.json', master(PROC_FORGE, `${SOURCE}/e.json`)],
-      [
-        '/e.json',
-        indexEntry(PROC_FORGE, {
-          files: {
-            installer: { url: 'https://maven/installer.jar', md5: 'm' },
-          },
-          installProfile: `${SOURCE}/install_profile.json`,
-        }),
-      ],
-      [
-        `/recipe/${PROC_FORGE}.json`,
-        {
-          ...processorRecipe(),
-          arguments: {
-            game: [],
-            jvm: [
-              // conditional arg with an array value carrying a ../libraries/ path
-              {
-                rules: [{ action: 'allow', os: { name: 'osx' } }],
-                value: ['-p', '../libraries/cpw/mods/foo.jar'],
-              },
-            ],
-          },
-        },
-      ],
-      ['/install_profile.json', installProfile],
-    ]);
-    const t = await forge(PROC_FORGE);
-    const jvm = t.jvmArgs.flatMap(valValues);
-    // the ../libraries/ prefix is rewritten to the opys var
-    expect(
-      jvm.some((a) => a.includes('${library_directory}/cpw/mods/foo.jar')),
-    ).toBe(true);
-    expect(jvm.some((a) => a.includes('../libraries/'))).toBe(false);
   });
 
   it('throws when no installer file is listed', async () => {

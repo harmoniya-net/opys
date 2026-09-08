@@ -84,12 +84,7 @@ export async function resolveForge(
       `Failed to fetch Forge recipe from ${indexEntry.recipe}: ${recipeRes.statusText}`,
     );
   }
-  const recipe = parseForgeRecipe(await recipeRes.json(), {
-    forgeUniversal: indexEntry.files.universal && {
-      url: indexEntry.files.universal.url,
-      md5: indexEntry.files.universal.md5,
-    },
-  });
+  const recipe = parseForgeRecipe(await recipeRes.json());
 
   if (recipe.kind === 'unsupported') {
     throw new Error(
@@ -105,19 +100,13 @@ export async function resolveForge(
 }
 
 function legacyLibraryToArtifact(lib: LegacyLibrary): Artifact {
-  // Prefer sha1 (what 3rd-party libs in the recipe carry); fall back to md5
-  // (what fuckforge ships for the Forge universal jar). Skip integrity only
-  // if neither is available — which shouldn't happen with well-formed input.
-  const integrity = lib.sha1
-    ? { sha1: lib.sha1 }
-    : lib.md5
-      ? { md5: lib.md5 }
-      : undefined;
+  // No integrity when the recipe has no sha1 — only the 1.6.x builds, whose
+  // artifacts are gone from every maven, reach here without one.
   return {
     path: `\${library_directory}/${lib.path}`,
     source: sourceUrl(lib.url),
     rules: [],
-    ...(integrity ? { integrity } : {}),
+    ...(lib.sha1 ? { integrity: { sha1: lib.sha1 } } : {}),
     ...(lib.size != null ? { size: lib.size } : {}),
   };
 }
@@ -127,12 +116,8 @@ async function buildLegacyTemplate(
   indexEntry: ForgeIndexEntry,
   options: ForgeOptions,
 ): Promise<ForgeTemplate> {
-  if (!indexEntry.files.universal) {
-    throw new Error(
-      `No universal JAR listed for legacy Forge build '${indexEntry.forge}'`,
-    );
-  }
-
+  // The universal jar arrives as one of `recipe.libraries`, carrying its own
+  // maven URL and sha1 — `indexEntry.files.universal` is not consulted.
   const { client } = await fetchClient(indexEntry.id, {
     manifestBase: options.manifestBase,
   });
@@ -207,15 +192,20 @@ async function buildProcessorTemplate(
   const installProfile = (await installProfileRes.json()) as {
     libraries?: unknown[];
   };
-  const installProfileLibs = parseLibraries(installProfile.libraries ?? []);
+  // An install-profile library with no URL is not a download: the processors
+  // produce it, and ForgeWrapper runs them. Forge ships these as `"url": ""`
+  // — 1.13.2 through 1.16.5 each list their own universal jar that way — and
+  // without this filter they became artifacts with an empty source URL.
+  const installProfileLibs = parseLibraries(
+    installProfile.libraries ?? [],
+  ).filter((l) => l.artifact.url !== '');
 
   const { client } = await fetchClient(indexEntry.id, {
     manifestBase: options.manifestBase,
   });
   const mc = await clientToTemplate(client);
 
-  // Forge's args APPEND to vanilla's args. Recipe paths are already fixed
-  // (`../libraries/` → `${library_directory}`) by the recipe parser.
+  // Forge's args APPEND to vanilla's args.
   const merged = mergeArgs(client.args, recipe.args);
 
   const installerPath = `\${library_directory}/net/minecraftforge/forge/${indexEntry.forge}/forge-${indexEntry.forge}-installer.jar`;

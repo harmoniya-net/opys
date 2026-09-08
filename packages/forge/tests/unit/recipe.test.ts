@@ -1,8 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { parseForgeRecipe } from '../../lib/recipe';
 
-const universalCoord = 'net.minecraftforge:forge:1.12.2-14.23.5.2860';
-
 function legacyRaw(libraries: unknown[] = []) {
   return {
     type: 'legacy',
@@ -85,33 +83,7 @@ describe('parseForgeRecipe — legacy', () => {
     expect(r.libraries).toHaveLength(0);
   });
 
-  it('splices forgeUniversal url+md5 onto the universal placeholder', () => {
-    const r = parseForgeRecipe(
-      legacyRaw([
-        {
-          name: universalCoord,
-          downloads: {
-            artifact: {
-              path: 'net/minecraftforge/forge/forge-universal.jar',
-            },
-          },
-        },
-      ]),
-      {
-        forgeUniversal: {
-          url: 'https://fuckforge/universal.jar',
-          md5: 'deadbeef',
-        },
-      },
-    );
-    if (r.kind !== 'legacy') throw new Error('wrong kind');
-    expect(r.libraries[0]).toMatchObject({
-      url: 'https://fuckforge/universal.jar',
-      md5: 'deadbeef',
-    });
-  });
-
-  it('throws when a legacy library has no URL and no fallback', () => {
+  it('throws when a legacy library has no download URL', () => {
     expect(() =>
       parseForgeRecipe(
         legacyRaw([
@@ -121,23 +93,26 @@ describe('parseForgeRecipe — legacy', () => {
           },
         ]),
       ),
-    ).toThrow(/has no URL and no fallback/);
+    ).toThrow(/has no download URL/);
   });
 
-  it('does not apply md5 to non-universal libraries', () => {
+  it('keeps a legacy library that carries no sha1 or size', () => {
+    // The 1.6.x-era artifacts are gone from every maven, so fuckforge can
+    // only serve the URL it found. The parser stays total.
     const r = parseForgeRecipe(
       legacyRaw([
         {
-          name: 'other:lib:1',
+          name: 'net.minecraftforge:minecraftforge:9.11.1.1345',
           downloads: {
-            artifact: { path: 'other/lib.jar', url: 'https://maven/o.jar' },
+            artifact: { path: 'net/mf/mf.jar', url: 'https://maven/mf.jar' },
           },
         },
       ]),
-      { forgeUniversal: { url: 'https://x', md5: 'abc' } },
     );
     if (r.kind !== 'legacy') throw new Error('wrong kind');
-    expect(r.libraries[0]!.md5).toBeUndefined();
+    expect(r.libraries[0]).toMatchObject({ url: 'https://maven/mf.jar' });
+    expect(r.libraries[0]!.sha1).toBeUndefined();
+    expect(r.libraries[0]!.size).toBeUndefined();
   });
 });
 

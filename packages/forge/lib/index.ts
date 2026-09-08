@@ -17,5 +17,4 @@ export {
   parseForgeRecipe,
   type ForgeRecipe,
   type LegacyLibrary,
-  type ParseForgeRecipeOptions,
 } from './recipe';
