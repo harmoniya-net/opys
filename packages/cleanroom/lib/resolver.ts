@@ -1,9 +1,10 @@
 /**
  * Resolver for Cleanroom releases on GitHub.
  *
- * Cleanroom has no fuckforge-equivalent metadata service — releases live
- * directly on GitHub Releases, and each release ships a self-describing
- * installer JAR (with `install_profile.json` + `version.json` inside).
+ * Cleanroom publishes no index of prepared version documents the way Forge
+ * does — releases live directly on GitHub Releases, and each ships a
+ * self-describing installer JAR (with `install_profile.json` + `version.json`
+ * inside).
  *
  * Accepted version forms:
  *   - Exact tag:  '0.5.9-alpha'

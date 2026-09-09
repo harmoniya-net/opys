@@ -38,6 +38,7 @@
     "crates/opys-mojang-napi",
     "crates/opys-minecraft-vanilla-napi",
     "crates/opys-fabric-napi",
+    "crates/opys-forge-napi",
     "crates/opys-core-napi",
     "crates/opys-runtime-napi"
   ],

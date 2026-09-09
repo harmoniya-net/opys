@@ -3,14 +3,14 @@
 use indexmap::IndexMap;
 use opys_core::{allow_os_ruleset, Artifact, ConditionalVal, Launch, Val, ValDef, ValDefs};
 use opys_dev::{Contribution, LaunchFragment, PluginOutput};
-use opys_mojang::{AssetManifest, Client};
+use opys_mojang::{AssetManifest, Client, VersionPatch};
 use opys_mojang_rules::OsName;
 
 use crate::error::MinecraftError;
 use crate::fetch::{fetch_asset_manifest, fetch_client};
 use crate::mappers::{
-    build_classpath, build_launch, map_asset_index, map_asset_objects, map_client_jar,
-    map_libraries, ClasspathEntry,
+    build_classpath, build_launch, inherited_classpath, map_asset_index, map_asset_objects,
+    map_client_jar, map_libraries, ClasspathEntry,
 };
 
 /// The name this plugin claims in the plugin map.
@@ -123,6 +123,60 @@ pub fn client_to_template(
     vars.insert("classpath".to_owned(), ValDef::Arms(classpath.clone()));
 
     let parts = build_launch(&client.main_class, &client.args.game, &client.args.jvm);
+
+    Ok(MinecraftTemplate {
+        artifacts,
+        vars,
+        classpath,
+        launch: parts.launch,
+        jvm_args: parts.jvm_args,
+        main_class: parts.main_class,
+        game_args: parts.game_args,
+    })
+}
+
+/// Fold an `inheritsFrom` document onto the base version it names.
+///
+/// The shared half of the loader family. Forge, NeoForge, Cleanroom and
+/// lwjgl3ify each reach a [`VersionPatch`] their own way — a published
+/// document, an installer, a patched version JSON — and from there the fold is
+/// identical: the patch's libraries become artifacts and go ahead of the
+/// base's on the classpath, its arguments merge onto the base's, and its main
+/// class replaces the base's. Doing it once is what makes a fix to the
+/// ordering rule or the argument semantics land for every loader at once.
+///
+/// `vanilla` is the base version's already-mapped template — the caller holds
+/// it, so nothing here refetches the asset manifest.
+pub fn patch_to_template(
+    patch: &VersionPatch,
+    client: &Client,
+    vanilla: &MinecraftTemplate,
+) -> Result<MinecraftTemplate, opys_mojang_rules::RuleError> {
+    let entry = |rules: &_, path: &str| ClasspathEntry {
+        rules: Clone::clone(rules),
+        artifact_path: format!("${{library_directory}}/{path}"),
+    };
+    let patch_entries: Vec<ClasspathEntry> = patch
+        .libraries
+        .iter()
+        .map(|l| entry(&l.rules, &l.artifact.path))
+        .collect();
+    let base_entries: Vec<ClasspathEntry> = client
+        .libraries
+        .iter()
+        .map(|l| entry(&l.rules, &l.artifact.path))
+        .collect();
+    let classpath =
+        inherited_classpath(&patch_entries, &base_entries, "${version_dir}/client.jar")?;
+
+    let mut vars = vanilla.vars.clone();
+    vars.insert("classpath".to_owned(), ValDef::Arms(classpath.clone()));
+
+    let mut artifacts = vanilla.artifacts.clone();
+    artifacts.extend(map_libraries(&patch.libraries));
+
+    let merged = patch.merge_args(&client.args);
+    let parts = build_launch(&patch.main_class, &merged.game, &merged.jvm);
 
     Ok(MinecraftTemplate {
         artifacts,

@@ -1,0 +1,26 @@
+{
+  "name": "@opys/forge-binding-darwin-x64",
+  "version": "0.2.0",
+  "os": [
+    "darwin"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "main": "index.darwin-x64.node",
+  "files": [
+    "index.darwin-x64.node"
+  ],
+  "description": "napi-rs binary binding for @opys/forge. Not consumed directly \u2014 re-exported by @opys/forge.",
+  "engines": {
+    "node": ">=20"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/harmoniya-net/opys.git",
+    "directory": "crates/opys-forge-napi"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

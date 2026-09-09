@@ -67,7 +67,11 @@ fn structured_arguments_append_to_the_base() {
     let merged = p.merge_args(&base());
     assert_eq!(
         merged.jvm,
-        plain(&["-cp", "${classpath}", "-DlibraryDirectory=${library_directory}"]),
+        plain(&[
+            "-cp",
+            "${classpath}",
+            "-DlibraryDirectory=${library_directory}"
+        ]),
     );
     assert_eq!(
         merged.game,

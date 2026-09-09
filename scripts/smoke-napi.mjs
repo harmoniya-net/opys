@@ -1,9 +1,10 @@
 #!/usr/bin/env node
-// End-to-end smoke test for the napi bindings. Loads all seven .node files,
+// End-to-end smoke test for the napi bindings. Loads all eight .node files,
 // exercises core decode/encode/resolve, the mojang parsers, the dev engine's
 // merge, a java resolve against a loopback stand-in for the Adoptium API, a
-// vanilla Minecraft resolve against one for the Mojang endpoints and a fabric
-// resolve against stand-ins for both Fabric Meta and Mojang, then runs an
+// vanilla Minecraft resolve against one for the Mojang endpoints, and fabric
+// and forge resolves against stand-ins for their indexes plus Mojang, then
+// runs an
 // actual `install` from runtime-napi against a tmpdir with a string source.
 //
 // Run from the repo root:  node scripts/smoke-napi.mjs
@@ -22,6 +23,7 @@ const dev = require('../crates/opys-dev-napi/index.js');
 const java = require('../crates/opys-java-napi/index.js');
 const minecraft = require('../crates/opys-minecraft-vanilla-napi/index.js');
 const fabricNapi = require('../crates/opys-fabric-napi/index.js');
+const forgeNapi = require('../crates/opys-forge-napi/index.js');
 
 let ok = 0;
 let fail = 0;
@@ -445,6 +447,96 @@ check(
 );
 
 fabricMeta.close();
+
+// ── forge ─────────────────────────────────────────────────────────────────
+// Same shape as fabric, and deliberately so: a published `inheritsFrom`
+// document instead of a Meta profile, folded onto the same vanilla chain.
+console.log('\n— forge —');
+
+const FORGE_BUILD = '1.20.1-47.4.10';
+const FORGE_DOCUMENT = {
+  id: '1.20.1-forge-47.4.10',
+  inheritsFrom: '1.20.1',
+  mainClass: 'io.github.zekerzhayard.forgewrapper.installer.Main',
+  arguments: {
+    game: ['--launchTarget', 'forgeclient'],
+    jvm: ['-Dforgewrapper.librariesDir=${library_directory}'],
+  },
+  libraries: [
+    {
+      name: 'cpw.mods:securejarhandler:2.1.10',
+      downloads: {
+        artifact: {
+          path: 'cpw/mods/securejarhandler/2.1.10/securejarhandler-2.1.10.jar',
+          url: 'https://maven/sjh.jar',
+          sha1: 'b'.repeat(40),
+          size: 2000,
+        },
+      },
+    },
+  ],
+};
+
+let forgeBase = '';
+const forgeSite = createServer((req, res) => {
+  const target = req.url ?? '';
+  const url = `${forgeBase}/versions/1.20.1/${FORGE_BUILD}.json`;
+  const body = target.startsWith('/versions/')
+    ? FORGE_DOCUMENT
+    : {
+        versions: {
+          '1.20.1': {
+            latest: FORGE_BUILD,
+            latestUrl: url,
+            recommended: FORGE_BUILD,
+            recommendedUrl: url,
+            best: FORGE_BUILD,
+            bestUrl: url,
+            builds: [{ forge: FORGE_BUILD, url }],
+          },
+        },
+      };
+  res
+    .writeHead(200, { 'content-type': 'application/json' })
+    .end(JSON.stringify(body));
+});
+await new Promise((resolve) => forgeSite.listen(0, '127.0.0.1', resolve));
+forgeBase = `http://127.0.0.1:${forgeSite.address().port}`;
+const forgeOpts = { ...mcOpts, source: forgeBase };
+
+check(
+  'defaultForgeIndex is the canonical URL',
+  forgeNapi.defaultForgeIndex() ===
+    'https://harmoniya-net.github.io/ForgeWrapper',
+);
+
+const forgeRelease = await forgeNapi.resolveForgeVersion('1.20.1', forgeBase);
+check(
+  'resolveForgeVersion picks the best build and spells the document URL',
+  forgeRelease.forge === FORGE_BUILD &&
+    forgeRelease.documentUrl ===
+      `${forgeBase}/versions/1.20.1/${FORGE_BUILD}.json`,
+);
+
+const forged = await forgeNapi.resolveForge(forgeOpts);
+check(
+  'resolveForge launches the wrapper, not vanilla',
+  forged.mainClass === 'io.github.zekerzhayard.forgewrapper.installer.Main',
+);
+check(
+  "resolveForge puts forge's libraries on the classpath behind the client jar",
+  // The stand-in vanilla version lists no libraries, so what this can show is
+  // that forge's own land in the arm at all, right after the client jar.
+  // Their order relative to vanilla's is the crate's test to make.
+  forged.classpath[0].value ===
+    '${version_dir}/client.jar${classpath_separator}' +
+      '${library_directory}/cpw/mods/securejarhandler/2.1.10/securejarhandler-2.1.10.jar',
+);
+
+const forgeBuilt = await forgeNapi.buildForge(forgeOpts);
+check('buildForge names the plugin', forgeBuilt.name === 'forge');
+
+forgeSite.close();
 mojangApi.close();
 
 console.log(`\nresult: ${ok} passed, ${fail} failed`);

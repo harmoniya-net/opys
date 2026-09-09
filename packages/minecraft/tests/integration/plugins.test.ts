@@ -37,12 +37,15 @@ describe('minecraft vanilla plugin (live)', () => {
 });
 
 describe('forge plugin (live)', () => {
-  // One version per structural shape, not per Minecraft release: the legacy
-  // era (no ForgeWrapper, universal jar as a plain library), the processor
-  // versions whose install profile lists a generated jar with no URL, and a
-  // modern build. A 1.20.1-only test missed the empty-URL artifacts that
-  // 1.13.2–1.16.5 produce.
+  // One version per install shape, not per Minecraft release. All four take
+  // the same path now — the published document has already resolved the
+  // differences — but they are the shapes that path has to survive: a bare
+  // universal zip overlaid onto the client jar (1.4.7), a `stripMeta` jar mod
+  // (1.5.2), a LaunchWrapper tweaker (1.7.10, 1.12.2), and a processor
+  // install (1.16.5, 1.20.1).
   for (const version of [
+    '1.4.7-best',
+    '1.5.2-best',
     '1.7.10-best',
     '1.12.2-best',
     '1.16.5-best',

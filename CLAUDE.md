@@ -56,10 +56,10 @@ Eight packages, a clean DAG, no cycles:
 @opys/runtime       install + launch executor.                              → core ONLY
 @opys/minecraft     Minecraft-domain plugins — minecraft / forge / fabric /
                      cleanroom / lwjgl3ify / curseforge / authliberty — + bifrost /
-                     serverlist helpers. Vanilla and fabric are thin wrappers over
-                     the `opys-minecraft-vanilla` and `opys-fabric` crates, each
-                     with its own `.node`; the remaining loaders get a crate and a
-                     binding apiece on top of vanilla.        → dev, core, mojang
+                     serverlist helpers. Vanilla, fabric and forge are thin wrappers
+                     over the `opys-minecraft-vanilla`, `opys-fabric` and `opys-forge`
+                     crates, each with its own `.node`; the remaining loaders get a
+                     crate and a binding apiece on top of vanilla. → dev, core, mojang
 @opys/java          JDK provisioning — Temurin / Zulu / GraalVM CE.
                      Thin wrapper over the `opys-java` crate.                → dev, core
 @opys/cli           the `opys` binary.                 → dev, runtime, minecraft, java
@@ -107,6 +107,26 @@ Eight packages, a clean DAG, no cycles:
   each resolve a version JSON their own way and then call the same mappers, so
   a fix to the natives dump rule or the per-OS classpath lands once. Each is
   its own crate on top of `opys-minecraft-vanilla`.
+- **One `inheritsFrom` merge, one implementation.** A loader's version document
+  is a `VersionPatch` (in `opys-mojang`), and folding one onto the base version
+  is `patch_to_template`. The rules it records are the format's, not any
+  loader's: the patch's libraries go **ahead** of the base's on the classpath —
+  order is the only thing deciding which of two copies of a class the JVM loads
+  — `arguments` appends, and `minecraftArguments` replaces the game line
+  outright. The last two are independent, and 50 of the published Forge
+  documents carry both fields at once, so a reader that picks one silently
+  drops half the document. `opys-fabric` reaches the same ordering through
+  `inherited_classpath`; its profile has its own library spelling, so it folds
+  by hand but never by its own rule.
+- **Forge has no eras.** Forge installs four ways — processors, a LaunchWrapper
+  tweaker, a client-jar overlay, or a bare universal zip — but none of that is
+  in `opys-forge`. Every build that has ever shipped is published as an
+  ordinary `inheritsFrom` document at
+  `harmoniya-net.github.io/ForgeWrapper`, generated from the installers once,
+  and the differences are already spelled out inside it. So the crate is an
+  index lookup plus the shared fold, and is deliberately the same shape as
+  `opys-fabric`. `crates/opys-forge/tests/documents.rs` parses the whole
+  published set — the check to re-run whenever either side moves.
 - **One binding per crate.** `opys-<x>-napi` → `@opys/<x>-binding`, named after
   the module it exposes and nothing else; a JS package imports its own binding,
   never a sibling's. Every addon statically links the same ~4 MB of

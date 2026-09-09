@@ -909,6 +909,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "opys-forge"
+version = "0.2.0"
+dependencies = [
+ "opys-core",
+ "opys-dev",
+ "opys-minecraft-vanilla",
+ "opys-mojang",
+ "serde",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
+name = "opys-forge-napi"
+version = "0.2.0"
+dependencies = [
+ "napi",
+ "napi-build",
+ "napi-derive",
+ "opys-forge",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "opys-java"
 version = "0.2.0"
 dependencies = [

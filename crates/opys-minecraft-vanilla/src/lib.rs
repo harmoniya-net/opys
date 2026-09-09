@@ -26,6 +26,6 @@ pub use mappers::{
     map_asset_objects, map_client_jar, map_libraries, ClasspathEntry, LaunchParts,
 };
 pub use vanilla::{
-    build_minecraft, client_to_template, resolve_client_template, resolve_minecraft,
-    MinecraftOptions, MinecraftTemplate, PLUGIN_NAME,
+    build_minecraft, client_to_template, patch_to_template, resolve_client_template,
+    resolve_minecraft, MinecraftOptions, MinecraftTemplate, PLUGIN_NAME,
 };

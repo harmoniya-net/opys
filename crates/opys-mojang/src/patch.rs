@@ -71,9 +71,11 @@ impl TryFrom<VersionPatchWire> for VersionPatch {
             },
         };
 
-        let mut game_override = wire
-            .minecraft_arguments
-            .map(|line| line.split_whitespace().map(|a| MojangArgValue::Plain(a.to_owned())).collect());
+        let mut game_override = wire.minecraft_arguments.map(|line| {
+            line.split_whitespace()
+                .map(|a| MojangArgValue::Plain(a.to_owned()))
+                .collect()
+        });
 
         // A document that spells its game arguments as a string under
         // `arguments` rather than under `minecraftArguments` means the same
