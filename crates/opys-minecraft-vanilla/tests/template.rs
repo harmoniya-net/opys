@@ -114,7 +114,8 @@ fn the_classpath_var_and_the_classpath_field_are_the_same_arms() {
     );
     assert!(t.classpath[0]
         .value
-        .starts_with("${version_dir}/client.jar${classpath_separator}${library_directory}/com/"));
+        .ends_with("${classpath_separator}${version_dir}/client.jar"));
+    assert!(t.classpath[0].value.starts_with("${library_directory}/com/"));
 }
 
 #[test]

@@ -524,13 +524,13 @@ check(
   forged.mainClass === 'io.github.zekerzhayard.forgewrapper.installer.Main',
 );
 check(
-  "resolveForge puts forge's libraries on the classpath behind the client jar",
+  "resolveForge puts forge's libraries ahead of the client jar",
   // The stand-in vanilla version lists no libraries, so what this can show is
-  // that forge's own land in the arm at all, right after the client jar.
-  // Their order relative to vanilla's is the crate's test to make.
+  // that forge's own land in the arm at all, ahead of the client jar. Their
+  // order relative to vanilla's is the crate's test to make.
   forged.classpath[0].value ===
-    '${version_dir}/client.jar${classpath_separator}' +
-      '${library_directory}/cpw/mods/securejarhandler/2.1.10/securejarhandler-2.1.10.jar',
+    '${library_directory}/cpw/mods/securejarhandler/2.1.10/securejarhandler-2.1.10.jar' +
+      '${classpath_separator}${version_dir}/client.jar',
 );
 
 const forgeBuilt = await forgeNapi.buildForge(forgeOpts);

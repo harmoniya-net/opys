@@ -1,5 +1,7 @@
 //! The `minecraft` plugin: vanilla client, libraries and assets.
 
+use std::collections::HashSet;
+
 use indexmap::IndexMap;
 use opys_core::{allow_os_ruleset, Artifact, ConditionalVal, Launch, Val, ValDef, ValDefs};
 use opys_dev::{Contribution, LaunchFragment, PluginOutput};
@@ -10,7 +12,7 @@ use crate::error::MinecraftError;
 use crate::fetch::{fetch_asset_manifest, fetch_client};
 use crate::mappers::{
     build_classpath, build_launch, inherited_classpath, map_asset_index, map_asset_objects,
-    map_client_jar, map_libraries, ClasspathEntry,
+    map_client_jar, map_libraries, superseded, ClasspathEntry,
 };
 
 /// The name this plugin claims in the plugin map.
@@ -74,14 +76,7 @@ pub fn client_to_template(
     artifacts.push(map_asset_index(&client.asset_index));
     artifacts.extend(map_asset_objects(assets));
 
-    let entries: Vec<ClasspathEntry> = client
-        .libraries
-        .iter()
-        .map(|l| ClasspathEntry {
-            rules: l.rules.clone(),
-            artifact_path: format!("${{library_directory}}/{}", l.artifact.path),
-        })
-        .collect();
+    let entries: Vec<ClasspathEntry> = client.libraries.iter().map(ClasspathEntry::of).collect();
     let classpath = build_classpath(&entries, "${version_dir}/client.jar")?;
 
     let mut vars: ValDefs = IndexMap::new();
@@ -152,27 +147,26 @@ pub fn patch_to_template(
     client: &Client,
     vanilla: &MinecraftTemplate,
 ) -> Result<MinecraftTemplate, opys_mojang_rules::RuleError> {
-    let entry = |rules: &_, path: &str| ClasspathEntry {
-        rules: Clone::clone(rules),
-        artifact_path: format!("${{library_directory}}/{path}"),
-    };
-    let patch_entries: Vec<ClasspathEntry> = patch
-        .libraries
-        .iter()
-        .map(|l| entry(&l.rules, &l.artifact.path))
-        .collect();
-    let base_entries: Vec<ClasspathEntry> = client
-        .libraries
-        .iter()
-        .map(|l| entry(&l.rules, &l.artifact.path))
-        .collect();
+    let patch_entries: Vec<ClasspathEntry> =
+        patch.libraries.iter().map(ClasspathEntry::of).collect();
+    let base_entries: Vec<ClasspathEntry> =
+        client.libraries.iter().map(ClasspathEntry::of).collect();
     let classpath =
         inherited_classpath(&patch_entries, &base_entries, "${version_dir}/client.jar")?;
 
     let mut vars = vanilla.vars.clone();
     vars.insert("classpath".to_owned(), ValDef::Arms(classpath.clone()));
 
-    let mut artifacts = vanilla.artifacts.clone();
+    // The download set has to agree with the classpath. A base library the
+    // patch supersedes is gone from `-cp`, so fetching and verifying it would
+    // be work spent on a file nothing opens.
+    let dropped: HashSet<String> = superseded(&patch_entries, &base_entries).into_iter().collect();
+    let mut artifacts: Vec<Artifact> = vanilla
+        .artifacts
+        .iter()
+        .filter(|a| !dropped.contains(&a.path))
+        .cloned()
+        .collect();
     artifacts.extend(map_libraries(&patch.libraries));
 
     let merged = patch.merge_args(&client.args);

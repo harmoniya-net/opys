@@ -10,6 +10,7 @@ use std::str::FromStr;
 
 use opys_core::{Artifact, HashEntry, Integrity, Source};
 use opys_dev::http::get_json;
+use opys_minecraft_vanilla::ClasspathEntry;
 use opys_mojang::{Arguments, MavenCoord, MojangError};
 use serde::Deserialize;
 
@@ -77,12 +78,14 @@ pub fn fetch_profile(url: &str) -> Result<FabricProfile, FabricError> {
     Ok(get_json(url, &[])?)
 }
 
-/// A profile library as an artifact, paired with its `${library_directory}`-
-/// relative path so the caller can put it on the classpath.
+/// A profile library as an artifact, paired with the classpath entry it
+/// contributes.
 ///
 /// Profile libraries carry no rules and no natives — every entry is
-/// unconditional, which is why nothing here consults a ruleset.
-pub fn library_artifact(lib: &FabricLibrary) -> Result<(Artifact, String), FabricError> {
+/// unconditional, which is why nothing here consults a ruleset, and why the
+/// entry always names a module: a Fabric library is always a candidate to
+/// supersede the base version's copy of the same one.
+pub fn library_artifact(lib: &FabricLibrary) -> Result<(Artifact, ClasspathEntry), FabricError> {
     let coord = MavenCoord::from_str(&lib.name)?;
     let path = coord
         .path()
@@ -106,5 +109,10 @@ pub fn library_artifact(lib: &FabricLibrary) -> Result<(Artifact, String), Fabri
         metadata: None,
         extract: None,
     };
-    Ok((artifact, path))
+    let entry = ClasspathEntry {
+        rules: Vec::new(),
+        artifact_path: format!("${{library_directory}}/{path}"),
+        module: Some(format!("{}:{}", coord.group_id, coord.artifact_id)),
+    };
+    Ok((artifact, entry))
 }

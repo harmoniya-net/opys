@@ -1,10 +1,12 @@
 //! The `fabric` plugin: a Fabric launcher profile layered onto vanilla.
 
+use std::collections::HashSet;
+
 use opys_core::{Artifact, ConditionalVal, Launch, Val, ValDef, ValDefs};
 use opys_dev::{Contribution, LaunchFragment, PluginOutput};
 use opys_minecraft_vanilla::{
-    build_launch, fetch_client, inherited_classpath, resolve_client_template, ClasspathEntry,
-    MinecraftTemplate,
+    build_launch, fetch_client, inherited_classpath, resolve_client_template, superseded,
+    ClasspathEntry, MinecraftTemplate,
 };
 use opys_mojang::Client;
 use serde::{Deserialize, Serialize};
@@ -80,32 +82,17 @@ pub fn profile_to_template(
     client: &Client,
     vanilla: &MinecraftTemplate,
 ) -> Result<FabricTemplate, FabricError> {
-    let libs: Vec<(Artifact, String)> = profile
+    let libs: Vec<(Artifact, ClasspathEntry)> = profile
         .libraries
         .iter()
         .map(library_artifact)
         .collect::<Result<_, _>>()?;
 
     // A profile is an `inheritsFrom` patch, so its libraries go ahead of the
-    // base version's — Fabric ships its own ASM build, and being first is the
-    // only thing that would make the JVM prefer it over a vanilla copy.
-    // Vanilla's entries keep their rules; the profile's have none, so they
-    // land on every OS's classpath.
-    let patch: Vec<ClasspathEntry> = libs
-        .iter()
-        .map(|(_, path)| ClasspathEntry {
-            rules: Vec::new(),
-            artifact_path: format!("${{library_directory}}/{path}"),
-        })
-        .collect();
-    let base: Vec<ClasspathEntry> = client
-        .libraries
-        .iter()
-        .map(|l| ClasspathEntry {
-            rules: l.rules.clone(),
-            artifact_path: format!("${{library_directory}}/{}", l.artifact.path),
-        })
-        .collect();
+    // base version's, and a base library it supersedes drops out entirely —
+    // Fabric ships its own ASM build and means it to be the only one.
+    let patch: Vec<ClasspathEntry> = libs.iter().map(|(_, entry)| entry.clone()).collect();
+    let base: Vec<ClasspathEntry> = client.libraries.iter().map(ClasspathEntry::of).collect();
     let classpath = inherited_classpath(&patch, &base, "${version_dir}/client.jar")?;
 
     let merged = client.args.merge(&profile.arguments);
@@ -114,7 +101,16 @@ pub fn profile_to_template(
     let mut vars = vanilla.vars.clone();
     vars.insert("classpath".to_owned(), ValDef::Arms(classpath.clone()));
 
-    let mut artifacts = vanilla.artifacts.clone();
+    // The download set follows the classpath: a superseded base library is no
+    // longer on `-cp`, so fetching it would be work spent on a file nothing
+    // opens.
+    let dropped: HashSet<String> = superseded(&patch, &base).into_iter().collect();
+    let mut artifacts: Vec<Artifact> = vanilla
+        .artifacts
+        .iter()
+        .filter(|a| !dropped.contains(&a.path))
+        .cloned()
+        .collect();
     artifacts.extend(libs.into_iter().map(|(artifact, _)| artifact));
 
     Ok(FabricTemplate {

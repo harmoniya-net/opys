@@ -7,7 +7,7 @@ use opys_core::{
 };
 use opys_minecraft_vanilla::{
     build_classpath, build_launch, inherited_classpath, library_to_artifact, map_asset_index,
-    map_asset_objects, map_client_jar, map_libraries, ClasspathEntry,
+    map_asset_objects, map_client_jar, map_libraries, superseded, ClasspathEntry,
 };
 use opys_mojang::{AssetIndex, AssetManifest, Client, Libraries, Library};
 use serde_json::json;
@@ -230,11 +230,21 @@ fn entry(path: &str, rules: MojangRuleset) -> ClasspathEntry {
     ClasspathEntry {
         rules,
         artifact_path: path.to_owned(),
+        module: None,
+    }
+}
+
+/// An entry that names a module, so it can supersede or be superseded.
+fn module_entry(module: &str, path: &str) -> ClasspathEntry {
+    ClasspathEntry {
+        rules: Vec::new(),
+        artifact_path: path.to_owned(),
+        module: Some(module.to_owned()),
     }
 }
 
 #[test]
-fn classpath_has_one_arm_per_os_led_by_the_client_jar() {
+fn classpath_has_one_arm_per_os_ending_in_the_client_jar() {
     let arms = build_classpath(&[], "client.jar").unwrap();
     assert_eq!(arms.len(), 3);
     assert_eq!(arms[0].rules, allow_os(OsName::Linux));
@@ -257,13 +267,13 @@ fn each_arm_keeps_only_the_libraries_that_os_allows() {
     let sep = "${classpath_separator}";
     assert_eq!(
         arms[0].value,
-        format!("client.jar{sep}shared.jar{sep}linux.jar")
+        format!("shared.jar{sep}linux.jar{sep}client.jar")
     );
     assert_eq!(
         arms[1].value,
-        format!("client.jar{sep}shared.jar{sep}windows.jar")
+        format!("shared.jar{sep}windows.jar{sep}client.jar")
     );
-    assert_eq!(arms[2].value, format!("client.jar{sep}shared.jar"));
+    assert_eq!(arms[2].value, format!("shared.jar{sep}client.jar"));
 }
 
 #[test]
@@ -273,7 +283,9 @@ fn classpath_keeps_the_order_it_was_given() {
         "client.jar",
     )
     .unwrap();
-    assert!(arms[0].value.ends_with("b.jar${classpath_separator}a.jar"));
+    assert!(arms[0]
+        .value
+        .starts_with("b.jar${classpath_separator}a.jar"));
 }
 
 #[test]
@@ -302,7 +314,7 @@ fn an_inherited_classpath_puts_the_patch_ahead_of_the_base() {
     let sep = "${classpath_separator}";
     assert_eq!(
         arms[0].value,
-        format!("client.jar{sep}forge-asm.jar{sep}vanilla-asm.jar")
+        format!("forge-asm.jar{sep}vanilla-asm.jar{sep}client.jar")
     );
 }
 
@@ -321,18 +333,75 @@ fn an_inherited_classpath_still_gates_each_side_by_its_own_rules() {
 }
 
 #[test]
-fn an_inherited_classpath_does_not_collapse_two_versions_of_one_artifact() {
-    // Vanilla lists two LWJGL builds side by side and picks between them with
-    // rules. Deduplicating by `group:artifact` would drop an arm the ruleset
-    // still needs.
+fn a_base_entry_the_patch_supersedes_is_dropped_rather_than_left_behind_it() {
     let arms = inherited_classpath(
-        &[entry("org/lwjgl/lwjgl/2.9.4/lwjgl-2.9.4.jar", vec![])],
-        &[entry("org/lwjgl/lwjgl/2.9.0/lwjgl-2.9.0.jar", vec![])],
+        &[module_entry("org.ow2.asm:asm-all", "asm-5.2.jar")],
+        &[
+            module_entry("org.ow2.asm:asm-all", "asm-4.1.jar"),
+            module_entry("com.google.code.gson:gson", "gson.jar"),
+        ],
         "client.jar",
     )
     .unwrap();
-    assert!(arms[0].value.contains("lwjgl-2.9.4.jar"));
-    assert!(arms[0].value.contains("lwjgl-2.9.0.jar"));
+    assert_eq!(
+        arms[0].value,
+        "asm-5.2.jar${classpath_separator}gson.jar${classpath_separator}client.jar"
+    );
+}
+
+#[test]
+fn superseded_names_the_base_paths_that_dropped_out() {
+    // The caller needs these to keep the download set in step with `-cp`.
+    let dropped = superseded(
+        &[module_entry("org.ow2.asm:asm-all", "asm-5.2.jar")],
+        &[
+            module_entry("org.ow2.asm:asm-all", "asm-4.1.jar"),
+            module_entry("com.google.code.gson:gson", "gson.jar"),
+        ],
+    );
+    assert_eq!(dropped, ["asm-4.1.jar"]);
+}
+
+#[test]
+fn an_entry_with_no_module_is_never_dropped() {
+    // Natives opt out, and so does any caller that declines to key its
+    // entries — a `None` module means "this supersedes nothing and is
+    // superseded by nothing".
+    let arms = inherited_classpath(
+        &[module_entry("org.lwjgl:lwjgl", "lwjgl-3.3.1.jar")],
+        &[
+            entry("lwjgl-2.9.0-natives-linux.jar", vec![]),
+            entry("lwjgl-2.9.0-natives-windows.jar", vec![]),
+        ],
+        "client.jar",
+    )
+    .unwrap();
+    assert!(arms[0].value.contains("natives-linux"));
+    assert!(arms[1].value.contains("natives-windows"));
+}
+
+#[test]
+fn a_libraries_natives_do_not_share_its_module_key() {
+    // A pre-1.19 version JSON declares natives *inside* the library that needs
+    // them, and they expand into entries carrying that library's coordinate
+    // verbatim. Keying on the coordinate would let one patch library delete a
+    // whole per-OS native set along with the jar it meant to replace.
+    let raw = json!([{
+        "name": "org.lwjgl.lwjgl:lwjgl:2.9.0",
+        "downloads": {
+            "artifact": { "path": "l/lwjgl-2.9.0.jar", "sha1": "a".repeat(40), "size": 1, "url": "https://x/l.jar" },
+            "classifiers": {
+                "natives-linux": { "path": "l/lwjgl-2.9.0-natives-linux.jar", "sha1": "b".repeat(40), "size": 1, "url": "https://x/n.jar" },
+            },
+        },
+        "natives": { "linux": "natives-linux" },
+    }]);
+    let libs = Libraries::from_version_json(raw).unwrap();
+    let entries: Vec<ClasspathEntry> = libs.iter().map(ClasspathEntry::of).collect();
+
+    assert_eq!(entries.len(), 2);
+    assert_eq!(entries[0].module.as_deref(), Some("org.lwjgl.lwjgl:lwjgl"));
+    assert_eq!(entries[1].module, None, "the natives entry must opt out");
 }
 
 // ── launch ───────────────────────────────────────────────────────────────

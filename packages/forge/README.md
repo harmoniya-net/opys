@@ -61,10 +61,16 @@ per-OS `classpath` arms, and the decomposed `jvmArgs` / `mainClass` /
 
 ## A note on the classpath
 
-A Forge document's libraries go **ahead** of the vanilla version's. That is
-what `inheritsFrom` means, and order is the only thing that decides which of
-two copies of a class the JVM loads — Forge ships its own ASM build where
-vanilla ships another. The rule is `inherited_classpath` in
+A Forge document's libraries go **ahead** of the vanilla version's, and a
+vanilla library Forge replaces drops out entirely rather than sitting behind
+it. That is what `inheritsFrom` means; the client jar goes last, after every
+library.
+
+It is not bookkeeping. Forge 1.12.2 and 1.16.5 require log4j **2.15.0** where
+those Minecraft versions ship 2.8.1 — the Log4Shell fix. Leaving 2.8.1 on
+`-cp` behind it would download and mount a vulnerable jar for nothing.
+
+The rules live in `inherited_classpath` / `superseded` in
 `opys-minecraft-vanilla`, shared with every other loader rather than restated
 here.
 

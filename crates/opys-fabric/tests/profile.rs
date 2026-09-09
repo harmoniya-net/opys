@@ -69,17 +69,20 @@ fn unknown_profile_fields_are_ignored() {
 
 #[test]
 fn a_library_lands_under_library_directory_in_maven_layout() {
-    let (artifact, path) = library_artifact(&library(
+    let (artifact, entry) = library_artifact(&library(
         "net.fabricmc:fabric-loader:0.16.10",
         "https://maven.fabricmc.net/",
     ))
     .unwrap();
 
     assert_eq!(
-        path,
-        "net/fabricmc/fabric-loader/0.16.10/fabric-loader-0.16.10.jar"
+        entry.artifact_path,
+        "${library_directory}/net/fabricmc/fabric-loader/0.16.10/fabric-loader-0.16.10.jar"
     );
-    assert_eq!(artifact.path, format!("${{library_directory}}/{path}"));
+    assert_eq!(artifact.path, entry.artifact_path);
+    // Every profile library names its module: Fabric shipping a library means
+    // to replace the base version's copy of it, not to sit in front of it.
+    assert_eq!(entry.module.as_deref(), Some("net.fabricmc:fabric-loader"));
     assert_eq!(
         artifact.source,
         Source::Url {
@@ -163,13 +166,16 @@ fn a_repo_base_with_no_trailing_slash_still_joins_cleanly() {
 
 #[test]
 fn a_classifier_and_a_packaging_reach_the_filename() {
-    let (_, path) = library_artifact(&library(
+    let (_, entry) = library_artifact(&library(
         "org.lwjgl:lwjgl:zip:natives-linux:3.3.3",
         "https://maven.fabricmc.net/",
     ))
     .unwrap();
 
-    assert_eq!(path, "org/lwjgl/lwjgl/3.3.3/lwjgl-3.3.3-natives-linux.zip");
+    assert_eq!(
+        entry.artifact_path,
+        "${library_directory}/org/lwjgl/lwjgl/3.3.3/lwjgl-3.3.3-natives-linux.zip"
+    );
 }
 
 #[test]

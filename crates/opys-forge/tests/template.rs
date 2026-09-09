@@ -228,16 +228,34 @@ fn every_era_goes_through_the_same_path() {
 
 #[test]
 fn forge_libraries_come_before_the_vanilla_ones_on_the_classpath() {
-    // Forge ships ASM 5.2 where vanilla ships 4.1. Being first is the only
-    // thing that decides which one loads.
     let server = site();
     let t = resolve_forge(&options(&server, "1.12.2")).unwrap();
 
     let linux = &t.classpath[0].value;
-    let forge_asm = linux.find("asm-all/5.2").expect("forge asm");
-    let vanilla_asm = linux.find("asm-all/4.1").expect("vanilla asm");
-    assert!(forge_asm < vanilla_asm);
-    assert!(linux.starts_with("${version_dir}/client.jar"));
+    let forge_lib = linux.find("forge-1.12.2-14.23.5.2860.jar").expect("forge jar");
+    let vanilla_lib = linux.find("gson-2.10.1.jar").expect("vanilla gson");
+    assert!(forge_lib < vanilla_lib);
+    // And the client jar is last, where every launcher that reads the format
+    // puts it.
+    assert!(linux.ends_with("${version_dir}/client.jar"));
+}
+
+#[test]
+fn a_vanilla_library_forge_replaces_leaves_the_classpath_entirely() {
+    // Forge ships ASM 5.2 where vanilla ships 4.1. Leaving 4.1 behind it
+    // would be a jar downloaded, verified and put on `-cp` to be ignored —
+    // and still findable by anything that scans the classpath itself.
+    let server = site();
+    let t = resolve_forge(&options(&server, "1.12.2")).unwrap();
+
+    for arm in &t.classpath {
+        assert!(arm.value.contains("asm-all/5.2"), "{}", arm.value);
+        assert!(!arm.value.contains("asm-all/4.1"), "{}", arm.value);
+    }
+    let paths: Vec<&str> = t.artifacts.iter().map(|a| a.path.as_str()).collect();
+    // …and it is not downloaded either.
+    assert!(!paths.iter().any(|p| p.contains("asm-all/4.1")), "{paths:?}");
+    assert!(paths.iter().any(|p| p.contains("asm-all/5.2")));
 }
 
 #[test]

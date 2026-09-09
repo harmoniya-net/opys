@@ -110,14 +110,27 @@ Eight packages, a clean DAG, no cycles:
 - **One `inheritsFrom` merge, one implementation.** A loader's version document
   is a `VersionPatch` (in `opys-mojang`), and folding one onto the base version
   is `patch_to_template`. The rules it records are the format's, not any
-  loader's: the patch's libraries go **ahead** of the base's on the classpath —
-  order is the only thing deciding which of two copies of a class the JVM loads
-  — `arguments` appends, and `minecraftArguments` replaces the game line
-  outright. The last two are independent, and 50 of the published Forge
-  documents carry both fields at once, so a reader that picks one silently
-  drops half the document. `opys-fabric` reaches the same ordering through
-  `inherited_classpath`; its profile has its own library spelling, so it folds
-  by hand but never by its own rule.
+  loader's, and each was checked against two independent readers — HMCL's
+  `Lang.merge(this.libraries, parent.libraries)` and `minecraft-launcher-lib`'s
+  `inherit_json`:
+  - the patch's libraries go **ahead** of the base's;
+  - a base library the patch supersedes is **dropped**, not left behind it —
+    see `ClasspathEntry::module`;
+  - `arguments` appends, `minecraftArguments` replaces the game line outright,
+    and the two are independent. 50 of the published Forge documents carry
+    both fields at once, so a reader that picks one silently drops half the
+    document.
+
+  `opys-fabric` folds by hand — its profile has its own library spelling — but
+  through the same `inherited_classpath` / `superseded` pair, never by a rule
+  of its own.
+
+- **The client jar goes last on the classpath.** After every library, which is
+  where HMCL (`DefaultLauncher`: libraries into a `LinkedHashSet`, then the
+  jar) and `minecraft-launcher-lib` (`get_libraries`: the loop, then the jar)
+  both put it. It matters wherever a library carries a patched copy of a class
+  the client jar also has: the library only wins by being ahead. opys had it
+  first until this was checked.
 - **Forge has no eras.** Forge installs four ways — processors, a LaunchWrapper
   tweaker, a client-jar overlay, or a bare universal zip — but none of that is
   in `opys-forge`. Every build that has ever shipped is published as an

@@ -181,7 +181,9 @@ fn the_loader_libraries_come_before_the_vanilla_ones_on_the_classpath() {
     let gson = linux.find("com/google/code/gson").unwrap();
     let loader = linux.find("net/fabricmc/fabric-loader").unwrap();
     assert!(loader < gson);
-    assert!(linux.starts_with("${version_dir}/client.jar"));
+    // The client jar goes last, where every launcher that reads the format
+    // puts it.
+    assert!(linux.ends_with("${version_dir}/client.jar"));
 }
 
 #[test]
