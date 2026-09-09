@@ -24,6 +24,7 @@ const java = require('../crates/opys-java-napi/index.js');
 const minecraft = require('../crates/opys-minecraft-vanilla-napi/index.js');
 const fabricNapi = require('../crates/opys-fabric-napi/index.js');
 const forgeNapi = require('../crates/opys-forge-napi/index.js');
+const neoforgeNapi = require('../crates/opys-neoforge-napi/index.js');
 
 let ok = 0;
 let fail = 0;
@@ -537,6 +538,95 @@ const forgeBuilt = await forgeNapi.buildForge(forgeOpts);
 check('buildForge names the plugin', forgeBuilt.name === 'forge');
 
 forgeSite.close();
+
+// ── neoforge ──────────────────────────────────────────────────────────────
+// The same index, the same fold, a different maven. What this crosses that
+// forge cannot is a build id that shares no text with its Minecraft version.
+console.log('\n— neoforge —');
+
+const NEOFORGE_BUILD = '21.1.172';
+const NEOFORGE_DOCUMENT = {
+  id: `neoforge-${NEOFORGE_BUILD}`,
+  inheritsFrom: '1.20.1',
+  mainClass: 'io.github.zekerzhayard.forgewrapper.installer.Main',
+  arguments: {
+    game: ['--fml.neoForgeVersion', NEOFORGE_BUILD],
+    jvm: ['-Dforgewrapper.librariesDir=${library_directory}'],
+  },
+  libraries: [
+    {
+      name: 'net.neoforged.fancymodloader:loader:4.0.39',
+      downloads: {
+        artifact: {
+          path: 'net/neoforged/fancymodloader/loader/4.0.39/loader-4.0.39.jar',
+          url: 'https://maven/loader.jar',
+          sha1: 'c'.repeat(40),
+          size: 3000,
+        },
+      },
+    },
+  ],
+};
+
+let neoforgeBase = '';
+const neoforgeSite = createServer((req, res) => {
+  const target = req.url ?? '';
+  const url = `${neoforgeBase}/versions/1.20.1/${NEOFORGE_BUILD}.json`;
+  const body = target.startsWith('/versions/')
+    ? NEOFORGE_DOCUMENT
+    : {
+        versions: {
+          '1.20.1': {
+            latest: NEOFORGE_BUILD,
+            latestUrl: url,
+            recommended: NEOFORGE_BUILD,
+            recommendedUrl: url,
+            best: NEOFORGE_BUILD,
+            bestUrl: url,
+            builds: [{ neoforge: NEOFORGE_BUILD, url }],
+          },
+        },
+      };
+  res
+    .writeHead(200, { 'content-type': 'application/json' })
+    .end(JSON.stringify(body));
+});
+await new Promise((resolve) => neoforgeSite.listen(0, '127.0.0.1', resolve));
+neoforgeBase = `http://127.0.0.1:${neoforgeSite.address().port}`;
+const neoforgeOpts = { ...mcOpts, source: neoforgeBase };
+
+check(
+  'defaultNeoForgeIndex is the canonical URL',
+  neoforgeNapi.defaultNeoForgeIndex() ===
+    'https://harmoniya-net.github.io/ForgeWrapper/neoforge',
+);
+
+const neoforgeRelease = await neoforgeNapi.resolveNeoForgeVersion(
+  NEOFORGE_BUILD,
+  neoforgeBase,
+);
+check(
+  'resolveNeoForgeVersion finds a build id that names no Minecraft version',
+  neoforgeRelease.minecraft === '1.20.1' &&
+    neoforgeRelease.neoforge === NEOFORGE_BUILD,
+);
+
+const neoforged = await neoforgeNapi.resolveNeoForge(neoforgeOpts);
+check(
+  'resolveNeoForge launches the wrapper, not vanilla',
+  neoforged.mainClass === 'io.github.zekerzhayard.forgewrapper.installer.Main',
+);
+check(
+  "resolveNeoForge puts neoforge's libraries ahead of the client jar",
+  neoforged.classpath[0].value ===
+    '${library_directory}/net/neoforged/fancymodloader/loader/4.0.39/loader-4.0.39.jar' +
+      '${classpath_separator}${version_dir}/client.jar',
+);
+
+const neoforgeBuilt = await neoforgeNapi.buildNeoForge(neoforgeOpts);
+check('buildNeoForge names the plugin', neoforgeBuilt.name === 'neoforge');
+
+neoforgeSite.close();
 mojangApi.close();
 
 console.log(`\nresult: ${ok} passed, ${fail} failed`);

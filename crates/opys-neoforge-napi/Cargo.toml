@@ -1,0 +1,23 @@
+[package]
+name = "opys-neoforge-napi"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "napi-rs bindings for opys-neoforge. Produces @opys/neoforge's .node addon."
+# cdylib for npm consumption — not consumed by Rust callers, not on crates.io.
+publish = false
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+opys-neoforge = { path = "../opys-neoforge", version = "0.2.0" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+napi = { version = "2", default-features = false, features = ["napi8", "serde-json"] }
+napi-derive = "2"
+
+[build-dependencies]
+napi-build = "2"

@@ -54,12 +54,13 @@ Eight packages, a clean DAG, no cycles:
                      artifact overrides, artifactScanner, userDataDir.
                      The contribution merge is the `opys-dev` crate.               → core
 @opys/runtime       install + launch executor.                              → core ONLY
-@opys/minecraft     Minecraft-domain plugins — minecraft / forge / fabric /
-                     cleanroom / lwjgl3ify / curseforge / authliberty — + bifrost /
-                     serverlist helpers. Vanilla, fabric and forge are thin wrappers
-                     over the `opys-minecraft-vanilla`, `opys-fabric` and `opys-forge`
-                     crates, each with its own `.node`; the remaining loaders get a
-                     crate and a binding apiece on top of vanilla. → dev, core, mojang
+@opys/minecraft     Minecraft-domain plugins — minecraft / forge / neoforge /
+                     fabric / cleanroom / lwjgl3ify / curseforge / authliberty — +
+                     bifrost / serverlist helpers. Vanilla, fabric, forge and
+                     neoforge are thin wrappers over the `opys-minecraft-vanilla`,
+                     `opys-fabric`, `opys-forge` and `opys-neoforge` crates, each
+                     with its own `.node`; the remaining loaders get a crate and a
+                     binding apiece on top of vanilla.       → dev, core, mojang
 @opys/java          JDK provisioning — Temurin / Zulu / GraalVM CE.
                      Thin wrapper over the `opys-java` crate.                → dev, core
 @opys/cli           the `opys` binary.                 → dev, runtime, minecraft, java
@@ -140,6 +141,22 @@ Eight packages, a clean DAG, no cycles:
   index lookup plus the shared fold, and is deliberately the same shape as
   `opys-fabric`. `crates/opys-forge/tests/documents.rs` parses the whole
   published set — the check to re-run whenever either side moves.
+- **NeoForge is published the same way, and is its own crate anyway.**
+  `harmoniya-net.github.io/ForgeWrapper/neoforge` carries the same index and
+  the same document shape, so `opys-neoforge` is `opys-forge` down to the file
+  names. They are kept apart because what they share is our publication format
+  and nothing of Forge's: NeoForge has its own maven, no promotions endpoint,
+  and a versioning scheme that has already changed once. Two differences are
+  real and live in the crate — `DEFAULT_NEOFORGE_INDEX`, and a build-id lookup
+  that scans the whole index rather than filtering by prefix.
+- **A build id says nothing about its Minecraft version.** NeoForge `21.1.172`
+  does mean 1.21.1, and for years every version did — which is exactly why
+  deriving it looked safe. `26.2.0.84` targets Minecraft `26.2`, which has no
+  leading `1.` at all: Mojang's release line is year-based now, and NeoForge
+  grew a fourth component. So the generator reads `inheritsFrom` out of the
+  installer's own version JSON and the crate looks a build id up in the index.
+  Nothing anywhere parses either one. The JS `nfVersionToMc` that used to did,
+  and was already wrong.
 - **One binding per crate.** `opys-<x>-napi` → `@opys/<x>-binding`, named after
   the module it exposes and nothing else; a JS package imports its own binding,
   never a sibling's. Every addon statically links the same ~4 MB of

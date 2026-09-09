@@ -14,6 +14,7 @@ import {
 import type { BuildContext } from '@opys/dev';
 import {
   clientJson,
+  documentSite,
   lib,
   mojangServer,
   routedFetch,
@@ -70,106 +71,84 @@ describe('minecraft plugin', () => {
 });
 
 describe('forge plugin', () => {
-  it('builds a processor-era forge contribution', async () => {
+  it('builds a forge contribution from the published document', async () => {
     reset();
-    const F = '1.20.1-47.4.20';
-    routedFetch([
-      [
-        'versions.json',
-        {
-          versions: {
-            '1.20.1': {
-              latest: { forge: F, url: 'https://ff/e.json' },
-              recommended: { forge: F, url: 'https://ff/e.json' },
-              best: { forge: F, url: 'https://ff/e.json' },
-              list: [{ forge: F, url: 'https://ff/e.json' }],
-            },
-          },
+    routedFetch([]);
+    const MC = '1.20.1';
+    const F = `${MC}-47.4.20`;
+    const site = await documentSite({
+      mc: MC,
+      build: F,
+      key: 'forge',
+      document: {
+        id: `${MC}-forge-47.4.20`,
+        inheritsFrom: MC,
+        mainClass: 'io.github.zekerzhayard.forgewrapper.installer.Main',
+        arguments: {
+          game: [],
+          jvm: ['-Dforgewrapper.librariesDir=${library_directory}'],
         },
-      ],
-      [
-        '/e.json',
-        {
-          id: '1.20.1',
-          forge: F,
-          files: {
-            installer: { url: 'https://maven/i.jar', md5: 'm' },
-          },
-          installProfile: 'https://ff/install_profile.json',
-          manifest: null,
-          recipe: 'https://ff/recipe.json',
-        },
-      ],
-      [
-        '/recipe.json',
-        {
-          type: 'processor',
-          forge: F,
-          id: '1.20.1',
-          mainClass: 'cpw.mods.bootstraplauncher.BootstrapLauncher',
-          arguments: { game: [], jvm: [] },
-          libraries: [
-            lib(
-              'cpw.mods:bootstraplauncher:1.1.2',
-              'cpw/mods/bootstraplauncher/1.1.2/bootstraplauncher-1.1.2.jar',
-              'https://maven/bl.jar',
-            ),
-          ],
-        },
-      ],
-      ['/install_profile.json', { libraries: [] }],
-    ]);
-    const plugin = forge(F, { manifestBase: mojang.manifestBase });
+        libraries: [
+          lib(
+            'cpw.mods:bootstraplauncher:1.1.2',
+            'cpw/mods/bootstraplauncher/1.1.2/bootstraplauncher-1.1.2.jar',
+            'https://maven/bl.jar',
+          ),
+        ],
+      },
+    });
+
+    const plugin = forge(F, {
+      source: site.source,
+      manifestBase: mojang.manifestBase,
+    });
     expect(plugin.name).toBe('forge');
     const c = await plugin.build(ctx);
     expect(c.artifacts!.length).toBeGreaterThan(0);
     expect(c.launch).toHaveProperty('mainClass');
     expect(logs.some((l) => l.includes(`resolved ${F}`))).toBe(true);
+    await site.close();
   });
 });
 
 describe('neoforge plugin', () => {
-  it('builds a neoforge contribution', async () => {
+  it('builds a neoforge contribution from the published document', async () => {
     reset();
-    const NF = '20.4.80-beta';
+    routedFetch([]);
     const MC = '1.20.4';
-    const versionJson = {
-      id: `${MC}-neoforge-${NF}`,
-      inheritsFrom: MC,
-      mainClass: 'cpw.mods.bootstraplauncher.BootstrapLauncher',
-      arguments: {
-        game: ['--fml.neoForgeVersion', NF],
-        jvm: ['-DlibraryDirectory=${library_directory}'],
+    const NF = '20.4.80-beta';
+    const site = await documentSite({
+      mc: MC,
+      build: NF,
+      key: 'neoforge',
+      document: {
+        id: `neoforge-${NF}`,
+        inheritsFrom: MC,
+        mainClass: 'io.github.zekerzhayard.forgewrapper.installer.Main',
+        arguments: {
+          game: ['--fml.neoForgeVersion', NF],
+          jvm: ['-DlibraryDirectory=${library_directory}'],
+        },
+        libraries: [
+          lib(
+            'cpw.mods:bootstraplauncher:2.1.3',
+            'cpw/mods/bootstraplauncher/2.1.3/bootstraplauncher-2.1.3.jar',
+            'https://maven/bootstraplauncher.jar',
+          ),
+        ],
       },
-      libraries: [
-        lib(
-          'cpw.mods:bootstraplauncher:2.1.3',
-          'cpw/mods/bootstraplauncher/2.1.3/bootstraplauncher-2.1.3.jar',
-          'https://maven/bootstraplauncher.jar',
-        ),
-      ],
-    };
-    const installProfile = {
-      spec: 1,
-      profile: 'NeoForge',
-      version: `${MC}-neoforge-${NF}`,
-      minecraft: MC,
-      libraries: [],
-    };
-    const zip = zipSync({
-      'version.json': strToU8(JSON.stringify(versionJson)),
-      'install_profile.json': strToU8(JSON.stringify(installProfile)),
     });
-    routedFetch([
-      [`neoforge-${NF}-installer.jar.sha1`, new Response('abc123')],
-      [`neoforge-${NF}-installer.jar`, new Response(zip)],
-    ]);
-    const plugin = neoforge(NF, { manifestBase: mojang.manifestBase });
+
+    const plugin = neoforge(NF, {
+      source: site.source,
+      manifestBase: mojang.manifestBase,
+    });
     expect(plugin.name).toBe('neoforge');
     const c = await plugin.build(ctx);
     expect(c.artifacts!.length).toBeGreaterThan(0);
     expect(c.launch).toHaveProperty('mainClass');
     expect(logs.some((l) => l.includes(`resolved ${NF}`))).toBe(true);
+    await site.close();
   });
 });
 

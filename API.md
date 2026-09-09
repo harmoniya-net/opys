@@ -99,8 +99,12 @@ Minecraft-domain plugins — `@opys/minecraft`:
   `opts.manifestBase` points the version-manifest fetch somewhere other than
   Mojang; every loader below takes it too, since each starts from a vanilla
   version JSON.
-- **`forge(version, opts?)`** — Forge, every version (1.1 onwards).
-- **`neoforge(version, opts?)`** — NeoForge.
+- **`forge(version, opts?)`** — Forge, every version (1.1 onwards). `version`
+  is a Minecraft version (its `best` build), an alias (`1.20.1-recommended`),
+  or a full build id; `opts.source` points at another document index.
+- **`neoforge(version, opts?)`** — NeoForge, resolved the same way from its own
+  published index. `version` takes a Minecraft version, an alias, or a bare
+  NeoForge build id (`21.1.172`).
 - **`fabric(version, opts?)`** — Fabric. `version` is the Minecraft version;
   `opts.loader` pins a loader build, otherwise the newest stable one targeting
   it is resolved from Fabric Meta (`opts.source` points elsewhere).

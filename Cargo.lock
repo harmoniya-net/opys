@@ -1019,6 +1019,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "opys-neoforge"
+version = "0.2.0"
+dependencies = [
+ "opys-core",
+ "opys-dev",
+ "opys-minecraft-vanilla",
+ "opys-mojang",
+ "serde",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
+name = "opys-neoforge-napi"
+version = "0.2.0"
+dependencies = [
+ "napi",
+ "napi-build",
+ "napi-derive",
+ "opys-neoforge",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "opys-runtime"
 version = "0.2.0"
 dependencies = [

@@ -17,7 +17,6 @@
     "packages/dev",
     "packages/mojang",
     "packages/minecraft-vanilla",
-    "packages/forgewrapper",
     "packages/forge",
     "packages/neoforge",
     "packages/fabric",
@@ -39,6 +38,7 @@
     "crates/opys-minecraft-vanilla-napi",
     "crates/opys-fabric-napi",
     "crates/opys-forge-napi",
+    "crates/opys-neoforge-napi",
     "crates/opys-core-napi",
     "crates/opys-runtime-napi"
   ],

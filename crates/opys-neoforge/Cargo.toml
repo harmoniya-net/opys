@@ -1,0 +1,18 @@
+[package]
+name = "opys-neoforge"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "NeoForge loader for opys — resolves a published inheritsFrom document onto the vanilla mappers."
+
+[dependencies]
+opys-core = { path = "../opys-core", version = "0.2.0" }
+opys-dev = { path = "../opys-dev", version = "0.2.0" }
+opys-minecraft-vanilla = { path = "../opys-minecraft-vanilla", version = "0.2.0" }
+opys-mojang = { path = "../opys-mojang", version = "0.2.0" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }

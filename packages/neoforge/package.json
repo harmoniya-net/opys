@@ -15,12 +15,10 @@
     "test": "vitest run tests/unit --passWithNoTests"
   },
   "dependencies": {
-    "@opys/forgewrapper": "^0.2.0",
     "@opys/core": "^0.2.0",
     "@opys/dev": "^0.2.0",
-    "@opys/mojang": "^0.2.0",
     "@opys/minecraft-vanilla": "^0.2.0",
-    "fflate": "^0.8.2"
+    "@opys/neoforge-binding": "^0.2.0"
   },
   "devDependencies": {
     "tsdown": "*",

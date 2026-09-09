@@ -210,3 +210,63 @@ export async function mojangServer(
     close: () => new Promise<void>((resolve) => server.close(() => resolve())),
   };
 }
+
+// ──────────────────────────────────────────────────────────────────────────
+// The published document index, on loopback.
+//
+// Forge and NeoForge resolve inside their crates, over a real socket, so a
+// `vi.stubGlobal('fetch', …)` route cannot reach them — pointing `source` at
+// this is what keeps their tests off the live site.
+// ──────────────────────────────────────────────────────────────────────────
+
+export interface DocumentSite {
+  /** Pass as the loader's `source`. */
+  source: string;
+  close: () => Promise<void>;
+}
+
+/**
+ * Serve an index naming one build, and that build's document.
+ *
+ * `key` is what the index calls the build id — `forge` in Forge's index,
+ * `neoforge` in NeoForge's.
+ */
+export async function documentSite(options: {
+  mc: string;
+  build: string;
+  key: 'forge' | 'neoforge';
+  document: Record<string, unknown>;
+}): Promise<DocumentSite> {
+  let base = '';
+
+  const server = createServer((req, res) => {
+    const target = req.url ?? '';
+    const url = `${base}/versions/${options.mc}/${options.build}.json`;
+    const body = target.startsWith('/versions/')
+      ? options.document
+      : {
+          versions: {
+            [options.mc]: {
+              latest: options.build,
+              latestUrl: url,
+              recommended: options.build,
+              recommendedUrl: url,
+              best: options.build,
+              bestUrl: url,
+              builds: [{ [options.key]: options.build, url }],
+            },
+          },
+        };
+    res
+      .writeHead(200, { 'content-type': 'application/json' })
+      .end(JSON.stringify(body));
+  });
+
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+  base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+
+  return {
+    source: base,
+    close: () => new Promise<void>((resolve) => server.close(() => resolve())),
+  };
+}

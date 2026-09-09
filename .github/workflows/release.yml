@@ -111,6 +111,10 @@ jobs:
         run: npx napi build --platform --release --target ${{ matrix.target }} ${{ contains(matrix.target, '-musl') && '--zig' || '' }}
         working-directory: crates/opys-forge-napi
 
+      - name: Build @opys/neoforge-binding
+        run: npx napi build --platform --release --target ${{ matrix.target }} ${{ contains(matrix.target, '-musl') && '--zig' || '' }}
+        working-directory: crates/opys-neoforge-napi
+
       - name: Upload @opys/core-binding artifact
         uses: actions/upload-artifact@v7
         with:
@@ -165,6 +169,13 @@ jobs:
         with:
           name: forge-binding-${{ matrix.target }}
           path: crates/opys-forge-napi/*.node
+          if-no-files-found: error
+
+      - name: Upload @opys/neoforge-binding artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: neoforge-binding-${{ matrix.target }}
+          path: crates/opys-neoforge-napi/*.node
           if-no-files-found: error
 
   # ─────────────────────────────────────────────────────────────
@@ -240,6 +251,12 @@ jobs:
           path: crates/opys-forge-napi/artifacts
           merge-multiple: true
 
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: neoforge-binding-*
+          path: crates/opys-neoforge-napi/artifacts
+          merge-multiple: true
+
       # The `npm/<target>/` per-platform sub-package scaffolding is checked
       # into git (see `crates/opys-*-napi/npm/`). `napi artifacts` walks
       # the downloaded `.node` files (filename encodes the target) and
@@ -247,7 +264,7 @@ jobs:
       - name: Route .node files into per-platform sub-packages
         run: |
           set -eux
-          for c in crates/opys-core-napi crates/opys-runtime-napi crates/opys-mojang-napi crates/opys-dev-napi crates/opys-java-napi crates/opys-minecraft-vanilla-napi crates/opys-fabric-napi crates/opys-forge-napi; do
+          for c in crates/opys-core-napi crates/opys-runtime-napi crates/opys-mojang-napi crates/opys-dev-napi crates/opys-java-napi crates/opys-minecraft-vanilla-napi crates/opys-fabric-napi crates/opys-forge-napi crates/opys-neoforge-napi; do
             (cd "$c" && npx napi artifacts)
             ls -R "$c/npm"
           done
@@ -310,6 +327,13 @@ jobs:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
+      - name: Publish @opys/neoforge-binding (loader + platform sub-packages)
+        run: npx napi prepublish -t npm --skip-gh-release
+        working-directory: crates/opys-neoforge-napi
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
       # Build TS workspaces against the freshly downloaded host .node so
       # tsdown produces dist/ before npm publish runs.
       - run: npm run build --workspaces --if-present
@@ -351,6 +375,8 @@ jobs:
         env: { CARGO_REGISTRY_TOKEN: '${{ secrets.CARGO_REGISTRY_TOKEN }}' }
 
       - run: cargo publish -p opys-forge
+        env: { CARGO_REGISTRY_TOKEN: '${{ secrets.CARGO_REGISTRY_TOKEN }}' }
+      - run: cargo publish -p opys-neoforge
         env: { CARGO_REGISTRY_TOKEN: '${{ secrets.CARGO_REGISTRY_TOKEN }}' }
       - run: cargo publish -p opys-runtime
         env: { CARGO_REGISTRY_TOKEN: '${{ secrets.CARGO_REGISTRY_TOKEN }}' }

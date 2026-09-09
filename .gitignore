@@ -15,3 +15,6 @@ crates/opys-*-napi/index.js
 crates/opys-*-napi/index.d.ts
 manifest.json
 message.txt
+
+# Scratch configs for hand-testing a loader.
+tmp/
