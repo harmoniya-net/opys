@@ -104,7 +104,9 @@ pub fn profile_to_template(
     // The download set follows the classpath: a superseded base library is no
     // longer on `-cp`, so fetching it would be work spent on a file nothing
     // opens.
-    let dropped: HashSet<String> = superseded(&patch, &base).into_iter().collect();
+    let dropped: HashSet<String> = superseded(&patch, &base, "${version_dir}/client.jar")
+        .into_iter()
+        .collect();
     let mut artifacts: Vec<Artifact> = vanilla
         .artifacts
         .iter()

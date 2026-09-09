@@ -7,7 +7,7 @@ use opys_core::{
 };
 use opys_minecraft_vanilla::{
     build_classpath, build_launch, inherited_classpath, library_to_artifact, map_asset_index,
-    map_asset_objects, map_client_jar, map_libraries, superseded, ClasspathEntry,
+    map_asset_objects, map_client_jar, map_libraries, superseded, ClasspathEntry, CLIENT_MODULE,
 };
 use opys_mojang::{AssetIndex, AssetManifest, Client, Libraries, Library};
 use serde_json::json;
@@ -358,6 +358,7 @@ fn superseded_names_the_base_paths_that_dropped_out() {
             module_entry("org.ow2.asm:asm-all", "asm-4.1.jar"),
             module_entry("com.google.code.gson:gson", "gson.jar"),
         ],
+        "client.jar",
     );
     assert_eq!(dropped, ["asm-4.1.jar"]);
 }
@@ -489,4 +490,45 @@ fn a_multi_valued_conditional_argument_keeps_all_its_values() {
         parts.jvm_args[0].value,
         ["-XstartOnFirstThread", "-Xdock:name=Minecraft"]
     );
+}
+
+#[test]
+fn a_patch_that_lists_the_client_jar_itself_replaces_it_rather_than_doubling_it() {
+    // A Forge document lists the vanilla jar as a library so the wrapper can be
+    // handed a path to it. Keeping `${version_dir}/client.jar` beside it hands
+    // BootstrapLauncher two modules exporting the same packages, and Forge's
+    // `ignoreList` only covers the copy it knows the name of.
+    let patch = [module_entry(
+        CLIENT_MODULE,
+        "${library_directory}/com/mojang/minecraft/1.20.1/minecraft-1.20.1-client.jar",
+    )];
+    let arms = inherited_classpath(&patch, &[], "${version_dir}/client.jar").unwrap();
+
+    assert!(!arms[0].value.contains("${version_dir}/client.jar"));
+    assert!(arms[0].value.contains("minecraft-1.20.1-client.jar"));
+    // …and the copy that dropped out is not downloaded either.
+    assert_eq!(
+        superseded(&patch, &[], "${version_dir}/client.jar"),
+        ["${version_dir}/client.jar"]
+    );
+}
+
+#[test]
+fn a_patch_that_does_not_list_the_client_jar_keeps_it_last() {
+    let arms = inherited_classpath(
+        &[module_entry("net.fabricmc:fabric-loader", "loader.jar")],
+        &[module_entry("com.google.code.gson:gson", "gson.jar")],
+        "${version_dir}/client.jar",
+    )
+    .unwrap();
+    assert_eq!(
+        arms[0].value,
+        "loader.jar${classpath_separator}gson.jar${classpath_separator}${version_dir}/client.jar"
+    );
+    assert!(superseded(
+        &[module_entry("net.fabricmc:fabric-loader", "loader.jar")],
+        &[],
+        "${version_dir}/client.jar"
+    )
+    .is_empty());
 }

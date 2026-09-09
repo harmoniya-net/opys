@@ -187,3 +187,4 @@ fn an_empty_logging_object_is_rejected_rather_than_read_as_a_config() {
     });
     assert!(serde_json::from_value::<VersionPatch>(raw).is_err());
 }
+

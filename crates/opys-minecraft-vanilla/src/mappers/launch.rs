@@ -28,7 +28,25 @@ pub struct ClasspathEntry {
     pub module: Option<String>,
 }
 
+/// The module the vanilla client jar provides.
+///
+/// A version JSON has no way to name it — the jar is `downloads.client`, not a
+/// library — but a loader's patch document can list the very same jar *as* a
+/// library, because a wrapper has to be handed a path to it and the format has
+/// no placeholder for one. Naming the module here is what lets the two be
+/// recognised as the same thing.
+pub const CLIENT_MODULE: &str = "com.mojang:minecraft";
+
 impl ClasspathEntry {
+    /// The entry for the vanilla client jar at `path`.
+    pub fn client_jar(path: &str) -> Self {
+        ClasspathEntry {
+            rules: Vec::new(),
+            artifact_path: path.to_owned(),
+            module: Some(CLIENT_MODULE.to_owned()),
+        }
+    }
+
     /// The entry a [`Library`] contributes.
     ///
     /// [`Library`]: opys_mojang::Library
@@ -91,6 +109,16 @@ pub fn build_classpath(
     libs: &[ClasspathEntry],
     client_jar_path: &str,
 ) -> Result<Vec<ConditionalVal>, RuleError> {
+    let entries: Vec<ClasspathEntry> = libs
+        .iter()
+        .cloned()
+        .chain(std::iter::once(ClasspathEntry::client_jar(client_jar_path)))
+        .collect();
+    arms(&entries)
+}
+
+/// One arm per OS, each keeping the entries that OS's rules allow.
+fn arms(entries: &[ClasspathEntry]) -> Result<Vec<ConditionalVal>, RuleError> {
     OSES.iter()
         .map(|&name| {
             let os = OsOptions {
@@ -99,12 +127,11 @@ pub fn build_classpath(
                 arch: "x86_64".to_owned(),
             };
             let mut parts = Vec::new();
-            for lib in libs {
-                if satisfies_ruleset(&lib.rules, &os, &[])? {
-                    parts.push(lib.artifact_path.clone());
+            for entry in entries {
+                if satisfies_ruleset(&entry.rules, &os, &[])? {
+                    parts.push(entry.artifact_path.clone());
                 }
             }
-            parts.push(client_jar_path.to_owned());
             Ok(ConditionalVal {
                 value: parts.join("${classpath_separator}"),
                 rules: allow_os_ruleset(name),
@@ -119,9 +146,15 @@ pub fn build_classpath(
 /// Split out from [`inherited_classpath`] because the *artifact* set has to
 /// agree with the classpath — a jar dropped from `-cp` should not still be
 /// downloaded — and the caller is what holds the artifacts.
-pub fn superseded(patch: &[ClasspathEntry], base: &[ClasspathEntry]) -> Vec<String> {
+pub fn superseded(
+    patch: &[ClasspathEntry],
+    base: &[ClasspathEntry],
+    client_jar_path: &str,
+) -> Vec<String> {
     let replaced: HashSet<&str> = patch.iter().filter_map(|e| e.module.as_deref()).collect();
+    let client = ClasspathEntry::client_jar(client_jar_path);
     base.iter()
+        .chain(std::iter::once(&client))
         .filter(|e| e.module.as_deref().is_some_and(|m| replaced.contains(m)))
         .map(|e| e.artifact_path.clone())
         .collect()
@@ -144,6 +177,14 @@ pub fn superseded(patch: &[ClasspathEntry], base: &[ClasspathEntry]) -> Vec<Stri
 /// ignore list, a coremod's discovery — can still find it.
 /// `minecraft-launcher-lib` does the same, keyed the same way.
 ///
+/// The client jar is subject to the same rule, and this is not academic: a
+/// Forge document lists the vanilla jar as a library so the wrapper can be
+/// handed a path to it, and leaving `${version_dir}/client.jar` on `-cp`
+/// beside it gives BootstrapLauncher two modules exporting the same packages —
+/// "Module minecraft contains package com.mojang.blaze3d.systems, module
+/// client exports package com.mojang.blaze3d.systems to minecraft". Forge's
+/// `ignoreList` covers only the copy it knows the name of.
+///
 /// Entries with no module — natives, and anything a caller declines to key —
 /// are never dropped. See [`ClasspathEntry::module`] for why natives must not
 /// participate.
@@ -153,15 +194,15 @@ pub fn inherited_classpath(
     client_jar_path: &str,
 ) -> Result<Vec<ConditionalVal>, RuleError> {
     let replaced: HashSet<&str> = patch.iter().filter_map(|e| e.module.as_deref()).collect();
+    let kept = |e: &&ClasspathEntry| !e.module.as_deref().is_some_and(|m| replaced.contains(m));
+    let client = ClasspathEntry::client_jar(client_jar_path);
     let entries: Vec<ClasspathEntry> = patch
         .iter()
-        .chain(
-            base.iter()
-                .filter(|e| !e.module.as_deref().is_some_and(|m| replaced.contains(m))),
-        )
+        .chain(base.iter().filter(kept))
+        .chain(std::iter::once(&client).filter(kept))
         .cloned()
         .collect();
-    build_classpath(&entries, client_jar_path)
+    arms(&entries)
 }
 
 /// A Mojang argument as a manifest [`Val`].

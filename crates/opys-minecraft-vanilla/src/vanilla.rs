@@ -160,7 +160,10 @@ pub fn patch_to_template(
     // The download set has to agree with the classpath. A base library the
     // patch supersedes is gone from `-cp`, so fetching and verifying it would
     // be work spent on a file nothing opens.
-    let dropped: HashSet<String> = superseded(&patch_entries, &base_entries).into_iter().collect();
+    let dropped: HashSet<String> =
+        superseded(&patch_entries, &base_entries, "${version_dir}/client.jar")
+            .into_iter()
+            .collect();
     let mut artifacts: Vec<Artifact> = vanilla
         .artifacts
         .iter()

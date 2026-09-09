@@ -326,17 +326,24 @@ fn a_processor_document_appends_its_arguments_to_vanillas() {
 }
 
 #[test]
-fn the_vanilla_client_jar_declared_as_a_library_is_fetched_as_one() {
+fn the_client_jar_the_document_declares_replaces_the_one_vanilla_would_place() {
     // The wrapper has to be told where that jar is, and the format has no
-    // placeholder for it, so the document declares it as a library. That is a
-    // second copy of the same file, on purpose — see the generator's README.
+    // placeholder for it, so the document declares it as a library. It is the
+    // same file — keeping both would fetch it twice and, worse, put two copies
+    // on `-cp`, which BootstrapLauncher reads as two modules exporting the
+    // same packages.
     let server = site();
     let t = resolve_forge(&options(&server, "1.5.2")).unwrap();
 
     let paths: Vec<&str> = t.artifacts.iter().map(|a| a.path.as_str()).collect();
-    assert!(paths.contains(&"${version_dir}/client.jar"));
+    assert!(!paths.contains(&"${version_dir}/client.jar"));
     assert!(paths
         .contains(&"${library_directory}/com/mojang/minecraft/1.5.2/minecraft-1.5.2-client.jar"));
+
+    for arm in &t.classpath {
+        assert!(!arm.value.contains("${version_dir}/client.jar"), "{}", arm.value);
+        assert!(arm.value.contains("minecraft-1.5.2-client.jar"), "{}", arm.value);
+    }
 }
 
 #[test]
@@ -369,3 +376,4 @@ fn the_template_roundtrips_through_json() {
         t
     );
 }
+
