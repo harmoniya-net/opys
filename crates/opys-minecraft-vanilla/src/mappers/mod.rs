@@ -12,5 +12,7 @@ mod libraries;
 
 pub use assets::{map_asset_index, map_asset_objects};
 pub use client::map_client_jar;
-pub use launch::{build_classpath, build_launch, ClasspathEntry, LaunchParts};
+pub use launch::{
+    build_classpath, build_launch, inherited_classpath, ClasspathEntry, LaunchParts,
+};
 pub use libraries::{library_to_artifact, map_libraries};

@@ -3,7 +3,7 @@
 use opys_core::{Artifact, ConditionalVal, Launch, Val, ValDef, ValDefs};
 use opys_dev::{Contribution, LaunchFragment, PluginOutput};
 use opys_minecraft_vanilla::{
-    build_classpath, build_launch, fetch_client, resolve_client_template, ClasspathEntry,
+    build_launch, fetch_client, inherited_classpath, resolve_client_template, ClasspathEntry,
     MinecraftTemplate,
 };
 use opys_mojang::Client;
@@ -86,21 +86,27 @@ pub fn profile_to_template(
         .map(library_artifact)
         .collect::<Result<_, _>>()?;
 
-    // Vanilla's libraries keep their rules; the profile's have none, so they
+    // A profile is an `inheritsFrom` patch, so its libraries go ahead of the
+    // base version's — Fabric ships its own ASM build, and being first is the
+    // only thing that would make the JVM prefer it over a vanilla copy.
+    // Vanilla's entries keep their rules; the profile's have none, so they
     // land on every OS's classpath.
-    let entries: Vec<ClasspathEntry> = client
+    let patch: Vec<ClasspathEntry> = libs
+        .iter()
+        .map(|(_, path)| ClasspathEntry {
+            rules: Vec::new(),
+            artifact_path: format!("${{library_directory}}/{path}"),
+        })
+        .collect();
+    let base: Vec<ClasspathEntry> = client
         .libraries
         .iter()
         .map(|l| ClasspathEntry {
             rules: l.rules.clone(),
             artifact_path: format!("${{library_directory}}/{}", l.artifact.path),
         })
-        .chain(libs.iter().map(|(_, path)| ClasspathEntry {
-            rules: Vec::new(),
-            artifact_path: format!("${{library_directory}}/{path}"),
-        }))
         .collect();
-    let classpath = build_classpath(&entries, "${version_dir}/client.jar")?;
+    let classpath = inherited_classpath(&patch, &base, "${version_dir}/client.jar")?;
 
     let merged = client.args.merge(&profile.arguments);
     let parts = build_launch(&profile.main_class, &merged.game, &merged.jvm);

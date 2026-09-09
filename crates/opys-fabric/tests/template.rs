@@ -170,14 +170,17 @@ fn every_os_arm_carries_the_loader_libraries_unconditionally() {
 }
 
 #[test]
-fn the_loader_libraries_come_after_the_vanilla_ones_on_the_classpath() {
+fn the_loader_libraries_come_before_the_vanilla_ones_on_the_classpath() {
+    // What `inheritsFrom` means: the patch's libraries are ahead of the base
+    // version's. Fabric ships its own ASM build, and order is the only thing
+    // that would make the JVM prefer it over a vanilla copy of the same class.
     let (profile, client, vanilla) = parts();
     let t = profile_to_template(&profile, &client, &vanilla).unwrap();
 
     let linux = &t.classpath[0].value;
     let gson = linux.find("com/google/code/gson").unwrap();
     let loader = linux.find("net/fabricmc/fabric-loader").unwrap();
-    assert!(gson < loader);
+    assert!(loader < gson);
     assert!(linux.starts_with("${version_dir}/client.jar"));
 }
 

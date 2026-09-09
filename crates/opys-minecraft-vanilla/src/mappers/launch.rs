@@ -77,6 +77,27 @@ pub fn build_classpath(
         .collect()
 }
 
+/// Build the `${classpath}` arms for an `inheritsFrom` document.
+///
+/// The patch's own libraries come first, then the base version's. That is not
+/// a preference: it is what `inheritsFrom` means, and every launcher that
+/// reads the format — Prism, MultiMC, Forge's and Fabric's own installers —
+/// orders it this way. Order is also the *only* thing that decides which of
+/// two copies of a class the JVM loads, so a loader that ships its own build
+/// of a library vanilla also ships gets it only by being ahead.
+///
+/// Nothing is deduplicated. Two entries for the same `group:artifact` at
+/// different versions are how vanilla itself picks between LWJGL builds with
+/// rules, so collapsing them would drop an arm the ruleset still needs.
+pub fn inherited_classpath(
+    patch: &[ClasspathEntry],
+    base: &[ClasspathEntry],
+    client_jar_path: &str,
+) -> Result<Vec<ConditionalVal>, RuleError> {
+    let entries: Vec<ClasspathEntry> = patch.iter().chain(base).cloned().collect();
+    build_classpath(&entries, client_jar_path)
+}
+
 /// A Mojang argument as a manifest [`Val`].
 fn to_val(arg: &MojangArgValue) -> Val {
     match arg {

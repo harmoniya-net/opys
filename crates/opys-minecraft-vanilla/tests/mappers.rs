@@ -6,8 +6,8 @@ use opys_core::{
     Source,
 };
 use opys_minecraft_vanilla::{
-    build_classpath, build_launch, library_to_artifact, map_asset_index, map_asset_objects,
-    map_client_jar, map_libraries, ClasspathEntry,
+    build_classpath, build_launch, inherited_classpath, library_to_artifact, map_asset_index,
+    map_asset_objects, map_client_jar, map_libraries, ClasspathEntry,
 };
 use opys_mojang::{AssetIndex, AssetManifest, Client, Libraries, Library};
 use serde_json::json;
@@ -286,6 +286,53 @@ fn an_unparsable_os_version_pattern_is_reported() {
         },
     }];
     assert!(build_classpath(&[entry("x.jar", broken)], "client.jar").is_err());
+}
+
+#[test]
+fn an_inherited_classpath_puts_the_patch_ahead_of_the_base() {
+    // What `inheritsFrom` means. A loader that ships its own build of a
+    // library vanilla also ships gets used only by being first — order is the
+    // only thing the JVM consults when two entries carry the same class.
+    let arms = inherited_classpath(
+        &[entry("forge-asm.jar", vec![])],
+        &[entry("vanilla-asm.jar", vec![])],
+        "client.jar",
+    )
+    .unwrap();
+    let sep = "${classpath_separator}";
+    assert_eq!(
+        arms[0].value,
+        format!("client.jar{sep}forge-asm.jar{sep}vanilla-asm.jar")
+    );
+}
+
+#[test]
+fn an_inherited_classpath_still_gates_each_side_by_its_own_rules() {
+    let arms = inherited_classpath(
+        &[entry("patch-linux.jar", allow_os(OsName::Linux))],
+        &[entry("base-windows.jar", allow_os(OsName::Windows))],
+        "client.jar",
+    )
+    .unwrap();
+    assert!(arms[0].value.contains("patch-linux.jar"));
+    assert!(!arms[0].value.contains("base-windows.jar"));
+    assert!(arms[1].value.contains("base-windows.jar"));
+    assert!(!arms[1].value.contains("patch-linux.jar"));
+}
+
+#[test]
+fn an_inherited_classpath_does_not_collapse_two_versions_of_one_artifact() {
+    // Vanilla lists two LWJGL builds side by side and picks between them with
+    // rules. Deduplicating by `group:artifact` would drop an arm the ruleset
+    // still needs.
+    let arms = inherited_classpath(
+        &[entry("org/lwjgl/lwjgl/2.9.4/lwjgl-2.9.4.jar", vec![])],
+        &[entry("org/lwjgl/lwjgl/2.9.0/lwjgl-2.9.0.jar", vec![])],
+        "client.jar",
+    )
+    .unwrap();
+    assert!(arms[0].value.contains("lwjgl-2.9.4.jar"));
+    assert!(arms[0].value.contains("lwjgl-2.9.0.jar"));
 }
 
 // ── launch ───────────────────────────────────────────────────────────────

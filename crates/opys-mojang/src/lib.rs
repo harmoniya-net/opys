@@ -20,6 +20,7 @@ mod java;
 mod libraries;
 mod logging;
 mod maven;
+mod patch;
 mod version;
 
 pub use arguments::{ArgValue, Arguments, MojangArgValue};
@@ -31,4 +32,5 @@ pub use java::JavaVersion;
 pub use libraries::{Artifact, Libraries, Library};
 pub use logging::{Logging, LoggingClient, LoggingFile};
 pub use maven::MavenCoord;
+pub use patch::VersionPatch;
 pub use version::{Latest, Version, VersionManifest, VERSION_MANIFEST_URL};
