@@ -30,7 +30,7 @@ fn a_patch_names_what_it_inherits_and_what_it_launches() {
     let p = parse(json!({
         "id": "1.20.1-forge-47.4.0",
         "inheritsFrom": "1.20.1",
-        "mainClass": "io.github.zekerzhayard.forgewrapper.installer.Main",
+        "mainClass": "net.harmoniya.horno.Main",
         "libraries": [],
     }));
 
@@ -38,7 +38,7 @@ fn a_patch_names_what_it_inherits_and_what_it_launches() {
     assert_eq!(p.inherits_from, "1.20.1");
     assert_eq!(
         p.main_class,
-        "io.github.zekerzhayard.forgewrapper.installer.Main"
+        "net.harmoniya.horno.Main"
     );
 }
 
@@ -116,8 +116,8 @@ fn a_patch_carrying_both_argument_fields_keeps_both() {
     let p = parse(json!({
         "id": "1.5.2-Forge7.8.1.738",
         "inheritsFrom": "1.5.2",
-        "mainClass": "io.github.zekerzhayard.forgewrapper.installer.Main",
-        "arguments": { "jvm": ["-Dforgewrapper.patched=${library_directory}/p.jar"] },
+        "mainClass": "net.harmoniya.horno.Main",
+        "arguments": { "jvm": ["-Dhorno.patched=${library_directory}/p.jar"] },
         "minecraftArguments": "${auth_player_name} --tweakClass net.minecraftforge.legacy._1_5_2.LibraryFixerTweaker",
         "libraries": [],
     }));
@@ -128,7 +128,7 @@ fn a_patch_carrying_both_argument_fields_keeps_both() {
         plain(&[
             "-cp",
             "${classpath}",
-            "-Dforgewrapper.patched=${library_directory}/p.jar",
+            "-Dhorno.patched=${library_directory}/p.jar",
         ]),
     );
     assert_eq!(

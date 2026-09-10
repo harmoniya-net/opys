@@ -17,7 +17,7 @@ use serde::{Deserialize, Serialize};
 use crate::error::NeoForgeError;
 
 /// The canonical index base URL.
-pub const DEFAULT_NEOFORGE_INDEX: &str = "https://harmoniya-net.github.io/ForgeWrapper/neoforge";
+pub const DEFAULT_NEOFORGE_INDEX: &str = "https://harmoniya-net.github.io/metadata/neoforge";
 
 /// The three aliases the index publishes per Minecraft version.
 ///

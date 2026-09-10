@@ -6,7 +6,7 @@ use common::{Reply, TestServer};
 use opys_neoforge::resolve_neoforge_version;
 use serde_json::json;
 
-const SITE: &str = "https://harmoniya-net.github.io/ForgeWrapper/neoforge";
+const SITE: &str = "https://harmoniya-net.github.io/metadata/neoforge";
 
 fn document(mc: &str, neoforge: &str) -> String {
     format!("{SITE}/versions/{mc}/{neoforge}.json")

@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { cmdBuild } from '../lib/commands/build';
+import { cmdInstall } from '../lib/commands/install';
 import { cmdLaunch } from '../lib/commands/launch';
 import { NetworkError, IntegrityError, ExtractionError } from '@opys/runtime';
 import { UsageError } from '../lib/errors';
@@ -9,8 +10,9 @@ const USAGE = `\
 opys — declarative manifest toolkit
 
 USAGE
-  opys build  [-i <opys.config.mjs>] [-o <out>] [--mode <m>]  Build manifest
-  opys launch [-i <opys.config.mjs>] [--mode <m>]  Build, install, launch
+  opys build   [-i <opys.config.mjs>] [-o <out>] [--mode <m>]  Build manifest
+  opys install [-i <opys.config.mjs>] [--mode <m>]  Build and install, no launch
+  opys launch  [-i <opys.config.mjs>] [--mode <m>]  Build, install, launch
 
 OPTIONS
   -i, --input          Config file  (default: opys.config.mjs)
@@ -35,6 +37,7 @@ type CommandHandler = (
 
 const COMMANDS: Record<string, CommandHandler> = {
   build: cmdBuild,
+  install: cmdInstall,
   launch: cmdLaunch,
 };
 

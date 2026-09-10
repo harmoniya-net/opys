@@ -458,10 +458,10 @@ const FORGE_BUILD = '1.20.1-47.4.10';
 const FORGE_DOCUMENT = {
   id: '1.20.1-forge-47.4.10',
   inheritsFrom: '1.20.1',
-  mainClass: 'io.github.zekerzhayard.forgewrapper.installer.Main',
+  mainClass: 'net.harmoniya.horno.Main',
   arguments: {
     game: ['--launchTarget', 'forgeclient'],
-    jvm: ['-Dforgewrapper.librariesDir=${library_directory}'],
+    jvm: ['-Dhorno.librariesDir=${library_directory}'],
   },
   libraries: [
     {
@@ -508,7 +508,7 @@ const forgeOpts = { ...mcOpts, source: forgeBase };
 check(
   'defaultForgeIndex is the canonical URL',
   forgeNapi.defaultForgeIndex() ===
-    'https://harmoniya-net.github.io/ForgeWrapper',
+    'https://harmoniya-net.github.io/metadata',
 );
 
 const forgeRelease = await forgeNapi.resolveForgeVersion('1.20.1', forgeBase);
@@ -522,7 +522,7 @@ check(
 const forged = await forgeNapi.resolveForge(forgeOpts);
 check(
   'resolveForge launches the wrapper, not vanilla',
-  forged.mainClass === 'io.github.zekerzhayard.forgewrapper.installer.Main',
+  forged.mainClass === 'net.harmoniya.horno.Main',
 );
 check(
   "resolveForge puts forge's libraries ahead of the client jar",
@@ -548,10 +548,10 @@ const NEOFORGE_BUILD = '21.1.172';
 const NEOFORGE_DOCUMENT = {
   id: `neoforge-${NEOFORGE_BUILD}`,
   inheritsFrom: '1.20.1',
-  mainClass: 'io.github.zekerzhayard.forgewrapper.installer.Main',
+  mainClass: 'net.harmoniya.horno.Main',
   arguments: {
     game: ['--fml.neoForgeVersion', NEOFORGE_BUILD],
-    jvm: ['-Dforgewrapper.librariesDir=${library_directory}'],
+    jvm: ['-Dhorno.librariesDir=${library_directory}'],
   },
   libraries: [
     {
@@ -598,7 +598,7 @@ const neoforgeOpts = { ...mcOpts, source: neoforgeBase };
 check(
   'defaultNeoForgeIndex is the canonical URL',
   neoforgeNapi.defaultNeoForgeIndex() ===
-    'https://harmoniya-net.github.io/ForgeWrapper/neoforge',
+    'https://harmoniya-net.github.io/metadata/neoforge',
 );
 
 const neoforgeRelease = await neoforgeNapi.resolveNeoForgeVersion(
@@ -614,7 +614,7 @@ check(
 const neoforged = await neoforgeNapi.resolveNeoForge(neoforgeOpts);
 check(
   'resolveNeoForge launches the wrapper, not vanilla',
-  neoforged.mainClass === 'io.github.zekerzhayard.forgewrapper.installer.Main',
+  neoforged.mainClass === 'net.harmoniya.horno.Main',
 );
 check(
   "resolveNeoForge puts neoforge's libraries ahead of the client jar",

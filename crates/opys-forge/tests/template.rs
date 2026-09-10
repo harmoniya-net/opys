@@ -12,7 +12,7 @@ use opys_core::{Val, ValDef};
 use opys_forge::{resolve_forge, ForgeOptions};
 use serde_json::json;
 
-const WRAPPER_MAIN: &str = "io.github.zekerzhayard.forgewrapper.installer.Main";
+const HORNO_MAIN: &str = "net.harmoniya.horno.Main";
 
 fn artifact(path: &str, url: &str) -> serde_json::Value {
     json!({ "path": path, "url": url, "sha1": "a".repeat(40), "size": 1000 })
@@ -64,11 +64,11 @@ fn processor_document() -> serde_json::Value {
     json!({
         "id": "1.20.1-forge-47.4.10",
         "inheritsFrom": "1.20.1",
-        "mainClass": WRAPPER_MAIN,
+        "mainClass": HORNO_MAIN,
         "arguments": {
             "game": ["--launchTarget", "forgeclient"],
             "jvm": [
-                "-Dforgewrapper.librariesDir=${library_directory}",
+                "-Dhorno.librariesDir=${library_directory}",
                 "-DlibraryDirectory=${library_directory}",
             ],
         },
@@ -99,10 +99,10 @@ fn jarmod_document() -> serde_json::Value {
     json!({
         "id": "1.5.2-Forge7.8.1.738",
         "inheritsFrom": "1.5.2",
-        "mainClass": WRAPPER_MAIN,
+        "mainClass": HORNO_MAIN,
         "arguments": { "jvm": [
-            "-Dforgewrapper.mainClass=net.minecraft.launchwrapper.Launch",
-            "-Dforgewrapper.patched=${library_directory}/net/minecraftforge/forge/1.5.2-7.8.1.738/forge-1.5.2-7.8.1.738-patched-client.jar",
+            "-Dhorno.mainClass=net.minecraft.launchwrapper.Launch",
+            "-Dhorno.patched=${library_directory}/net/minecraftforge/forge/1.5.2-7.8.1.738/forge-1.5.2-7.8.1.738-patched-client.jar",
         ]},
         "minecraftArguments": "${auth_player_name} --tweakClass net.minecraftforge.legacy._1_5_2.LibraryFixerTweaker",
         "libraries": [
@@ -215,9 +215,9 @@ fn every_era_goes_through_the_same_path() {
     // rewrite the client jar — resolve through one.
     let server = site();
     for (version, main_class) in [
-        ("1.20.1", WRAPPER_MAIN),
+        ("1.20.1", HORNO_MAIN),
         ("1.12.2", "net.minecraft.launchwrapper.Launch"),
-        ("1.5.2", WRAPPER_MAIN),
+        ("1.5.2", HORNO_MAIN),
     ] {
         let t = resolve_forge(&options(&server, version)).unwrap();
         assert_eq!(values(&t.main_class), [main_class], "{version}");
@@ -294,8 +294,8 @@ fn a_jarmod_document_keeps_both_of_its_argument_fields() {
     let jvm = flat_args(&t.jvm_args);
     assert!(jvm
         .iter()
-        .any(|a| a.starts_with("-Dforgewrapper.mainClass=")));
-    assert!(jvm.iter().any(|a| a.starts_with("-Dforgewrapper.patched=")));
+        .any(|a| a.starts_with("-Dhorno.mainClass=")));
+    assert!(jvm.iter().any(|a| a.starts_with("-Dhorno.patched=")));
 
     let game = flat_args(&t.game_args);
     assert!(game.contains(&"net.minecraftforge.legacy._1_5_2.LibraryFixerTweaker".to_owned()));
@@ -311,7 +311,7 @@ fn a_processor_document_appends_its_arguments_to_vanillas() {
         jvm.first().map(String::as_str),
         Some("-Djava.library.path=${natives_directory}")
     );
-    assert!(jvm.contains(&"-Dforgewrapper.librariesDir=${library_directory}".to_owned()));
+    assert!(jvm.contains(&"-Dhorno.librariesDir=${library_directory}".to_owned()));
 
     let game = flat_args(&t.game_args);
     assert_eq!(

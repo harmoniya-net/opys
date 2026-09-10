@@ -17,7 +17,7 @@ use serde::{Deserialize, Serialize};
 use crate::error::ForgeError;
 
 /// The canonical index base URL.
-pub const DEFAULT_FORGE_INDEX: &str = "https://harmoniya-net.github.io/ForgeWrapper";
+pub const DEFAULT_FORGE_INDEX: &str = "https://harmoniya-net.github.io/metadata";
 
 /// The three aliases the index publishes per Minecraft version.
 ///

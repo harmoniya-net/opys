@@ -58,9 +58,9 @@ pub fn fetch_document(url: &str) -> Result<VersionPatch, NeoForgeError> {
 ///
 /// NeoForge installs one way and one way only — the installer's processors
 /// build the patched client on the machine that runs it. None of that happens
-/// here: the published document names the installer as a library and hands
-/// ForgeWrapper the properties it needs, so what is left at build time is the
-/// same three steps Forge and Fabric take.
+/// here: the published document hands horno the properties it needs — where the
+/// installer belongs, where to get it and what it should hash to — so what is
+/// left at build time is the same three steps Forge and Fabric take.
 pub fn resolve_neoforge(options: &NeoForgeOptions) -> Result<NeoForgeTemplate, NeoForgeError> {
     let source = options.source.as_deref().unwrap_or(DEFAULT_NEOFORGE_INDEX);
     let release = resolve_neoforge_version(&options.version, source)?;

@@ -12,7 +12,7 @@ use opys_core::{Val, ValDef};
 use opys_neoforge::{resolve_neoforge, NeoForgeOptions};
 use serde_json::json;
 
-const WRAPPER_MAIN: &str = "io.github.zekerzhayard.forgewrapper.installer.Main";
+const HORNO_MAIN: &str = "net.harmoniya.horno.Main";
 
 fn artifact(path: &str, url: &str) -> serde_json::Value {
     json!({ "path": path, "url": url, "sha1": "a".repeat(40), "size": 1000 })
@@ -53,19 +53,26 @@ fn version_json(mc: &str, assets_url: &str) -> serde_json::Value {
 }
 
 /// A NeoForge document as the generator publishes it: the loader's own
-/// libraries, then the client jar, the installer and the wrapper.
+/// libraries, then the client jar and horno.
+///
+/// The installer is not among them. It is an input to horno rather than a
+/// runtime library, so it is named by properties and horno fetches it — which
+/// is also what keeps it off `-cp`, where it collides with the loader's own
+/// module and shadows the game's Gson.
 fn document(mc: &str, neoforge: &str) -> serde_json::Value {
     json!({
         "id": format!("neoforge-{neoforge}"),
         "inheritsFrom": mc,
         "type": "release",
-        "mainClass": WRAPPER_MAIN,
+        "mainClass": HORNO_MAIN,
         "arguments": {
             "game": ["--fml.neoForgeVersion", neoforge, "--fml.mcVersion", mc, "--launchTarget", "forgeclient"],
             "jvm": [
-                "-Dforgewrapper.librariesDir=${library_directory}",
-                format!("-Dforgewrapper.installer=${{library_directory}}/net/neoforged/neoforge/{neoforge}/neoforge-{neoforge}-installer.jar"),
-                format!("-Dforgewrapper.minecraft=${{library_directory}}/com/mojang/minecraft/{mc}/minecraft-{mc}-client.jar"),
+                "-Dhorno.librariesDir=${library_directory}",
+                format!("-Dhorno.installer=${{library_directory}}/net/neoforged/neoforge/{neoforge}/neoforge-{neoforge}-installer.jar"),
+                format!("-Dhorno.installerUrl=https://maven/neoforge-{neoforge}-installer.jar"),
+                format!("-Dhorno.installerSha1={}", "b".repeat(40)),
+                format!("-Dhorno.minecraft=${{library_directory}}/com/mojang/minecraft/{mc}/minecraft-{mc}-client.jar"),
                 "-DlibraryDirectory=${library_directory}",
             ],
         },
@@ -73,8 +80,7 @@ fn document(mc: &str, neoforge: &str) -> serde_json::Value {
             library("net.neoforged.fancymodloader:loader:4.0.39", "net/neoforged/fancymodloader/loader/4.0.39/loader-4.0.39.jar"),
             library("org.ow2.asm:asm:9.7", "org/ow2/asm/asm/9.7/asm-9.7.jar"),
             library(&format!("com.mojang:minecraft:{mc}:client"), &format!("com/mojang/minecraft/{mc}/minecraft-{mc}-client.jar")),
-            library(&format!("net.neoforged:neoforge:{neoforge}:installer@jar"), &format!("net/neoforged/neoforge/{neoforge}/neoforge-{neoforge}-installer.jar")),
-            library("io.github.zekerzhayard:ForgeWrapper:0.1.2", "io/github/zekerzhayard/ForgeWrapper/0.1.2/ForgeWrapper-0.1.2.jar"),
+            library("net.harmoniya:horno:0.1.0", "net/harmoniya/horno/0.1.0/horno-0.1.0.jar"),
         ],
     })
 }
@@ -177,7 +183,7 @@ fn the_wrapper_launches_rather_than_the_class_the_document_would_have_named() {
     let server = site();
     let t = resolve_neoforge(&options(&server, "1.21.1")).unwrap();
 
-    assert_eq!(values(&t.main_class), [WRAPPER_MAIN]);
+    assert_eq!(values(&t.main_class), [HORNO_MAIN]);
 }
 
 #[test]
@@ -187,10 +193,16 @@ fn a_minecraft_version_with_no_leading_one_resolves_like_any_other() {
     let server = site();
     let t = resolve_neoforge(&options(&server, "26.2")).unwrap();
 
-    assert_eq!(values(&t.main_class), [WRAPPER_MAIN]);
+    assert_eq!(values(&t.main_class), [HORNO_MAIN]);
+    // `26.2` is the Minecraft version the build id `26.2.0.84` inherits from,
+    // and the only place that pairing is written down is the index.
     assert!(t.classpath[0]
         .value
-        .contains("neoforge-26.2.0.84-installer.jar"));
+        .contains("minecraft-26.2-client.jar"));
+    let jvm = flat_args(&t.jvm_args);
+    assert!(jvm
+        .iter()
+        .any(|a| a.contains("neoforge-26.2.0.84-installer.jar")), "{jvm:?}");
 }
 
 #[test]
@@ -207,7 +219,7 @@ fn neoforge_libraries_come_before_the_vanilla_ones() {
 #[test]
 fn the_documents_own_client_jar_replaces_the_one_the_launcher_would_have_added() {
     // Every NeoForge document declares `com.mojang:minecraft:<mc>:client` as a
-    // library, because that is how ForgeWrapper is told where the jar is. It
+    // library, because that is how horno is told where the jar is. It
     // supersedes `${version_dir}/client.jar` rather than joining it: two
     // copies of the vanilla client on `-cp` is what `Module minecraft contains
     // package com.mojang.blaze3d.systems` means.
@@ -242,40 +254,47 @@ fn a_vanilla_library_neoforge_pins_itself_is_dropped_rather_than_left_behind() {
 }
 
 #[test]
-fn the_installer_is_fetched_because_the_document_declares_it_a_library() {
+fn the_installer_is_named_by_properties_and_never_becomes_an_artifact() {
+    // It is horno's input, not the game's dependency. Declaring it a library
+    // was what put it on `-cp`, where `neoforge-<version>-installer.jar`
+    // becomes an automatic module named `neoforge` — the same name FML gives
+    // its own jar — and where its shaded Gson shadows the game's.
     let server = site();
     let t = resolve_neoforge(&options(&server, "1.21.1")).unwrap();
 
     let paths: Vec<&str> = t.artifacts.iter().map(|a| a.path.as_str()).collect();
     assert!(
-        paths
-            .iter()
-            .any(|p| p.ends_with("neoforge-21.1.172-installer.jar")),
+        !paths.iter().any(|p| p.contains("installer.jar")),
         "{paths:?}",
     );
     assert!(
-        paths.iter().any(|p| p.ends_with("ForgeWrapper-0.1.2.jar")),
+        paths.iter().any(|p| p.ends_with("horno-0.1.0.jar")),
         "{paths:?}",
     );
+
+    let jvm = flat_args(&t.jvm_args);
+    for property in ["-Dhorno.installer=", "-Dhorno.installerUrl=", "-Dhorno.installerSha1="] {
+        assert!(jvm.iter().any(|a| a.starts_with(property)), "{jvm:?}");
+    }
 }
 
 #[test]
-fn the_wrapper_properties_reach_the_jvm_line_ahead_of_the_documents_own() {
+fn the_horno_properties_reach_the_jvm_line_ahead_of_the_documents_own() {
     let server = site();
     let t = resolve_neoforge(&options(&server, "1.21.1")).unwrap();
 
     let jvm = flat_args(&t.jvm_args);
     let librariesdir = jvm
         .iter()
-        .position(|a| a.starts_with("-Dforgewrapper.librariesDir="))
+        .position(|a| a.starts_with("-Dhorno.librariesDir="))
         .expect("librariesDir");
     let installer = jvm
         .iter()
-        .position(|a| a.starts_with("-Dforgewrapper.installer="))
+        .position(|a| a.starts_with("-Dhorno.installer="))
         .expect("installer");
     let minecraft = jvm
         .iter()
-        .position(|a| a.starts_with("-Dforgewrapper.minecraft="))
+        .position(|a| a.starts_with("-Dhorno.minecraft="))
         .expect("minecraft");
     assert!(librariesdir < installer && installer < minecraft, "{jvm:?}");
     // Vanilla's jvm line comes first and stays whole.

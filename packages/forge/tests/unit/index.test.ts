@@ -23,7 +23,7 @@ import {
 const SHA = (c: string) => c.repeat(40);
 const MC = '1.20.1';
 const BUILD = '1.20.1-47.4.10';
-const WRAPPER_MAIN = 'io.github.zekerzhayard.forgewrapper.installer.Main';
+const HORNO_MAIN = 'net.harmoniya.horno.Main';
 
 const versionJson = (base: string) => ({
   id: MC,
@@ -63,10 +63,10 @@ const versionJson = (base: string) => ({
 const DOCUMENT = {
   id: `${MC}-forge-47.4.10`,
   inheritsFrom: MC,
-  mainClass: WRAPPER_MAIN,
+  mainClass: HORNO_MAIN,
   arguments: {
     game: ['--launchTarget', 'forgeclient'],
-    jvm: ['-Dforgewrapper.librariesDir=${library_directory}'],
+    jvm: ['-Dhorno.librariesDir=${library_directory}'],
   },
   libraries: [
     {
@@ -169,7 +169,7 @@ function makeCtx() {
 describe('DEFAULT_FORGE_INDEX', () => {
   it('comes from the crate rather than being restated here', () => {
     expect(DEFAULT_FORGE_INDEX).toBe(
-      'https://harmoniya-net.github.io/ForgeWrapper',
+      'https://harmoniya-net.github.io/metadata',
     );
   });
 });
@@ -194,7 +194,7 @@ describe('resolveForge', () => {
   it('returns artifacts, vars, classpath and the decomposed launch', async () => {
     const t = await resolveForge(options());
 
-    expect(valValues(t.mainClass)).toEqual([WRAPPER_MAIN]);
+    expect(valValues(t.mainClass)).toEqual([HORNO_MAIN]);
     expect(t.launch.command).toBe('${java_bin}');
     expect(t.classpath).toHaveLength(3);
     expect(t.artifacts.map((a) => a.path)).toContain(
@@ -207,7 +207,7 @@ describe('resolveForge', () => {
 
     expect(t.jvmArgs.flatMap(valValues)).toEqual([
       '-Xmx2G',
-      '-Dforgewrapper.librariesDir=${library_directory}',
+      '-Dhorno.librariesDir=${library_directory}',
     ]);
     expect(t.gameArgs.flatMap(valValues)).toEqual([
       '--demo',

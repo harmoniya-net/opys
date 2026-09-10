@@ -31,6 +31,20 @@ opys build [--input opys.config.mjs] [--output opys.json]
 
 If `--output` is omitted and the config has no `output` field, the manifest is written to stdout.
 
+### `opys install`
+
+Everything `opys launch` does except starting the game.
+
+```sh
+opys install [--input opys.config.mjs] [--mode m]
+```
+
+Artifacts are fetched, verified and extracted as usual. Then, if the manifest
+names horno, horno is run once with `-Dhorno.installOnly=true`: the loader's
+processors build a patched client jar on the machine that runs them, and
+pre-1.13 the client jar is rewritten outright, so neither can happen anywhere
+but here. Forge 1.6.1-1.12.2 names no horno properties and needs no such step.
+
 ### `opys launch`
 
 Installs missing artifacts and spawns the JVM.

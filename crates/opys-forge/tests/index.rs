@@ -6,7 +6,7 @@ use common::{Reply, TestServer};
 use opys_forge::resolve_forge_version;
 use serde_json::json;
 
-const SITE: &str = "https://harmoniya-net.github.io/ForgeWrapper";
+const SITE: &str = "https://harmoniya-net.github.io/metadata";
 
 fn document(mc: &str, forge: &str) -> String {
     format!("{SITE}/versions/{mc}/{forge}.json")

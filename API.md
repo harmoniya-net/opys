@@ -29,9 +29,23 @@ manifest executor. The two are joined only by the frozen `opys.json` format.
 ### `opys launch [-i config] [--mode m]`
 
 1. Load the config, `resolveConfig`.
-2. Read `opys.json` **from disk** (`config.output`) — launch never rebuilds.
+2. `buildManifest` — in memory, from the config. There is no `opys.json`
+   round-trip; a _deployed_ launcher feeds `@opys/runtime` a frozen one instead.
 3. Apply the `runClient` patch: `{ ...manifest, ...runClient(manifest) }`.
 4. `install(manifest)` then `launch(manifest, { install: false })` (`@opys/runtime`).
+
+### `opys install [-i config] [--mode m]`
+
+Steps 1-4, minus the game. After `install(manifest)`, if the manifest's own
+arguments name horno, it runs once with `-Dhorno.installOnly=true` at the front
+of the JVM line — that is the half `install()` cannot do, because the loader's
+processors build a patched client jar on the machine that runs them, and
+pre-1.13 the client jar is rewritten outright. A build that names no horno
+properties (1.6.1-1.12.2) has no such half, and the artifact install is the
+whole installation.
+
+The flag is a CLI argument, never a manifest field: `opys.json` is frozen and
+describes an installation, not a particular run of one.
 
 ## Config — `@opys/dev`
 
@@ -194,8 +208,9 @@ on `@opys/core` alone.
 ## CLI — `@opys/cli`
 
 ```
-opys build  [-i <config>] [-o <out>] [--mode m]
-opys launch [-i <config>] [--mode m]
+opys build   [-i <config>] [-o <out>] [--mode m]
+opys install [-i <config>] [--mode m]
+opys launch  [-i <config>] [--mode m]
 ```
 
 Globals: `--log-level silent|error|warn|info|debug`, `-v`, `-h`.

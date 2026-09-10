@@ -23,7 +23,7 @@ import {
 const SHA = (c: string) => c.repeat(40);
 const MC = '1.21.1';
 const BUILD = '21.1.172';
-const WRAPPER_MAIN = 'io.github.zekerzhayard.forgewrapper.installer.Main';
+const HORNO_MAIN = 'net.harmoniya.horno.Main';
 
 const versionJson = (base: string) => ({
   id: MC,
@@ -63,10 +63,10 @@ const versionJson = (base: string) => ({
 const DOCUMENT = {
   id: `neoforge-${BUILD}`,
   inheritsFrom: MC,
-  mainClass: WRAPPER_MAIN,
+  mainClass: HORNO_MAIN,
   arguments: {
     game: ['--fml.neoForgeVersion', BUILD, '--launchTarget', 'forgeclient'],
-    jvm: ['-Dforgewrapper.librariesDir=${library_directory}'],
+    jvm: ['-Dhorno.librariesDir=${library_directory}'],
   },
   libraries: [
     {
@@ -169,7 +169,7 @@ function makeCtx() {
 describe('DEFAULT_NEOFORGE_INDEX', () => {
   it('comes from the crate rather than being restated here', () => {
     expect(DEFAULT_NEOFORGE_INDEX).toBe(
-      'https://harmoniya-net.github.io/ForgeWrapper/neoforge',
+      'https://harmoniya-net.github.io/metadata/neoforge',
     );
   });
 });
@@ -202,7 +202,7 @@ describe('resolveNeoForge', () => {
   it('returns artifacts, vars, classpath and the decomposed launch', async () => {
     const t = await resolveNeoForge(options());
 
-    expect(valValues(t.mainClass)).toEqual([WRAPPER_MAIN]);
+    expect(valValues(t.mainClass)).toEqual([HORNO_MAIN]);
     expect(t.launch.command).toBe('${java_bin}');
     expect(t.classpath).toHaveLength(3);
     expect(t.artifacts.map((a) => a.path)).toContain(
@@ -215,7 +215,7 @@ describe('resolveNeoForge', () => {
 
     expect(t.jvmArgs.flatMap(valValues)).toEqual([
       '-Xmx2G',
-      '-Dforgewrapper.librariesDir=${library_directory}',
+      '-Dhorno.librariesDir=${library_directory}',
     ]);
     expect(t.gameArgs.flatMap(valValues)).toEqual([
       '--demo',

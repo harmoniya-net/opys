@@ -42,14 +42,14 @@ build id (`1.20.1-47.4.10`). `best` is Forge's `recommended` promotion when
 there is one and `latest` otherwise.
 
 Pre-1.13 builds launch through
-[ForgeWrapper](https://github.com/harmoniya-net/ForgeWrapper), which the
-document declares as one of its libraries — there is nothing to configure and
-nothing for a launcher to know.
+[horno](https://github.com/harmoniya-net/horno), which the document declares
+as one of its libraries — there is nothing to configure and nothing for a
+launcher to know.
 
 ## Options
 
 - `source` — document index base URL. Default: `DEFAULT_FORGE_INDEX`
-  (`https://harmoniya-net.github.io/ForgeWrapper`).
+  (`https://harmoniya-net.github.io/metadata`).
 - `manifestBase` — the Mojang version manifest, when it is not Mojang's own —
   a mirror, or a stand-in server under test.
 

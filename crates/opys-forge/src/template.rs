@@ -59,7 +59,7 @@ pub fn fetch_document(url: &str) -> Result<VersionPatch, ForgeError> {
 /// 1.7-era LaunchWrapper releases, the 1.13+ processor installs — is published
 /// as the same kind of document, and the differences between them are already
 /// spelled out inside it: which libraries to add, which class to launch, which
-/// properties ForgeWrapper needs. That is the whole reason the documents
+/// properties horno needs. That is the whole reason the documents
 /// exist, and it is what makes this the same shape as `opys-fabric`.
 pub fn resolve_forge(options: &ForgeOptions) -> Result<ForgeTemplate, ForgeError> {
     let source = options.source.as_deref().unwrap_or(DEFAULT_FORGE_INDEX);

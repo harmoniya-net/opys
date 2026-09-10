@@ -83,10 +83,10 @@ describe('forge plugin', () => {
       document: {
         id: `${MC}-forge-47.4.20`,
         inheritsFrom: MC,
-        mainClass: 'io.github.zekerzhayard.forgewrapper.installer.Main',
+        mainClass: 'net.harmoniya.horno.Main',
         arguments: {
           game: [],
-          jvm: ['-Dforgewrapper.librariesDir=${library_directory}'],
+          jvm: ['-Dhorno.librariesDir=${library_directory}'],
         },
         libraries: [
           lib(
@@ -124,7 +124,7 @@ describe('neoforge plugin', () => {
       document: {
         id: `neoforge-${NF}`,
         inheritsFrom: MC,
-        mainClass: 'io.github.zekerzhayard.forgewrapper.installer.Main',
+        mainClass: 'net.harmoniya.horno.Main',
         arguments: {
           game: ['--fml.neoForgeVersion', NF],
           jvm: ['-DlibraryDirectory=${library_directory}'],

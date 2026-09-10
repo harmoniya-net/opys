@@ -136,19 +136,29 @@ Eight packages, a clean DAG, no cycles:
   tweaker, a client-jar overlay, or a bare universal zip — but none of that is
   in `opys-forge`. Every build that has ever shipped is published as an
   ordinary `inheritsFrom` document at
-  `harmoniya-net.github.io/ForgeWrapper`, generated from the installers once,
+  `harmoniya-net.github.io/metadata`, generated from the installers once,
   and the differences are already spelled out inside it. So the crate is an
   index lookup plus the shared fold, and is deliberately the same shape as
   `opys-fabric`. `crates/opys-forge/tests/documents.rs` parses the whole
   published set — the check to re-run whenever either side moves.
 - **NeoForge is published the same way, and is its own crate anyway.**
-  `harmoniya-net.github.io/ForgeWrapper/neoforge` carries the same index and
+  `harmoniya-net.github.io/metadata/neoforge` carries the same index and
   the same document shape, so `opys-neoforge` is `opys-forge` down to the file
   names. They are kept apart because what they share is our publication format
   and nothing of Forge's: NeoForge has its own maven, no promotions endpoint,
   and a versioning scheme that has already changed once. Two differences are
   real and live in the crate — `DEFAULT_NEOFORGE_INDEX`, and a build-id lookup
   that scans the whole index rather than filtering by prefix.
+- **The loader's installer is not a library, and neither is the ancient era's
+  overlay zip.** A document names them with `-Dhorno.installer` /
+  `-Dhorno.jarmod` plus a `…Url` and a `…Sha1`, and horno fetches them itself.
+  Declaring them libraries was the only reason either ever reached `-cp`, where
+  `neoforge-<v>-installer.jar` becomes an automatic module named `neoforge` —
+  colliding with FML's own — and its shaded Gson shadows the game's, which is
+  what killed NeoForge 26.x with `NoSuchMethodError: JsonObject.get`. The
+  vanilla client jar stays a library, because it is a real runtime dependency.
+  So nothing in opys filters the classpath: what a document declares is what
+  runs.
 - **A build id says nothing about its Minecraft version.** NeoForge `21.1.172`
   does mean 1.21.1, and for years every version did — which is exactly why
   deriving it looked safe. `26.2.0.84` targets Minecraft `26.2`, which has no
@@ -251,6 +261,12 @@ export default defineConfig(({ mode }) => ({
 - **`opys build`** — `resolveConfig` → run every plugin's `build(ctx)` in
   parallel → concat + dedup artifacts → merge vars → assemble `launch` via the
   author functions → `encodeManifest` → write.
+- **`opys install`** — the same build and install as `launch`, stopping before
+  the game. Where the manifest's own arguments name horno, it is run once with
+  `-Dhorno.installOnly=true` prepended, because the loader's processors — and,
+  pre-1.13, rewriting the client jar — happen on the launching machine and
+  `install()` cannot do them. The flag goes on the JVM line, never into
+  `opys.json`: the manifest describes an installation, not a run of one.
 - **`opys launch`** — builds the manifest in-memory from the config and
   launches it directly; no `opys.json` round-trip. `runClient(manifest) =>
 Partial<Manifest>` is the launch-time patch, applied every launch (so e.g.

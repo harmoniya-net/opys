@@ -44,15 +44,14 @@ NeoForge build id (`21.1.172`). NeoForge runs no promotions endpoint, so the
 index decides: `latest` is the newest build, `recommended` the newest one whose
 version carries no qualifier, and `best` is `recommended` when there is one.
 
-Builds launch through
-[ForgeWrapper](https://github.com/harmoniya-net/ForgeWrapper), which the
-document declares as one of its libraries and points at the installer — there
-is nothing to configure and nothing for a launcher to know.
+Builds launch through [horno](https://github.com/harmoniya-net/horno), which
+the document declares as one of its libraries and points at the installer —
+there is nothing to configure and nothing for a launcher to know.
 
 ## Options
 
 - `source` — document index base URL. Default: `DEFAULT_NEOFORGE_INDEX`
-  (`https://harmoniya-net.github.io/ForgeWrapper/neoforge`).
+  (`https://harmoniya-net.github.io/metadata/neoforge`).
 - `manifestBase` — the Mojang version manifest, when it is not Mojang's own —
   a mirror, or a stand-in server under test.
 
