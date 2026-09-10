@@ -49,7 +49,7 @@ launcher to know.
 ## Options
 
 - `source` — document index base URL. Default: `DEFAULT_FORGE_INDEX`
-  (`https://harmoniya-net.github.io/metadata`).
+  (`https://harmoniya-net.github.io/metadata/forge`).
 - `manifestBase` — the Mojang version manifest, when it is not Mojang's own —
   a mirror, or a stand-in server under test.
 

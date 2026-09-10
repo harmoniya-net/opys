@@ -493,7 +493,7 @@ const forgeSite = createServer((req, res) => {
             recommendedUrl: url,
             best: FORGE_BUILD,
             bestUrl: url,
-            builds: [{ forge: FORGE_BUILD, url }],
+            builds: [{ build: FORGE_BUILD, url }],
           },
         },
       };
@@ -508,7 +508,7 @@ const forgeOpts = { ...mcOpts, source: forgeBase };
 check(
   'defaultForgeIndex is the canonical URL',
   forgeNapi.defaultForgeIndex() ===
-    'https://harmoniya-net.github.io/metadata',
+    'https://harmoniya-net.github.io/metadata/forge',
 );
 
 const forgeRelease = await forgeNapi.resolveForgeVersion('1.20.1', forgeBase);
@@ -583,7 +583,7 @@ const neoforgeSite = createServer((req, res) => {
             recommendedUrl: url,
             best: NEOFORGE_BUILD,
             bestUrl: url,
-            builds: [{ neoforge: NEOFORGE_BUILD, url }],
+            builds: [{ build: NEOFORGE_BUILD, url }],
           },
         },
       };

@@ -6,7 +6,7 @@ use common::{Reply, TestServer};
 use opys_forge::resolve_forge_version;
 use serde_json::json;
 
-const SITE: &str = "https://harmoniya-net.github.io/metadata";
+const SITE: &str = "https://harmoniya-net.github.io/metadata/forge";
 
 fn document(mc: &str, forge: &str) -> String {
     format!("{SITE}/versions/{mc}/{forge}.json")
@@ -24,9 +24,9 @@ fn index() -> serde_json::Value {
                 "best": "1.20.1-47.4.10",
                 "bestUrl": document("1.20.1", "1.20.1-47.4.10"),
                 "builds": [
-                    { "forge": "1.20.1-47.0.0", "url": document("1.20.1", "1.20.1-47.0.0") },
-                    { "forge": "1.20.1-47.4.10", "url": document("1.20.1", "1.20.1-47.4.10") },
-                    { "forge": "1.20.1-47.4.23", "url": document("1.20.1", "1.20.1-47.4.23") },
+                    { "build": "1.20.1-47.0.0", "url": document("1.20.1", "1.20.1-47.0.0") },
+                    { "build": "1.20.1-47.4.10", "url": document("1.20.1", "1.20.1-47.4.10") },
+                    { "build": "1.20.1-47.4.23", "url": document("1.20.1", "1.20.1-47.4.23") },
                 ],
             },
             // No promotion of either kind ever ran for this one; the index
@@ -35,7 +35,7 @@ fn index() -> serde_json::Value {
                 "latest": null, "latestUrl": null,
                 "recommended": null, "recommendedUrl": null,
                 "best": null, "bestUrl": null,
-                "builds": [{ "forge": "1.7-10.12.0.1024", "url": document("1.7", "1.7-10.12.0.1024") }],
+                "builds": [{ "build": "1.7-10.12.0.1024", "url": document("1.7", "1.7-10.12.0.1024") }],
             },
             "1.7.10": {
                 "latest": "1.7.10-10.13.4.1614-1.7.10",
@@ -45,7 +45,7 @@ fn index() -> serde_json::Value {
                 "best": "1.7.10-10.13.4.1614-1.7.10",
                 "bestUrl": document("1.7.10", "1.7.10-10.13.4.1614-1.7.10"),
                 "builds": [
-                    { "forge": "1.7.10-10.13.4.1614-1.7.10", "url": document("1.7.10", "1.7.10-10.13.4.1614-1.7.10") },
+                    { "build": "1.7.10-10.13.4.1614-1.7.10", "url": document("1.7.10", "1.7.10-10.13.4.1614-1.7.10") },
                 ],
             },
         },

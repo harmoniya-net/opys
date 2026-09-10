@@ -128,7 +128,7 @@ fn site() -> TestServer {
                     "recommendedUrl": format!("{base}/versions/{mc}/{forge}.json"),
                     "best": forge,
                     "bestUrl": format!("{base}/versions/{mc}/{forge}.json"),
-                    "builds": [{ "forge": forge, "url": format!("{base}/versions/{mc}/{forge}.json") }],
+                    "builds": [{ "build": forge, "url": format!("{base}/versions/{mc}/{forge}.json") }],
                 })
             };
             json!({ "versions": {

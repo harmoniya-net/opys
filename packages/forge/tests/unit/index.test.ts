@@ -123,7 +123,7 @@ function route(target: string): unknown {
           recommendedUrl: documentUrl,
           best: BUILD,
           bestUrl: documentUrl,
-          builds: [{ forge: BUILD, url: documentUrl }],
+          builds: [{ build: BUILD, url: documentUrl }],
         },
       },
     };
@@ -169,7 +169,7 @@ function makeCtx() {
 describe('DEFAULT_FORGE_INDEX', () => {
   it('comes from the crate rather than being restated here', () => {
     expect(DEFAULT_FORGE_INDEX).toBe(
-      'https://harmoniya-net.github.io/metadata',
+      'https://harmoniya-net.github.io/metadata/forge',
     );
   });
 });

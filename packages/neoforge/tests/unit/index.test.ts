@@ -123,7 +123,7 @@ function route(target: string): unknown {
           recommendedUrl: documentUrl,
           best: BUILD,
           bestUrl: documentUrl,
-          builds: [{ neoforge: BUILD, url: documentUrl }],
+          builds: [{ build: BUILD, url: documentUrl }],
         },
       },
     };

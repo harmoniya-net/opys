@@ -17,7 +17,7 @@ use serde::{Deserialize, Serialize};
 use crate::error::ForgeError;
 
 /// The canonical index base URL.
-pub const DEFAULT_FORGE_INDEX: &str = "https://harmoniya-net.github.io/metadata";
+pub const DEFAULT_FORGE_INDEX: &str = "https://harmoniya-net.github.io/metadata/forge";
 
 /// The three aliases the index publishes per Minecraft version.
 ///
@@ -64,7 +64,7 @@ pub(crate) struct VersionEntryWire {
 
 #[derive(Deserialize)]
 pub(crate) struct BuildWire {
-    forge: String,
+    build: String,
     url: String,
 }
 
@@ -143,9 +143,9 @@ pub fn resolve_forge_version(input: &str, source: &str) -> Result<ForgeRelease, 
         if let Some(build) = index.versions[minecraft]
             .builds
             .iter()
-            .find(|b| b.forge == input)
+            .find(|b| b.build == input)
         {
-            return Ok(release(minecraft, &build.forge, &build.url));
+            return Ok(release(minecraft, &build.build, &build.url));
         }
     }
 

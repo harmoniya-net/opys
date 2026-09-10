@@ -79,7 +79,6 @@ describe('forge plugin', () => {
     const site = await documentSite({
       mc: MC,
       build: F,
-      key: 'forge',
       document: {
         id: `${MC}-forge-47.4.20`,
         inheritsFrom: MC,
@@ -120,7 +119,6 @@ describe('neoforge plugin', () => {
     const site = await documentSite({
       mc: MC,
       build: NF,
-      key: 'neoforge',
       document: {
         id: `neoforge-${NF}`,
         inheritsFrom: MC,

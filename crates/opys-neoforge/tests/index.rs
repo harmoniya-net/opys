@@ -24,9 +24,9 @@ fn index() -> serde_json::Value {
                 "best": "21.1.172",
                 "bestUrl": document("1.21.1", "21.1.172"),
                 "builds": [
-                    { "neoforge": "21.1.170", "url": document("1.21.1", "21.1.170") },
-                    { "neoforge": "21.1.172", "url": document("1.21.1", "21.1.172") },
-                    { "neoforge": "21.1.200-beta", "url": document("1.21.1", "21.1.200-beta") },
+                    { "build": "21.1.170", "url": document("1.21.1", "21.1.170") },
+                    { "build": "21.1.172", "url": document("1.21.1", "21.1.172") },
+                    { "build": "21.1.200-beta", "url": document("1.21.1", "21.1.200-beta") },
                 ],
             },
             // Minecraft dropped the leading `1.`; NeoForge grew a fourth
@@ -38,7 +38,7 @@ fn index() -> serde_json::Value {
                 "recommendedUrl": document("26.2", "26.2.0.84"),
                 "best": "26.2.0.84",
                 "bestUrl": document("26.2", "26.2.0.84"),
-                "builds": [{ "neoforge": "26.2.0.84", "url": document("26.2", "26.2.0.84") }],
+                "builds": [{ "build": "26.2.0.84", "url": document("26.2", "26.2.0.84") }],
             },
             // Every build was a prerelease, so nothing was ever recommended.
             "1.20.2": {
@@ -48,7 +48,7 @@ fn index() -> serde_json::Value {
                 "recommendedUrl": null,
                 "best": "20.2.88-beta",
                 "bestUrl": document("1.20.2", "20.2.88-beta"),
-                "builds": [{ "neoforge": "20.2.88-beta", "url": document("1.20.2", "20.2.88-beta") }],
+                "builds": [{ "build": "20.2.88-beta", "url": document("1.20.2", "20.2.88-beta") }],
             },
         },
     })

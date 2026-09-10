@@ -136,7 +136,7 @@ Eight packages, a clean DAG, no cycles:
   tweaker, a client-jar overlay, or a bare universal zip — but none of that is
   in `opys-forge`. Every build that has ever shipped is published as an
   ordinary `inheritsFrom` document at
-  `harmoniya-net.github.io/metadata`, generated from the installers once,
+  `harmoniya-net.github.io/metadata/forge`, generated from the installers once,
   and the differences are already spelled out inside it. So the crate is an
   index lookup plus the shared fold, and is deliberately the same shape as
   `opys-fabric`. `crates/opys-forge/tests/documents.rs` parses the whole

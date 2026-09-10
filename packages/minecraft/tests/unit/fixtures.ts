@@ -228,13 +228,12 @@ export interface DocumentSite {
 /**
  * Serve an index naming one build, and that build's document.
  *
- * `key` is what the index calls the build id — `forge` in Forge's index,
- * `neoforge` in NeoForge's.
+ * Both families spell a build the same way, so the only thing that differs
+ * between them here is the base URL.
  */
 export async function documentSite(options: {
   mc: string;
   build: string;
-  key: 'forge' | 'neoforge';
   document: Record<string, unknown>;
 }): Promise<DocumentSite> {
   let base = '';
@@ -253,7 +252,7 @@ export async function documentSite(options: {
               recommendedUrl: url,
               best: options.build,
               bestUrl: url,
-              builds: [{ [options.key]: options.build, url }],
+              builds: [{ build: options.build, url }],
             },
           },
         };

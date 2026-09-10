@@ -101,7 +101,7 @@ fn site() -> TestServer {
                     "recommendedUrl": format!("{base}/versions/{mc}/{neoforge}.json"),
                     "best": neoforge,
                     "bestUrl": format!("{base}/versions/{mc}/{neoforge}.json"),
-                    "builds": [{ "neoforge": neoforge, "url": format!("{base}/versions/{mc}/{neoforge}.json") }],
+                    "builds": [{ "build": neoforge, "url": format!("{base}/versions/{mc}/{neoforge}.json") }],
                 })
             };
             json!({ "versions": {

@@ -65,7 +65,7 @@ pub(crate) struct VersionEntryWire {
 
 #[derive(Deserialize)]
 pub(crate) struct BuildWire {
-    neoforge: String,
+    build: String,
     url: String,
 }
 
@@ -138,8 +138,8 @@ pub fn resolve_neoforge_version(
     }
 
     for (minecraft, entry) in &index.versions {
-        if let Some(build) = entry.builds.iter().find(|b| b.neoforge == input) {
-            return Ok(release(minecraft, &build.neoforge, &build.url));
+        if let Some(build) = entry.builds.iter().find(|b| b.build == input) {
+            return Ok(release(minecraft, &build.build, &build.url));
         }
     }
 
