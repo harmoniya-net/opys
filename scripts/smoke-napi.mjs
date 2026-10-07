@@ -25,6 +25,7 @@ const minecraft = require('../crates/opys-minecraft-vanilla-napi/index.js');
 const fabricNapi = require('../crates/opys-fabric-napi/index.js');
 const forgeNapi = require('../crates/opys-forge-napi/index.js');
 const neoforgeNapi = require('../crates/opys-neoforge-napi/index.js');
+const cleanroomNapi = require('../crates/opys-cleanroom-napi/index.js');
 
 let ok = 0;
 let fail = 0;
@@ -627,6 +628,92 @@ const neoforgeBuilt = await neoforgeNapi.buildNeoForge(neoforgeOpts);
 check('buildNeoForge names the plugin', neoforgeBuilt.name === 'neoforge');
 
 neoforgeSite.close();
+
+// ── cleanroom ─────────────────────────────────────────────────────────────
+// The same index over a different kind of document: a complete version JSON,
+// so the crossing reads it as a client and never asks Mojang for a version.
+console.log('\n— cleanroom —');
+
+const CLEANROOM_TAG = '0.6.13-alpha';
+const CLEANROOM_JAR = `com/cleanroommc/cleanroom/${CLEANROOM_TAG}/cleanroom-${CLEANROOM_TAG}.jar`;
+
+let cleanroomBase = '';
+const cleanroomSite = createServer((req, res) => {
+  const target = req.url ?? '';
+  const url = `${cleanroomBase}/versions/1.12.2/${CLEANROOM_TAG}.json`;
+  const { arguments: _modern, ...client } = CLIENT_JSON('1.12.2', mojangBase);
+  const body = target.startsWith('/versions/')
+    ? {
+        ...client,
+        mainClass: 'top.outlands.foundation.boot.Foundation',
+        minecraftArguments: '--username ${auth_player_name}',
+        libraries: [
+          {
+            name: `com.cleanroommc:cleanroom:${CLEANROOM_TAG}`,
+            downloads: {
+              artifact: {
+                path: CLEANROOM_JAR,
+                sha1: 'a'.repeat(40),
+                size: 2000,
+                url: `https://example.invalid/cleanroom-${CLEANROOM_TAG}-universal.jar`,
+              },
+            },
+          },
+        ],
+      }
+    : {
+        versions: {
+          '1.12.2': {
+            latest: CLEANROOM_TAG,
+            latestUrl: url,
+            recommended: CLEANROOM_TAG,
+            recommendedUrl: url,
+            best: CLEANROOM_TAG,
+            bestUrl: url,
+            builds: [{ build: CLEANROOM_TAG, url }],
+          },
+        },
+      };
+  res
+    .writeHead(200, { 'content-type': 'application/json' })
+    .end(JSON.stringify(body));
+});
+await new Promise((resolve) => cleanroomSite.listen(0, '127.0.0.1', resolve));
+cleanroomBase = `http://127.0.0.1:${cleanroomSite.address().port}`;
+const cleanroomOpts = { version: CLEANROOM_TAG, source: cleanroomBase };
+
+check(
+  'defaultCleanroomIndex is the published index',
+  cleanroomNapi.defaultCleanroomIndex() ===
+    'https://harmoniya-net.github.io/metadata/cleanroom',
+);
+
+const cleanroomRelease = await cleanroomNapi.resolveCleanroomVersion(
+  CLEANROOM_TAG,
+  cleanroomBase,
+);
+check(
+  'resolveCleanroomVersion finds a tag that names no Minecraft version',
+  cleanroomRelease.minecraft === '1.12.2' &&
+    cleanroomRelease.cleanroom === CLEANROOM_TAG,
+);
+
+const cleanroomed = await cleanroomNapi.resolveCleanroom(cleanroomOpts);
+check(
+  "resolveCleanroom launches the document's own main class",
+  cleanroomed.mainClass === 'top.outlands.foundation.boot.Foundation',
+);
+check(
+  'resolveCleanroom puts the cleanroom jar ahead of the client jar',
+  cleanroomed.classpath[0].value ===
+    `\${library_directory}/${CLEANROOM_JAR}` +
+      '${classpath_separator}${version_dir}/client.jar',
+);
+
+const cleanroomBuilt = await cleanroomNapi.buildCleanroom(cleanroomOpts);
+check('buildCleanroom names the plugin', cleanroomBuilt.name === 'cleanroom');
+
+cleanroomSite.close();
 mojangApi.close();
 
 console.log(`\nresult: ${ok} passed, ${fail} failed`);

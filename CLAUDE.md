@@ -56,10 +56,11 @@ Eight packages, a clean DAG, no cycles:
 @opys/runtime       install + launch executor.                              → core ONLY
 @opys/minecraft     Minecraft-domain plugins — minecraft / forge / neoforge /
                      fabric / cleanroom / lwjgl3ify / curseforge / authliberty — +
-                     bifrost / serverlist helpers. Vanilla, fabric, forge and
-                     neoforge are thin wrappers over the `opys-minecraft-vanilla`,
-                     `opys-fabric`, `opys-forge` and `opys-neoforge` crates, each
-                     with its own `.node`; the remaining loaders get a crate and a
+                     bifrost / serverlist helpers. Vanilla, fabric, forge,
+                     neoforge and cleanroom are thin wrappers over the
+                     `opys-minecraft-vanilla`, `opys-fabric`, `opys-forge`,
+                     `opys-neoforge` and `opys-cleanroom` crates, each with its
+                     own `.node`; the remaining loaders get a crate and a
                      binding apiece on top of vanilla.       → dev, core, mojang
 @opys/java          JDK provisioning — Temurin / Zulu / GraalVM CE.
                      Thin wrapper over the `opys-java` crate.                → dev, core
@@ -149,6 +150,23 @@ Eight packages, a clean DAG, no cycles:
   and a versioning scheme that has already changed once. Two differences are
   real and live in the crate — `DEFAULT_NEOFORGE_INDEX`, and a build-id lookup
   that scans the whole index rather than filtering by prefix.
+- **Cleanroom's document is a whole version, not a patch.**
+  `harmoniya-net.github.io/metadata/cleanroom` carries the same index as the
+  other two, but each document is a complete version JSON: no `inheritsFrom`,
+  no horno. Cleanroom's installer has never run a processor — it unpacks one
+  jar, which is also a release asset — so there is nothing to do on the
+  launching machine and nothing to fold. `opys-cleanroom` therefore reads the
+  document as a `Client`, through `Client::from_version_json`, and takes the
+  vanilla path from there; it never fetches a vanilla version at all.
+
+  The reason it is not a patch is the reason the old TypeScript loader carried
+  a filter. Cleanroom replaces vanilla 1.12.2's LWJGL 2 (`org.lwjgl.lwjgl`)
+  with LWJGL 3 (`org.lwjgl`): different groups, so the `inheritsFrom` merge
+  supersedes nothing and leaves both on the classpath. That rule is applied
+  once, in the generator, when it folds the pre-0.5.16 patches; from 0.5.16 on
+  Cleanroom ships the complete document itself. Either way the crate filters
+  nothing — what a document declares is what runs.
+
 - **The loader's installer is not a library, and neither is the ancient era's
   overlay zip.** A document names them with `-Dhorno.installer` /
   `-Dhorno.jarmod` plus a `…Url` and a `…Sha1`, and horno fetches them itself.

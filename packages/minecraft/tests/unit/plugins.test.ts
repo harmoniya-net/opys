@@ -1,5 +1,4 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { zipSync, strToU8 } from 'fflate';
 import {
   minecraft,
   forge,
@@ -185,55 +184,43 @@ describe('fabric plugin', () => {
 });
 
 describe('cleanroom plugin', () => {
-  it('builds a cleanroom contribution', async () => {
+  it('builds a cleanroom contribution from the published document', async () => {
     reset();
-    const versionJson = {
-      id: 'cleanroom',
-      inheritsFrom: '1.12.2',
-      mainClass: 'top.outlands.foundation.boot.Foundation',
-      minecraftArguments: '--username ${auth_player_name}',
-      libraries: [],
-    };
-    const installProfile = {
-      spec: 0,
-      profile: 'Cleanroom',
-      version: 'cleanroom',
-      minecraft: '1.12.2',
-      libraries: [],
-    };
-    const zip = zipSync({
-      'version.json': strToU8(JSON.stringify(versionJson)),
-      'install_profile.json': strToU8(JSON.stringify(installProfile)),
-    });
-    routedFetch([
-      [
-        '/releases',
-        [
-          {
-            tag_name: '0.5.9-alpha',
-            prerelease: true,
-            draft: false,
-            published_at: '2024-01-01T00:00:00Z',
-            assets: [
-              {
-                name: 'cleanroom-0.5.9-alpha-installer.jar',
-                size: 1,
-                browser_download_url:
-                  'https://gh/cleanroom-0.5.9-alpha-installer.jar',
-              },
-            ],
-          },
+    routedFetch([]);
+    const MC = '1.12.2';
+    const TAG = '0.6.13-alpha';
+    // A complete version JSON — Cleanroom's documents inherit from nothing,
+    // so the only thing left to fetch is the asset index it names.
+    const base = clientJson(MC);
+    const { arguments: _modern, ...legacy } = base;
+    const site = await documentSite({
+      mc: MC,
+      build: TAG,
+      document: {
+        ...legacy,
+        id: `1.12.2-Cleanroom-${TAG}`,
+        mainClass: 'top.outlands.foundation.boot.Foundation',
+        minecraftArguments: '--username ${auth_player_name}',
+        assetIndex: { ...base.assetIndex, url: mojang.assetsUrl },
+        libraries: [
+          lib(
+            `com.cleanroommc:cleanroom:${TAG}`,
+            `com/cleanroommc/cleanroom/${TAG}/cleanroom-${TAG}.jar`,
+            `https://gh/cleanroom-${TAG}-universal.jar`,
+          ),
         ],
-      ],
-      ['cleanroom-0.5.9-alpha-installer.jar', new Response(zip)],
-    ]);
-    const plugin = cleanroom('0.5.9-alpha', {
-      manifestBase: mojang.manifestBase,
+      },
     });
+
+    const plugin = cleanroom(TAG, { source: site.source });
     expect(plugin.name).toBe('cleanroom');
     const c = await plugin.build(ctx);
     expect(c.artifacts!.length).toBeGreaterThan(0);
-    expect(logs.some((l) => l.includes('resolved 0.5.9-alpha'))).toBe(true);
+    expect(c.launch).toHaveProperty('mainClass');
+    expect(logs.some((l) => l.includes(`resolved ${TAG}`))).toBe(true);
+    // The asset index and nothing else: no manifest, no vanilla version.
+    expect(mojang.targets).toEqual(['/assets/5.json']);
+    await site.close();
   });
 });
 
