@@ -831,6 +831,29 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9f7c3e4beb33f85d45ae3e3a1792185706c8e16d043238c593331cc7cd313b50"
 
 [[package]]
+name = "opys-authliberty"
+version = "0.2.0"
+dependencies = [
+ "opys-core",
+ "opys-dev",
+ "serde",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
+name = "opys-authliberty-napi"
+version = "0.2.0"
+dependencies = [
+ "napi",
+ "napi-build",
+ "napi-derive",
+ "opys-authliberty",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "opys-cleanroom"
 version = "0.2.0"
 dependencies = [
@@ -888,6 +911,7 @@ version = "0.2.0"
 dependencies = [
  "indexmap",
  "opys-core",
+ "percent-encoding",
  "serde",
  "serde_json",
  "thiserror",
@@ -965,7 +989,6 @@ dependencies = [
  "indexmap",
  "opys-core",
  "opys-dev",
- "percent-encoding",
  "serde",
  "serde_json",
  "thiserror",

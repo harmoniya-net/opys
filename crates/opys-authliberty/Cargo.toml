@@ -1,20 +1,16 @@
 [package]
-name = "opys-java"
+name = "opys-authliberty"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
 repository.workspace = true
 homepage.workspace = true
-description = "opys JDK provisioning plugin — Temurin, Zulu and GraalVM CE resolvers."
+description = "AuthLiberty for opys — a -javaagent that points Minecraft's auth hosts elsewhere."
 
 [dependencies]
 opys-core = { path = "../opys-core", version = "0.2.0" }
 opys-dev = { path = "../opys-dev", version = "0.2.0" }
-indexmap = { version = "2", features = ["serde"] }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
-
-[dev-dependencies]
-opys-dev = { path = "../opys-dev", version = "0.2.0" }

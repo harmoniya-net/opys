@@ -41,6 +41,7 @@
     "crates/opys-neoforge-napi",
     "crates/opys-cleanroom-napi",
     "crates/opys-lwjgl3ify-napi",
+    "crates/opys-authliberty-napi",
     "crates/opys-core-napi",
     "crates/opys-runtime-napi"
   ],

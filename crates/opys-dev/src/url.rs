@@ -1,7 +1,9 @@
-//! URL escaping for the vendor resolvers.
+//! URL escaping for build-time resolvers.
 //!
 //! `percent-encoding` does the work — it is already in the tree under `ureq`,
-//! which does not re-export it.
+//! which does not re-export it. It began in `opys-java` and moved here when a
+//! second resolver needed it: a GitLab project path travels as one segment,
+//! `group%2Fname`.
 
 use percent_encoding::{utf8_percent_encode, AsciiSet, NON_ALPHANUMERIC};
 

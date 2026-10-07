@@ -21,6 +21,7 @@ mod engine;
 pub mod github;
 #[cfg(feature = "net")]
 pub mod http;
+pub mod url;
 
 pub use contribution::{Contribution, LaunchFragment, LaunchGroups, PluginOutput};
 pub use engine::{assemble, Assembled, ManifestConfig};

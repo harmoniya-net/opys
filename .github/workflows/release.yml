@@ -123,6 +123,10 @@ jobs:
         run: npx napi build --platform --release --target ${{ matrix.target }} ${{ contains(matrix.target, '-musl') && '--zig' || '' }}
         working-directory: crates/opys-lwjgl3ify-napi
 
+      - name: Build @opys/authliberty-binding
+        run: npx napi build --platform --release --target ${{ matrix.target }} ${{ contains(matrix.target, '-musl') && '--zig' || '' }}
+        working-directory: crates/opys-authliberty-napi
+
       - name: Upload @opys/core-binding artifact
         uses: actions/upload-artifact@v7
         with:
@@ -196,6 +200,12 @@ jobs:
         with:
           name: lwjgl3ify-binding-${{ matrix.target }}
           path: crates/opys-lwjgl3ify-napi/*.node
+          if-no-files-found: error
+      - name: Upload @opys/authliberty-binding artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: authliberty-binding-${{ matrix.target }}
+          path: crates/opys-authliberty-napi/*.node
           if-no-files-found: error
 
   # ─────────────────────────────────────────────────────────────
@@ -289,6 +299,12 @@ jobs:
           path: crates/opys-lwjgl3ify-napi/artifacts
           merge-multiple: true
 
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: authliberty-binding-*
+          path: crates/opys-authliberty-napi/artifacts
+          merge-multiple: true
+
       # The `npm/<target>/` per-platform sub-package scaffolding is checked
       # into git (see `crates/opys-*-napi/npm/`). `napi artifacts` walks
       # the downloaded `.node` files (filename encodes the target) and
@@ -296,7 +312,7 @@ jobs:
       - name: Route .node files into per-platform sub-packages
         run: |
           set -eux
-          for c in crates/opys-core-napi crates/opys-runtime-napi crates/opys-mojang-napi crates/opys-dev-napi crates/opys-java-napi crates/opys-minecraft-vanilla-napi crates/opys-fabric-napi crates/opys-forge-napi crates/opys-neoforge-napi crates/opys-cleanroom-napi crates/opys-lwjgl3ify-napi; do
+          for c in crates/opys-core-napi crates/opys-runtime-napi crates/opys-mojang-napi crates/opys-dev-napi crates/opys-java-napi crates/opys-minecraft-vanilla-napi crates/opys-fabric-napi crates/opys-forge-napi crates/opys-neoforge-napi crates/opys-cleanroom-napi crates/opys-lwjgl3ify-napi crates/opys-authliberty-napi; do
             (cd "$c" && npx napi artifacts)
             ls -R "$c/npm"
           done
@@ -380,6 +396,13 @@ jobs:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
+      - name: Publish @opys/authliberty-binding (loader + platform sub-packages)
+        run: npx napi prepublish -t npm --skip-gh-release
+        working-directory: crates/opys-authliberty-napi
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
       # Build TS workspaces against the freshly downloaded host .node so
       # tsdown produces dist/ before npm publish runs.
       - run: npm run build --workspaces --if-present
@@ -427,6 +450,8 @@ jobs:
       - run: cargo publish -p opys-cleanroom
         env: { CARGO_REGISTRY_TOKEN: '${{ secrets.CARGO_REGISTRY_TOKEN }}' }
       - run: cargo publish -p opys-lwjgl3ify
+        env: { CARGO_REGISTRY_TOKEN: '${{ secrets.CARGO_REGISTRY_TOKEN }}' }
+      - run: cargo publish -p opys-authliberty
         env: { CARGO_REGISTRY_TOKEN: '${{ secrets.CARGO_REGISTRY_TOKEN }}' }
       - run: cargo publish -p opys-runtime
         env: { CARGO_REGISTRY_TOKEN: '${{ secrets.CARGO_REGISTRY_TOKEN }}' }

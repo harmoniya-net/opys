@@ -57,10 +57,9 @@ Eight packages, a clean DAG, no cycles:
 @opys/minecraft     Minecraft-domain plugins — minecraft / forge / neoforge /
                      fabric / cleanroom / lwjgl3ify / curseforge / authliberty — +
                      bifrost / serverlist helpers. Vanilla, fabric, forge,
-                     neoforge, cleanroom and lwjgl3ify are thin wrappers over
-                     the `opys-minecraft-vanilla`, `opys-fabric`, `opys-forge`,
-                     `opys-neoforge`, `opys-cleanroom` and `opys-lwjgl3ify`
-                     crates, each with its own `.node`.     → dev, core, mojang
+                     neoforge, cleanroom, lwjgl3ify and authliberty are thin
+                     wrappers over the crates of the same names, each with
+                     its own `.node`.                       → dev, core, mojang
 @opys/java          JDK provisioning — Temurin / Zulu / GraalVM CE.
                      Thin wrapper over the `opys-java` crate.                → dev, core
 @opys/cli           the `opys` binary.                 → dev, runtime, minecraft, java

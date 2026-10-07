@@ -1,4 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { createServer } from 'node:http';
+import type { AddressInfo } from 'node:net';
 import {
   minecraft,
   forge,
@@ -275,40 +277,47 @@ describe('lwjgl3ify plugin', () => {
 describe('authliberty plugin', () => {
   it('builds an authliberty contribution exposing only jvmArgs', async () => {
     reset();
-    routedFetch([
-      [
-        '/package_files',
-        [
-          {
-            id: 1,
-            package_id: 100,
-            file_name: 'authliberty-0.3.jar',
-            size: 1,
-            file_sha256: 'h',
-            created_at: '2024-01-01T00:00:00Z',
-          },
-        ],
-      ],
-      [
-        '/packages',
-        [
-          {
-            id: 100,
-            name: 'authliberty',
-            version: '0.3',
-            package_type: 'generic',
-            status: 'default',
-            created_at: '2024-01-01T00:00:00Z',
-          },
-        ],
-      ],
-    ]);
-    const plugin = authliberty('0.3');
+    routedFetch([]);
+    // GitLab's packages API, on loopback: the resolver runs natively and
+    // would not see a stubbed `fetch`.
+    const gitlab = createServer((req, res) => {
+      const body = (req.url ?? '').includes('/package_files')
+        ? [
+            {
+              id: 1,
+              package_id: 100,
+              file_name: 'authliberty-0.3.jar',
+              size: 1,
+              file_sha256: 'h',
+              created_at: '2024-01-01T00:00:00Z',
+            },
+          ]
+        : [
+            {
+              id: 100,
+              name: 'authliberty',
+              version: '0.3',
+              package_type: 'generic',
+              status: 'default',
+              created_at: '2024-01-01T00:00:00Z',
+            },
+          ];
+      res
+        .writeHead(200, { 'content-type': 'application/json' })
+        .end(JSON.stringify(body));
+    });
+    await new Promise<void>((resolve) =>
+      gitlab.listen(0, '127.0.0.1', resolve),
+    );
+    const base = `http://127.0.0.1:${(gitlab.address() as AddressInfo).port}`;
+
+    const plugin = authliberty('0.3', { gitlab: base });
     expect(plugin.name).toBe('authliberty');
     const c = await plugin.build(ctx);
     expect(c.artifacts).toHaveLength(1);
     expect(c.launch).toEqual({ jvmArgs: expect.anything() });
     expect(logs.some((l) => l.includes('resolved 0.3'))).toBe(true);
+    await new Promise<void>((resolve) => gitlab.close(() => resolve()));
   });
 });
 

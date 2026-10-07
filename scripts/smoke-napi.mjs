@@ -27,6 +27,7 @@ const forgeNapi = require('../crates/opys-forge-napi/index.js');
 const neoforgeNapi = require('../crates/opys-neoforge-napi/index.js');
 const cleanroomNapi = require('../crates/opys-cleanroom-napi/index.js');
 const lwjgl3ifyNapi = require('../crates/opys-lwjgl3ify-napi/index.js');
+const authlibertyNapi = require('../crates/opys-authliberty-napi/index.js');
 
 let ok = 0;
 let fail = 0;
@@ -801,6 +802,77 @@ const lwjgl3ifyBuilt = await lwjgl3ifyNapi.buildLwjgl3ify(lwjgl3ifyOpts);
 check('buildLwjgl3ify names the plugin', lwjgl3ifyBuilt.name === 'lwjgl3ify');
 
 lwjgl3ifySite.close();
+
+// ── authliberty ───────────────────────────────────────────────────────────
+// Not a loader: one jar off a GitLab package registry and the JVM arguments
+// that load it. The crossing carries a nested options object, `hosts`.
+console.log('\n— authliberty —');
+
+const gitlabApi = createServer((req, res) => {
+  const body = (req.url ?? '').includes('/package_files')
+    ? [
+        {
+          id: 1,
+          package_id: 100,
+          file_name: 'authliberty-0.3.jar',
+          size: 4096,
+          file_sha256: 'cafef00d',
+          created_at: '2024-01-01T00:00:00Z',
+        },
+      ]
+    : [
+        {
+          id: 100,
+          name: 'authliberty',
+          version: '0.3',
+          package_type: 'generic',
+          status: 'default',
+          created_at: '2024-01-01T00:00:00Z',
+        },
+      ];
+  res
+    .writeHead(200, { 'content-type': 'application/json' })
+    .end(JSON.stringify(body));
+});
+await new Promise((resolve) => gitlabApi.listen(0, '127.0.0.1', resolve));
+const gitlabBase = `http://127.0.0.1:${gitlabApi.address().port}`;
+const AGENT =
+  '${library_directory}/net/harmoniya/authliberty/0.3/authliberty-0.3.jar';
+
+const agentRelease = await authlibertyNapi.resolveAuthLibertyVersion('0.3', {
+  gitlab: gitlabBase,
+});
+check(
+  'resolveAuthLibertyVersion reads the jar and its sha256 off the registry',
+  agentRelease.filename === 'authliberty-0.3.jar' &&
+    agentRelease.sha256 === 'cafef00d' &&
+    agentRelease.createdAt === '2024-01-01T00:00:00Z',
+);
+
+const agentOpts = {
+  version: '0.3',
+  gitlab: gitlabBase,
+  hosts: { session: 'https://session.example' },
+};
+const agent = await authlibertyNapi.resolveAuthliberty(agentOpts);
+check(
+  'resolveAuthliberty puts the jar at its maven-shaped path',
+  agent.artifacts.length === 1 && agent.artifacts[0].path === AGENT,
+);
+check(
+  'resolveAuthliberty writes the agent argument, then the configured host',
+  agent.jvmArgs.join(' ') ===
+    `-javaagent:${AGENT} -Dminecraft.api.session.host=https://session.example`,
+);
+
+const agentBuilt = await authlibertyNapi.buildAuthliberty(agentOpts);
+check(
+  'buildAuthliberty names the plugin and exposes only jvmArgs',
+  agentBuilt.name === 'authliberty' &&
+    Object.keys(agentBuilt.contribution.launch).join() === 'jvmArgs',
+);
+
+gitlabApi.close();
 mojangApi.close();
 
 console.log(`\nresult: ${ok} passed, ${fail} failed`);

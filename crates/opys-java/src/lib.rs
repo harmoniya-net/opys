@@ -16,7 +16,6 @@ mod platforms;
 mod plugin;
 mod template;
 mod temurin;
-mod url;
 mod vendor;
 mod version;
 mod zulu;

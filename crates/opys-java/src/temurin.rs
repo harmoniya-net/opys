@@ -22,7 +22,7 @@ use serde::Deserialize;
 
 use crate::error::JavaError;
 use crate::platforms::{fan_out, platforms_or_default, Platform, SupportedArch};
-use crate::url::encode_uri_component;
+use opys_dev::url::encode_uri_component;
 use crate::vendor::{pick_anchor, VendorBinary, VendorRelease};
 use crate::version::{is_bare_major, leading_digits, VersionInput};
 
