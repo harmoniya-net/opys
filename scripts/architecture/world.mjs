@@ -180,7 +180,7 @@ export function readWorld(root) {
     },
     release: {
       workflow: readFileSync(
-        join(root, '.github/workflows/release.yml'),
+        join(root, '.github/workflows/publish.yml'),
         'utf8',
       ),
       smoke: readFileSync(join(root, 'scripts/smoke-napi.mjs'), 'utf8'),
