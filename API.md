@@ -147,8 +147,10 @@ JVM runtime — `@opys/java`:
 
 Generic, domain-agnostic — `@opys/dev`:
 
-- **`artifactScanner({ directory, path, url, source, overrides? })`** — scans a
-  local directory tree into artifacts.
+- **`files({ from, to?, url?, hash? })`** — every file under a local directory,
+  as artifacts. With no `url` the files are carried in the bundle as blobs;
+  with one they are published elsewhere and pointed at. The counterpart of
+  `links`, which takes what is already published.
 
 Helpers (not plugins): **`bifrost({ privateKey, username, uuid })`**
 (`@opys/minecraft`) — mints an Ed25519 JWT; call it inside `runClient`.

@@ -66,7 +66,7 @@ them, and the list below names the layers rather than every one:
 @opys/core          Manifest data model + opys shorthand + Val/Valset.
                      The bundle. The reference implementation of the format. → mojang-rules
 @opys/dev           Build SDK: defineConfig, the build engine, the plugin contract,
-                     artifact overrides, artifactScanner, userDataDir.
+                     artifact overrides, files, userDataDir.
                      The contribution merge is the `opys-dev` crate.               → core
 @opys/runtime       install + launch executor.                              → core ONLY
 @opys/minecraft     Minecraft-domain plugins — minecraft / forge / neoforge /
@@ -115,7 +115,7 @@ them, and the list below names the layers rather than every one:
   it a bundle. Both are blobs behind one `BlobStore`, so there is no source
   kind that exists only on a developer's machine and no install path that
   production never exercises. The cost is hashing local files on each build,
-  which `artifactScanner` already did.
+  which the `files` plugin (then `artifactScanner`) already did.
 - **A manifest is fully resolved; the installer looks nothing up.** Every
   artifact names a concrete source and, wherever one can be had, a pinned
   hash. Finding out what to download or what its hash should be is build-time
@@ -304,10 +304,17 @@ them, and the list below names the layers rather than every one:
   may take `hosts` as one. A closure cannot be handed to Rust,
   so each is split in two on the crate side: resolve to plain data, then build
   from that data plus what the callback returned (`file_artifacts(files,
-paths)`). The wrapper's only job is the call in between. `artifactScanner`
-  is the same shape for a local directory: `scan_directory` says what is on
-  disk, JS places each file with the author's `path` / `url`, and
+paths)`). The wrapper's only job is the call in between. `files` is
+  the same shape for a local directory: `scan_directory` says what is on
+  disk, JS places each file with the author's `to` / `url`, and
   `scanned_files` hashes them and builds the artifacts.
+- **`files` and `links` are the two ways a file gets into a manifest by hand.**
+  `links` takes what is already published and pins it; `files` takes what is
+  on the author's disk. `files` carries by default — no `url` means a blob in
+  the bundle — and points only when given a `url`. The two shapes are told
+  apart by which field is present, not by a mode flag, and the easy spelling
+  is the one that cannot go stale: an embedded file needs no server to stay
+  up and no upload to remember.
 - **Every plugin is a wrapper over the crate of the same name.** The last
   three to go were `bifrost` (a signer), the server list (an NBT encoder) and
   the scanner (a directory walk). Each was ported against output captured

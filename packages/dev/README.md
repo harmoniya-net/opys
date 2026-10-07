@@ -78,18 +78,24 @@ const motd = () =>
   });
 ```
 
-For a directory of local files, `artifactScanner` does this for you:
+For a directory of local files, `files` does this for you:
 
 ```js
-artifactScanner({
-  directory: 'server-files',
-  source: 'blob',
-  path: '${root}/${rel}',
-});
+import { files } from '@opys/dev';
+
+files({ from: 'server-files', to: '${root}/${rel}' });
 ```
 
 `opys build` writes the blobs into the bundle; `opys launch` reads them from
-where they are, with nothing copied in between. Without `source: 'blob'` the
-scanner emits URL artifacts instead, for files you publish somewhere yourself.
+where they are, with nothing copied in between. `to` is a template
+(`${rel}`, `${dir}`, `${filename}`) or a function of the file, and defaults
+to the file's relative path.
+
+Give a `url` and the files are not carried at all: each artifact points at
+the copy you publish there, pinned by its hash (`hash: 'sha1' | 'sha256'`).
+
+```js
+files({ from: 'mods', to: 'mods/${rel}', url: 'https://cdn.example/${rel}' });
+```
 
 Part of the [opys](https://github.com/harmoniya-net/opys) toolkit.

@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import { mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join } from 'node:path';
-import { artifactScanner, type UrlScannerOptions } from '../../lib/scanner';
+import { files, type PublishedFiles } from '../../lib/files';
 import type { BuildContext } from '../../lib/plugin';
 import type { Artifact } from '@opys/core';
 
@@ -32,13 +32,13 @@ const touch = async (rel: string, body: string) => {
 
 const byPath = (a: Artifact, b: Artifact) => a.path.localeCompare(b.path);
 
-const run = async (opts: Omit<UrlScannerOptions, 'directory'>) => {
-  const plugin = artifactScanner({ directory: dir, ...opts });
+const run = async (opts: Omit<PublishedFiles, 'from'>) => {
+  const plugin = files({ from: dir, ...opts });
   const result = await plugin.build(ctx);
   return (result.artifacts ?? []).sort(byPath);
 };
 
-describe('artifactScanner', () => {
+describe('files', () => {
   it('scans files into url artifacts with a sha1 hash and size', async () => {
     await touch('a.txt', 'hello');
     const arts = await run({ url: 'https://cdn/${rel}' });
@@ -58,13 +58,12 @@ describe('artifactScanner', () => {
     expect(arts[0]!.integrity).toEqual({ sha256 });
   });
 
-  it('in blob mode, each file is a blob and the table says where it is', async () => {
+  it('with no url, each file is a blob and the table says where it is', async () => {
     await touch('a.txt', 'hello');
     await touch('sub/b.txt', 'world');
-    const plugin = artifactScanner({
-      directory: dir,
-      source: 'blob',
-      path: '${root}/${rel}',
+    const plugin = files({
+      from: dir,
+      to: '${root}/${rel}',
     });
     const { artifacts, blobs } = await plugin.build(ctx);
     const hello = createHash('sha256').update('hello').digest('hex');
@@ -81,21 +80,20 @@ describe('artifactScanner', () => {
     });
   });
 
-  it('in blob mode, two files with the same content are one blob', async () => {
+  it('with no url, two files with the same content are one blob', async () => {
     await touch('a.txt', 'same');
     await touch('b.txt', 'same');
-    const { artifacts, blobs } = await artifactScanner({
-      directory: dir,
-      source: 'blob',
+    const { artifacts, blobs } = await files({
+      from: dir,
     }).build(ctx);
     expect(artifacts).toHaveLength(2);
     expect(Object.keys(blobs!)).toHaveLength(1);
   });
 
-  it('in url mode there are no blobs to carry', async () => {
+  it('with a url there are no blobs to carry', async () => {
     await touch('a.txt', 'hello');
-    const result = await artifactScanner({
-      directory: dir,
+    const result = await files({
+      from: dir,
       url: 'https://cdn/${rel}',
     }).build(ctx);
     expect(result.blobs).toEqual({});
@@ -111,7 +109,7 @@ describe('artifactScanner', () => {
     await touch('mods/jei.jar', 'x');
     const arts = await run({
       url: 'https://cdn/${dir}/${filename}',
-      path: 'install/${rel}',
+      to: 'install/${rel}',
     });
     expect(arts[0]!.path).toBe('install/mods/jei.jar');
     expect(arts[0]!.source).toEqual({
@@ -129,7 +127,7 @@ describe('artifactScanner', () => {
     await touch('a.txt', 'x');
     const arts = await run({
       url: (f) => `https://cdn/${f.filename}`,
-      path: (f) => `out/${f.rel}`,
+      to: (f) => `out/${f.rel}`,
     });
     expect(arts[0]!.path).toBe('out/a.txt');
     expect(arts[0]!.source).toEqual({ url: 'https://cdn/a.txt' });
@@ -150,18 +148,18 @@ describe('artifactScanner', () => {
   it('is post-processed by chaining fluent methods on the returned plugin', async () => {
     await touch('keep.txt', '1');
     await touch('drop.txt', '2');
-    const plugin = artifactScanner({
-      directory: dir,
+    const plugin = files({
+      from: dir,
       url: 'https://cdn/${rel}',
     }).exclude('drop.txt');
     const result = await plugin.build(ctx);
     expect((result.artifacts ?? []).map((a) => a.path)).toEqual(['keep.txt']);
   });
 
-  it('logs the scanned count with no exclusions', async () => {
+  it('logs how many files it found', async () => {
     await touch('a.txt', '1');
     await run({ url: 'https://cdn/${rel}' });
-    expect(logs.some((l) => l.includes('scanned 1 file(s)'))).toBe(true);
+    expect(logs.some((l) => l.includes('found 1 file(s)'))).toBe(true);
     expect(logs.some((l) => l.includes('excluded'))).toBe(false);
   });
 
@@ -176,10 +174,10 @@ describe('artifactScanner', () => {
     expect(arts.map((a) => a.path)).toEqual(['real.txt']);
   });
 
-  it('resolves a relative directory against ctx.configDir', async () => {
+  it('resolves a relative `from` against ctx.configDir', async () => {
     await touch('a.txt', 'hello');
-    const plugin = artifactScanner({
-      directory: basename(dir),
+    const plugin = files({
+      from: basename(dir),
       url: 'https://cdn/${rel}',
     });
     const result = await plugin.build({
@@ -190,3 +188,8 @@ describe('artifactScanner', () => {
     expect((result.artifacts ?? []).map((a) => a.path)).toEqual(['a.txt']);
   });
 });
+
+// The two shapes are told apart by `url`, and the type holds the line: a
+// `hash` is a choice only a published file has.
+// @ts-expect-error — `hash` without `url`
+files({ from: 'x', hash: 'sha256' });

@@ -19,8 +19,8 @@ The CLI is resolved globally; `opys.config.mjs` is imported from your project, s
 
 ```js
 // opys.config.mjs
-import { defineConfig } from '@opys/dev';
-import { minecraft, userDataDir } from '@opys/minecraft';
+import { defineConfig, userDataDir } from '@opys/dev';
+import { minecraft } from '@opys/minecraft';
 
 export default defineConfig({
   output: 'game.opys',
@@ -33,10 +33,17 @@ export default defineConfig({
       minecraft.gameArgs,
     ],
     workdir: '${game_directory}',
-    vars: { root: userDataDir('my-pack') },
   },
+  // Runs on the launching machine, every launch — so machine paths go here,
+  // never in `manifest.vars`, which is baked into the bundle.
   runClient: (manifest) => ({
-    vars: { ...manifest.vars, username: 'Player', uuid: '…', token: '…' },
+    vars: {
+      ...manifest.vars,
+      root: userDataDir('my-pack'),
+      username: 'Player',
+      uuid: '…',
+      token: '…',
+    },
   }),
 });
 ```

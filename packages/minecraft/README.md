@@ -40,15 +40,16 @@ const { client } = await fetchClient('1.20.1');
 const template = await clientToTemplate(client);
 ```
 
-### `artifactScanner(options?)`
+### Local files
 
-Async generator that yields `Artifact` entries by scanning a local directory. Used in `opys.config.mjs` to include mod JARs or other local files.
+Local mod JARs, configs and other files come from `files`, which lives in
+[`@opys/dev`](https://www.npmjs.com/package/@opys/dev):
 
 ```ts
-import { artifactScanner } from '@opys/minecraft';
+import { files } from '@opys/dev';
 
-// yields Artifact for each file under mods/
-const scanner = artifactScanner({ dir: 'mods', into: '${root}/mods' });
+// Every file under mods/, carried in the bundle.
+files({ from: 'mods', to: '${game_directory}/mods/${rel}' });
 ```
 
 ### Config helpers

@@ -66,30 +66,27 @@ a deployed launcher would: no config is read, so machine-specific vars
 ## Config file (`opys.config.mjs`)
 
 ```js
-import {
-  defineConfig,
-  resolveMinecraft,
-  artifactScanner,
-} from '@opys/minecraft';
+import { defineConfig, files, userDataDir } from '@opys/dev';
+import { forge, java } from '@opys/minecraft';
 
-export default defineConfig(async () => {
-  const mc = await resolveMinecraft({ version: '1.20.1' });
-
-  return {
-    output: 'game.opys',
-    manifest: {
-      artifacts: [
-        mc.artifacts,
-        artifactScanner({
-          directory: 'mods',
-          url: 'https://cdn.example.com/mods/${path}',
-          path: '${root}/mods/${path}',
-        }),
-      ],
-      vars: mc.vars,
-      launch: mc.launch,
-    },
-  };
+export default defineConfig({
+  output: 'game.opys',
+  plugins: [
+    forge('1.20.1-best'),
+    java('17'),
+    // Local files, carried in the bundle. Give a `url` instead to point at
+    // copies you publish yourself.
+    files({ from: 'mods', to: '${game_directory}/mods/${rel}' }),
+  ],
+  manifest: {
+    command: ({ java }) => java.bin,
+    args: ({ forge }) => [forge.jvmArgs, forge.mainClass, forge.gameArgs],
+    workdir: '${game_directory}',
+  },
+  // Runs on the launching machine, every launch: the place for machine paths.
+  runClient: (manifest) => ({
+    vars: { ...manifest.vars, root: userDataDir('my-pack') },
+  }),
 });
 ```
 
