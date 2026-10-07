@@ -289,11 +289,13 @@ async fn prepare_installs_and_says_what_to_run_from_one_reading_of_the_bundle() 
         .await
         .unwrap();
     assert_installed(&root);
+    // The manifest joins with `/`, on every platform: it is interpolated,
+    // not built as a path.
     assert_eq!(
         spec.args,
         [
             "-jar".to_owned(),
-            root.join("server.jar").to_string_lossy().into_owned()
+            format!("{}/server.jar", root.to_string_lossy())
         ]
     );
 

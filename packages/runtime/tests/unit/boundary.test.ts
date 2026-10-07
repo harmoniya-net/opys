@@ -173,7 +173,8 @@ describe('@opys/runtime — napi boundary smoke', () => {
       { vars: { root }, install: { onProgress: (p) => events.push(p.phase) } },
     );
     expect(readFileSync(join(root, 'hello.txt'), 'utf8')).toBe('world');
-    expect(spec.args).toEqual(['-jar', join(root, 'hello.txt')]);
+    // Interpolated, not built as a path: the manifest's `/` is kept.
+    expect(spec.args).toEqual(['-jar', `${root}/hello.txt`]);
     expect(events).toContain('download:done');
   });
 
