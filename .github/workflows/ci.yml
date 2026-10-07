@@ -5,6 +5,15 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  # Called by the release workflow: on the release PR's branch, which GitHub
+  # will not run this for on its own (a push made with the workflow token
+  # triggers nothing), and again on the release commit before publishing.
+  workflow_call:
+    inputs:
+      ref:
+        description: What to check out. Empty is the commit that triggered the caller.
+        type: string
+        default: ''
 
 env:
   CARGO_TERM_COLOR: always
@@ -19,6 +28,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.ref }}
       - uses: dtolnay/rust-toolchain@stable
       - uses: actions/setup-node@v6
         with:
@@ -30,12 +41,16 @@ jobs:
       # The release workflow only runs on a tag, so the one piece of it that
       # can be exercised on every push is: the publish order still resolves.
       - run: node scripts/release/crates.mjs
+      # Every package and crate is released together, at one version.
+      - run: npm run versions
 
   cargo:
     name: Cargo build + test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.ref }}
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
@@ -56,6 +71,8 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.ref }}
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
         with:
@@ -68,6 +85,8 @@ jobs:
     needs: cargo
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.ref }}
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
         with:

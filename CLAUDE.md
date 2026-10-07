@@ -488,5 +488,29 @@ export default defineConfig(({ mode }) => ({
 - **`npm run architecture`** holds the tree to
   `scripts/architecture/rules.mjs`. It reads manifests and sources only, so it
   needs nothing built; it runs on every commit and first in CI.
+- **A release is a merged pull request.** On every push to `main`,
+  release-please keeps one PR open: the next version, read off the commits
+  since the last release (`fix:` → patch, `feat:` → minor, `!` or
+  `BREAKING CHANGE` → minor while we are 0.x), and the changelog. So the
+  commit type is not decoration — it is what picks the version. Merging that
+  PR tags the release and publishes everything; nothing runs on anyone's
+  machine.
+
+  Every package and crate shares one version. release-please bumps the root
+  `package.json` and `scripts/release/stamp.mjs` fans it out — the workspace
+  `package.json`s and their `@opys/*` ranges, the root `Cargo.toml` (where
+  each internal crate's version is written once, as a workspace dependency),
+  and both lockfiles. `npm run versions` fails when anything is out of step,
+  and CI runs it.
+
+  Three things about GitHub shape the workflow, and each is a comment there
+  too. A push or tag made with the workflow token triggers nothing, so the
+  release workflow calls CI and publishing itself rather than waiting for
+  them to start. For the same reason the release PR shows no checks of its
+  own: CI is run on its branch by the release workflow, and a red run of
+  that workflow means do not merge yet. And publishing is its own workflow
+  (`publish.yml`), runnable by hand with a tag, because a release that
+  failed halfway has to be finishable.
+
 - **`node scripts/smoke-napi.mjs`** loads every `.node` and crosses each
   binding once — the check that the addons are actually built and loadable.

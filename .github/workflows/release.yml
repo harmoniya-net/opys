@@ -1,205 +1,102 @@
 name: Release
 
+# How a release happens:
+#
+#   1. Every push to main, release-please reads the commits since the last
+#      release and keeps one pull request open: the next version, chosen from
+#      what those commits say they are (`fix:` → patch, `feat:` → minor, a
+#      `!` or BREAKING CHANGE → minor while we are 0.x), and the changelog.
+#   2. It bumps the root `package.json` and nothing else. `stamp` fans that
+#      version out to every package, every crate and both lockfiles, on the
+#      PR's branch, and CI is run on the result.
+#   3. Merging the PR is the release. release-please tags it and writes the
+#      GitHub release; CI runs once more on that commit; then everything is
+#      published.
+#
+# Nothing here runs on anyone's machine.
+
 on:
   push:
-    tags: ['v*']
+    branches: [main]
 
-env:
-  CARGO_TERM_COLOR: always
-  DEBUG: napi:*
-  APP_NAME: opys
+# One at a time: two pushes in quick succession must not both rewrite the PR.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
 
 jobs:
-  # ─────────────────────────────────────────────────────────────
-  # 1. Cross-build the napi `.node` for every published target.
-  # ─────────────────────────────────────────────────────────────
-  build-napi:
-    name: napi (${{ matrix.target }})
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - host: ubuntu-latest
-            target: x86_64-unknown-linux-gnu
-          - host: ubuntu-latest
-            target: aarch64-unknown-linux-gnu
-          # musl targets have no apt-installable cross-toolchain on Ubuntu
-          # (unlike the gnu aarch64 target below) — cross-linked via Zig
-          # instead (see the "Setup Zig" step).
-          - host: ubuntu-latest
-            target: x86_64-unknown-linux-musl
-          - host: ubuntu-latest
-            target: aarch64-unknown-linux-musl
-          # Both darwin targets cross-compile on macos-14 (arm64 host). macos-13
-          # queue availability is unreliable; the macOS SDK is universal, so
-          # `--target x86_64-apple-darwin` builds fine from an arm64 host.
-          - host: macos-14
-            target: x86_64-apple-darwin
-          - host: macos-14
-            target: aarch64-apple-darwin
-          - host: windows-latest
-            target: x86_64-pc-windows-msvc
-    runs-on: ${{ matrix.host }}
+  release-please:
+    name: Release PR
+    runs-on: ubuntu-latest
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
+      # Empty unless a release PR was opened or updated by this run.
+      branch: ${{ steps.release.outputs.pr && fromJSON(steps.release.outputs.pr).headBranchName || '' }}
+    steps:
+      - uses: googleapis/release-please-action@v4
+        id: release
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+  # release-please knows one version and one file. The other sixty agree
+  # with it after this.
+  stamp:
+    name: Stamp the version everywhere
+    needs: release-please
+    if: needs.release-please.outputs.branch != ''
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-
+        with:
+          ref: ${{ needs.release-please.outputs.branch }}
       - uses: actions/setup-node@v6
         with:
           node-version: 20
-          cache: npm
-
       - uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: ${{ matrix.target }}
-
-      - uses: Swatinem/rust-cache@v2
-        with:
-          shared-key: napi-${{ matrix.target }}
-
-      # Cross-link for aarch64 Linux from x86_64 Ubuntu.
-      - name: Install aarch64 Linux toolchain
-        if: matrix.target == 'aarch64-unknown-linux-gnu'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y gcc-aarch64-linux-gnu
-          echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
-
-      # Zig bundles musl sysroots for every arch, so it cross-links both
-      # musl targets uniformly without per-arch musl gcc toolchains. Fetched
-      # directly rather than via a setup-zig action: those build the
-      # download URL as `zig-<os>-<arch>-<ver>.tar.xz`, but upstream renamed
-      # release tarballs to `zig-<arch>-<os>-<ver>.tar.xz` as of 0.16.0,
-      # so every mirror 404s until the action catches up.
-      - name: Setup Zig
-        if: contains(matrix.target, '-musl')
-        run: |
-          curl -sL https://ziglang.org/download/0.16.0/zig-x86_64-linux-0.16.0.tar.xz -o /tmp/zig.tar.xz
-          tar xf /tmp/zig.tar.xz -C /tmp
-          echo "/tmp/zig-x86_64-linux-0.16.0" >> "$GITHUB_PATH"
-
-      - run: npm ci --ignore-scripts
-
-      # Every binding, found rather than listed: a crate directory that ends
-      # in `-napi` is one. `bash` on every host, Windows included, so the
-      # loop is one spelling.
-      - name: Build every binding
-        shell: bash
+      - run: node scripts/release/stamp.mjs
+      - name: Commit what changed
         run: |
           set -euo pipefail
-          for crate in crates/opys-*-napi; do
-            echo "::group::$crate"
-            (cd "$crate" && npx napi build --platform --release --target ${{ matrix.target }} ${{ contains(matrix.target, '-musl') && '--zig' || '' }})
-            echo "::endgroup::"
-          done
+          if git diff --quiet; then
+            echo "already in step"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -am "chore: stamp the release version into every package and crate"
+          git push
 
-      # One artifact per target, holding every binding's `.node`. The path
-      # is kept from the first wildcard on, so it unpacks as
-      # `opys-<x>-napi/<file>.node`.
-      - name: Upload the bindings
-        uses: actions/upload-artifact@v7
-        with:
-          name: bindings-${{ matrix.target }}
-          path: crates/opys-*-napi/*.node
-          if-no-files-found: error
+  # The PR's own checks never start — its commits are pushed with the
+  # workflow token — so CI is run on its branch from here. A red run of this
+  # workflow means: do not merge the release PR yet.
+  check-release-pr:
+    name: CI on the release PR
+    needs: [release-please, stamp]
+    uses: ./.github/workflows/ci.yml
+    with:
+      ref: ${{ needs.release-please.outputs.branch }}
 
-  # ─────────────────────────────────────────────────────────────
-  # 2. Publish to npm: TS workspaces + per-platform napi packages.
-  # ─────────────────────────────────────────────────────────────
-  publish-npm:
-    name: Publish to npm
-    needs: build-napi
-    runs-on: ubuntu-latest
+  check-release:
+    name: CI on the release
+    needs: release-please
+    if: needs.release-please.outputs.release_created == 'true'
+    uses: ./.github/workflows/ci.yml
+    with:
+      ref: ${{ needs.release-please.outputs.tag_name }}
+
+  publish:
+    name: Publish
+    needs: [release-please, check-release]
     permissions:
       contents: read
       id-token: write
-    steps:
-      - uses: actions/checkout@v6
-
-      - uses: actions/setup-node@v6
-        with:
-          node-version: 20
-          cache: npm
-          registry-url: https://registry.npmjs.org/
-
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-
-      - run: npm ci
-
-      # Every target's `.node` for every binding, merged into one tree:
-      # `napi-artifacts/opys-<x>-napi/<file>.node`.
-      - uses: actions/download-artifact@v8
-        with:
-          pattern: bindings-*
-          path: napi-artifacts
-          merge-multiple: true
-
-      # The `npm/<target>/` per-platform sub-package scaffolding is checked
-      # into git (see `crates/opys-*-napi/npm/`). `napi artifacts` walks
-      # `./artifacts` (the filename encodes the target) and routes each
-      # `.node` into the matching `npm/<target>/` directory.
-      - name: Route .node files into per-platform sub-packages
-        run: |
-          set -euo pipefail
-          for crate in crates/opys-*-napi; do
-            name=$(basename "$crate")
-            # A binding with nothing built for it is a release that would
-            # publish an empty package: stop here instead.
-            ls "napi-artifacts/$name"/*.node > /dev/null
-            mkdir -p "$crate/artifacts"
-            cp "napi-artifacts/$name"/*.node "$crate/artifacts/"
-            (cd "$crate" && npx napi artifacts)
-            ls -R "$crate/npm"
-          done
-
-      # `napi prepublish` updates each sub-package's version (matches the
-      # loader's) and publishes them all via `npm publish` under the hood.
-      - name: Publish every binding (loader + platform sub-packages)
-        run: |
-          set -euo pipefail
-          for crate in crates/opys-*-napi; do
-            echo "::group::$crate"
-            (cd "$crate" && npx napi prepublish -t npm --skip-gh-release)
-            echo "::endgroup::"
-          done
-        env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-      # Build TS workspaces against the freshly downloaded host .node so
-      # tsdown produces dist/ before npm publish runs.
-      - run: npm run build --workspaces --if-present
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-      - name: Publish TS workspaces (@opys/core, runtime, dev, …)
-        run: npm publish --workspaces --access public --provenance
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-  # ─────────────────────────────────────────────────────────────
-  # 3. Publish to crates.io. Workspaces publish bottom-up.
-  # ─────────────────────────────────────────────────────────────
-  publish-crates:
-    name: Publish to crates.io
-    needs: publish-npm
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-
-      # The order is derived from the dependency graph, every crate after
-      # the ones it depends on — see `scripts/release/order.mjs`. `cargo
-      # publish` since 1.66 waits for crates.io indexing between packages, so
-      # a sequential publish in that order just works.
-      - name: Publish every crate, dependencies first
-        run: |
-          set -euo pipefail
-          for crate in $(node scripts/release/crates.mjs); do
-            echo "::group::$crate"
-            cargo publish -p "$crate"
-            echo "::endgroup::"
-          done
-        env:
-          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+    uses: ./.github/workflows/publish.yml
+    with:
+      ref: ${{ needs.release-please.outputs.tag_name }}
+    secrets: inherit

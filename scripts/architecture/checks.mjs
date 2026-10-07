@@ -642,16 +642,16 @@ export function checkWiring(rules, world) {
     ],
   ]) {
     if (!workflow.includes(text))
-      out.push(violation('wiring', 'release.yml', what));
+      out.push(violation('wiring', 'publish.yml', what));
   }
-  const named = [...workflow.matchAll(/crates\/(opys-[a-z-]+-napi)\b/g)].map(
+  const named = [...workflow.matchAll(/crates\/(opys-[a-z0-9-]+-napi)\b/g)].map(
     (m) => m[1],
   );
   for (const name of new Set(named)) {
     out.push(
       violation(
         'wiring',
-        'release.yml',
+        'publish.yml',
         `names ${name}; a binding is found, not listed`,
       ),
     );
@@ -660,7 +660,7 @@ export function checkWiring(rules, world) {
     out.push(
       violation(
         'wiring',
-        'release.yml',
+        'publish.yml',
         'publishes a crate by name; the order is derived, not listed',
       ),
     );

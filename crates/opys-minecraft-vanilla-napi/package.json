@@ -1,7 +1,7 @@
 {
   "name": "@opys/minecraft-vanilla-binding",
   "version": "0.2.0",
-  "description": "napi-rs binary binding for @opys/minecraft-vanilla. Not consumed directly \u2014 re-exported by @opys/minecraft-vanilla.",
+  "description": "napi-rs binary binding for @opys/minecraft-vanilla. Not consumed directly — re-exported by @opys/minecraft-vanilla.",
   "main": "index.js",
   "types": "index.d.ts",
   "napi": {
