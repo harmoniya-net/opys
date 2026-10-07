@@ -7,6 +7,8 @@ rust-version.workspace = true
 repository.workspace = true
 homepage.workspace = true
 description = "napi-rs bindings for opys-dev."
+# cdylib for npm consumption — not consumed by Rust callers, not on crates.io.
+publish = false
 
 [lib]
 crate-type = ["cdylib"]

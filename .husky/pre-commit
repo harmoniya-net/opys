@@ -1,5 +1,7 @@
 npx lint-staged
 
+node scripts/check-architecture.mjs
+
 if git diff --cached --name-only --diff-filter=ACM | grep -q '\.rs$'; then
   cargo clippy --workspace --all-targets -- -D warnings
 fi

@@ -7,6 +7,11 @@ plugins into a manifest at build time; the runtime installs and launches it.
 This file is the architecture of record — principles, structure, conventions.
 Treat every claim here as auditable against the code.
 
+The claims a machine can audit are audited: `scripts/architecture/rules.mjs`
+restates the boundaries below as data and `npm run architecture` holds the
+tree to them (see _Boundaries are checked_). Where this file and that one
+disagree, one of them is wrong — fix it in the same change.
+
 ## Principles
 
 1. **Functional.** Pure functions, total transforms, no incidental classes, no
@@ -68,7 +73,7 @@ them, and the list below names the layers rather than every one:
                      Thin wrapper over the `opys-link` crate.                → dev, core
 @opys/dgpuj         The dgpuj GPU-selection shim, one archive per target.
                      Thin wrapper over the `opys-dgpuj` crate.               → dev, core
-@opys/cli           the `opys` binary.                 → dev, runtime, minecraft, java
+@opys/cli           the `opys` binary.                 → core, dev, runtime, minecraft
 ```
 
 ### Invariants
@@ -105,9 +110,9 @@ them, and the list below names the layers rather than every one:
   the version JSON's `natives` / `classifiers` maps and the asset manifest's
   `objects` are `BTreeMap`s. Both were `HashMap`s and both made `opys.json`
   differ run to run.
-- **`runtime` depends on `core` alone** among `@opys/*` — verified: `runtime/lib`
-  imports only `@opys/core`, a few tiny third-party libs (`fflate`,
-  `tar-stream`), and `node:`. It is a clean reimplementation target.
+- **`runtime` depends on `core` alone** among `@opys/*` — `runtime/lib`
+  imports only `@opys/core`, its own binding, and `node:`, with no third-party
+  dependency at all. It is a clean reimplementation target.
 - **`dev` and `runtime` never see each other.** `core` is the only plank across
   the build-time / runtime wall; they are joined solely by `opys.json`.
 - **One rule format, one implementation** — the `opys-mojang-rules` crate owns
@@ -283,6 +288,44 @@ loaderPlugin)(pack.loader)`. What the two pack formats share lives in
   implementation living beside the Rust one is what silently drifted before;
   there must not be a second one.
 
+## Boundaries are checked
+
+Prose drifts; this file once said `runtime` imported `fflate` long after it
+had stopped. So the boundaries are also written down as data, in
+`scripts/architecture/rules.mjs`, and `scripts/check-architecture.mjs` fails
+when the tree leaves them. Everything there is an allow-list — a crate or
+package it does not name fails the check — so the way to add an edge, a
+binding or an exemption is to edit that file, where a reviewer sees it as the
+architectural change it is.
+
+What it holds:
+
+- **The DAG.** Each crate's and each package's internal dependencies, from
+  `cargo metadata` and the `package.json`s, against what it is allowed.
+- **The walls**, over everything a node _reaches_ rather than what it names,
+  and across napi: a wrapper package reaches the crate behind its binding. The
+  allow-lists are checked against the walls too, so loosening one cannot take
+  a wall down unnoticed.
+- **One binding per crate.** `opys-<x>-napi` depends on `opys-<x>`, reaches
+  nothing that crate does not, is a `cdylib`, and stays off crates.io; a
+  package depends on its own binding and no other.
+- **Imports are declared.** Read from the TypeScript syntax tree: no package a
+  `package.json` does not list (hoisting hides those), no subpath into another
+  package, no relative path out of one. `lib/` may not use a devDependency.
+- **The source-level principles that can be read syntactically**: a `class` in
+  `lib/` is an `Error` or a named exemption; no `as unknown as`; a `…Wire`
+  type is never `pub`; a file that names `HashMap` says why.
+- **The hand-kept lists.** npm workspaces, the release workflow's
+  build / upload / download / publish steps per binding, `cargo publish` for
+  every publishable crate in dependency order, the version stamp, and the
+  smoke test. Adding a binding means touching all of them, and each has been
+  missed before.
+
+What it cannot hold — purity, total transforms, that a resolver has exactly
+one impure call — stays a matter of review. The checks themselves are pure
+functions over a snapshot of the tree, and `npm run test:architecture` breaks
+a small sound world one rule at a time to show each can fail.
+
 ## Plugin model — bundler-style
 
 ```ts
@@ -374,5 +417,8 @@ Partial<Manifest>` is the launch-time patch, applied every launch (so e.g.
   crate is tested there, not twice: `@opys/java`'s JS tests cover only what
   the wrapper adds (the plugin closure, the typed surface), while the
   resolvers are exercised in `crates/opys-java/tests`.
+- **`npm run architecture`** holds the tree to
+  `scripts/architecture/rules.mjs`. It reads manifests and sources only, so it
+  needs nothing built; it runs on every commit and first in CI.
 - **`node scripts/smoke-napi.mjs`** loads every `.node` and crosses each
   binding once — the check that the addons are actually built and loadable.

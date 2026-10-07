@@ -10,6 +10,24 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
+  # Holds the tree to scripts/architecture/rules.mjs: the dependency DAG of
+  # crates and packages, the walls across it, one binding per crate, and the
+  # hand-kept release lists. Reads manifests and sources only, so it needs
+  # nothing built and runs first.
+  architecture:
+    name: Architecture boundaries
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npm run test:architecture
+      - run: npm run architecture
+
   cargo:
     name: Cargo build + test
     runs-on: ubuntu-latest
