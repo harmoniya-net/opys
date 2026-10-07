@@ -56,7 +56,6 @@ pub struct ProgressEventJs {
     pub fetched: Option<u32>,
     pub total: Option<u32>,
     pub skipped: Option<u32>,
-    pub resolved: Option<u32>,
     pub count: Option<u32>,
     pub removed: Option<u32>,
     pub path: Option<String>,
@@ -67,11 +66,6 @@ fn progress_to_event(p: InstallProgress) -> ProgressEventJs {
     match p {
         InstallProgress::Resolve => ProgressEventJs {
             phase: "resolve".into(),
-            ..Default::default()
-        },
-        InstallProgress::Pointer { resolved } => ProgressEventJs {
-            phase: "pointer".into(),
-            resolved: Some(resolved),
             ..Default::default()
         },
         InstallProgress::Download {

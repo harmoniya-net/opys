@@ -184,7 +184,6 @@ pub fn java_template(release: VendorRelease) -> JavaTemplate {
                     sha256: sha256.clone(),
                 })
             }),
-            discovery: b.discovery.clone(),
             metadata: None,
             extract: Some(vec![ExtractRule::Scan(ExtractScan {
                 matches: "*".to_owned(),

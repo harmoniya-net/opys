@@ -1,9 +1,9 @@
 use indexmap::IndexMap;
-use tokio::process::{Child, Command};
 use opys_core::{
-    interpolate, resolve_val_defs, resolve_vars, resolved_args, resolved_envs, Manifest,
-    OsOptions, VarMap,
+    interpolate, resolve_val_defs, resolve_vars, resolved_args, resolved_envs, Manifest, OsOptions,
+    VarMap,
 };
+use tokio::process::{Child, Command};
 
 use crate::errors::InstallError;
 use crate::install::{install, InstallOptions};
@@ -115,4 +115,3 @@ pub async fn launch<'a>(
         source,
     })
 }
-

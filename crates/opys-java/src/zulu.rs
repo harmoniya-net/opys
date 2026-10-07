@@ -18,8 +18,8 @@ use serde::Deserialize;
 
 use crate::error::JavaError;
 use crate::platforms::{fan_out, platforms_or_default, Platform, SupportedArch};
-use opys_dev::url::encode_uri_component;
 use crate::vendor::{pick_anchor, VendorBinary, VendorRelease};
+use opys_dev::url::encode_uri_component;
 
 pub const ZULU_BASE: &str = "https://api.azul.com/metadata/v1";
 const API_NAME: &str = "Azul";
@@ -194,7 +194,6 @@ pub fn resolve_zulu(
             url: pkg.download_url.clone(),
             size: pkg.size,
             sha256: Some(pkg.sha256_hash.clone()),
-            discovery: None,
         })
         .collect();
 

@@ -1,7 +1,6 @@
 use opys_mojang_rules::{satisfies_ruleset, MojangRuleset, OsOptions, RuleError};
 use serde::{Deserialize, Serialize};
 
-use crate::discovery::Discovery;
 use crate::extract::{decode_extract, encode_extract, ExtractRule, ExtractWire};
 use crate::integrity::Integrity;
 use crate::shorthand::{encode_short_ruleset, parse_short_ruleset, Ruleset, ShorthandError};
@@ -15,14 +14,20 @@ pub struct Artifact {
     pub size: Option<u64>,
     pub rules: MojangRuleset,
     pub integrity: Option<Integrity>,
-    pub discovery: Option<Discovery>,
     pub metadata: Option<serde_json::Value>,
     pub extract: Option<Vec<ExtractRule>>,
 }
 
 /// `source` is the domain `Source`, which carries its own wire conversion —
 /// only the fields whose wire shape actually differs are spelled out here.
+///
+/// Unknown fields are refused rather than dropped. An artifact is where a
+/// manifest says how a file is verified, and a key this reader does not know
+/// may be exactly that: a manifest written when `discovery` existed carries
+/// its only integrity there, and reading past it would install the file
+/// unchecked without a word. `metadata` is the place for anything else.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub(crate) struct ArtifactWire {
     path: String,
     source: Source,
@@ -32,8 +37,6 @@ pub(crate) struct ArtifactWire {
     rules: Option<Ruleset>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     integrity: Option<Integrity>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    discovery: Option<Discovery>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     metadata: Option<serde_json::Value>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -54,7 +57,6 @@ impl TryFrom<ArtifactWire> for Artifact {
                 .transpose()?
                 .unwrap_or_default(),
             integrity: raw.integrity,
-            discovery: raw.discovery,
             metadata: raw.metadata,
             extract: raw.extract.map(decode_extract),
         })
@@ -70,7 +72,6 @@ impl From<Artifact> for ArtifactWire {
             rules: (!u.rules.is_empty()).then(|| encode_short_ruleset(&u.rules)),
             integrity: u.integrity.map(Integrity::collapsed),
             extract: u.extract.as_deref().map(encode_extract),
-            discovery: u.discovery,
             metadata: u.metadata,
         }
     }

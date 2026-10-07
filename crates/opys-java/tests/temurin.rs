@@ -168,7 +168,6 @@ fn maps_adoptium_package_fields_onto_a_vendor_binary() {
     );
     assert_eq!(binary.size, 12345);
     assert_eq!(binary.sha256.as_deref(), Some("abc123"));
-    assert!(binary.discovery.is_none());
 }
 
 #[test]

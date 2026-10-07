@@ -3,7 +3,6 @@ import {
   sourceFile,
   sourceUrl,
   type Artifact,
-  type Discovery,
   type Integrity,
 } from '@opys/core';
 import {
@@ -70,15 +69,13 @@ describe('ChainablePlugin', () => {
     ]);
   });
 
-  it('removeIntegrity clears both integrity and discovery', async () => {
+  it('removeIntegrity clears integrity', async () => {
     const integrity: Integrity = { sha1: 'abc' };
-    const discovery: Discovery = {};
     const base = fake({
-      artifacts: [art('mods/a.jar', { integrity, discovery })],
+      artifacts: [art('mods/a.jar', { integrity })],
     });
     const [a] = await built(base.removeIntegrity('**/*.jar'));
     expect(a!.integrity).toBeUndefined();
-    expect(a!.discovery).toBeUndefined();
   });
 
   it('updateMany shallow-merges a partial into every match', async () => {

@@ -151,29 +151,76 @@ fn maps_asset_fields_onto_a_vendor_binary_using_the_inline_digest() {
     );
     assert_eq!(binary.size, 999);
     assert_eq!(binary.sha256.as_deref(), Some("aaa111"));
-    // With an inline digest there is nothing left to discover at install time.
-    assert!(binary.discovery.is_none());
+}
+
+/// A release from before GitHub computed digests: the archive, and beside it
+/// a `.sha256` asset served from `base`.
+fn undigested(base: &str, with_sidecar: bool) -> String {
+    const ARCHIVE: &str = "graalvm-community-jdk-21.0.2_linux-x64_bin.tar.gz";
+    let mut assets = vec![asset(ARCHIVE, None)];
+    if with_sidecar {
+        assets.push(format!(
+            r#"{{"name":"{ARCHIVE}.sha256","size":64,"browser_download_url":"{base}/sidecar"}}"#
+        ));
+    }
+    format!(
+        r#"[{{"tag_name":"jdk-21.0.2","prerelease":false,"draft":false,
+              "published_at":"2024-01-01T00:00:00Z","assets":[{}]}}]"#,
+        assets.join(",")
+    )
+}
+
+/// The API on every path but `/sidecar`, which answers with `sidecar`.
+fn with_sidecar(sidecar: Reply, present: bool) -> TestServer {
+    let sidecar = std::sync::Arc::new(sidecar);
+    TestServer::start(move |request: &Request| {
+        if request.target == "/sidecar" {
+            return Reply {
+                status: sidecar.status,
+                body: sidecar.body.clone(),
+            };
+        }
+        let base = format!("http://{}", request.header("host").unwrap_or_default());
+        Reply::json(undigested(&base, present))
+    })
 }
 
 #[test]
-fn falls_back_to_the_sha256_sidecar_when_github_computed_no_digest() {
-    let body = format!(
-        r#"[{{"tag_name":"jdk-21.0.2","prerelease":false,"draft":false,
-              "published_at":"2024-01-01T00:00:00Z","assets":[{}]}}]"#,
-        asset("graalvm-community-jdk-21.0.2_linux-x64_bin.tar.gz", None)
-    );
-    let server = TestServer::start(serve(body));
+fn a_release_with_no_digest_is_pinned_from_its_sha256_file_at_build_time() {
+    let hash = "AB".repeat(32);
+    // `sha256sum` output: the hash, then the name.
+    let server = with_sidecar(Reply::json(format!("{hash}  graalvm.tar.gz\n")), true);
     let result = resolve_graalvm("21", &options(&server, &[LINUX_X64])).unwrap();
 
-    let binary = &result.binaries[0];
-    assert!(binary.sha256.is_none());
-    let probe = binary
-        .discovery
-        .as_ref()
-        .and_then(|d| d.integrity.as_ref())
-        .and_then(|i| i.url.as_ref())
-        .expect("a url integrity probe");
-    assert_eq!(probe.location(), "${url}.sha256");
+    // Lower-cased, and on the binary itself — nothing is left for the
+    // installing machine to look up.
+    assert_eq!(
+        result.binaries[0].sha256.as_deref(),
+        Some("ab".repeat(32).as_str())
+    );
+    assert_eq!(
+        server.targets().last().map(String::as_str),
+        Some("/sidecar")
+    );
+}
+
+#[test]
+fn a_release_that_cannot_be_verified_is_refused_rather_than_shipped() {
+    let named = |server: &TestServer| {
+        resolve_graalvm("21", &options(server, &[LINUX_X64]))
+            .unwrap_err()
+            .to_string()
+    };
+
+    // No `.sha256` asset at all.
+    let message = named(&with_sidecar(Reply::status(404), false));
+    assert!(
+        message.contains("_linux-x64_bin.tar.gz' has no checksum"),
+        "{message}"
+    );
+    // One that is gone, and one that holds no hash.
+    assert!(named(&with_sidecar(Reply::status(404), true)).contains("has no checksum"));
+    assert!(named(&with_sidecar(Reply::json("not a hash"), true)).contains("has no checksum"));
 }
 
 #[test]

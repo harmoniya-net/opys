@@ -4,8 +4,7 @@
 
 Install + launch executor — consumes a frozen `Manifest` from
 [`opys-core`](https://crates.io/crates/opys-core), runs the
-resolve → pointer → discovery → scan → fetch → verify → extract →
-sweep pipeline, then spawns the configured process.
+resolve → scan → fetch → verify → extract → sweep pipeline, then spawns the configured process.
 
 ```toml
 [dependencies]

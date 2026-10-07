@@ -1,5 +1,4 @@
 use indexmap::IndexMap;
-use opys_core::Discovery;
 use serde::{Deserialize, Serialize};
 
 use crate::platforms::Platform;
@@ -13,13 +12,11 @@ pub struct VendorBinary {
     pub filename: String,
     pub url: String,
     pub size: u64,
-    /// Absent when the vendor can't provide a checksum at resolve time — the
-    /// binary then falls back to `discovery`.
+    /// Every vendor resolver pins one today. It stays optional because the
+    /// shape is also an input: a caller may hand the template a binary it
+    /// resolved itself and has no hash for.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub sha256: Option<String>,
-    /// Install-time checksum discovery, used when `sha256` is absent.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub discovery: Option<Discovery>,
 }
 
 /// A resolved JDK release — vendor-agnostic input to the shared template.

@@ -102,7 +102,6 @@ fn a_library_carries_no_rules_and_no_extraction() {
 
     assert!(artifact.rules.is_empty());
     assert!(artifact.extract.is_none());
-    assert!(artifact.discovery.is_none());
     assert!(artifact.metadata.is_none());
 }
 

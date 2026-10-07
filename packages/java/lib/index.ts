@@ -17,7 +17,7 @@ import {
   type ChainablePlugin,
   type Contribution,
 } from '@opys/dev';
-import type { Artifact, Discovery, OsName, ValDefs } from '@opys/core';
+import type { Artifact, OsName, ValDefs } from '@opys/core';
 
 // ──────────────────────────────────────────────────────────────────────────
 // Platforms
@@ -50,10 +50,8 @@ export interface VendorBinary {
   readonly filename: string;
   readonly url: string;
   readonly size: number;
-  /** Absent when the vendor can't provide a checksum at resolve time — falls back to `discovery`. */
+  /** Pinned at build time by every vendor resolver. */
   readonly sha256?: string;
-  /** Install-time checksum discovery, used when `sha256` is absent. */
-  readonly discovery?: Discovery;
 }
 
 /** A resolved JDK release — vendor-agnostic input to the shared template. */

@@ -118,7 +118,6 @@ pub fn resolve_authliberty(
                 sha256: sha256.clone(),
             })
         }),
-        discovery: None,
         metadata: None,
         extract: None,
     };

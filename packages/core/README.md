@@ -20,17 +20,12 @@ narrow with `'url' in source` rather than a tag.
 
 ```ts
 type Source =
-  | { url: string }
-  | { file: string }
-  | { string: string }
-  | { bytes: string } // base64
-  | { pointer: string };
+  { url: string } | { file: string } | { string: string } | { bytes: string }; // base64
 
 sourceUrl('https://example.com/file.jar');
 sourceFile('./local/file.jar');
 sourceString('inline content');
 Source.bytes(new Uint8Array([1, 2, 3])); // auto-base64
-sourcePointer('forge:libraries.json');
 ```
 
 ### `ExtractRule` — zip extraction instructions

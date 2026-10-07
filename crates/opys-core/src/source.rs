@@ -8,7 +8,6 @@ pub enum Source {
     File { file: String },
     String { string: String },
     Bytes { bytes: String },
-    Pointer { pointer: String },
 }
 
 impl Source {
@@ -28,7 +27,6 @@ pub(crate) enum SourceWire {
     File { file: String },
     String { string: String },
     Bytes { bytes: String },
-    Pointer { pointer: String },
 }
 
 impl From<SourceWire> for Source {
@@ -38,7 +36,6 @@ impl From<SourceWire> for Source {
             SourceWire::File { file } => Source::File { file },
             SourceWire::String { string } => Source::String { string },
             SourceWire::Bytes { bytes } => Source::Bytes { bytes },
-            SourceWire::Pointer { pointer } => Source::Pointer { pointer },
         }
     }
 }
@@ -50,7 +47,6 @@ impl From<Source> for SourceWire {
             Source::File { file } => SourceWire::File { file },
             Source::String { string } => SourceWire::String { string },
             Source::Bytes { bytes } => SourceWire::Bytes { bytes },
-            Source::Pointer { pointer } => SourceWire::Pointer { pointer },
         }
     }
 }

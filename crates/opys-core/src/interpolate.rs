@@ -54,14 +54,14 @@ pub fn resolve_vars(vars: &VarMap) -> Result<VarMap, String> {
         // then run replace. Simpler: just do a recursive replace with closure.
         let result = {
             let mut err: Option<String> = None;
-            let s = replace_placeholders(template, |name| match go(name, vars, resolved, resolving)
-            {
-                Ok(v) => v,
-                Err(e) => {
-                    err = Some(e);
-                    String::new()
-                }
-            });
+            let s =
+                replace_placeholders(template, |name| match go(name, vars, resolved, resolving) {
+                    Ok(v) => v,
+                    Err(e) => {
+                        err = Some(e);
+                        String::new()
+                    }
+                });
             if let Some(e) = err {
                 return Err(e);
             }

@@ -142,29 +142,11 @@ export type Source =
   | { readonly url: string }
   | { readonly file: string }
   | { readonly string: string }
-  | { readonly bytes: string }
-  | { readonly pointer: string };
+  | { readonly bytes: string };
 
 export type HashEntry = { sha1: string } | { sha256: string } | { md5: string };
 export type Integrity = HashEntry | HashEntry[];
 export type HashAlgo = 'sha1' | 'sha256' | 'md5';
-
-export type HashRef =
-  | { readonly sha256: string }
-  | { readonly sha1: string }
-  | { readonly md5: string };
-
-export interface IntegrityProbes {
-  readonly header?: HashRef;
-  readonly url?: HashRef;
-}
-export interface SizeProbes {
-  readonly header?: string;
-}
-export interface Discovery {
-  readonly integrity?: IntegrityProbes;
-  readonly size?: SizeProbes;
-}
 
 /**
  * Like `Source`, the extract rules are discriminated by which field is
@@ -203,7 +185,6 @@ export interface Artifact {
   readonly size?: number;
   readonly rules?: Ruleset;
   readonly integrity?: Integrity;
-  readonly discovery?: Discovery;
   readonly metadata?: unknown;
   readonly extract?: ExtractRule[];
 }
@@ -255,12 +236,6 @@ export interface Manifest {
   readonly restrict?: ReadonlyArray<string>;
 }
 
-export interface PointerDescriptor {
-  readonly source: Source;
-  readonly integrity?: Integrity;
-  readonly size?: number;
-}
-
 // ──────────────────────────────────────────────────────────────────────────
 // Factories — pure TS, no boundary crossing.
 // ──────────────────────────────────────────────────────────────────────────
@@ -268,7 +243,6 @@ export interface PointerDescriptor {
 export const sourceUrl = (url: string): Source => ({ url });
 export const sourceFile = (file: string): Source => ({ file });
 export const sourceString = (string: string): Source => ({ string });
-export const sourcePointer = (pointer: string): Source => ({ pointer });
 export const sourceBytes = (bytes: Uint8Array): Source => ({
   bytes: Buffer.from(bytes).toString('base64'),
 });

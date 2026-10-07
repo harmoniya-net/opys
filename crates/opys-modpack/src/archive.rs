@@ -72,7 +72,6 @@ impl PackArchive {
             integrity: Some(Integrity::One(HashEntry::Sha1 {
                 sha1: hex::encode(Sha1::digest(&self.bytes)),
             })),
-            discovery: None,
             metadata: None,
             extract: Some(
                 directories

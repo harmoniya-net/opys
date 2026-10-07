@@ -17,7 +17,7 @@ import * as napi from '@opys/runtime-binding';
  * dances.
  */
 export type InstallProgress =
-  | { phase: 'resolve'; resolved: number }
+  | { phase: 'resolve' }
   | { phase: 'download'; fetched: number; total: number; skipped: number }
   | { phase: 'download:start'; path: string; total: number }
   | { phase: 'download:bytes'; path: string; bytes: number }

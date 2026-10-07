@@ -11,7 +11,6 @@ import {
   fetchWithRetry,
   sourceUrl,
   type Artifact,
-  type Discovery,
   type ExtractRule,
   type Ruleset,
 } from '@opys/core';
@@ -152,8 +151,6 @@ export interface GitHubAssetSpec {
   rules?: Ruleset;
   /** Extract rules for jars / tarballs. */
   extract?: ExtractRule[];
-  /** Optional install-time discovery hints. */
-  discovery?: Discovery;
   /** Opaque metadata, forwarded into the manifest unchanged. */
   metadata?: unknown;
 }
@@ -230,7 +227,6 @@ function gitHubAssetToArtifact(
     rules: spec.rules ?? [],
     ...(sha256 ? { integrity: { sha256 } } : {}),
     ...(spec.extract ? { extract: spec.extract } : {}),
-    ...(spec.discovery ? { discovery: spec.discovery } : {}),
     ...(spec.metadata !== undefined ? { metadata: spec.metadata } : {}),
   };
 }

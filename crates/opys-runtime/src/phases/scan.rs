@@ -1,4 +1,3 @@
-use std::collections::HashSet;
 use std::path::Path;
 
 use futures::stream::{self, StreamExt};
@@ -21,24 +20,23 @@ pub struct ScanResult {
 /// Decide which artifacts need fetching. A present file is skipped only if it
 /// still matches its hash — so corruption or truncation of an existing file is
 /// caught and re-fetched on every run, not trusted just because the path exists.
-/// Hashless artifacts pass (there's nothing to check), and `force` always
-/// re-fetches. The re-hashing runs with bounded concurrency.
+/// Hashless artifacts pass (there's nothing to check). The re-hashing runs with
+/// bounded concurrency.
 pub async fn scan(
     manifest: &Manifest,
     vars: &indexmap::IndexMap<String, String>,
     platform: &OsOptions,
     feats: &[String],
-    force: &HashSet<String>,
 ) -> Result<ScanResult, InstallError> {
     let applicable = filter_manifest(manifest, platform, feats)?;
 
-    // Forced or missing artifacts go straight to the fetch list; present ones
-    // are queued for a hash check.
+    // Missing artifacts go straight to the fetch list; present ones are
+    // queued for a hash check.
     let mut tasks = Vec::new();
     let mut present = Vec::new();
     for u in applicable.artifacts {
         let final_path = interpolate(&u.path, vars);
-        if !force.contains(&u.path) && Path::new(&final_path).exists() {
+        if Path::new(&final_path).exists() {
             present.push(ScanTask { artifact: u, final_path });
         } else {
             tasks.push(ScanTask { artifact: u, final_path });

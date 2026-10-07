@@ -8,8 +8,6 @@ use crate::errors::InstallError;
 use crate::phases::extract::{extract_all, ExtractTask};
 use crate::phases::fetch::{fetch_all, FetchHooks, FetchTask};
 use crate::phases::resolve::{resolve_manifest, ManifestSource};
-use crate::phases::resolve_discovery::resolve_discovery;
-use crate::phases::resolve_pointers::resolve_pointers;
 use crate::phases::scan::scan;
 use crate::phases::sweep::{sweep, SweepOptions};
 use crate::phases::verify::verify_all;
@@ -18,7 +16,6 @@ use crate::platform::current_platform;
 #[derive(Debug, Clone)]
 pub enum InstallProgress {
     Resolve,
-    Pointer { resolved: u32 },
     Download { fetched: u32, total: u32, skipped: u32 },
     DownloadStart { path: String, total: u64 },
     DownloadBytes { path: String, bytes: u64 },
@@ -73,25 +70,14 @@ pub async fn install<'a>(
     };
 
     report(InstallProgress::Resolve);
-    let base = resolve_manifest(source).await?;
-    let mut flat = resolve_val_defs(&base.vars, &platform, &features)?;
+    let manifest = resolve_manifest(source).await?;
+    let mut flat = resolve_val_defs(&manifest.vars, &platform, &features)?;
     for (k, v) in extra_vars {
         flat.insert(k, v);
     }
     let vars = resolve_vars(&flat).map_err(InstallError::other)?;
 
-    let pointers = resolve_pointers(base, &vars, &platform).await?;
-    if pointers.resolved > 0 {
-        report(InstallProgress::Pointer {
-            resolved: pointers.resolved,
-        });
-    }
-    let discovered = resolve_discovery(pointers.manifest, &vars, &platform).await?;
-    let manifest = discovered.manifest;
-    let mut refetch = pointers.refetch;
-    refetch.extend(discovered.refetch);
-
-    let scanned = scan(&manifest, &vars, &platform, &features, &refetch).await?;
+    let scanned = scan(&manifest, &vars, &platform, &features).await?;
     let total_fetch = scanned.tasks.len() as u32;
 
     let fetch_tasks: Vec<FetchTask> = scanned

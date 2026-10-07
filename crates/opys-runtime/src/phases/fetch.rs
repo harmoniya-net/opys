@@ -122,13 +122,6 @@ async fn fetch_once(
             })?;
             on_bytes(len);
         }
-        Source::Pointer { .. } => {
-            // Pointer sources should be resolved before scan/fetch.
-            return Err(InstallError::other(format!(
-                "Unsupported source for {}",
-                task.artifact.path
-            )));
-        }
     }
 
     fs::rename(&tmp_path, &task.final_path)

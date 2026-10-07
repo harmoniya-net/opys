@@ -67,6 +67,16 @@ Eight packages, a clean DAG, no cycles:
 ### Invariants
 
 - **`core` is the frozen manifest spec.** Its schemas are the contract.
+- **A manifest is fully resolved; the installer looks nothing up.** Every
+  artifact names a concrete source and, wherever one can be had, a pinned
+  hash. Finding out what to download or what its hash should be is build-time
+  work, and belongs to a plugin. The format used to allow two exceptions — a
+  `pointer` source, and a `discovery` block that read a hash from a header or
+  a sidecar file at install time — and both were removed (the one deliberate
+  break of the frozen format). A hash that arrives from the same server as the
+  file verifies a transfer and pins nothing, and "follow latest" is what
+  rebuilding the manifest is for: a deployed launcher fetches `opys.json`
+  itself, so the manifest is the pointer.
 - **`core` holds only what _both_ sides need.** A contract named by build-time
   alone — `Contribution`, the plugin output — belongs in `dev`; one named by
   runtime alone belongs in `runtime`. `core` is the intersection, not the union.
@@ -319,8 +329,8 @@ Partial<Manifest>` is the launch-time patch, applied every launch (so e.g.
   build/runtime wall holds — `cli` orchestrates `dev` + `runtime`, joined by
   the in-memory `Manifest`; a _deployed_ launcher instead feeds
   `@opys/runtime` a frozen, published `opys.json` with no `dev`.
-- The runtime install pipeline is phased: resolve → pointer → discovery → scan
-  → fetch → verify → extract → sweep. Failure is a discriminated union —
+- The runtime install pipeline is phased: resolve → scan → fetch → verify →
+  extract → sweep. Failure is a discriminated union —
   `NetworkError` / `IntegrityError` / `ExtractionError`.
 
 ## Working in the repo

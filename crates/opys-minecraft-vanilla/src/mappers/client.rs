@@ -13,7 +13,6 @@ pub fn map_client_jar(client: &Client) -> Artifact {
         integrity: Some(Integrity::One(HashEntry::Sha1 {
             sha1: client.downloads.client.sha1.clone(),
         })),
-        discovery: None,
         metadata: None,
         extract: None,
     }

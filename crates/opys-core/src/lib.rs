@@ -5,28 +5,24 @@
 //! Depends on `opys-mojang-rules` for the rule format/evaluator.
 
 mod artifact;
-mod discovery;
 mod extract;
 mod glob;
 mod integrity;
 mod interpolate;
 mod launch;
 mod manifest;
-mod pointer;
 mod shorthand;
 mod source;
 mod val;
 mod valdefs;
 
 pub use artifact::{deduplicate_artifacts, Artifact};
-pub use discovery::{Discovery, HashRef, IntegrityProbes, SizeProbes};
 pub use extract::{ExtractDump, ExtractPick, ExtractRule, ExtractScan};
 pub use glob::{glob_base, glob_to_regex};
 pub use integrity::{HashAlgo, HashEntry, Integrity};
 pub use interpolate::{interpolate, resolve_vars, VarMap};
 pub use launch::{resolved_args, resolved_envs, Launch};
 pub use manifest::{filter_manifest, parse_manifest, Manifest};
-pub use pointer::{parse_pointer_descriptor, PointerDescriptor};
 // `Rule` / `Ruleset` are opys's own: how a rule is spelled in a manifest,
 // shorthand or expanded. `MojangRule` / `MojangRuleset` below are what either
 // expands to, and what the evaluator takes.

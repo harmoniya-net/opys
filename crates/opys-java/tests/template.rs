@@ -34,7 +34,6 @@ fn binary(platform: Platform, filename: &str) -> VendorBinary {
         url: format!("https://example.invalid/{filename}"),
         size: 100,
         sha256: Some("cafe".to_owned()),
-        discovery: None,
     }
 }
 
@@ -126,22 +125,13 @@ fn extracts_with_a_glob_strip_into_the_major_versioned_runtime_dir() {
 }
 
 #[test]
-fn carries_a_discovery_fallback_onto_the_artifact() {
+fn a_binary_with_no_hash_becomes_an_artifact_with_no_integrity() {
+    // No vendor resolver produces one, but the template takes a binary from
+    // any caller, and it must not invent a hash for it.
     let mut b = binary(LINUX_X64, "linux.tar.gz");
     b.sha256 = None;
-    b.discovery = Some(opys_core::Discovery {
-        integrity: Some(opys_core::IntegrityProbes {
-            header: None,
-            url: Some(opys_core::HashRef::Sha256 {
-                sha256: "${url}.sha256".to_owned(),
-            }),
-        }),
-        size: None,
-    });
     let template = java_template(release(vec![b]));
-    let artifact = &template.artifacts[0];
-    assert!(artifact.integrity.is_none());
-    assert!(artifact.discovery.is_some());
+    assert!(template.artifacts[0].integrity.is_none());
 }
 
 // ── vars ──────────────────────────────────────────────────────────────────

@@ -105,7 +105,6 @@ pub fn library_artifact(lib: &FabricLibrary) -> Result<(Artifact, ClasspathEntry
                 sha1: sha1.to_owned(),
             })
         }),
-        discovery: None,
         metadata: None,
         extract: None,
     };

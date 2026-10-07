@@ -38,7 +38,6 @@ fn make_artifact(path: &str) -> Artifact {
         size: None,
         rules: Vec::new(),
         integrity: None,
-        discovery: None,
         metadata: None,
         extract: None,
     }
@@ -208,4 +207,47 @@ fn dedup_preserves_insertion_order_for_unique_paths() {
         .map(|a| a.path)
         .collect();
     assert_eq!(paths, vec!["a", "b", "c"]);
+}
+
+// ── what the format no longer has ─────────────────────────────────────────
+
+#[test]
+fn a_pointer_source_is_refused() {
+    // Resolving a source on the installing machine is gone from the format; a
+    // manifest that still asks for it must not parse as something else.
+    let raw = json!({
+        "vars": {},
+        "artifacts": [{ "path": "a.jar", "source": { "pointer": "https://example.test/a.json" } }],
+    });
+    assert!(serde_json::from_value::<Manifest>(raw).is_err());
+}
+
+#[test]
+fn a_discovery_block_is_refused_rather_than_read_past() {
+    // This artifact's only integrity is in the block. Dropping the unknown key
+    // would install the file unverified and say nothing.
+    let raw = json!({
+        "vars": {},
+        "artifacts": [{
+            "path": "jdk.tar.gz",
+            "source": { "url": "https://example.test/jdk.tar.gz" },
+            "discovery": { "integrity": { "url": { "sha256": "${url}.sha256" } } },
+        }],
+    });
+    let message = serde_json::from_value::<Manifest>(raw).unwrap_err().to_string();
+    assert!(message.contains("unknown field `discovery`"), "{message}");
+}
+
+#[test]
+fn metadata_is_where_anything_else_goes() {
+    let raw = json!({
+        "vars": {},
+        "artifacts": [{
+            "path": "a.jar",
+            "source": { "url": "https://example.test/a.jar" },
+            "metadata": { "anything": ["at", "all"] },
+        }],
+    });
+    let manifest: Manifest = serde_json::from_value(raw).unwrap();
+    assert_eq!(manifest.artifacts[0].metadata, Some(json!({ "anything": ["at", "all"] })));
 }

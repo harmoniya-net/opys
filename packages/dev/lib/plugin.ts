@@ -67,10 +67,7 @@ export interface ChainablePlugin extends OpysPlugin {
    * matched artifact's existing `rules`.
    */
   addRule(match: Selector, rules: RulesetInput): ChainablePlugin;
-  /**
-   * Clear `integrity` **and** `discovery` on matched artifacts — the latter so
-   * the runtime doesn't re-derive a hash at install and verify anyway.
-   */
+  /** Clear `integrity` on matched artifacts, so they install unverified. */
   removeIntegrity(match: Selector): ChainablePlugin;
   /** Shallow-merge a patch into the first matching artifact (input order). */
   updateFirst(match: Selector, patch: ArtifactPatch): ChainablePlugin;
@@ -124,7 +121,6 @@ function chainable(
         mapMatched(match, (a) => ({
           ...a,
           integrity: undefined,
-          discovery: undefined,
         })),
       ),
     updateMany: (match, patch) =>

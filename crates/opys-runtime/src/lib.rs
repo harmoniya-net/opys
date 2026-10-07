@@ -16,8 +16,6 @@ mod phases {
     pub mod extract;
     pub mod fetch;
     pub mod resolve;
-    pub mod resolve_discovery;
-    pub mod resolve_pointers;
     pub mod scan;
     pub mod sweep;
     pub mod verify;
@@ -26,9 +24,9 @@ mod phases {
 pub use constants::DEFAULT_CONCURRENCY;
 pub use errors::InstallError;
 pub use install::{install, InstallOptions, InstallProgress};
-/// Re-exported so callers can drive [`InstallOptions::cancel`] without depending
-/// on `tokio-util` directly.
-pub use tokio_util::sync::CancellationToken;
 pub use launch::{build_launch, launch, LaunchOptions, LaunchSpec};
 pub use phases::resolve::{resolve_manifest, ManifestSource};
 pub use platform::current_platform;
+/// Re-exported so callers can drive [`InstallOptions::cancel`] without depending
+/// on `tokio-util` directly.
+pub use tokio_util::sync::CancellationToken;

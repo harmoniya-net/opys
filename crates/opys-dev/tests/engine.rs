@@ -16,7 +16,6 @@ fn artifact(path: &str, url: &str) -> Artifact {
         size: None,
         rules: Vec::new(),
         integrity: None,
-        discovery: None,
         metadata: None,
         extract: None,
     }

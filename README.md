@@ -86,7 +86,7 @@ mojang    → mojang-rules
 A `opys.json` describes:
 
 - **`vars`** — interpolation variables, optionally OS-conditional
-- **`artifacts`** — artifacts to download/copy/extract, each with source, integrity, extract rules, and platform rules. A [`pointer`](API.md#pointer-sources) source resolves a opys descriptor at install time; a [`discovery`](API.md#discovery) block reads integrity/size from metadata a 3rd-party host already publishes
+- **`artifacts`** — artifacts to download/copy/extract, each with source, integrity, extract rules, and platform rules.
 - **`launch`** — command, workdir, args, and env vars to spawn after installation
 
 ## Development

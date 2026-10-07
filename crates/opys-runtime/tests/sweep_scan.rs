@@ -11,10 +11,10 @@
 //!      against the manifest: unmanaged files under it are deleted, managed
 //!      files (and anything outside the globs) are left alone.
 
+use opys_runtime::{install, InstallOptions, InstallProgress, ManifestSource};
 use serde_json::json;
 use std::sync::{Arc, Mutex};
 use tempfile::tempdir;
-use opys_runtime::{install, InstallOptions, InstallProgress, ManifestSource};
 
 /// Hashes of the literal probe strings used below (`printf '…' | sha1sum`).
 const SHA1_PRIOR: &str = "4a47653d5fc58fc62757c6b815e715ec77c8ee2e"; // "prior"
@@ -32,7 +32,9 @@ async fn run(manifest_json: String) -> Vec<InstallProgress> {
     let mut opts = InstallOptions::new();
     opts.on_progress = Some(cb);
     let manifest = opys_core::parse_manifest(&manifest_json).unwrap();
-    install(ManifestSource::Manifest(Box::new(manifest)), opts).await.unwrap();
+    install(ManifestSource::Manifest(Box::new(manifest)), opts)
+        .await
+        .unwrap();
     Arc::try_unwrap(events).unwrap().into_inner().unwrap()
 }
 
@@ -60,17 +62,15 @@ async fn matching_integrity_skips_refetch() {
     let root = dir.path().to_string_lossy().into_owned();
     std::fs::write(dir.path().join("keep.txt"), b"prior").unwrap();
 
-    let events = run(
-        json!({
-            "vars": { "root": root },
-            "artifacts": [{
-                "path": "${root}/keep.txt",
-                "source": { "string": "REDOWNLOADED" },
-                "integrity": { "sha1": SHA1_PRIOR }
-            }]
-        })
-        .to_string(),
-    )
+    let events = run(json!({
+        "vars": { "root": root },
+        "artifacts": [{
+            "path": "${root}/keep.txt",
+            "source": { "string": "REDOWNLOADED" },
+            "integrity": { "sha1": SHA1_PRIOR }
+        }]
+    })
+    .to_string())
     .await;
 
     let content = std::fs::read_to_string(dir.path().join("keep.txt")).unwrap();
@@ -86,22 +86,24 @@ async fn mismatched_integrity_triggers_refetch() {
     let root = dir.path().to_string_lossy().into_owned();
     std::fs::write(dir.path().join("file.txt"), b"corrupted").unwrap();
 
-    let events = run(
-        json!({
-            "vars": { "root": root },
-            "artifacts": [{
-                "path": "${root}/file.txt",
-                "source": { "string": "correct" },
-                "integrity": { "sha1": SHA1_CORRECT }
-            }]
-        })
-        .to_string(),
-    )
+    let events = run(json!({
+        "vars": { "root": root },
+        "artifacts": [{
+            "path": "${root}/file.txt",
+            "source": { "string": "correct" },
+            "integrity": { "sha1": SHA1_CORRECT }
+        }]
+    })
+    .to_string())
     .await;
 
     let content = std::fs::read_to_string(dir.path().join("file.txt")).unwrap();
     assert_eq!(content, "correct", "stale file must be re-fetched");
-    assert_eq!(download_skipped(&events), Some(0), "nothing should be skipped");
+    assert_eq!(
+        download_skipped(&events),
+        Some(0),
+        "nothing should be skipped"
+    );
 }
 
 /// Full lifecycle: install writes the hashed file, the file is then tampered
@@ -124,7 +126,11 @@ async fn reinstall_restores_tampered_file() {
     // First install lays down the correct content.
     let first = run(manifest.clone()).await;
     assert_eq!(std::fs::read_to_string(dir.path().join("a")).unwrap(), "aa");
-    assert_eq!(download_skipped(&first), Some(0), "fresh file is fetched, not skipped");
+    assert_eq!(
+        download_skipped(&first),
+        Some(0),
+        "fresh file is fetched, not skipped"
+    );
 
     // Tamper with it on disk.
     std::fs::write(dir.path().join("a"), b"bb").unwrap();
@@ -136,7 +142,11 @@ async fn reinstall_restores_tampered_file() {
         "aa",
         "tampered file is restored to the manifest content"
     );
-    assert_eq!(download_skipped(&second), Some(0), "mismatch forces a re-fetch");
+    assert_eq!(
+        download_skipped(&second),
+        Some(0),
+        "mismatch forces a re-fetch"
+    );
 }
 
 /// The mirror image: an artifact with *no* integrity has nothing to check, so a
@@ -169,7 +179,11 @@ async fn reinstall_keeps_hashless_file_untouched() {
         "bb",
         "hashless present file is trusted and left as-is"
     );
-    assert_eq!(download_skipped(&second), Some(1), "present file is skipped");
+    assert_eq!(
+        download_skipped(&second),
+        Some(1),
+        "present file is skipped"
+    );
 }
 
 /// A file that is *both* a managed artifact and matched by a `restrict` glob:
@@ -182,21 +196,22 @@ async fn refetches_managed_file_named_by_restrict() {
     // On disk: the old content.
     std::fs::write(dir.path().join("config.txt"), b"aa").unwrap();
 
-    run(
-        json!({
-            "vars": { "root": root },
-            "restrict": ["${root}/config.txt"],
-            "artifacts": [{
-                "path": "${root}/config.txt",
-                "source": { "string": "bb" },
-                "integrity": { "sha1": SHA1_BB }
-            }]
-        })
-        .to_string(),
-    )
+    run(json!({
+        "vars": { "root": root },
+        "restrict": ["${root}/config.txt"],
+        "artifacts": [{
+            "path": "${root}/config.txt",
+            "source": { "string": "bb" },
+            "integrity": { "sha1": SHA1_BB }
+        }]
+    })
+    .to_string())
     .await;
 
-    assert!(dir.path().join("config.txt").exists(), "managed file must not be swept");
+    assert!(
+        dir.path().join("config.txt").exists(),
+        "managed file must not be swept"
+    );
     assert_eq!(
         std::fs::read_to_string(dir.path().join("config.txt")).unwrap(),
         "bb",
@@ -216,17 +231,15 @@ async fn sweep_removes_unmanaged_keeps_managed() {
     std::fs::create_dir_all(&mods).unwrap();
     std::fs::write(mods.join("stray.jar"), b"stray").unwrap();
 
-    let events = run(
-        json!({
-            "vars": { "root": root },
-            "restrict": ["${root}/mods/**"],
-            "artifacts": [{
-                "path": "${root}/mods/keep.jar",
-                "source": { "string": "keep" }
-            }]
-        })
-        .to_string(),
-    )
+    let events = run(json!({
+        "vars": { "root": root },
+        "restrict": ["${root}/mods/**"],
+        "artifacts": [{
+            "path": "${root}/mods/keep.jar",
+            "source": { "string": "keep" }
+        }]
+    })
+    .to_string())
     .await;
 
     assert!(mods.join("keep.jar").exists(), "managed jar must survive");
@@ -246,21 +259,25 @@ async fn sweep_leaves_paths_outside_globs() {
     std::fs::write(mods.join("stray.jar"), b"stray").unwrap();
     std::fs::write(config.join("user.cfg"), b"keep me").unwrap();
 
-    run(
-        json!({
-            "vars": { "root": root },
-            "restrict": ["${root}/mods/**"],
-            "artifacts": [{
-                "path": "${root}/mods/keep.jar",
-                "source": { "string": "keep" }
-            }]
-        })
-        .to_string(),
-    )
+    run(json!({
+        "vars": { "root": root },
+        "restrict": ["${root}/mods/**"],
+        "artifacts": [{
+            "path": "${root}/mods/keep.jar",
+            "source": { "string": "keep" }
+        }]
+    })
+    .to_string())
     .await;
 
-    assert!(!mods.join("stray.jar").exists(), "stray under glob is swept");
-    assert!(config.join("user.cfg").exists(), "file outside glob is untouched");
+    assert!(
+        !mods.join("stray.jar").exists(),
+        "stray under glob is swept"
+    );
+    assert!(
+        config.join("user.cfg").exists(),
+        "file outside glob is untouched"
+    );
 }
 
 /// A managed file nested in a subdir survives; a sibling stray is removed and
@@ -275,17 +292,15 @@ async fn sweep_keeps_nested_managed_and_prunes_empty_dirs() {
     std::fs::create_dir_all(&old).unwrap();
     std::fs::write(old.join("stray.jar"), b"stray").unwrap();
 
-    run(
-        json!({
-            "vars": { "root": root },
-            "restrict": ["${root}/mods/**"],
-            "artifacts": [{
-                "path": "${root}/mods/sub/keep.jar",
-                "source": { "string": "keep" }
-            }]
-        })
-        .to_string(),
-    )
+    run(json!({
+        "vars": { "root": root },
+        "restrict": ["${root}/mods/**"],
+        "artifacts": [{
+            "path": "${root}/mods/sub/keep.jar",
+            "source": { "string": "keep" }
+        }]
+    })
+    .to_string())
     .await;
 
     assert!(sub.join("keep.jar").exists(), "nested managed jar survives");
@@ -333,18 +348,16 @@ async fn sweep_drops_extracted_files_in_scope() {
     let src = dir.path().join("bundle.tar");
     std::fs::write(&src, ustar("inner.jar", b"jar-bytes")).unwrap();
 
-    run(
-        json!({
-            "vars": { "root": root },
-            "restrict": ["${root}/mods/**"],
-            "artifacts": [{
-                "path": "${root}/cache/bundle.tar",
-                "source": { "file": src.to_string_lossy() },
-                "extract": { "into": "${root}/mods" }
-            }]
-        })
-        .to_string(),
-    )
+    run(json!({
+        "vars": { "root": root },
+        "restrict": ["${root}/mods/**"],
+        "artifacts": [{
+            "path": "${root}/cache/bundle.tar",
+            "source": { "file": src.to_string_lossy() },
+            "extract": { "into": "${root}/mods" }
+        }]
+    })
+    .to_string())
     .await;
 
     assert!(
@@ -373,8 +386,15 @@ async fn reinstall_sweeps_stray_keeps_managed() {
 
     // First install: nothing on disk → both managed files land, nothing swept.
     let first = run(manifest.clone()).await;
-    assert!(den.join("a").exists() && den.join("b").exists(), "managed files installed");
-    assert_eq!(sweep_removed(&first), None, "nothing to sweep on a clean install");
+    assert!(
+        den.join("a").exists() && den.join("b").exists(),
+        "managed files installed"
+    );
+    assert_eq!(
+        sweep_removed(&first),
+        None,
+        "nothing to sweep on a clean install"
+    );
 
     // A stray appears in scope.
     std::fs::write(den.join("c"), b"c").unwrap();
@@ -384,7 +404,11 @@ async fn reinstall_sweeps_stray_keeps_managed() {
     assert!(den.join("a").exists(), "managed file a survives reinstall");
     assert!(den.join("b").exists(), "managed file b survives reinstall");
     assert!(!den.join("c").exists(), "stray c is swept on reinstall");
-    assert_eq!(sweep_removed(&second), Some(1), "exactly the stray is removed");
+    assert_eq!(
+        sweep_removed(&second),
+        Some(1),
+        "exactly the stray is removed"
+    );
 }
 
 /// Same lifecycle, but the stray appears in a *new subdirectory*. The reinstall
@@ -405,7 +429,10 @@ async fn reinstall_sweeps_nested_stray_and_prunes_dir() {
     .to_string();
 
     run(manifest.clone()).await;
-    assert!(den.join("a").exists() && den.join("b").exists(), "managed files installed");
+    assert!(
+        den.join("a").exists() && den.join("b").exists(),
+        "managed files installed"
+    );
 
     // A stray appears in a brand-new nested directory.
     std::fs::create_dir_all(den.join("subdir")).unwrap();
@@ -427,18 +454,23 @@ async fn no_restrict_means_no_sweep() {
     std::fs::create_dir_all(&mods).unwrap();
     std::fs::write(mods.join("stray.jar"), b"stray").unwrap();
 
-    let events = run(
-        json!({
-            "vars": { "root": root },
-            "artifacts": [{
-                "path": "${root}/mods/keep.jar",
-                "source": { "string": "keep" }
-            }]
-        })
-        .to_string(),
-    )
+    let events = run(json!({
+        "vars": { "root": root },
+        "artifacts": [{
+            "path": "${root}/mods/keep.jar",
+            "source": { "string": "keep" }
+        }]
+    })
+    .to_string())
     .await;
 
-    assert!(mods.join("stray.jar").exists(), "no restrict ⇒ stray is kept");
-    assert_eq!(sweep_removed(&events), None, "no sweep event without restrict");
+    assert!(
+        mods.join("stray.jar").exists(),
+        "no restrict ⇒ stray is kept"
+    );
+    assert_eq!(
+        sweep_removed(&events),
+        None,
+        "no sweep event without restrict"
+    );
 }

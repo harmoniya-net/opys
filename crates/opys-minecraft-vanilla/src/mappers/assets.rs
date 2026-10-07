@@ -13,7 +13,6 @@ pub fn map_asset_index(index: &AssetIndex) -> Artifact {
         integrity: Some(Integrity::One(HashEntry::Sha1 {
             sha1: index.sha1.clone(),
         })),
-        discovery: None,
         metadata: None,
         extract: None,
     }
@@ -37,7 +36,6 @@ pub fn map_asset_objects(manifest: &AssetManifest) -> Vec<Artifact> {
             size: Some(object.size),
             rules: Vec::new(),
             integrity: None,
-            discovery: None,
             metadata: Some(serde_json::json!({ "name": name })),
             extract: None,
         })

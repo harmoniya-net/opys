@@ -31,7 +31,6 @@ pub fn library_to_artifact(lib: &Library) -> Artifact {
                 sha1: lib.artifact.sha1.clone(),
             })
         }),
-        discovery: None,
         metadata: None,
         extract,
     }

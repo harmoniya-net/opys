@@ -22,15 +22,17 @@
 //! Checksums: GitHub computes an inline `digest` for assets uploaded since
 //! 2024; older releases lack it. Every GraalVM CE archive ships a sibling
 //! `<archive>.sha256` asset (just the bare hex hash, verified against a real
-//! release), so binaries without an inline digest fall back to install-time
-//! `discovery` against that sibling file instead of shipping unverified.
+//! release), so for a binary without an inline digest that file is read here,
+//! at build time, and its hash pinned like any other. A manifest never ships a
+//! JDK it cannot verify, and never asks the installing machine to find out.
 
-use opys_core::{Discovery, HashRef, IntegrityProbes, OsName};
+use opys_core::OsName;
 use opys_dev::github::{
     github_asset_sha256, pick_github_release, GitHubAsset, GitHubRelease, ReleaseSelector,
     GITHUB_API_BASE,
 };
 
+use opys_dev::http::get;
 use serde::Deserialize;
 
 use crate::error::JavaError;
@@ -118,19 +120,31 @@ fn parse_major(tag: &str) -> Result<u32, JavaError> {
     rest[..digits].parse().map_err(|_| unsupported())
 }
 
-/// Fall back to the sibling `<archive>.sha256` asset when GitHub computed no
-/// inline digest — `${url}` is expanded at install time against the artifact's
-/// own source.
-fn sha256_sidecar() -> Discovery {
-    Discovery {
-        integrity: Some(IntegrityProbes {
-            header: None,
-            url: Some(HashRef::Sha256 {
-                sha256: "${url}.sha256".to_owned(),
-            }),
-        }),
-        size: None,
+/// The first run of 64 hex digits in `text` — a `.sha256` file is the bare
+/// hash, or `sha256sum`'s `<hash>  <name>`.
+fn first_sha256(text: &str) -> Option<String> {
+    text.split(|c: char| !c.is_ascii_hexdigit())
+        .find(|run| run.len() == 64)
+        .map(str::to_ascii_lowercase)
+}
+
+/// The sha256 of `asset`, read from its sibling `<archive>.sha256` asset.
+/// For the releases GitHub computed no inline digest for.
+fn sidecar_sha256(release: &GitHubRelease, asset: &GitHubAsset) -> Result<String, JavaError> {
+    let missing = || JavaError::NoChecksum {
+        asset: asset.name.clone(),
+    };
+    let name = format!("{}.sha256", asset.name);
+    let sidecar = release
+        .assets
+        .iter()
+        .find(|a| a.name == name)
+        .ok_or_else(missing)?;
+    let response = get(&sidecar.browser_download_url, &[])?;
+    if !response.ok() {
+        return Err(missing());
     }
+    first_sha256(&response.body).ok_or_else(missing)
 }
 
 /// Resolve a GraalVM CE release across all requested platforms. Every
@@ -169,19 +183,21 @@ pub fn resolve_graalvm(
 
     let binaries: Vec<VendorBinary> = platforms
         .iter()
-        .filter_map(|&platform| {
-            let asset = find_asset(&release.assets, platform)?;
-            let sha256 = github_asset_sha256(asset);
-            Some(VendorBinary {
+        .filter_map(|&platform| find_asset(&release.assets, platform).map(|a| (platform, a)))
+        .map(|(platform, asset)| {
+            let sha256 = match github_asset_sha256(asset) {
+                Some(inline) => inline.to_owned(),
+                None => sidecar_sha256(&release, asset)?,
+            };
+            Ok(VendorBinary {
                 platform,
                 filename: asset.name.clone(),
                 url: asset.browser_download_url.clone(),
                 size: asset.size,
-                sha256: sha256.map(str::to_owned),
-                discovery: sha256.is_none().then(sha256_sidecar),
+                sha256: Some(sha256),
             })
         })
-        .collect();
+        .collect::<Result<_, JavaError>>()?;
 
     if binaries.is_empty() {
         return Err(JavaError::NoBinaries {

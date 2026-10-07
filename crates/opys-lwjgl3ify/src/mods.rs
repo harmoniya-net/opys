@@ -103,7 +103,6 @@ pub fn mod_artifact(asset: &GitHubAsset) -> Artifact {
                 sha256: sha256.to_owned(),
             })
         }),
-        discovery: None,
         metadata: None,
         extract: None,
     }

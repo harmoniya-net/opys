@@ -1,11 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import {
-  sourceBytes,
-  sourceFile,
-  sourcePointer,
-  sourceString,
-  sourceUrl,
-} from '../../lib';
+import { sourceBytes, sourceFile, sourceString, sourceUrl } from '../../lib';
 
 // `Source` is the frozen wire shape — discriminated by which field is present,
 // with no tag. Narrowing is `'bytes' in s`, which is why there are no
@@ -21,12 +15,6 @@ describe('Source factories', () => {
 
   test('sourceString', () => {
     expect(sourceString('hi')).toEqual({ string: 'hi' });
-  });
-
-  test('sourcePointer', () => {
-    expect(sourcePointer('forge:libraries.json')).toEqual({
-      pointer: 'forge:libraries.json',
-    });
   });
 });
 

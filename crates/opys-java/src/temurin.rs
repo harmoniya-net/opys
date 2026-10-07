@@ -22,9 +22,9 @@ use serde::Deserialize;
 
 use crate::error::JavaError;
 use crate::platforms::{fan_out, platforms_or_default, Platform, SupportedArch};
-use opys_dev::url::encode_uri_component;
 use crate::vendor::{pick_anchor, VendorBinary, VendorRelease};
 use crate::version::{is_bare_major, leading_digits, VersionInput};
+use opys_dev::url::encode_uri_component;
 
 pub const ADOPTIUM_BASE: &str = "https://api.adoptium.net/v3";
 const VENDOR: &str = "eclipse";
@@ -232,7 +232,6 @@ pub fn resolve_temurin(
             url: m.package.link.clone(),
             size: m.package.size,
             sha256: Some(m.package.checksum.clone()),
-            discovery: None,
         })
         .collect();
 

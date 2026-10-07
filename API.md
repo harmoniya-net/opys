@@ -157,9 +157,7 @@ possible are internal to the crate; no consumer names one.
 - A `Val` is `string | { rules?, value: string | string[] }` — all of which the
   manifest format allows, and a rule-free single value encodes back to the bare
   string. Read one with `valValues(val): string[]` rather than `.value`.
-- Pointer: `PointerDescriptor`
-- Discovery: `Discovery`, `HashRef`, `IntegrityProbes`, `SizeProbes`
-- Source/Extract factories: `sourceUrl`/`sourceFile`/`sourceString`/`sourcePointer`/`sourceBytes`, `extractPick`/`extractScan`/`extractDump`
+- Source/Extract factories: `sourceUrl`/`sourceFile`/`sourceString`/`sourceBytes`, `extractPick`/`extractScan`/`extractDump`
 - Glob: `globToRegex`, `globToRegexSource`, `globBase`
 - Vars / interpolation: `valValues`, `resolveVars`, `interpolate`, `resolvedArgs`, `resolvedEnvs`
 - Rules come in two named spellings, and the distinction is the point:
@@ -173,19 +171,18 @@ possible are internal to the crate; no consumer names one.
   strictly wider than the Mojang-standard predicate. For the strict one, use
   `@opys/mojang`.
 
-### Pointer sources
+### Nothing is resolved at install time
 
-A `pointer` source stores the URL of a JSON **descriptor** that is fetched
-fresh on every install — letting a manifest track an evolving upstream. The
-descriptor names the concrete `source` + `integrity` + `size`; the artifact is
-still verified against the hash in that freshly-fetched descriptor.
+A manifest names every file by a concrete source, and pins the hash of each
+one it can. The installer downloads and verifies; it never asks a server what
+to download or what the hash should be. An upstream that moves — a `latest`
+build, a mod update — is followed by rebuilding the manifest, which a deployed
+launcher picks up the next time it fetches `opys.json`.
 
-### Discovery
-
-A `discovery` block on a `url` artifact tells opys how to read `integrity` /
-`size` from metadata the host already publishes (a sibling checksum file, an
-RFC 9530 digest header). Resolved on every install; the discovered hash both
-verifies the download and decides freshness.
+The format once had two escape hatches from this, a `pointer` source and a
+`discovery` block, which resolved a source or a hash on the installing
+machine. Both are gone: a hash supplied by the same server as the file, at the
+moment of download, verifies a transfer but pins nothing.
 
 ## Runtime — `@opys/runtime`
 
@@ -197,8 +194,7 @@ currentPlatform(): OsOptions
 type ManifestSource = Manifest | string | URL;
 ```
 
-Install pipeline: `resolveManifest` → `resolvePointers` → `resolveDiscovery` →
-`scan` → `fetchAll` (parallel; streams to `<path>.partial`, renames atomically)
+Install pipeline: `resolveManifest` → `scan` → `fetchAll` (parallel; streams to `<path>.partial`, renames atomically)
 → `verifyAll` (sha1/sha256/md5; mismatch throws `IntegrityError`) → `extractAll`
 → `sweep` (applies `restrict`).
 

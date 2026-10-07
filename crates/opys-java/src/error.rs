@@ -35,4 +35,9 @@ pub enum JavaError {
          only that release cadence is supported."
     )]
     UnsupportedTag { tag: String },
+    #[error(
+        "GraalVM asset '{asset}' has no checksum: GitHub computed no digest for it and its \
+         '.sha256' file is missing or unreadable."
+    )]
+    NoChecksum { asset: String },
 }

@@ -67,9 +67,9 @@ describe('resolveGraalvm (live, GitHub)', () => {
     for (const b of release.binaries) {
       expect(b.url).toMatch(/^https:/);
       expect(b.size).toBeGreaterThan(0);
-      // Either a build-time digest or an install-time discovery fallback —
-      // never shipped with zero integrity verification.
-      expect(b.sha256 ?? b.discovery?.integrity?.url).toBeDefined();
+      // Always a build-time digest: an asset GitHub computed none for is
+      // pinned from its `.sha256` file, and one with neither is refused.
+      expect(b.sha256).toMatch(/^[0-9a-f]{64}$/);
     }
   });
 });
