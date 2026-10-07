@@ -232,7 +232,9 @@ fn forge_libraries_come_before_the_vanilla_ones_on_the_classpath() {
     let t = resolve_forge(&options(&server, "1.12.2")).unwrap();
 
     let linux = &t.classpath[0].value;
-    let forge_lib = linux.find("forge-1.12.2-14.23.5.2860.jar").expect("forge jar");
+    let forge_lib = linux
+        .find("forge-1.12.2-14.23.5.2860.jar")
+        .expect("forge jar");
     let vanilla_lib = linux.find("gson-2.10.1.jar").expect("vanilla gson");
     assert!(forge_lib < vanilla_lib);
     // And the client jar is last, where every launcher that reads the format
@@ -254,7 +256,10 @@ fn a_vanilla_library_forge_replaces_leaves_the_classpath_entirely() {
     }
     let paths: Vec<&str> = t.artifacts.iter().map(|a| a.path.as_str()).collect();
     // …and it is not downloaded either.
-    assert!(!paths.iter().any(|p| p.contains("asm-all/4.1")), "{paths:?}");
+    assert!(
+        !paths.iter().any(|p| p.contains("asm-all/4.1")),
+        "{paths:?}"
+    );
     assert!(paths.iter().any(|p| p.contains("asm-all/5.2")));
 }
 
@@ -292,9 +297,7 @@ fn a_jarmod_document_keeps_both_of_its_argument_fields() {
     let t = resolve_forge(&options(&server, "1.5.2")).unwrap();
 
     let jvm = flat_args(&t.jvm_args);
-    assert!(jvm
-        .iter()
-        .any(|a| a.starts_with("-Dhorno.mainClass=")));
+    assert!(jvm.iter().any(|a| a.starts_with("-Dhorno.mainClass=")));
     assert!(jvm.iter().any(|a| a.starts_with("-Dhorno.patched=")));
 
     let game = flat_args(&t.game_args);
@@ -341,8 +344,16 @@ fn the_client_jar_the_document_declares_replaces_the_one_vanilla_would_place() {
         .contains(&"${library_directory}/com/mojang/minecraft/1.5.2/minecraft-1.5.2-client.jar"));
 
     for arm in &t.classpath {
-        assert!(!arm.value.contains("${version_dir}/client.jar"), "{}", arm.value);
-        assert!(arm.value.contains("minecraft-1.5.2-client.jar"), "{}", arm.value);
+        assert!(
+            !arm.value.contains("${version_dir}/client.jar"),
+            "{}",
+            arm.value
+        );
+        assert!(
+            arm.value.contains("minecraft-1.5.2-client.jar"),
+            "{}",
+            arm.value
+        );
     }
 }
 
@@ -376,4 +387,3 @@ fn the_template_roundtrips_through_json() {
         t
     );
 }
-

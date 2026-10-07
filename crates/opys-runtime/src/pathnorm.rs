@@ -48,14 +48,23 @@ mod tests {
     fn posix_is_identity() {
         // Backslash is a legal POSIX filename char — must not be touched.
         assert_eq!(to_slash_inner("a/b\\c", false), "a/b\\c");
-        assert_eq!(normalize_inner("A/B/MixedCase.jar", false), "A/B/MixedCase.jar");
+        assert_eq!(
+            normalize_inner("A/B/MixedCase.jar", false),
+            "A/B/MixedCase.jar"
+        );
     }
 
     #[test]
     fn windows_unifies_separator_and_case() {
         // The exact mixed-separator shape interpolate+walk produce on Windows.
-        assert_eq!(to_slash_inner("C:\\Users\\x/mods\\a.jar", true), "C:/Users/x/mods/a.jar");
-        assert_eq!(normalize_inner("C:\\Users\\x/mods\\A.JAR", true), "c:/users/x/mods/a.jar");
+        assert_eq!(
+            to_slash_inner("C:\\Users\\x/mods\\a.jar", true),
+            "C:/Users/x/mods/a.jar"
+        );
+        assert_eq!(
+            normalize_inner("C:\\Users\\x/mods\\A.JAR", true),
+            "c:/users/x/mods/a.jar"
+        );
     }
 
     #[test]

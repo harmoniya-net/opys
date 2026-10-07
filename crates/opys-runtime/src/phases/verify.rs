@@ -1,8 +1,8 @@
 use md5::Md5;
+use opys_core::{Artifact, HashEntry, Integrity};
 use sha1::Sha1;
 use sha2::{Digest, Sha256};
 use tokio::fs;
-use opys_core::{Artifact, HashEntry, Integrity};
 
 fn check_hash(data: &[u8], entry: &HashEntry) -> bool {
     let computed = match entry {

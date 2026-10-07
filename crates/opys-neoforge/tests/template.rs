@@ -196,13 +196,13 @@ fn a_minecraft_version_with_no_leading_one_resolves_like_any_other() {
     assert_eq!(values(&t.main_class), [HORNO_MAIN]);
     // `26.2` is the Minecraft version the build id `26.2.0.84` inherits from,
     // and the only place that pairing is written down is the index.
-    assert!(t.classpath[0]
-        .value
-        .contains("minecraft-26.2-client.jar"));
+    assert!(t.classpath[0].value.contains("minecraft-26.2-client.jar"));
     let jvm = flat_args(&t.jvm_args);
-    assert!(jvm
-        .iter()
-        .any(|a| a.contains("neoforge-26.2.0.84-installer.jar")), "{jvm:?}");
+    assert!(
+        jvm.iter()
+            .any(|a| a.contains("neoforge-26.2.0.84-installer.jar")),
+        "{jvm:?}"
+    );
 }
 
 #[test]
@@ -273,7 +273,11 @@ fn the_installer_is_named_by_properties_and_never_becomes_an_artifact() {
     );
 
     let jvm = flat_args(&t.jvm_args);
-    for property in ["-Dhorno.installer=", "-Dhorno.installerUrl=", "-Dhorno.installerSha1="] {
+    for property in [
+        "-Dhorno.installer=",
+        "-Dhorno.installerUrl=",
+        "-Dhorno.installerSha1=",
+    ] {
         assert!(jvm.iter().any(|a| a.starts_with(property)), "{jvm:?}");
     }
 }

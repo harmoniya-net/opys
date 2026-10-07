@@ -1,9 +1,9 @@
 use indexmap::IndexMap;
+use opys_core::{glob_base, glob_to_regex, interpolate};
 use regex::Regex;
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use tokio::fs;
-use opys_core::{glob_base, glob_to_regex, interpolate};
 
 use crate::pathnorm::{normalize, normalize_inner, to_slash};
 use crate::phases::extract::EXTRACT_MARKER_SUFFIX;
@@ -174,12 +174,30 @@ mod tests {
         let (managed, rx) = windows_mods_setup();
         // Managed jars as the walk yields them (all-`\`, original case) survive.
         assert!(!is_swept("C:\\Users\\x\\mods\\a.jar", &managed, &rx, true));
-        assert!(!is_swept("C:\\Users\\x\\mods\\Keep.JAR", &managed, &rx, true), "case-insensitive on Windows");
+        assert!(
+            !is_swept("C:\\Users\\x\\mods\\Keep.JAR", &managed, &rx, true),
+            "case-insensitive on Windows"
+        );
         // Strays under the glob are swept (flat and nested).
-        assert!(is_swept("C:\\Users\\x\\mods\\stray.jar", &managed, &rx, true));
-        assert!(is_swept("C:\\Users\\x\\mods\\sub\\nested.jar", &managed, &rx, true));
+        assert!(is_swept(
+            "C:\\Users\\x\\mods\\stray.jar",
+            &managed,
+            &rx,
+            true
+        ));
+        assert!(is_swept(
+            "C:\\Users\\x\\mods\\sub\\nested.jar",
+            &managed,
+            &rx,
+            true
+        ));
         // The extract marker is internal and never swept.
-        assert!(!is_swept("C:\\Users\\x\\mods\\a.jar.opys-extracted", &managed, &rx, true));
+        assert!(!is_swept(
+            "C:\\Users\\x\\mods\\a.jar.opys-extracted",
+            &managed,
+            &rx,
+            true
+        ));
     }
 
     #[test]
@@ -188,11 +206,20 @@ mod tests {
         // string compare never matches the `\`-joined walked path against the
         // `/`-interpolated managed entry, so the managed jar would be swept.
         // Normalizing both sides makes them agree.
-        let raw: HashSet<String> = ["C:\\Users\\x/mods/a.jar"].iter().map(|s| s.to_string()).collect();
-        assert!(!raw.contains("C:\\Users\\x\\mods\\a.jar"), "raw compare misses it — the bug");
+        let raw: HashSet<String> = ["C:\\Users\\x/mods/a.jar"]
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
+        assert!(
+            !raw.contains("C:\\Users\\x\\mods\\a.jar"),
+            "raw compare misses it — the bug"
+        );
 
         let (managed, rx) = windows_mods_setup();
-        assert!(!is_swept("C:\\Users\\x\\mods\\a.jar", &managed, &rx, true), "fix keeps it");
+        assert!(
+            !is_swept("C:\\Users\\x\\mods\\a.jar", &managed, &rx, true),
+            "fix keeps it"
+        );
     }
 
     #[test]
@@ -204,11 +231,20 @@ mod tests {
             .iter()
             .map(|m| normalize_inner(m, true))
             .collect();
-        let rx = vec![glob_to_regex(&normalize_inner("C:\\Users\\x/config.txt", true))];
+        let rx = vec![glob_to_regex(&normalize_inner(
+            "C:\\Users\\x/config.txt",
+            true,
+        ))];
         // Walk yields the `\`-joined, real-case path → still recognized managed.
-        assert!(!is_swept("C:\\Users\\x\\config.txt", &managed, &rx, true), "managed file spared");
+        assert!(
+            !is_swept("C:\\Users\\x\\config.txt", &managed, &rx, true),
+            "managed file spared"
+        );
         // A single-file glob scopes only that file; a sibling isn't matched.
-        assert!(!is_swept("C:\\Users\\x\\other.txt", &managed, &rx, true), "sibling untouched");
+        assert!(
+            !is_swept("C:\\Users\\x\\other.txt", &managed, &rx, true),
+            "sibling untouched"
+        );
     }
 
     #[test]

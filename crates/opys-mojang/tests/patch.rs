@@ -36,10 +36,7 @@ fn a_patch_names_what_it_inherits_and_what_it_launches() {
 
     assert_eq!(p.id, "1.20.1-forge-47.4.0");
     assert_eq!(p.inherits_from, "1.20.1");
-    assert_eq!(
-        p.main_class,
-        "net.harmoniya.horno.Main"
-    );
+    assert_eq!(p.main_class, "net.harmoniya.horno.Main");
 }
 
 #[test]
@@ -187,4 +184,3 @@ fn an_empty_logging_object_is_rejected_rather_than_read_as_a_config() {
     });
     assert!(serde_json::from_value::<VersionPatch>(raw).is_err());
 }
-

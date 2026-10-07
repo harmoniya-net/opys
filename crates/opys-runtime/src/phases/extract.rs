@@ -1,8 +1,8 @@
 use indexmap::IndexMap;
+use opys_core::{interpolate, Artifact, ExtractRule};
 use std::collections::HashSet;
 use std::path::Path;
 use tokio::fs;
-use opys_core::{interpolate, Artifact, ExtractRule};
 
 use crate::archive::{extract_archive, extract_archive_pick};
 use crate::errors::InstallError;
@@ -25,7 +25,9 @@ pub async fn extract_all(
             continue;
         }
         let path = task.artifact.path.clone();
-        if let Err(err) = extract_artifact(&task.final_path, &task.artifact, vars, &mut cleaned).await {
+        if let Err(err) =
+            extract_artifact(&task.final_path, &task.artifact, vars, &mut cleaned).await
+        {
             return Err(InstallError::Extraction {
                 artifact_path: path,
                 source: Box::new(err),

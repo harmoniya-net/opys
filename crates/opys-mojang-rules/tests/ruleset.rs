@@ -40,9 +40,7 @@ fn windows_10_only() {
 
 #[test]
 fn with_features() {
-    let rs = parse_ruleset(
-        r#"[{ "action": "allow", "features": { "is_demo_user": true } }]"#,
-    );
+    let rs = parse_ruleset(r#"[{ "action": "allow", "features": { "is_demo_user": true } }]"#);
     assert!(feats_check(&rs, &["some_random_feature", "is_demo_user"]));
     assert!(!feats_check(&rs, &["some_random_feature"]));
     assert!(!os_check(&rs, &common::linux()));

@@ -8,7 +8,10 @@ use regex::Regex;
 const STAR: &str = "__OPYS_GLOBSTAR_";
 
 fn is_rx_meta(c: char) -> bool {
-    matches!(c, '.' | '+' | '^' | '$' | '(' | ')' | '|' | '[' | ']' | '\\')
+    matches!(
+        c,
+        '.' | '+' | '^' | '$' | '(' | ')' | '|' | '[' | ']' | '\\'
+    )
 }
 
 fn is_alt_meta(c: char) -> bool {
@@ -91,7 +94,10 @@ pub fn glob_to_regex(glob: &str) -> Regex {
 }
 
 fn replace_pattern(haystack: &str, pattern: &str, replacement: &str) -> String {
-    Regex::new(pattern).unwrap().replace_all(haystack, replacement).into_owned()
+    Regex::new(pattern)
+        .unwrap()
+        .replace_all(haystack, replacement)
+        .into_owned()
 }
 
 /// Longest non-glob prefix, truncated to the last `/`.

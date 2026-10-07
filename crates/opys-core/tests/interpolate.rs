@@ -32,8 +32,7 @@ fn throws_on_circular_dependency() {
 
 #[test]
 fn throws_on_longer_circular_chain() {
-    let err =
-        resolve_vars(&vars(&[("a", "${b}"), ("b", "${c}"), ("c", "${a}")])).unwrap_err();
+    let err = resolve_vars(&vars(&[("a", "${b}"), ("b", "${c}"), ("c", "${a}")])).unwrap_err();
     assert!(err.contains("Circular"));
 }
 
@@ -62,7 +61,10 @@ fn placeholder_with_spaces_left_as_is() {
 
 #[test]
 fn multiple_missing_var_refs_all_preserved() {
-    assert_eq!(interpolate("${x} and ${x}", &IndexMap::new()), "${x} and ${x}");
+    assert_eq!(
+        interpolate("${x} and ${x}", &IndexMap::new()),
+        "${x} and ${x}"
+    );
 }
 
 #[test]

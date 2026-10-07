@@ -88,4 +88,3 @@ pub async fn fetch_with_retry(
     }
     Err(last_err.expect("loop returns or sets last_err"))
 }
-

@@ -54,9 +54,8 @@ impl ClasspathEntry {
         ClasspathEntry {
             rules: library.rules.clone(),
             artifact_path: format!("${{library_directory}}/{}", library.artifact.path),
-            module: (!library.native).then(|| {
-                format!("{}:{}", library.name.group_id, library.name.artifact_id)
-            }),
+            module: (!library.native)
+                .then(|| format!("{}:{}", library.name.group_id, library.name.artifact_id)),
         }
     }
 }

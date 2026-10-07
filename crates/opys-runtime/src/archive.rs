@@ -312,7 +312,10 @@ mod tests {
 
         let link = dir.path().join("link.txt");
         assert_eq!(std::fs::read_link(&link).unwrap(), Path::new("payload.txt"));
-        assert_eq!(std::fs::read_to_string(dir.path().join("payload.txt")).unwrap(), "hello");
+        assert_eq!(
+            std::fs::read_to_string(dir.path().join("payload.txt")).unwrap(),
+            "hello"
+        );
     }
 
     #[test]
@@ -342,7 +345,9 @@ mod tests {
     async fn extract_archive_glob_strip_flattens_an_unknown_top_dir() {
         let mut builder = tar::Builder::new(Vec::new());
         let mut header = tar::Header::new_gnu();
-        header.set_path("graalvm-community-openjdk-21.0.2+13.1/bin/java").unwrap();
+        header
+            .set_path("graalvm-community-openjdk-21.0.2+13.1/bin/java")
+            .unwrap();
         header.set_size(5);
         header.set_mode(0o755);
         header.set_cksum();
@@ -351,7 +356,10 @@ mod tests {
 
         let dir = tempfile::tempdir().unwrap();
         let archive_path = dir.path().join("bundle.tar");
-        std::fs::File::create(&archive_path).unwrap().write_all(&data).unwrap();
+        std::fs::File::create(&archive_path)
+            .unwrap()
+            .write_all(&data)
+            .unwrap();
         let archive_path = archive_path.to_str().unwrap();
 
         let strip = vec!["*/".to_string()];
@@ -363,6 +371,9 @@ mod tests {
             std::fs::read_to_string(dir.path().join("bin/java")).unwrap(),
             "hello",
         );
-        assert!(!dir.path().join("graalvm-community-openjdk-21.0.2+13.1").exists());
+        assert!(!dir
+            .path()
+            .join("graalvm-community-openjdk-21.0.2+13.1")
+            .exists());
     }
 }

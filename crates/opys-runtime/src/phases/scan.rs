@@ -37,9 +37,15 @@ pub async fn scan(
     for u in applicable.artifacts {
         let final_path = interpolate(&u.path, vars);
         if Path::new(&final_path).exists() {
-            present.push(ScanTask { artifact: u, final_path });
+            present.push(ScanTask {
+                artifact: u,
+                final_path,
+            });
         } else {
-            tasks.push(ScanTask { artifact: u, final_path });
+            tasks.push(ScanTask {
+                artifact: u,
+                final_path,
+            });
         }
     }
 

@@ -51,9 +51,9 @@ impl Task for Fetch {
                 to_json(&opys_forge::resolve_forge(options).map_err(map_err)?)
             }
             Fetch::Build(options) => to_json(&opys_forge::build_forge(options).map_err(map_err)?),
-            Fetch::Version { input, source } => to_json(
-                &opys_forge::resolve_forge_version(input, source).map_err(map_err)?,
-            ),
+            Fetch::Version { input, source } => {
+                to_json(&opys_forge::resolve_forge_version(input, source).map_err(map_err)?)
+            }
         }
     }
 
