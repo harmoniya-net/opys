@@ -17,13 +17,14 @@
   "dependencies": {
     "@opys/core": "^0.2.0",
     "@opys/dev": "^0.2.0",
-    "@opys/minecraft-vanilla": "^0.2.0",
     "@opys/fabric": "^0.2.0",
     "@opys/forge": "^0.2.0",
-    "@opys/neoforge": "^0.2.0",
-    "fflate": "^0.8.2"
+    "@opys/minecraft-vanilla": "^0.2.0",
+    "@opys/modrinth-binding": "^0.2.0",
+    "@opys/neoforge": "^0.2.0"
   },
   "devDependencies": {
+    "fflate": "^0.8.2",
     "tsdown": "*",
     "vitest": "*"
   },

@@ -1059,6 +1059,44 @@ dependencies = [
 ]
 
 [[package]]
+name = "opys-modpack"
+version = "0.2.0"
+dependencies = [
+ "hex",
+ "opys-core",
+ "serde",
+ "serde_json",
+ "sha1",
+ "thiserror",
+ "zip",
+]
+
+[[package]]
+name = "opys-modrinth"
+version = "0.2.0"
+dependencies = [
+ "opys-core",
+ "opys-dev",
+ "opys-modpack",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "zip",
+]
+
+[[package]]
+name = "opys-modrinth-napi"
+version = "0.2.0"
+dependencies = [
+ "napi",
+ "napi-build",
+ "napi-derive",
+ "opys-modrinth",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "opys-mojang"
 version = "0.2.0"
 dependencies = [

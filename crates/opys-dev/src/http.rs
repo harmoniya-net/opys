@@ -58,27 +58,75 @@ fn agent() -> &'static ureq::Agent {
     })
 }
 
-/// GET `url` and read the whole body. Blocking: build-time resolvers are
-/// plain synchronous functions, parallelised with `std::thread::scope` when
-/// they need it.
-pub fn get(url: &str, headers: &[(&str, &str)]) -> Result<HttpResponse, HttpError> {
-    let fail = |e: &dyn std::fmt::Display| HttpError {
-        url: url.to_owned(),
-        reason: e.to_string(),
-    };
+fn call(
+    url: &str,
+    headers: &[(&str, &str)],
+) -> Result<ureq::http::Response<ureq::Body>, HttpError> {
     let mut req = agent().get(url);
     for (name, value) in headers {
         req = req.header(*name, *value);
     }
-    let mut res = req.call().map_err(|e| fail(&e))?;
+    req.call().map_err(|e| HttpError {
+        url: url.to_owned(),
+        reason: e.to_string(),
+    })
+}
+
+/// GET `url` and read the whole body. Blocking: build-time resolvers are
+/// plain synchronous functions, parallelised with `std::thread::scope` when
+/// they need it.
+pub fn get(url: &str, headers: &[(&str, &str)]) -> Result<HttpResponse, HttpError> {
+    let mut res = call(url, headers)?;
     let status = res.status().as_u16();
     let body = res
         .body_mut()
         .with_config()
         .limit(BODY_LIMIT)
         .read_to_string()
-        .map_err(|e| fail(&e))?;
+        .map_err(|e| HttpError {
+            url: url.to_owned(),
+            reason: e.to_string(),
+        })?;
     Ok(HttpResponse { status, body })
+}
+
+/// A response whose body is not text.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HttpBytes {
+    pub status: u16,
+    pub body: Vec<u8>,
+}
+
+impl HttpBytes {
+    /// 2xx.
+    pub fn ok(&self) -> bool {
+        (200..300).contains(&self.status)
+    }
+}
+
+/// Ceiling on a binary body. The one thing fetched this way is a modpack
+/// archive, which has to be opened at build time to learn what the pack is
+/// made of; the largest ones run to a few hundred megabytes.
+const BYTES_LIMIT: u64 = 2 * 1024 * 1024 * 1024;
+
+/// GET `url` and read the whole body as bytes.
+///
+/// Still one blocking request with no retry and no resume, and still not a
+/// downloader: it exists for the rare resolver that must *read* a file to
+/// resolve it. Installing files is `opys-runtime`'s job.
+pub fn get_bytes(url: &str, headers: &[(&str, &str)]) -> Result<HttpBytes, HttpError> {
+    let mut res = call(url, headers)?;
+    let status = res.status().as_u16();
+    let body = res
+        .body_mut()
+        .with_config()
+        .limit(BYTES_LIMIT)
+        .read_to_vec()
+        .map_err(|e| HttpError {
+            url: url.to_owned(),
+            reason: e.to_string(),
+        })?;
+    Ok(HttpBytes { status, body })
 }
 
 /// A build-time JSON GET that failed: the transport did, the server answered

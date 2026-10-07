@@ -26,4 +26,4 @@ pub mod url;
 pub use contribution::{Contribution, LaunchFragment, LaunchGroups, PluginOutput};
 pub use engine::{assemble, Assembled, ManifestConfig};
 #[cfg(feature = "net")]
-pub use http::{HttpError, HttpResponse, JsonGetError, OPYS_USER_AGENT};
+pub use http::{HttpBytes, HttpError, HttpResponse, JsonGetError, OPYS_USER_AGENT};

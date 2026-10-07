@@ -1,0 +1,20 @@
+[package]
+name = "opys-modpack"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "What opys's modpack resolvers share — the loader a pack asks for, and reading the pack archive."
+
+[dependencies]
+opys-core = { path = "../opys-core", version = "0.2.0" }
+hex = "0.4"
+serde = { workspace = true }
+sha1 = "0.10"
+thiserror = { workspace = true }
+zip = { version = "2", default-features = false, features = ["deflate"] }
+
+[dev-dependencies]
+serde_json = { workspace = true }

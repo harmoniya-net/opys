@@ -28,6 +28,7 @@ const neoforgeNapi = require('../crates/opys-neoforge-napi/index.js');
 const cleanroomNapi = require('../crates/opys-cleanroom-napi/index.js');
 const lwjgl3ifyNapi = require('../crates/opys-lwjgl3ify-napi/index.js');
 const authlibertyNapi = require('../crates/opys-authliberty-napi/index.js');
+const modrinthNapi = require('../crates/opys-modrinth-napi/index.js');
 
 let ok = 0;
 let fail = 0;
@@ -873,6 +874,80 @@ check(
 );
 
 gitlabApi.close();
+
+// ── modrinth ──────────────────────────────────────────────────────────────
+// Two crossings no other addon makes: a plain array of strings in, and a
+// second, synchronous call that pairs the files with paths chosen on this
+// side — the config author's callback never crosses.
+console.log('\n— modrinth —');
+
+const modrinthApi = createServer((_req, res) => {
+  res.writeHead(200, { 'content-type': 'application/json' }).end(
+    JSON.stringify([
+      {
+        id: 'AAA',
+        project_id: 'PAAA',
+        version_number: '0.5.8',
+        files: [
+          {
+            filename: 'sodium.jar',
+            url: 'https://example.invalid/sodium.jar',
+            primary: true,
+            size: 1234,
+            hashes: { sha1: 'a'.repeat(40) },
+          },
+        ],
+      },
+    ]),
+  );
+});
+await new Promise((resolve) => modrinthApi.listen(0, '127.0.0.1', resolve));
+const modrinthBase = `http://127.0.0.1:${modrinthApi.address().port}`;
+
+check(
+  'defaultModrinthApi is the public API',
+  modrinthNapi.defaultModrinthApi() === 'https://api.modrinth.com/v2',
+);
+
+const modFiles = await modrinthNapi.resolveModrinthFiles(
+  ['https://modrinth.com/mod/sodium/version/AAA'],
+  modrinthBase,
+);
+check(
+  'resolveModrinthFiles returns what a path callback is given',
+  modFiles.length === 1 &&
+    modFiles[0].filename === 'sodium.jar' &&
+    modFiles[0].versionId === 'AAA' &&
+    modFiles[0].projectId === 'PAAA' &&
+    modFiles[0].versionNumber === '0.5.8',
+);
+
+const modArtifacts = modrinthNapi.modrinthFileArtifacts(modFiles, [
+  '${game_directory}/mods/sodium.jar',
+]);
+check(
+  'modrinthFileArtifacts puts each file at the path chosen for it',
+  modArtifacts[0].path === '${game_directory}/mods/sodium.jar' &&
+    modArtifacts[0].integrity.sha1 === 'a'.repeat(40),
+);
+check(
+  'modrinthFileArtifacts refuses a path list of the wrong length',
+  (() => {
+    try {
+      modrinthNapi.modrinthFileArtifacts(modFiles, []);
+      return false;
+    } catch (e) {
+      return /each file needs exactly one/.test(e.message);
+    }
+  })(),
+);
+check(
+  'loaderSpec fuses minecraft and forge into one build id',
+  modrinthNapi.loaderSpec({ minecraft: '1.20.1', forge: '47.4.20' }).version ===
+    '1.20.1-47.4.20',
+);
+
+modrinthApi.close();
 mojangApi.close();
 
 console.log(`\nresult: ${ok} passed, ${fail} failed`);

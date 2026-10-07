@@ -357,10 +357,12 @@ describe('curseforge plugin', () => {
 describe('modrinth plugin', () => {
   it('builds a modrinth contribution from version refs', async () => {
     reset();
-    routedFetch([
-      [
-        '/v2/versions',
-        [
+    routedFetch([]);
+    // Modrinth's API, on loopback: the resolver runs natively and would not
+    // see a stubbed `fetch`.
+    const api = createServer((_req, res) => {
+      res.writeHead(200, { 'content-type': 'application/json' }).end(
+        JSON.stringify([
           {
             id: 'abc',
             project_id: 'proj',
@@ -375,10 +377,14 @@ describe('modrinth plugin', () => {
               },
             ],
           },
-        ],
-      ],
-    ]);
+        ]),
+      );
+    });
+    await new Promise<void>((resolve) => api.listen(0, '127.0.0.1', resolve));
+    const apiBase = `http://127.0.0.1:${(api.address() as AddressInfo).port}`;
+
     const plugin = modrinth({
+      apiBase,
       path: (i) => `mods/${i.filename}`,
       versions: ['abc'],
     });
@@ -388,5 +394,6 @@ describe('modrinth plugin', () => {
     expect(c.artifacts![0]!.path).toBe('mods/sodium.jar');
     expect(c.artifacts![0]!.integrity).toEqual({ sha1: 'sha1' });
     expect(logs.some((l) => l.includes('1 file(s)'))).toBe(true);
+    await new Promise<void>((resolve) => api.close(() => resolve()));
   });
 });
