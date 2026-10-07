@@ -960,6 +960,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "opys-dgpuj"
+version = "0.2.0"
+dependencies = [
+ "opys-core",
+ "opys-dev",
+ "serde",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
+name = "opys-dgpuj-napi"
+version = "0.2.0"
+dependencies = [
+ "napi",
+ "napi-build",
+ "napi-derive",
+ "opys-dgpuj",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "opys-fabric"
 version = "0.2.0"
 dependencies = [

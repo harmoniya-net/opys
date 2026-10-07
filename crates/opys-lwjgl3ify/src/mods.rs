@@ -9,7 +9,7 @@
 
 use opys_core::{Artifact, HashEntry, Integrity, Source};
 use opys_dev::github::{
-    fetch_github_release, github_asset_sha256, pick_github_release, GitHubAsset, GitHubRelease,
+    fetch_github_release, pick_github_release, pin_github_asset, GitHubAsset, GitHubRelease,
     ReleaseSelector,
 };
 use serde::{Deserialize, Serialize};
@@ -89,23 +89,23 @@ pub fn unimixins_jar(release: &GitHubRelease) -> Option<&GitHubAsset> {
     })
 }
 
-/// A release asset as an artifact under `mods/`.
-pub fn mod_artifact(asset: &GitHubAsset) -> Artifact {
-    Artifact {
+/// A release asset as an artifact under `mods/`, pinned — by GitHub's digest,
+/// or by reading the jar where GitHub computed none.
+pub fn mod_artifact(asset: &GitHubAsset) -> Result<Artifact, Lwjgl3ifyError> {
+    let pinned = pin_github_asset(asset)?;
+    Ok(Artifact {
         path: format!("${{game_directory}}/mods/{}", asset.name),
         source: Source::Url {
             url: asset.browser_download_url.clone(),
         },
-        size: Some(asset.size),
+        size: Some(pinned.size),
         rules: Vec::new(),
-        integrity: github_asset_sha256(asset).map(|sha256| {
-            Integrity::One(HashEntry::Sha256 {
-                sha256: sha256.to_owned(),
-            })
-        }),
+        integrity: Some(Integrity::One(HashEntry::Sha256 {
+            sha256: pinned.sha256,
+        })),
         metadata: None,
         extract: None,
-    }
+    })
 }
 
 /// The lwjgl3ify mod jar of the release tagged `tag`.
@@ -124,7 +124,7 @@ pub(crate) fn fetch_mod_jar(
         repo: repo.to_owned(),
         what: "lwjgl3ify mod jar",
     })?;
-    Ok(mod_artifact(asset))
+    mod_artifact(asset)
 }
 
 /// The UniMixins jar `options` asks for.
@@ -158,5 +158,5 @@ pub(crate) fn fetch_unimixins(
         repo: repo.to_owned(),
         what: "UniMixins jar for 1.7.10",
     })?;
-    Ok(mod_artifact(asset))
+    mod_artifact(asset)
 }

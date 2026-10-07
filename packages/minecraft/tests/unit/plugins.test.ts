@@ -266,6 +266,7 @@ describe('lwjgl3ify plugin', () => {
               name: `lwjgl3ify-${TAG}.jar`,
               size: 1,
               browser_download_url: `https://gh/lwjgl3ify-${TAG}.jar`,
+              digest: `sha256:${'d'.repeat(64)}`,
             },
           ],
         },

@@ -70,6 +70,7 @@ const asset = (name: string) => ({
   name,
   size: 4242,
   browser_download_url: `https://example.invalid/${name}`,
+  digest: `sha256:${'d'.repeat(64)}`,
 });
 
 const release = (tag: string, names: string[]) => ({

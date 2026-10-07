@@ -11,6 +11,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::http::{self, HttpError};
+use crate::pin::{pin_url, PinError, Pinned};
 
 /// Where the Releases API lives. Overridable per call so a resolver can point
 /// at a GitHub Enterprise host or a mirror, matching the `api_base` the
@@ -157,6 +158,22 @@ pub fn fetch_github_release(
 /// The hex sha256 behind an asset's `digest` field, when GitHub computed one.
 pub fn github_asset_sha256(asset: &GitHubAsset) -> Option<&str> {
     asset.digest.as_deref()?.strip_prefix("sha256:")
+}
+
+/// An asset's size and sha256, whatever it takes to know them.
+///
+/// GitHub has computed a digest for every asset uploaded since 2024, and for
+/// those this is a field read. For an older one the asset is downloaded here
+/// and hashed — so anything resolved off a release comes out pinned, and the
+/// size is the one that was read rather than the one the listing claims.
+pub fn pin_github_asset(asset: &GitHubAsset) -> Result<Pinned, PinError> {
+    match github_asset_sha256(asset) {
+        Some(digest) => Ok(Pinned {
+            size: asset.size,
+            sha256: digest.to_owned(),
+        }),
+        None => pin_url(&asset.browser_download_url, &[]),
+    }
 }
 
 /// Apply a selector to an already-narrowed candidate list. Pure — the

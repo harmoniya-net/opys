@@ -42,7 +42,9 @@ change; the manifest wire format may not.
 
 ## Packages
 
-Eight packages, a clean DAG, no cycles:
+A clean DAG, no cycles. Each loader and provider is also published as its own
+package (`@opys/forge`, `@opys/modrinth`, …); `@opys/minecraft` re-exports
+them, and the list below names the layers rather than every one:
 
 ```
 @opys/mojang-rules  Mojang-standard rule format — MojangRule / MojangRuleset.   leaf
@@ -61,6 +63,11 @@ Eight packages, a clean DAG, no cycles:
                      own `.node`.                           → dev, core, mojang
 @opys/java          JDK provisioning — Temurin / Zulu / GraalVM CE.
                      Thin wrapper over the `opys-java` crate.                → dev, core
+@opys/link          A pasted link → a pinned artifact: GitHub / GitLab / Modrinth /
+                     CurseForge / a plain URL.
+                     Thin wrapper over the `opys-link` crate.                → dev, core
+@opys/dgpuj         The dgpuj GPU-selection shim, one archive per target.
+                     Thin wrapper over the `opys-dgpuj` crate.               → dev, core
 @opys/cli           the `opys` binary.                 → dev, runtime, minecraft, java
 ```
 
@@ -243,6 +250,14 @@ Eight packages, a clean DAG, no cycles:
   rule about fully resolved manifests hold for _any_ file, not only for files
   on a cooperative host. The crate only dispatches; it holds no client of its
   own.
+- **A GitHub asset is pinned one way.** `opys-dev`'s `pin_github_asset` takes
+  the digest the release listing carries and, for a release old enough to have
+  none, downloads the asset and hashes it. `opys-link`, `opys-dgpuj` and
+  `opys-lwjgl3ify`'s mod jars all go through it, so none of them can ship an
+  asset unverified — which is what lwjgl3ify's mod jar did while that choice
+  was spelled per crate. `@opys/dev`'s `gitHubReleaseArtifacts` is the public
+  JS helper for a config author who needs a predicate over assets; nothing
+  inside opys calls it.
 - **A callback never crosses napi; its answers do.** `modrinth`, `curseforge`
   and `links` take a `path` function from the config author, and `authliberty`
   may take `hosts` as one. A closure cannot be handed to Rust,

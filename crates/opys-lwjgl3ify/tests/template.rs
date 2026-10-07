@@ -75,7 +75,10 @@ fn unimixins(tag: &str, prerelease: bool) -> serde_json::Value {
         prerelease,
         vec![
             asset(&format!("+unimixins-all-1.7.10-{tag}-dev.jar"), None),
-            asset(&format!("+unimixins-all-1.7.10-{tag}.jar"), None),
+            asset(
+                &format!("+unimixins-all-1.7.10-{tag}.jar"),
+                Some(&"d".repeat(64)),
+            ),
             asset(&format!("+unimixins-mixin-1.7.10-{tag}.jar"), None),
         ],
     )
@@ -198,6 +201,44 @@ fn the_plain_mod_jar_is_installed_not_one_of_its_siblings() {
     assert!(!mods(&t.artifacts)
         .iter()
         .any(|m| m.contains("-dev") || m.contains("forgePatches")));
+}
+
+#[test]
+fn a_mod_jar_github_has_no_digest_for_is_hashed_rather_than_shipped_unverified() {
+    // An old release: the listing carries no digest, so the jar is read.
+    let server = TestServer::start(|request| {
+        let base = format!("http://{}", request.header("host").unwrap_or_default());
+        let target = request.target.as_str();
+        let url = format!("{base}/versions/1.7.10/{TAG}.json");
+        let body = if target == "/index.json" {
+            json!({ "versions": { "1.7.10": { "builds": [{ "build": TAG, "url": url }] } } })
+        } else if target.starts_with("/versions/") {
+            document(&format!("{base}/assets/1.7.10.json"))
+        } else if target.starts_with("/assets/") {
+            json!({ "objects": {} })
+        } else if target.starts_with("/repos/") {
+            json!({
+                "tag_name": TAG, "prerelease": false, "draft": false, "published_at": "2023-01-01T00:00:00Z",
+                "assets": [{ "name": format!("lwjgl3ify-{TAG}.jar"), "size": 999, "browser_download_url": format!("{base}/jar") }],
+            })
+        } else if target == "/jar" {
+            return Reply::json("hello");
+        } else {
+            return Reply::status(404);
+        };
+        Reply::json(body.to_string())
+    });
+    let mut o = options(&server, TAG);
+    o.unimixins = Unimixins::Skip;
+    let t = resolve_lwjgl3ify(&o).unwrap();
+
+    let jar = serde_json::to_value(t.artifacts.last().unwrap()).unwrap();
+    assert_eq!(
+        jar["integrity"],
+        json!({ "sha256": "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824" })
+    );
+    // The size that was read, not the 999 the listing claimed.
+    assert_eq!(jar["size"], 5);
 }
 
 #[test]

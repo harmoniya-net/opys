@@ -13,6 +13,9 @@ pub enum Lwjgl3ifyError {
     /// Looking the mod jars up on GitHub Releases.
     #[error(transparent)]
     GitHub(#[from] opys_dev::github::GitHubError),
+    /// Hashing a mod jar GitHub published no digest for.
+    #[error(transparent)]
+    Pin(#[from] opys_dev::pin::PinError),
     #[error("Could not resolve lwjgl3ify version '{input}' from {source_url}")]
     UnresolvableVersion { input: String, source_url: String },
     #[error("Unknown Minecraft version '{minecraft}' (resolving '{input}')")]

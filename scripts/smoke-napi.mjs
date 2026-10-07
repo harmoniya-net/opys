@@ -31,6 +31,7 @@ const authlibertyNapi = require('../crates/opys-authliberty-napi/index.js');
 const modrinthNapi = require('../crates/opys-modrinth-napi/index.js');
 const curseforgeNapi = require('../crates/opys-curseforge-napi/index.js');
 const linkNapi = require('../crates/opys-link-napi/index.js');
+const dgpujNapi = require('../crates/opys-dgpuj-napi/index.js');
 
 let ok = 0;
 let fail = 0;
@@ -742,6 +743,7 @@ const lwjgl3ifySite = createServer((req, res) => {
             name: `lwjgl3ify-${LWJGL3IFY_TAG}.jar`,
             size: 4242,
             browser_download_url: `https://example.invalid/lwjgl3ify-${LWJGL3IFY_TAG}.jar`,
+            digest: `sha256:${'d'.repeat(64)}`,
           },
         ],
       }
@@ -1062,6 +1064,67 @@ check(
 );
 
 fileHost.close();
+
+// ── dgpuj ─────────────────────────────────────────────────────────────────
+// A stand-in for GitHub's releases API: one release, one target's archive.
+
+console.log('\n— dgpuj —');
+
+const DGPUJ_ASSET = 'dgpuj-x86_64-unknown-linux-gnu.tar.gz';
+const dgpujApi = createServer((_req, res) => {
+  res.writeHead(200, { 'content-type': 'application/json' }).end(
+    JSON.stringify([
+      {
+        tag_name: 'v0.3.0',
+        prerelease: false,
+        draft: false,
+        published_at: '2026-06-22T00:00:00Z',
+        assets: [
+          {
+            name: DGPUJ_ASSET,
+            size: 4242,
+            browser_download_url: `https://example.invalid/${DGPUJ_ASSET}`,
+            digest: `sha256:${'a'.repeat(64)}`,
+          },
+        ],
+      },
+    ]),
+  );
+});
+await new Promise((resolve) => dgpujApi.listen(0, '127.0.0.1', resolve));
+const dgpujOpts = {
+  apiBase: `http://127.0.0.1:${dgpujApi.address().port}`,
+  platforms: [
+    {
+      os: 'linux',
+      arch: 'x86_64',
+      target: 'x86_64-unknown-linux-gnu',
+      ext: 'tar.gz',
+      bin: 'dgpuj',
+    },
+  ],
+};
+
+check(
+  'defaultDgpujRepo is where dgpuj is published',
+  dgpujNapi.defaultDgpujRepo() === 'harmoniya-net/dgpuj',
+);
+check(
+  'defaultDgpujPlatforms lists the published targets',
+  dgpujNapi.defaultDgpujPlatforms().length === 5,
+);
+const dgpujResolved = await dgpujNapi.resolveDgpuj(dgpujOpts);
+check(
+  'resolveDgpuj pins the archive for each target',
+  dgpujResolved.release.tag_name === 'v0.3.0' &&
+    dgpujResolved.artifacts.length === 1 &&
+    dgpujResolved.artifacts[0].path === `\${dgpuj_dir}/${DGPUJ_ASSET}` &&
+    dgpujResolved.artifacts[0].integrity.sha256 === 'a'.repeat(64),
+);
+const dgpujBuilt = await dgpujNapi.buildDgpuj(dgpujOpts);
+check('buildDgpuj names the plugin', dgpujBuilt.output.name === 'dgpuj');
+
+dgpujApi.close();
 mojangApi.close();
 
 console.log(`\nresult: ${ok} passed, ${fail} failed`);

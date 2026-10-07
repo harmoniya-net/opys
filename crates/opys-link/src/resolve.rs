@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use opys_core::{Artifact, HashEntry, Integrity, Source};
 use opys_curseforge::{resolve_curseforge_files, FileRef, CURSEFORGE_API};
 use opys_dev::github::{
-    fetch_github_release, github_asset_sha256, pick_github_release, GitHubRelease as Release,
+    fetch_github_release, pick_github_release, pin_github_asset, GitHubRelease as Release,
     ReleaseSelector, GITHUB_API_BASE,
 };
 use opys_dev::gitlab::{resolve_gitlab_package_file, FileSelector};
@@ -116,22 +116,14 @@ fn github(
             }
         })?;
 
-    // GitHub has computed a digest for assets uploaded since 2024. For one
-    // older than that, the file is hashed here.
-    let (size, integrity) = match github_asset_sha256(file) {
-        Some(digest) => (file.size, sha256(digest)),
-        None => {
-            let pinned = pin_url(&file.browser_download_url, &[])?;
-            (pinned.size, sha256(pinned.sha256))
-        }
-    };
+    let pinned = pin_github_asset(file)?;
     Ok(ResolvedFile {
         link: link.to_owned(),
         provider: Provider::GitHub,
         filename: file.name.clone(),
         url: file.browser_download_url.clone(),
-        size,
-        integrity,
+        size: pinned.size,
+        integrity: sha256(pinned.sha256),
     })
 }
 
