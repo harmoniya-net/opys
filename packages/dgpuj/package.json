@@ -12,8 +12,7 @@
   "scripts": {
     "build": "tsdown lib/index.ts --format esm,cjs --dts --clean",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "test": "vitest run tests/unit --passWithNoTests",
-    "test:int": "vitest run tests/integration --testTimeout=120000"
+    "test": "vitest run tests/unit --passWithNoTests"
   },
   "dependencies": {
     "@opys/core": "^0.2.0",
