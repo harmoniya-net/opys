@@ -30,6 +30,7 @@ const lwjgl3ifyNapi = require('../crates/opys-lwjgl3ify-napi/index.js');
 const authlibertyNapi = require('../crates/opys-authliberty-napi/index.js');
 const modrinthNapi = require('../crates/opys-modrinth-napi/index.js');
 const curseforgeNapi = require('../crates/opys-curseforge-napi/index.js');
+const linkNapi = require('../crates/opys-link-napi/index.js');
 
 let ok = 0;
 let fail = 0;
@@ -1026,6 +1027,41 @@ check(
 );
 
 curseforgeApi.close();
+
+// ── link ──────────────────────────────────────────────────────────────────
+// A plain URL, the provider of last resort: nobody publishes a hash for it,
+// so the addon downloads the file and computes one. That is a binary read and
+// a sha256 behind the boundary, which nothing above exercises.
+console.log('\n— link —');
+
+const fileHost = createServer((_req, res) => res.writeHead(200).end('hello'));
+await new Promise((resolve) => fileHost.listen(0, '127.0.0.1', resolve));
+const fileUrl = `http://127.0.0.1:${fileHost.address().port}/files/hello.txt`;
+
+const linked = await linkNapi.resolveLinks([fileUrl], {});
+check(
+  'resolveLinks pins a plain URL by downloading and hashing it',
+  linked.length === 1 &&
+    linked[0].provider === 'url' &&
+    linked[0].filename === 'hello.txt' &&
+    linked[0].size === 5 &&
+    linked[0].integrity.sha256 ===
+      '2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824',
+);
+check(
+  'linkFileArtifacts puts the file at the path chosen for it',
+  linkNapi.linkFileArtifacts(linked, ['${root}/hello.txt'])[0].path ===
+    '${root}/hello.txt',
+);
+check(
+  'resolveLinks refuses what is not a link, before any request',
+  await linkNapi.resolveLinks(['sodium'], {}).then(
+    () => false,
+    (e) => /is not a link/.test(e.message),
+  ),
+);
+
+fileHost.close();
 mojangApi.close();
 
 console.log(`\nresult: ${ok} passed, ${fail} failed`);

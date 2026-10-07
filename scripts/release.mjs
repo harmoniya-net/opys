@@ -93,6 +93,7 @@ for (const crate of [
   'crates/opys-modpack',
   'crates/opys-modrinth',
   'crates/opys-curseforge',
+  'crates/opys-link',
   'crates/opys-runtime',
   'crates/opys-core-napi',
   'crates/opys-mojang-napi',
@@ -107,6 +108,7 @@ for (const crate of [
   'crates/opys-authliberty-napi',
   'crates/opys-modrinth-napi',
   'crates/opys-curseforge-napi',
+  'crates/opys-link-napi',
   'crates/opys-runtime-napi',
 ]) {
   stampCargoCrate(`${crate}/Cargo.toml`);

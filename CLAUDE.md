@@ -232,9 +232,20 @@ Eight packages, a clean DAG, no cycles:
   one spelling across the family; `http::get` stays underneath it for the
   callers that treat a status as data (a 404 for a platform a release doesn't
   ship).
-- **A callback never crosses napi; its answers do.** `modrinth` and
-  `curseforge` take a `path` function from the config author, and
-  `authliberty` may take `hosts` as one. A closure cannot be handed to Rust,
+- **A link is resolved once, by whoever publishes its hash — or by reading the
+  file.** `opys-link` takes the URL a config author already has and turns it
+  into a pinned file. `parse_link` is pure: it says which provider a URL
+  belongs to and what it names there. `resolve_links` asks that provider —
+  GitHub and GitLab through `opys-dev`'s clients, Modrinth and CurseForge
+  through their crates — and each answers with the hash it publishes. A file
+  with no publisher (an old GitHub asset, a plain URL) is downloaded at build
+  time and hashed, by `opys-dev`'s `pin_url`. That last case is what makes the
+  rule about fully resolved manifests hold for _any_ file, not only for files
+  on a cooperative host. The crate only dispatches; it holds no client of its
+  own.
+- **A callback never crosses napi; its answers do.** `modrinth`, `curseforge`
+  and `links` take a `path` function from the config author, and `authliberty`
+  may take `hosts` as one. A closure cannot be handed to Rust,
   so each is split in two on the crate side: resolve to plain data, then build
   from that data plus what the callback returned (`file_artifacts(files,
 paths)`). The wrapper's only job is the call in between.

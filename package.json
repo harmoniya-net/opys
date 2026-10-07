@@ -25,6 +25,7 @@
     "packages/authliberty",
     "packages/curseforge",
     "packages/modrinth",
+    "packages/link",
     "packages/bifrost",
     "packages/minecraft-serverlist",
     "packages/java",
@@ -44,6 +45,7 @@
     "crates/opys-authliberty-napi",
     "crates/opys-modrinth-napi",
     "crates/opys-curseforge-napi",
+    "crates/opys-link-napi",
     "crates/opys-core-napi",
     "crates/opys-runtime-napi"
   ],

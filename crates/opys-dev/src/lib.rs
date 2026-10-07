@@ -20,7 +20,11 @@ mod engine;
 #[cfg(feature = "net")]
 pub mod github;
 #[cfg(feature = "net")]
+pub mod gitlab;
+#[cfg(feature = "net")]
 pub mod http;
+#[cfg(feature = "net")]
+pub mod pin;
 pub mod url;
 
 pub use contribution::{Contribution, LaunchFragment, LaunchGroups, PluginOutput};

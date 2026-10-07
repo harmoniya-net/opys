@@ -5,7 +5,7 @@
 //! second resolver needed it: a GitLab project path travels as one segment,
 //! `group%2Fname`.
 
-use percent_encoding::{utf8_percent_encode, AsciiSet, NON_ALPHANUMERIC};
+use percent_encoding::{percent_decode_str, utf8_percent_encode, AsciiSet, NON_ALPHANUMERIC};
 
 /// `encodeURIComponent`'s unreserved set: `A-Za-z0-9-_.!~*'()`.
 const URI_COMPONENT: &AsciiSet = &NON_ALPHANUMERIC
@@ -25,4 +25,14 @@ const URI_COMPONENT: &AsciiSet = &NON_ALPHANUMERIC
 /// and the lookup misses.
 pub fn encode_uri_component(s: &str) -> String {
     utf8_percent_encode(s, URI_COMPONENT).to_string()
+}
+
+/// Undo [`encode_uri_component`] on one path segment. A segment that does not
+/// decode to UTF-8 is returned as it was written — it is somebody's file name,
+/// and being wrong about its spelling is worse than leaving it escaped.
+pub fn decode_uri_component(s: &str) -> String {
+    percent_decode_str(s)
+        .decode_utf8()
+        .map(|decoded| decoded.into_owned())
+        .unwrap_or_else(|_| s.to_owned())
 }

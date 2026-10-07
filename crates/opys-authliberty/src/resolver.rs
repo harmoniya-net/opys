@@ -9,14 +9,13 @@
 //! integrity the manifest carries. `latest` changes hash whenever a build
 //! replaces it; whichever it is at build time is what gets frozen in.
 
-use opys_dev::http::get_json;
-use opys_dev::url::encode_uri_component;
+use opys_dev::gitlab::{resolve_gitlab_package_file, FileSelector, GitLabError, GITLAB_BASE};
 use serde::{Deserialize, Serialize};
 
 use crate::error::AuthLibertyError;
 
 pub const DEFAULT_PROJECT: &str = "harmoniya/authliberty";
-pub const DEFAULT_GITLAB: &str = "https://gitlab.com";
+pub const DEFAULT_GITLAB: &str = GITLAB_BASE;
 const PACKAGE_NAME: &str = "authliberty";
 
 /// One resolved agent jar.
@@ -50,119 +49,44 @@ pub struct ResolveAuthLibertyOptions {
     pub token: Option<String>,
 }
 
-#[derive(Deserialize)]
-pub(crate) struct PackageWire {
-    id: u64,
-    name: String,
-    version: String,
-    package_type: String,
-    status: String,
-    created_at: String,
-}
-
-#[derive(Deserialize)]
-pub(crate) struct PackageFileWire {
-    file_name: String,
-    size: u64,
-    #[serde(default)]
-    file_sha256: Option<String>,
-    created_at: String,
-}
-
-/// The newest of `items` by `created_at`. ISO timestamps order as text.
-fn newest<T>(items: impl IntoIterator<Item = T>, created_at: impl Fn(&T) -> &str) -> Option<T> {
-    items.into_iter().reduce(|latest, item| {
-        if created_at(&item) > created_at(&latest) {
-            item
-        } else {
-            latest
-        }
-    })
-}
-
 /// Resolve `version` — an exact version, or `latest` for the channel `main`
 /// publishes to — against the registry.
+///
+/// The lookup itself is `opys-dev`'s: a generic package, its newest
+/// publication of that version, and the newest `.jar` in it. What is this
+/// crate's is knowing the package is called `authliberty` and holds one jar.
 pub fn resolve_authliberty_version(
     version: &str,
     options: &ResolveAuthLibertyOptions,
 ) -> Result<AuthLibertyRelease, AuthLibertyError> {
     let project = options.project.as_deref().unwrap_or(DEFAULT_PROJECT);
-    let base = options
-        .gitlab
-        .as_deref()
-        .unwrap_or(DEFAULT_GITLAB)
-        .trim_end_matches('/');
-    // A project path is one path segment to GitLab: `group%2Fname`.
-    let project_segment = encode_uri_component(project);
-    let headers: Vec<(&str, &str)> = options
-        .token
-        .as_deref()
-        .map(|token| ("PRIVATE-TOKEN", token))
-        .into_iter()
-        .collect();
-
-    let listed: Vec<PackageWire> = get_json(
-        &format!(
-            "{base}/api/v4/projects/{project_segment}/packages?package_type=generic&package_name={PACKAGE_NAME}&per_page=100"
-        ),
-        &headers,
-    )?;
-    // GitLab's `package_name` filter is a fuzzy match, so narrow to the exact
-    // name and the generic registry, and drop anything not `default` — a
-    // package still processing, or one that failed.
-    let packages: Vec<PackageWire> = listed
-        .into_iter()
-        .filter(|p| p.name == PACKAGE_NAME && p.package_type == "generic" && p.status == "default")
-        .collect();
-
-    let mut available: Vec<&str> = Vec::new();
-    for package in &packages {
-        if !available.contains(&package.version.as_str()) {
-            available.push(&package.version);
-        }
-    }
-    let available = if available.is_empty() {
-        "(none)".to_owned()
-    } else {
-        available.into_iter().take(8).collect::<Vec<_>>().join(", ")
-    };
-
-    // The same version can be published again; the most recent package wins.
-    let package = newest(packages.into_iter().filter(|p| p.version == version), |p| {
-        &p.created_at
-    })
-    .ok_or_else(|| AuthLibertyError::UnknownVersion {
-        version: version.to_owned(),
-        project: project.to_owned(),
-        available,
-    })?;
-
-    let files: Vec<PackageFileWire> = get_json(
-        &format!(
-            "{base}/api/v4/projects/{project_segment}/packages/{}/package_files?per_page=100",
-            package.id
-        ),
-        &headers,
-    )?;
-    let jar = newest(
-        files.into_iter().filter(|f| f.file_name.ends_with(".jar")),
-        |f| &f.created_at,
+    let file = resolve_gitlab_package_file(
+        options.gitlab.as_deref().unwrap_or(DEFAULT_GITLAB),
+        project,
+        PACKAGE_NAME,
+        version,
+        FileSelector::Suffix(".jar"),
+        options.token.as_deref(),
     )
-    .ok_or_else(|| AuthLibertyError::NoJar {
-        project: project.to_owned(),
-        version: package.version.clone(),
+    .map_err(|error| match error {
+        GitLabError::Fetch(fetch) => AuthLibertyError::Fetch(fetch),
+        GitLabError::NoVersion { available, .. } => AuthLibertyError::UnknownVersion {
+            version: version.to_owned(),
+            project: project.to_owned(),
+            available,
+        },
+        GitLabError::NoFile { version, .. } => AuthLibertyError::NoJar {
+            project: project.to_owned(),
+            version,
+        },
     })?;
 
     Ok(AuthLibertyRelease {
-        url: format!(
-            "{base}/api/v4/projects/{project_segment}/packages/generic/{PACKAGE_NAME}/{}/{}",
-            encode_uri_component(&package.version),
-            encode_uri_component(&jar.file_name),
-        ),
-        version: package.version,
-        filename: jar.file_name,
-        size: jar.size,
-        sha256: jar.file_sha256,
-        created_at: package.created_at,
+        version: file.version,
+        filename: file.filename,
+        url: file.url,
+        size: file.size,
+        sha256: file.sha256,
+        created_at: file.created_at,
     })
 }

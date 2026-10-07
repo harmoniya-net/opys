@@ -934,11 +934,13 @@ dependencies = [
 name = "opys-dev"
 version = "0.2.0"
 dependencies = [
+ "hex",
  "indexmap",
  "opys-core",
  "percent-encoding",
  "serde",
  "serde_json",
+ "sha2",
  "thiserror",
  "ureq",
 ]
@@ -1027,6 +1029,31 @@ dependencies = [
  "napi-build",
  "napi-derive",
  "opys-java",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "opys-link"
+version = "0.2.0"
+dependencies = [
+ "opys-core",
+ "opys-curseforge",
+ "opys-dev",
+ "opys-modrinth",
+ "serde",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
+name = "opys-link-napi"
+version = "0.2.0"
+dependencies = [
+ "napi",
+ "napi-build",
+ "napi-derive",
+ "opys-link",
  "serde",
  "serde_json",
 ]
