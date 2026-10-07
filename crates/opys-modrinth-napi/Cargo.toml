@@ -12,7 +12,7 @@ publish = false
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-opys-modrinth = { path = "../opys-modrinth", version = "0.2.0" }
+opys-modrinth = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 

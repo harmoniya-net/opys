@@ -12,7 +12,7 @@ publish = false
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-opys-minecraft-serverlist = { path = "../opys-minecraft-serverlist", version = "0.2.0" }
+opys-minecraft-serverlist = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 

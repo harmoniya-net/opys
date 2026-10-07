@@ -12,7 +12,7 @@ publish = false
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-opys-dgpuj = { path = "../opys-dgpuj", version = "0.2.0" }
+opys-dgpuj = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 

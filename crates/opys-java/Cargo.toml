@@ -9,12 +9,12 @@ homepage.workspace = true
 description = "opys JDK provisioning plugin — Temurin, Zulu and GraalVM CE resolvers."
 
 [dependencies]
-opys-core = { path = "../opys-core", version = "0.2.0" }
-opys-dev = { path = "../opys-dev", version = "0.2.0" }
+opys-core = { workspace = true }
+opys-dev = { workspace = true, features = ["net"] }
 indexmap = { version = "2", features = ["serde"] }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
 
 [dev-dependencies]
-opys-dev = { path = "../opys-dev", version = "0.2.0" }
+opys-dev = { workspace = true, features = ["net"] }

@@ -12,7 +12,7 @@ publish = false
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-opys-bifrost = { path = "../opys-bifrost", version = "0.2.0" }
+opys-bifrost = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 

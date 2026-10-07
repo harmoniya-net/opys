@@ -9,7 +9,7 @@ homepage.workspace = true
 description = "What opys's modpack resolvers share — the loader a pack asks for, and reading the pack archive."
 
 [dependencies]
-opys-core = { path = "../opys-core", version = "0.2.0" }
+opys-core = { workspace = true }
 hex = "0.4"
 serde = { workspace = true }
 sha1 = "0.10"

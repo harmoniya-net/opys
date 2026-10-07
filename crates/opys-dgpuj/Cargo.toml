@@ -9,8 +9,8 @@ homepage.workspace = true
 description = "dgpuj for opys — the discrete-GPU launcher, from its GitHub releases."
 
 [dependencies]
-opys-core = { path = "../opys-core", version = "0.2.0" }
-opys-dev = { path = "../opys-dev", version = "0.2.0" }
+opys-core = { workspace = true }
+opys-dev = { workspace = true, features = ["net"] }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }

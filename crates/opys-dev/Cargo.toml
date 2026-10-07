@@ -15,7 +15,7 @@ default = ["net"]
 net = ["dep:ureq"]
 
 [dependencies]
-opys-core = { path = "../opys-core", version = "0.2.0" }
+opys-core = { workspace = true }
 indexmap = { version = "2", features = ["serde"] }
 percent-encoding = "2"
 serde = { workspace = true }

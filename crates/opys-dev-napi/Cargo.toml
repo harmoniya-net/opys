@@ -14,8 +14,8 @@ publish = false
 crate-type = ["cdylib"]
 
 [dependencies]
-opys-dev = { path = "../opys-dev", version = "0.2.0", default-features = false }
-opys-core = { path = "../opys-core", version = "0.2.0" }
+opys-dev = { workspace = true }
+opys-core = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 indexmap = { version = "2", features = ["serde"] }

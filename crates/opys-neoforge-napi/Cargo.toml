@@ -12,7 +12,7 @@ publish = false
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-opys-neoforge = { path = "../opys-neoforge", version = "0.2.0" }
+opys-neoforge = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 

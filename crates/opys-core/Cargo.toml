@@ -9,7 +9,7 @@ homepage.workspace = true
 description = "opys manifest data model + shorthand + Val/Valset + the bundle. Reference implementation of the opys manifest format."
 
 [dependencies]
-opys-mojang-rules = { path = "../opys-mojang-rules", version = "0.2.0" }
+opys-mojang-rules = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 regex = { workspace = true }

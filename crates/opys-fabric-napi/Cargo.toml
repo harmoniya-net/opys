@@ -12,7 +12,7 @@ publish = false
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-opys-fabric = { path = "../opys-fabric", version = "0.2.0" }
+opys-fabric = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 

@@ -15,3 +15,29 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 thiserror = "2"
 regex = "1"
+
+# Every crate of ours, once. A member says `opys-core = { workspace = true }`
+# and the version is written here and nowhere else, so a release changes this
+# file and not twenty. `opys-dev` is declared without its default `net`
+# feature, because a workspace dependency can only have features added by a
+# member, never taken away: the crates that fetch ask for `net`.
+opys-authliberty = { path = "crates/opys-authliberty", version = "0.2.0" }
+opys-bifrost = { path = "crates/opys-bifrost", version = "0.2.0" }
+opys-cleanroom = { path = "crates/opys-cleanroom", version = "0.2.0" }
+opys-core = { path = "crates/opys-core", version = "0.2.0" }
+opys-curseforge = { path = "crates/opys-curseforge", version = "0.2.0" }
+opys-dev = { path = "crates/opys-dev", version = "0.2.0", default-features = false }
+opys-dgpuj = { path = "crates/opys-dgpuj", version = "0.2.0" }
+opys-fabric = { path = "crates/opys-fabric", version = "0.2.0" }
+opys-forge = { path = "crates/opys-forge", version = "0.2.0" }
+opys-java = { path = "crates/opys-java", version = "0.2.0" }
+opys-link = { path = "crates/opys-link", version = "0.2.0" }
+opys-lwjgl3ify = { path = "crates/opys-lwjgl3ify", version = "0.2.0" }
+opys-minecraft-serverlist = { path = "crates/opys-minecraft-serverlist", version = "0.2.0" }
+opys-minecraft-vanilla = { path = "crates/opys-minecraft-vanilla", version = "0.2.0" }
+opys-modpack = { path = "crates/opys-modpack", version = "0.2.0" }
+opys-modrinth = { path = "crates/opys-modrinth", version = "0.2.0" }
+opys-mojang = { path = "crates/opys-mojang", version = "0.2.0" }
+opys-mojang-rules = { path = "crates/opys-mojang-rules", version = "0.2.0" }
+opys-neoforge = { path = "crates/opys-neoforge", version = "0.2.0" }
+opys-runtime = { path = "crates/opys-runtime", version = "0.2.0" }

@@ -9,10 +9,10 @@ homepage.workspace = true
 description = "Links for opys — a pasted GitHub, GitLab, Modrinth, CurseForge or plain URL, resolved to a pinned file."
 
 [dependencies]
-opys-core = { path = "../opys-core", version = "0.2.0" }
-opys-curseforge = { path = "../opys-curseforge", version = "0.2.0" }
-opys-dev = { path = "../opys-dev", version = "0.2.0" }
-opys-modrinth = { path = "../opys-modrinth", version = "0.2.0" }
+opys-core = { workspace = true }
+opys-curseforge = { workspace = true }
+opys-dev = { workspace = true, features = ["net"] }
+opys-modrinth = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }

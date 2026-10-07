@@ -9,7 +9,7 @@ homepage.workspace = true
 description = "Mojang protocol parsers (version JSON, libraries, assets, maven). Pure — no I/O."
 
 [dependencies]
-opys-mojang-rules = { path = "../opys-mojang-rules", version = "0.2.0" }
+opys-mojang-rules = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }

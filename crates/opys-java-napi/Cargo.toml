@@ -12,7 +12,7 @@ publish = false
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-opys-java = { path = "../opys-java", version = "0.2.0" }
+opys-java = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 

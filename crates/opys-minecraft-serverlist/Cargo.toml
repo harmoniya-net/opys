@@ -9,9 +9,9 @@ homepage.workspace = true
 description = "A generated Minecraft servers.dat for opys — the multiplayer server list, as a blob the manifest carries."
 
 [dependencies]
-opys-core = { path = "../opys-core", version = "0.2.0" }
+opys-core = { workspace = true }
 # The plugin contract only; a server list is generated, never fetched.
-opys-dev = { path = "../opys-dev", version = "0.2.0", default-features = false }
+opys-dev = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 

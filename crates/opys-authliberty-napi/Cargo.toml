@@ -12,7 +12,7 @@ publish = false
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-opys-authliberty = { path = "../opys-authliberty", version = "0.2.0" }
+opys-authliberty = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 
