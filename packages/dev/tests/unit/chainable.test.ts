@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  sourceFile,
+  sourceBlob,
   sourceUrl,
   type Artifact,
   type Integrity,
@@ -81,9 +81,9 @@ describe('ChainablePlugin', () => {
   it('updateMany shallow-merges a partial into every match', async () => {
     const base = fake({ artifacts: [art('mods/a.jar'), art('mods/b.jar')] });
     const out = await built(
-      base.updateMany('**/*.jar', { source: sourceFile('/local/x') }),
+      base.updateMany('**/*.jar', { source: sourceBlob('0'.repeat(64)) }),
     );
-    expect(out.every((a) => 'file' in a.source)).toBe(true);
+    expect(out.every((a) => 'blob' in a.source)).toBe(true);
   });
 
   it('updateMany accepts a function of the matched artifact', async () => {

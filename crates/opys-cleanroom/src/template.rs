@@ -86,6 +86,8 @@ pub fn build_cleanroom(options: &CleanroomOptions) -> Result<PluginOutput, Clean
         name: PLUGIN_NAME.to_owned(),
         contribution: Contribution {
             artifacts: template.artifacts,
+            // Every artifact here is a download; none travels with the manifest.
+            blobs: Default::default(),
             vars: template.vars,
             launch: [
                 (

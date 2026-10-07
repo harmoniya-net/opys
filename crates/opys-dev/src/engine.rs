@@ -6,7 +6,7 @@
 
 use std::collections::HashMap;
 
-use opys_core::{deduplicate_artifacts, Artifact, Launch, Manifest, Val, ValDefs, Valset};
+use opys_core::{deduplicate_artifacts, Artifact, Blobs, Launch, Manifest, Val, ValDefs, Valset};
 use serde::Deserialize;
 
 use crate::contribution::{Contribution, LaunchFragment, PluginOutput};
@@ -36,7 +36,7 @@ pub struct ManifestConfig {
     pub args: Vec<LaunchFragment>,
     #[serde(default)]
     pub envs: ValDefs,
-    /// Emitted only when non-empty, matching the frozen wire format.
+    /// Emitted only when non-empty, matching the wire format.
     #[serde(default)]
     pub restrict: Vec<String>,
 }
@@ -49,6 +49,9 @@ pub struct ManifestConfig {
 #[derive(Debug, Clone, Default)]
 pub struct Assembled {
     pub manifest: Manifest,
+    /// Where each blob the manifest names is kept. Only those: a blob whose
+    /// artifact a later plugin replaced is dropped with it.
+    pub blobs: Blobs,
     pub warnings: Vec<String>,
 }
 
@@ -120,6 +123,17 @@ pub fn assemble(outputs: &[PluginOutput], config: &ManifestConfig) -> Assembled 
         envs.insert(key.clone(), value.clone());
     }
 
+    // Blobs need no merge rule. An id is the hash of its bytes, so two plugins
+    // holding the same id hold the same thing and either copy will do.
+    let named: std::collections::BTreeSet<&str> =
+        artifacts.iter().filter_map(Artifact::blob_id).collect();
+    let blobs: Blobs = outputs
+        .iter()
+        .flat_map(|output| &output.contribution.blobs)
+        .filter(|(id, _)| named.contains(id.as_str()))
+        .map(|(id, source)| (id.clone(), source.clone()))
+        .collect();
+
     let launch = Launch {
         command: config.command.clone(),
         workdir: config.workdir.clone().unwrap_or_else(|| ".".to_owned()),
@@ -134,6 +148,7 @@ pub fn assemble(outputs: &[PluginOutput], config: &ManifestConfig) -> Assembled 
             artifacts,
             restrict: (!config.restrict.is_empty()).then(|| config.restrict.clone()),
         },
+        blobs,
         warnings,
     }
 }

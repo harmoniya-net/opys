@@ -24,7 +24,7 @@ import { minecraft } from '@opys/minecraft-vanilla';
 import { java } from '@opys/java';
 
 export default defineConfig({
-  output: 'opys.json',
+  output: 'game.opys',
   plugins: [minecraft('1.20.1'), java('17')],
   manifest: {
     command: ({ java }) => java.bin,

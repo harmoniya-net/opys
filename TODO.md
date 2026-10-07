@@ -7,9 +7,3 @@ from the hashed `assets/objects/` store, and fetches them itself from a bucket
 Mojang retired (`s3.amazonaws.com/MinecraftResources`). opys has no mapper that
 lays the asset index out under `resources/`, so those versions launch and run
 silent. Seen on Forge 1.1 and 1.2.5; it is vanilla's gap, not the loader's.
-
-## `opys launch` does not read `opys.json`
-
-It rebuilds the manifest from the config every time. That is the documented
-behaviour, but it means there is no way to launch a manifest someone else
-built without going through `@opys/runtime` by hand.

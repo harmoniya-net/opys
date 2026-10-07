@@ -1,5 +1,5 @@
-import { launch } from '@opys/runtime';
-import { valValues, type Manifest, type Valset } from '@opys/core';
+import { buildLaunch, spawnLaunch } from '@opys/runtime';
+import { valValues, type Valset } from '@opys/core';
 import { prepare } from '../prepare';
 import { installWithProgress } from '../install-progress';
 import { awaitExit } from '../child';
@@ -9,8 +9,10 @@ import type { Logger } from '../logger';
  * The flag that tells horno to stop after installing.
  *
  * It goes at the front of the JVM line, where any `-D` is valid, rather than
- * into the manifest — `opys.json` is frozen and describes an installation, not
- * a particular run of one. This is a CLI feature, not a format change.
+ * into the manifest — a manifest describes an installation, not a particular
+ * run of one, and a bundle being installed is not ours to rewrite. So the
+ * launch is built as the manifest says and the flag is added to what comes
+ * back. This is a CLI feature, not a format change.
  */
 const INSTALL_ONLY = '-Dhorno.installOnly=true';
 
@@ -40,24 +42,19 @@ export async function cmdInstall(
   logger: Logger,
   command: string,
 ): Promise<void> {
-  const { manifest, features } = await prepare(argv, logger, command);
+  const prepared = await prepare(argv, logger, command);
+  const { source, features, vars } = prepared;
 
-  await installWithProgress(manifest, features, logger);
+  await installWithProgress(source, { features, vars }, logger);
 
-  if (!manifest.launch || !usesHorno(manifest.launch.args)) {
+  if (!prepared.launch || !usesHorno(prepared.launch.args)) {
     logger.info(' No loader install step; everything is in place');
     return;
   }
 
   logger.info('Running the loader install...');
-  const installOnly: Manifest = {
-    ...manifest,
-    launch: {
-      ...manifest.launch,
-      args: [INSTALL_ONLY, ...manifest.launch.args],
-    },
-  };
-  const child = await launch(installOnly, { install: false, features });
+  const spec = await buildLaunch(source, { features, vars });
+  const child = spawnLaunch({ ...spec, args: [INSTALL_ONLY, ...spec.args] });
   await awaitExit(child);
   logger.info(' Installed');
 }

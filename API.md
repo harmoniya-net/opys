@@ -1,8 +1,8 @@
 # Public API & Lifecycle
 
-opys builds and runs Minecraft installations from a declarative `opys.json`
-manifest. The build side is a **plugin engine**; the runtime side is a dumb
-manifest executor. The two are joined only by the frozen `opys.json` format.
+opys builds and runs Minecraft installations from a declarative manifest,
+published as a bundle. The build side is a **plugin engine**; the runtime side
+is a dumb manifest executor. The two are joined only by the manifest format.
 
 ## Lifecycle
 
@@ -10,7 +10,7 @@ manifest executor. The two are joined only by the frozen `opys.json` format.
 
 1. `import(config)` — load `opys.config.mjs`.
 2. `resolveConfig(default, { mode })` — invoke the function form, if any.
-3. `buildManifest(config, ctx)` (`@opys/dev`):
+3. `buildManifest(config, ctx)` (`@opys/dev`) → `{ manifest, blobs }`:
    - run every plugin's `build(ctx)` hook **in parallel** → `Contribution[]`
    - evaluate the `command`/`args`/`workdir`/`envs` accessor functions
    - hand both to `assemble` in the `opys-dev` crate, which:
@@ -20,23 +20,34 @@ manifest executor. The two are joined only by the frozen `opys.json` format.
      - merges vars (plugin order, last wins; returns a warning on a
        plugin-vs-plugin collision), then layers `manifest.vars`
      - flattens the launch fragments into the final `Launch`
+     - gathers the blobs the surviving artifacts name
 
    The returned manifest is in its canonical wire spelling — a rule-free single
    value is a bare string, an arm with no rules has no `rules` key.
 
-4. `encodeManifest` → JSON → write to `-o`, `config.output`, or stdout.
+4. `writeBundle` (`@opys/core`) → the bundle, at `-o` or `config.output`.
+   With neither, the manifest alone is printed as JSON — a view of it, without
+   the blobs.
 
 ### `opys launch [-i config] [--mode m]`
 
 1. Load the config, `resolveConfig`.
-2. `buildManifest` — in memory, from the config. There is no `opys.json`
-   round-trip; a _deployed_ launcher feeds `@opys/runtime` a frozen one instead.
+2. `buildManifest` — in memory, from the config. No bundle is written: the
+   blobs stay where they are on this machine and the runtime reads them there.
 3. Apply the `runClient` patch: `{ ...manifest, ...runClient(manifest) }`.
-4. `install(manifest)` then `launch(manifest, { install: false })` (`@opys/runtime`).
+4. `install(source)` then `launch(source, { install: false })`
+   (`@opys/runtime`), where `source` is `{ manifest, blobs }`.
+
+### `opys launch <bundle> [--var k=v]...`
+
+The other way in: install and launch a built bundle, exactly as a deployed
+launcher would. No config is loaded, so there is no `runClient` — machine
+paths and credentials come from `--var`. `source` is `{ bundle }`.
+`opys install <bundle>` is the same, stopping before the game.
 
 ### `opys install [-i config] [--mode m]`
 
-Steps 1-4, minus the game. After `install(manifest)`, if the manifest's own
+Steps 1-4, minus the game. After `install(source)`, if the manifest's own
 arguments name horno, it runs once with `-Dhorno.installOnly=true` at the front
 of the JVM line — that is the half `install()` cannot do, because the loader's
 processors build a patched client jar on the machine that runs them, and
@@ -44,8 +55,9 @@ pre-1.13 the client jar is rewritten outright. A build that names no horno
 properties (1.6.1-1.12.2) has no such half, and the artifact install is the
 whole installation.
 
-The flag is a CLI argument, never a manifest field: `opys.json` is frozen and
-describes an installation, not a particular run of one.
+The flag is a CLI argument, never a manifest field: a manifest describes an
+installation, not a particular run of one. The launch is built as the manifest
+says and the flag is added to what comes back, so a bundle is never rewritten.
 
 ## Config — `@opys/dev`
 
@@ -53,7 +65,7 @@ describes an installation, not a particular run of one.
 import { defineConfig } from '@opys/dev';
 
 export default defineConfig(({ mode }) => ({
-  output: 'opys.json',
+  output: 'game.opys',
   plugins: [ /* OpysPlugin[] */ ],
   manifest: {
     command: (plugins) => string,
@@ -144,7 +156,7 @@ Helpers (not plugins): **`bifrost({ privateKey, username, uuid })`**
 
 ## Manifest data model — `@opys/core`
 
-`core` is the reference implementation of the `opys.json` format. Every
+`core` is the reference implementation of the manifest format. Every
 data-model type follows **parse, don't validate**: the type de/serializes
 itself, normalizing as it decodes (`string | string[] → string[]`, rule
 shorthand → expanded `MojangRuleset`, …). The wire structs that make that
@@ -157,7 +169,9 @@ possible are internal to the crate; no consumer names one.
 - A `Val` is `string | { rules?, value: string | string[] }` — all of which the
   manifest format allows, and a rule-free single value encodes back to the bare
   string. Read one with `valValues(val): string[]` rather than `.value`.
-- Source/Extract factories: `sourceUrl`/`sourceFile`/`sourceString`/`sourceBytes`, `extractPick`/`extractScan`/`extractDump`
+- Source/Extract factories: `sourceUrl`/`sourceBlob`, `extractPick`/`extractScan`/`extractDump`
+- Blobs: `blobId`, `hashBlobFile`, `blobFile`/`blobBytes`, and the `Blobs` table
+- Bundle: `writeBundle`, `readBundle`, `readBundleHead`, `BUNDLE_FORMAT`
 - Glob: `globToRegex`, `globToRegexSource`, `globBase`
 - Vars / interpolation: `valValues`, `resolveVars`, `interpolate`, `resolvedArgs`, `resolvedEnvs`
 - Rules come in two named spellings, and the distinction is the point:
@@ -177,7 +191,7 @@ A manifest names every file by a concrete source, and pins the hash of each
 one it can. The installer downloads and verifies; it never asks a server what
 to download or what the hash should be. An upstream that moves — a `latest`
 build, a mod update — is followed by rebuilding the manifest, which a deployed
-launcher picks up the next time it fetches `opys.json`.
+launcher picks up the next time it fetches the bundle.
 
 The format once had two escape hatches from this, a `pointer` source and a
 `discovery` block, which resolved a source or a hash on the installing

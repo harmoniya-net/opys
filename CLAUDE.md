@@ -1,8 +1,9 @@
 # opys
 
 A declarative toolkit that **builds** and **launches** Minecraft installations
-from a frozen `opys.json` manifest. A config (`opys.config.mjs`) composes
-plugins into a manifest at build time; the runtime installs and launches it.
+from a manifest, published as one file — a **bundle**. A config
+(`opys.config.mjs`) composes plugins into a manifest at build time; the
+runtime installs and launches it.
 
 This file is the architecture of record — principles, structure, conventions.
 Treat every claim here as auditable against the code.
@@ -40,10 +41,17 @@ disagree, one of them is wrong — fix it in the same change.
 
 ## Hard constraint
 
-**The `opys.json` manifest format is frozen.** `@opys/core`'s public schemas
-_are_ the contract — a non-TypeScript reimplementation would reimplement
-exactly `core`. Package layout, plugin API, config shape, and CLI flags may all
-change; the manifest wire format may not.
+**The manifest format is the contract.** `@opys/core`'s public schemas _are_
+it — a non-TypeScript reimplementation would reimplement exactly `core`.
+Package layout, plugin API, config shape, and CLI flags may all change freely;
+the format changes only on purpose, and a bundle says which format it is
+written in (`format`, in its head) so a reader refuses what it does not know.
+
+It has been changed on purpose twice. `pointer` sources and the `discovery`
+block were removed, because a manifest must be fully resolved. Then the three
+sources that put a file _into_ the manifest or read it off the installing
+machine — `file`, `string`, `bytes` — gave way to `blob`, and the manifest
+went from a JSON document to a bundle. Both are described under _Invariants_.
 
 ## Packages
 
@@ -56,7 +64,7 @@ them, and the list below names the layers rather than every one:
 @opys/mojang        Mojang protocol parsers (version JSON, libraries, assets, …).
                      Thin wrapper over the `opys-mojang` crate. → mojang-rules
 @opys/core          Manifest data model + opys shorthand + Val/Valset.
-                     The reference implementation of opys.json.           → mojang-rules
+                     The bundle. The reference implementation of the format. → mojang-rules
 @opys/dev           Build SDK: defineConfig, the build engine, the plugin contract,
                      artifact overrides, artifactScanner, userDataDir.
                      The contribution merge is the `opys-dev` crate.               → core
@@ -78,16 +86,44 @@ them, and the list below names the layers rather than every one:
 
 ### Invariants
 
-- **`core` is the frozen manifest spec.** Its schemas are the contract.
+- **`core` is the manifest spec.** Its schemas are the contract.
+- **A source is a `url` or a `blob`, and a blob is named by its content.** A
+  blob artifact is `{ "source": { "blob": "<sha256>" } }`: the manifest says
+  _which_ bytes and never where they are kept, so the name is also the
+  integrity pin and a blob artifact carries no `integrity` of its own.
+  Decoding gives it one all the same, which is why nothing in the runtime
+  tells a blob from a download when it verifies. Where the bytes are is the
+  holder's business — an entry of a bundle once published, and before that a
+  `Blobs` table (`BlobSource`: a file on the build machine, or bytes a plugin
+  made). That table is build-machine state and is never in a manifest; that
+  is the whole difference from the `file` and `bytes` sources it replaced,
+  which made a manifest either machine-specific or megabytes of base64.
+- **A manifest is published as a bundle, and a bundle is a zip.** `opys.json`
+  (the head: `format`, `vars`, `launch`, `restrict`), `artifacts.json` (the
+  list), and `blobs/<sha256>`. Not a format of our own: the reader is
+  `unzip`. The manifest is split because its halves are read for different
+  reasons and differ a thousandfold in size — the list is one line per file
+  of an installation, the head is what anything else asks about — so the head
+  is the first entry and is stored uncompressed, readable with one seek. The
+  split is the container's and not the model's: both halves decode into the
+  one `Manifest`. A bundle is written deterministically (fixed timestamps,
+  blobs in id order), each blob is hashed against its name as it is written,
+  and a reader refuses a bundle that names a blob it does not hold before
+  installing anything from it.
+- **Dev and production install the same way.** `opys launch` hands the
+  runtime the manifest and the blob table in memory; a deployed launcher hands
+  it a bundle. Both are blobs behind one `BlobStore`, so there is no source
+  kind that exists only on a developer's machine and no install path that
+  production never exercises. The cost is hashing local files on each build,
+  which `artifactScanner` already did.
 - **A manifest is fully resolved; the installer looks nothing up.** Every
   artifact names a concrete source and, wherever one can be had, a pinned
   hash. Finding out what to download or what its hash should be is build-time
   work, and belongs to a plugin. The format used to allow two exceptions — a
   `pointer` source, and a `discovery` block that read a hash from a header or
-  a sidecar file at install time — and both were removed (the one deliberate
-  break of the frozen format). A hash that arrives from the same server as the
+  a sidecar file at install time — and both were removed. A hash that arrives from the same server as the
   file verifies a transfer and pins nothing, and "follow latest" is what
-  rebuilding the manifest is for: a deployed launcher fetches `opys.json`
+  rebuilding the manifest is for: a deployed launcher fetches the bundle
   itself, so the manifest is the pointer.
 - **`core` holds only what _both_ sides need.** A contract named by build-time
   alone — `Contribution`, the plugin output — belongs in `dev`; one named by
@@ -108,13 +144,13 @@ them, and the list below names the layers rather than every one:
 - **Nothing that produces manifest artifacts iterates a `HashMap`.** An
   artifact list must not reorder between two builds of the same version, so
   the version JSON's `natives` / `classifiers` maps and the asset manifest's
-  `objects` are `BTreeMap`s. Both were `HashMap`s and both made `opys.json`
+  `objects` are `BTreeMap`s. Both were `HashMap`s and both made a manifest
   differ run to run.
 - **`runtime` depends on `core` alone** among `@opys/*` — `runtime/lib`
   imports only `@opys/core`, its own binding, and `node:`, with no third-party
   dependency at all. It is a clean reimplementation target.
 - **`dev` and `runtime` never see each other.** `core` is the only plank across
-  the build-time / runtime wall; they are joined solely by `opys.json`.
+  the build-time / runtime wall; they are joined solely by the manifest.
 - **One rule format, one implementation** — the `opys-mojang-rules` crate owns
   `MojangRule` / `MojangRuleset` and is its only implementation. It reaches JS
   through two addons with deliberately different contracts: `@opys/mojang`
@@ -335,6 +371,7 @@ interface OpysPlugin {
 }
 interface Contribution {
   artifacts?: Artifact[];
+  blobs?: Blobs; // where this plugin's blob artifacts are kept
   vars?: ValDefs;
   launch?: Record<string, Valset | Val | string>; // named launch groups
 }
@@ -360,7 +397,7 @@ export default defineConfig(({ mode }) => ({
   // runClient runs on the LAUNCH machine, every launch — the only correct
   // place for machine-specific paths. `userDataDir()` resolves the *build*
   // machine's home dir, so it must NEVER go in `manifest.vars` (baked into
-  // opys.json); it belongs here.
+  // the bundle); it belongs here.
   runClient: (manifest) => ({
     vars: { ...manifest.vars, root: userDataDir('my-pack') },
   }),
@@ -371,7 +408,7 @@ export default defineConfig(({ mode }) => ({
 - The engine merges artifacts (concat + last-wins dedup by normalized path) and
   vars (plugin-list order, last-wins, **warns** on plugin-vs-plugin collision).
   `manifest.vars` is the silent override layer — but it is baked into
-  `opys.json`, so it takes build-time constants only, never machine-specific
+  the bundle, so it takes build-time constants only, never machine-specific
   paths (those go in `runClient`).
 - `command` / `args` / `workdir` / `envs` are author functions over a
   `PluginMap` keyed by plugin `name`. The author owns arg order — there is no
@@ -384,22 +421,32 @@ export default defineConfig(({ mode }) => ({
 
 - **`opys build`** — `resolveConfig` → run every plugin's `build(ctx)` in
   parallel → concat + dedup artifacts → merge vars → assemble `launch` via the
-  author functions → `encodeManifest` → write.
+  author functions → gather the blobs the manifest names → `writeBundle`. With
+  no output named it prints the manifest as JSON instead: a view for reading
+  and diffing, not something to install from, since the blobs are not in it.
 - **`opys install`** — the same build and install as `launch`, stopping before
   the game. Where the manifest's own arguments name horno, it is run once with
   `-Dhorno.installOnly=true` prepended, because the loader's processors — and,
   pre-1.13, rewriting the client jar — happen on the launching machine and
-  `install()` cannot do them. The flag goes on the JVM line, never into
-  `opys.json`: the manifest describes an installation, not a run of one.
+  `install()` cannot do them. The flag goes on the JVM line, never into the
+  manifest, which describes an installation and not a run of one: the launch
+  is built as the manifest says and the flag is added to what comes back.
 - **`opys launch`** — builds the manifest in-memory from the config and
-  launches it directly; no `opys.json` round-trip. `runClient(manifest) =>
-Partial<Manifest>` is the launch-time patch, applied every launch (so e.g.
-  `bifrost` mints a fresh token) as a shallow per-field override. The
-  build/runtime wall holds — `cli` orchestrates `dev` + `runtime`, joined by
-  the in-memory `Manifest`; a _deployed_ launcher instead feeds
-  `@opys/runtime` a frozen, published `opys.json` with no `dev`.
+  launches it directly; no bundle is written, and the blobs are read from
+  where they are. `runClient(manifest) => Partial<Manifest>` is the
+  launch-time patch, applied every launch (so e.g. `bifrost` mints a fresh
+  token) as a shallow per-field override. The build/runtime wall holds — `cli`
+  orchestrates `dev` + `runtime`, joined by the in-memory `Manifest` and its
+  blobs; a _deployed_ launcher instead feeds `@opys/runtime` a published
+  bundle with no `dev`.
+- **`opys launch <bundle>` / `opys install <bundle>`** — that second path,
+  from the command line: install and launch a built bundle as it is. No config
+  is loaded, so there is no `runClient`; machine paths and credentials come
+  from `--var key=value`.
 - The runtime install pipeline is phased: resolve → scan → fetch → verify →
-  extract → sweep. Failure is a discriminated union —
+  extract → sweep. A manifest comes from one of three sources — a bundle on
+  disk, a URL to one (downloaded whole first), or memory — and `prepare`
+  resolves it once for both the install and the launch spec. Failure is a discriminated union —
   `NetworkError` / `IntegrityError` / `ExtractionError`.
 
 ## Working in the repo

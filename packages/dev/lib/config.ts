@@ -25,7 +25,10 @@ export interface OpysManifestConfig {
 }
 
 export interface OpysConfig {
-  /** Default manifest output path, relative to the config file. */
+  /**
+   * Where `opys build` writes the bundle, relative to the config file —
+   * conventionally `<name>.opys`.
+   */
   output?: string;
   /** The plugins whose `build` hooks produce the manifest. */
   plugins: OpysPlugin[];
@@ -44,8 +47,7 @@ export interface OpysConfigContext {
 }
 
 export type OpysConfigInput =
-  | OpysConfig
-  | ((ctx: OpysConfigContext) => OpysConfig | Promise<OpysConfig>);
+  OpysConfig | ((ctx: OpysConfigContext) => OpysConfig | Promise<OpysConfig>);
 
 /** Use as the default export of `opys.config.mjs`. */
 export function defineConfig(input: OpysConfigInput): OpysConfigInput {

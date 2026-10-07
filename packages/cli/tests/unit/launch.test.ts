@@ -2,7 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { EventEmitter } from 'node:events';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { isAbsolute, join } from 'node:path';
+import { writeBundle } from '@opys/core';
 
 const installMock = vi.hoisted(() => vi.fn());
 const launchMock = vi.hoisted(() => vi.fn());
@@ -19,7 +20,7 @@ import { Logger } from '../../lib/logger';
 let dir = '';
 const logger = new Logger('silent');
 
-// cmdLaunch builds the manifest in-memory from this config — no opys.json.
+// cmdLaunch builds the manifest in-memory from this config — no bundle.
 const CONFIG = `export default {
   plugins: [],
   manifest: { command: () => 'java', args: () => [], workdir: '.' },
@@ -59,11 +60,13 @@ describe('cmdLaunch — happy path', () => {
     expect(launchMock).toHaveBeenCalledOnce();
   });
 
-  it('launches the in-memory built manifest (no opys.json needed)', async () => {
+  it('launches the in-memory built manifest (no bundle written)', async () => {
     const cfg = await fixture();
     await cmdLaunch(['-i', cfg], logger, 'launch');
-    const manifestArg = launchMock.mock.calls[0]![0];
-    expect(manifestArg.launch.command).toBe('java');
+    const source = launchMock.mock.calls[0]![0];
+    expect(source.manifest.launch.command).toBe('java');
+    // What was installed is what is launched.
+    expect(installMock.mock.calls[0]![0]).toBe(source);
   });
 
   it('passes install:false to launch so it never rebuilds', async () => {
@@ -105,8 +108,8 @@ describe('cmdLaunch — happy path', () => {
     };`;
     const cfg = await fixture(patched);
     await cmdLaunch(['-i', cfg], logger, 'launch');
-    const manifestArg = launchMock.mock.calls[0]![0];
-    expect(manifestArg.vars.username).toBe('Steve');
+    const source = launchMock.mock.calls[0]![0];
+    expect(source.manifest.vars.username).toBe('Steve');
   });
 });
 
@@ -138,6 +141,92 @@ describe('cmdLaunch — manifest var validation', () => {
     await expect(
       cmdLaunch(['-i', cfg], logger, 'launch'),
     ).resolves.toBeUndefined();
+  });
+});
+
+describe('cmdLaunch — a built bundle', () => {
+  /** A bundle on disk whose manifest launches `java` from `${root}`. */
+  async function bundle(): Promise<string> {
+    const path = join(dir, 'game.opys');
+    await writeBundle(path, {
+      vars: { root: '/built/here' },
+      launch: { command: 'java', workdir: '${root}', args: [], envs: {} },
+      artifacts: [],
+    });
+    return path;
+  }
+
+  it('installs and launches the bundle as it is, with no config', async () => {
+    const path = await bundle();
+    await cmdLaunch([path], logger, 'launch');
+    expect(installMock.mock.calls[0]![0]).toEqual({ bundle: path });
+    expect(launchMock.mock.calls[0]![0]).toEqual({ bundle: path });
+  });
+
+  it('resolves a relative bundle path against the working directory', async () => {
+    await bundle();
+    const origCwd = process.cwd();
+    process.chdir(dir);
+    try {
+      await cmdLaunch(['game.opys'], logger, 'launch');
+    } finally {
+      process.chdir(origCwd);
+    }
+    const { bundle: resolved } = launchMock.mock.calls[0]![0];
+    expect(isAbsolute(resolved)).toBe(true);
+    expect(resolved.endsWith('game.opys')).toBe(true);
+  });
+
+  it('passes --var to both the install and the launch', async () => {
+    const path = await bundle();
+    await cmdLaunch(
+      [
+        path,
+        '--var',
+        'root=/srv/game',
+        '--var',
+        'token=a=b',
+        '--feature',
+        'x,y',
+      ],
+      logger,
+      'launch',
+    );
+    const expected = {
+      vars: { root: '/srv/game', token: 'a=b' },
+      features: ['x', 'y'],
+    };
+    expect(installMock.mock.calls[0]![1]).toMatchObject(expected);
+    expect(launchMock.mock.calls[0]![1]).toMatchObject(expected);
+  });
+
+  it('refuses a --var that is not key=value', async () => {
+    const path = await bundle();
+    for (const bad of ['root', '=value']) {
+      await expect(
+        cmdLaunch([path, '--var', bad], logger, 'launch'),
+      ).rejects.toThrow(UsageError);
+    }
+  });
+
+  it('refuses a bundle together with a config, and a second argument', async () => {
+    const path = await bundle();
+    const cfg = await fixture();
+    await expect(
+      cmdLaunch([path, '-i', cfg], logger, 'launch'),
+    ).rejects.toThrow(/cannot be combined with --input/);
+    await expect(cmdLaunch([path, 'other'], logger, 'launch')).rejects.toThrow(
+      /unexpected argument 'other'/,
+    );
+  });
+
+  it('fails on a file that is not a bundle before installing anything', async () => {
+    const path = join(dir, 'opys.json');
+    await writeFile(path, '{ "vars": {}, "artifacts": [] }', 'utf8');
+    await expect(cmdLaunch([path], logger, 'launch')).rejects.toThrow(
+      /not a bundle/,
+    );
+    expect(installMock).not.toHaveBeenCalled();
   });
 });
 

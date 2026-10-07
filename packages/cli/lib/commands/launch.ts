@@ -9,12 +9,12 @@ export async function cmdLaunch(
   logger: Logger,
   command: string,
 ): Promise<void> {
-  const { manifest, features } = await prepare(argv, logger, command);
+  const { source, features, vars } = await prepare(argv, logger, command);
 
-  await installWithProgress(manifest, features, logger);
+  await installWithProgress(source, { features, vars }, logger);
 
   logger.info('Launching...');
-  const child = await launch(manifest, { install: false, features });
+  const child = await launch(source, { install: false, features, vars });
   logger.info(` PID ${child.pid}`);
   await awaitExit(child);
 }

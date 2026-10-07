@@ -17,6 +17,11 @@ pub enum Integrity {
 }
 
 impl Integrity {
+    /// The integrity that is one sha256.
+    pub fn sha256(hex: impl Into<String>) -> Self {
+        Integrity::One(HashEntry::Sha256 { sha256: hex.into() })
+    }
+
     /// Borrow as a slice of hash entries — `One` becomes a one-element slice.
     pub fn entries(&self) -> &[HashEntry] {
         match self {

@@ -234,6 +234,8 @@ pub fn build_dgpuj(options: &DgpujOptions) -> Result<DgpujBuild, DgpujError> {
             name: PLUGIN_NAME.to_owned(),
             contribution: Contribution {
                 artifacts: template.artifacts,
+                // Every artifact here is a download; none travels with the manifest.
+                blobs: Default::default(),
                 vars: template.vars,
                 launch: [
                     (

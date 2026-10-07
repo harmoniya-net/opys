@@ -1,12 +1,12 @@
 /**
- * `@opys/core` — the frozen-manifest contract. Behaviors are backed by the
+ * `@opys/core` — the manifest contract. Behaviors are backed by the
  * Rust `opys-core` crate (via napi-rs); domain types, factories and small
  * sugar helpers are hand-written TS.
  *
  * Strategy:
  *   - Algorithms that touch the manifest contract (decode, encode, resolve,
  *     filter, interpolate, glob) → typed wrappers around the Rust binding.
- *   - Domain types → hand-typed here, matching the frozen wire shape. These
+ *   - Domain types → hand-typed here, matching the wire shape. These
  *     are pure data shapes; consumers construct them as plain JS objects.
  *   - Factories / type guards / small dedup helpers → pure TS, no boundary
  *     crossing. They are sugar over the typed shapes.
@@ -125,24 +125,72 @@ export function globToRegexSource(glob: string): string {
   return napi.globToRegexSource(glob);
 }
 
+/** The id of the blob holding exactly `bytes`: the hex sha256 of them. */
+export function blobId(bytes: Uint8Array): string {
+  return napi.blobId(Buffer.from(bytes));
+}
+
+/** The id and size of the blob a file on disk would be. */
+export function hashBlobFile(
+  path: string,
+): Promise<{ id: string; size: number }> {
+  return napi.hashBlobFile(path) as Promise<{ id: string; size: number }>;
+}
+
+/**
+ * Write `manifest` and the blobs it names to `path` as a bundle — the one
+ * published form of a manifest. `blobs` may hold more than the manifest
+ * names; a blob it names and `blobs` lacks is an error.
+ */
+export function writeBundle(
+  path: string,
+  manifest: Manifest,
+  blobs: Blobs = {},
+): Promise<void> {
+  return napi.writeBundle(path, manifest, blobs) as Promise<void>;
+}
+
+/** The whole manifest of the bundle at `path`. */
+export function readBundle(path: string): Manifest {
+  return napi.readBundle(path) as Manifest;
+}
+
+/** The head of the bundle at `path`, leaving its artifact list unread. */
+export function readBundleHead(path: string): Head {
+  return napi.readBundleHead(path) as Head;
+}
+
+/** The bundle format this build reads and writes. */
+export const BUNDLE_FORMAT: number = napi.bundleFormat();
+
 /** Compile a glob to a real `RegExp` (the binding returns the source string). */
 export function globToRegex(glob: string): RegExp {
   return new RegExp(napi.globToRegexSource(glob));
 }
 
 // ──────────────────────────────────────────────────────────────────────────
-// Domain types — frozen wire shape.
+// Domain types — the wire shape.
 // ──────────────────────────────────────────────────────────────────────────
 
 /**
- * Discriminated by which field is present, not by a tag — this is the frozen
- * wire shape, and there is no second spelling of it. Narrow with `'url' in s`.
+ * Where an artifact's bytes come from: somewhere on the network, or a blob —
+ * a file the manifest carries, named by the hex sha256 of its bytes.
+ *
+ * Discriminated by which field is present, not by a tag — this is the wire
+ * shape, and there is no second spelling of it. Narrow with `'url' in s`.
  */
-export type Source =
-  | { readonly url: string }
-  | { readonly file: string }
-  | { readonly string: string }
-  | { readonly bytes: string };
+export type Source = { readonly url: string } | { readonly blob: string };
+
+/**
+ * Where a blob's bytes are on the machine that built the manifest: a file, or
+ * bytes (base64) a plugin produced. This is never part of a manifest — the
+ * manifest names the blob, and this says where to read it until it is written
+ * into a bundle.
+ */
+export type BlobSource = { readonly file: string } | { readonly bytes: string };
+
+/** Blob id → where its bytes are. */
+export type Blobs = Readonly<Record<string, BlobSource>>;
 
 export type HashEntry = { sha1: string } | { sha256: string } | { md5: string };
 export type Integrity = HashEntry | HashEntry[];
@@ -236,14 +284,24 @@ export interface Manifest {
   readonly restrict?: ReadonlyArray<string>;
 }
 
+/**
+ * A bundle's first entry: the manifest without its artifact list, so it can
+ * be read without the megabytes that follow, and the format the bundle is
+ * written in.
+ */
+export interface Head extends Omit<Manifest, 'artifacts'> {
+  readonly format: number;
+}
+
 // ──────────────────────────────────────────────────────────────────────────
 // Factories — pure TS, no boundary crossing.
 // ──────────────────────────────────────────────────────────────────────────
 
 export const sourceUrl = (url: string): Source => ({ url });
-export const sourceFile = (file: string): Source => ({ file });
-export const sourceString = (string: string): Source => ({ string });
-export const sourceBytes = (bytes: Uint8Array): Source => ({
+export const sourceBlob = (blob: string): Source => ({ blob });
+
+export const blobFile = (file: string): BlobSource => ({ file });
+export const blobBytes = (bytes: Uint8Array): BlobSource => ({
   bytes: Buffer.from(bytes).toString('base64'),
 });
 

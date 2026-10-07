@@ -1,11 +1,18 @@
-import { writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { encodeManifest } from '@opys/core';
+import { encodeManifest, writeBundle } from '@opys/core';
 import { buildManifest, type BuildContext } from '@opys/dev';
 import { parseArgs } from '../args';
 import { loadConfig } from '../load-config';
 import type { Logger } from '../logger';
 
+/**
+ * Build the config into a bundle: the manifest and the blobs it names, as
+ * the one file that is published.
+ *
+ * With no output named, the manifest alone is printed as JSON. That is a
+ * view of it for reading and diffing, not something to install from — the
+ * blobs are not in it.
+ */
 export async function cmdBuild(
   argv: string[],
   logger: Logger,
@@ -27,14 +34,18 @@ export async function cmdBuild(
     configDir,
     mode,
   };
-  const manifest = await buildManifest(config, ctx);
-  const json = JSON.stringify(encodeManifest(manifest), null, 2) + '\n';
+  const { manifest, blobs } = await buildManifest(config, ctx);
 
   const out = outputFile ?? config.output;
   if (out) {
-    await writeFile(resolve(configDir, out), json);
-    logger.info(`Written to ${out}`);
+    await writeBundle(resolve(configDir, out), manifest, blobs);
+    const count = Object.keys(blobs).length;
+    logger.info(
+      `Written to ${out} (${manifest.artifacts.length} artifact(s), ${count} blob(s))`,
+    );
   } else {
-    process.stdout.write(json);
+    process.stdout.write(
+      JSON.stringify(encodeManifest(manifest), null, 2) + '\n',
+    );
   }
 }

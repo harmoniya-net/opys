@@ -1,13 +1,13 @@
+use opys_core::{filter_manifest, interpolate, resolve_val_defs, resolve_vars, OsOptions, VarMap};
 use std::collections::HashSet;
 use std::sync::Arc;
 use tokio_util::sync::CancellationToken;
-use opys_core::{filter_manifest, interpolate, resolve_val_defs, resolve_vars, OsOptions, VarMap};
 
 use crate::constants::DEFAULT_CONCURRENCY;
 use crate::errors::InstallError;
 use crate::phases::extract::{extract_all, ExtractTask};
 use crate::phases::fetch::{fetch_all, FetchHooks, FetchTask};
-use crate::phases::resolve::{resolve_manifest, ManifestSource};
+use crate::phases::resolve::{resolve, ManifestSource, Resolved};
 use crate::phases::scan::scan;
 use crate::phases::sweep::{sweep, SweepOptions};
 use crate::phases::verify::verify_all;
@@ -16,16 +16,31 @@ use crate::platform::current_platform;
 #[derive(Debug, Clone)]
 pub enum InstallProgress {
     Resolve,
-    Download { fetched: u32, total: u32, skipped: u32 },
-    DownloadStart { path: String, total: u64 },
-    DownloadBytes { path: String, bytes: u64 },
-    DownloadDone { path: String },
+    Download {
+        fetched: u32,
+        total: u32,
+        skipped: u32,
+    },
+    DownloadStart {
+        path: String,
+        total: u64,
+    },
+    DownloadBytes {
+        path: String,
+        bytes: u64,
+    },
+    DownloadDone {
+        path: String,
+    },
     Verify,
-    Extract { count: u32 },
-    Sweep { removed: u32 },
+    Extract {
+        count: u32,
+    },
+    Sweep {
+        removed: u32,
+    },
 }
 
-#[derive(Default)]
 pub struct InstallOptions {
     pub platform: Option<OsOptions>,
     pub vars: Option<VarMap>,
@@ -39,19 +54,47 @@ pub struct InstallOptions {
     pub cancel: CancellationToken,
 }
 
-impl InstallOptions {
-    pub fn new() -> Self {
+/// Verification is on unless it is turned off. `Default` used to leave it
+/// off while `new` turned it on, so an install that `launch` ran for a caller
+/// who passed no options went unverified.
+impl Default for InstallOptions {
+    fn default() -> Self {
         Self {
+            platform: None,
+            vars: None,
+            concurrency: None,
+            on_progress: None,
             verify_integrity: true,
-            ..Default::default()
+            features: Vec::new(),
+            cancel: CancellationToken::new(),
         }
     }
 }
 
-pub async fn install<'a>(
-    source: ManifestSource<'a>,
+impl InstallOptions {
+    pub fn new() -> Self {
+        Self::default()
+    }
+}
+
+pub async fn install(source: ManifestSource, options: InstallOptions) -> Result<(), InstallError> {
+    if options.cancel.is_cancelled() {
+        return Err(InstallError::Cancelled);
+    }
+    if let Some(cb) = &options.on_progress {
+        cb(InstallProgress::Resolve);
+    }
+    install_resolved(resolve(source).await?, options).await
+}
+
+/// Install from a manifest that is already resolved. `launch` resolves once
+/// and comes in here, so a bundle is not opened — or downloaded — twice.
+pub(crate) async fn install_resolved(
+    resolved: Resolved,
     options: InstallOptions,
 ) -> Result<(), InstallError> {
+    let Resolved { manifest, blobs } = resolved;
+    let blobs = Arc::new(blobs);
     let platform = options.platform.unwrap_or_else(current_platform);
     let extra_vars = options.vars.unwrap_or_default();
     let concurrency = options.concurrency.unwrap_or(DEFAULT_CONCURRENCY);
@@ -69,8 +112,6 @@ pub async fn install<'a>(
         }
     };
 
-    report(InstallProgress::Resolve);
-    let manifest = resolve_manifest(source).await?;
     let mut flat = resolve_val_defs(&manifest.vars, &platform, &features)?;
     for (k, v) in extra_vars {
         flat.insert(k, v);
@@ -138,7 +179,7 @@ pub async fn install<'a>(
         }
     };
 
-    fetch_all(fetch_tasks, &vars, concurrency, hooks, &cancel).await?;
+    fetch_all(fetch_tasks, &vars, &blobs, concurrency, hooks, &cancel).await?;
 
     if cancel.is_cancelled() {
         return Err(InstallError::Cancelled);

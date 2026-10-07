@@ -1,5 +1,12 @@
-import { createHash } from 'node:crypto';
-import { parseShortRuleset, sourceBytes, type Ruleset } from '@opys/core';
+import {
+  blobBytes,
+  blobId,
+  parseShortRuleset,
+  sourceBlob,
+  type Artifact,
+  type BlobSource,
+  type Ruleset,
+} from '@opys/core';
 import {
   definePlugin,
   type ChainablePlugin,
@@ -35,21 +42,31 @@ async function encodeServersDat(
   return Buffer.from(bytes);
 }
 
-async function artifactFromGroup(
+/** One generated `servers.dat`: the artifact, and the blob it is made of. */
+interface Generated {
+  artifact: Artifact;
+  id: string;
+  blob: BlobSource;
+}
+
+async function generate(
   entries: Pick<ServerEntry, 'name' | 'ip'>[],
   rules: Ruleset,
   path: string,
-) {
+): Promise<Generated> {
   const bytes = await encodeServersDat(entries);
-  const sha1 = createHash('sha1').update(bytes).digest('hex');
+  const id = blobId(bytes);
   return {
-    path,
-    source: sourceBytes(bytes),
-    size: bytes.length,
-    integrity: { sha1 },
-    rules,
+    artifact: { path, source: sourceBlob(id), size: bytes.length, rules },
+    id,
+    blob: blobBytes(bytes),
   };
 }
+
+const contribution = (generated: Generated[]) => ({
+  artifacts: generated.map((g) => g.artifact),
+  blobs: Object.fromEntries(generated.map((g) => [g.id, g.blob])),
+});
 
 export function serverlist(
   servers: ServerEntry[],
@@ -77,15 +94,14 @@ export function serverlist(
 
       // No entries at all → still emit an empty artifact.
       if (groups.size === 0) {
-        return { artifacts: [await artifactFromGroup([], [], path)] };
+        return contribution([await generate([], [], path)]);
       }
 
-      const artifacts = await Promise.all(
-        [...groups.values()].map((g) =>
-          artifactFromGroup(g.entries, g.rules, path),
+      return contribution(
+        await Promise.all(
+          [...groups.values()].map((g) => generate(g.entries, g.rules, path)),
         ),
       );
-      return { artifacts };
     },
   });
 }

@@ -1,4 +1,8 @@
-import { install, type InstallProgress } from '@opys/runtime';
+import {
+  install,
+  type InstallProgress,
+  type ManifestSource,
+} from '@opys/runtime';
 import {
   renderProgress,
   ProgressWriter,
@@ -13,8 +17,8 @@ const RENDER_THROTTLE_MS = 80;
 
 /** Run the install pipeline, drawing the progress both commands draw. */
 export async function installWithProgress(
-  manifest: unknown,
-  features: string[],
+  source: ManifestSource,
+  options: { features: string[]; vars: Record<string, string> },
   logger: Logger,
 ): Promise<void> {
   const t0 = Date.now();
@@ -36,8 +40,8 @@ export async function installWithProgress(
     pw.update(renderProgress(state));
   };
 
-  await install(manifest, {
-    features,
+  await install(source, {
+    ...options,
     onProgress(p: InstallProgress) {
       switch (p.phase) {
         case 'download':

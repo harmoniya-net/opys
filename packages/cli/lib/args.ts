@@ -1,7 +1,8 @@
 import { parseArgs as nodeParseArgs, type ParseArgsConfig } from 'node:util';
 import { UsageError } from './errors';
 
-type OptionType = 'string';
+/** `strings` is a flag that may be given more than once. */
+type OptionType = 'string' | 'strings';
 
 export interface FlagSpec {
   long: string;
@@ -11,13 +12,18 @@ export interface FlagSpec {
 
 export interface ParsedArgs {
   getString(flag: string): string | undefined;
+  /** Every value a `strings` flag was given, in order; empty if it was not. */
+  getStrings(flag: string): string[];
+  /** The arguments that are not flags, in order. */
+  positionals: string[];
 }
 
 export function parseArgs(argv: string[], specs: FlagSpec[]): ParsedArgs {
   const options: ParseArgsConfig['options'] = {};
   for (const s of specs) {
     options[s.long] = {
-      type: s.type,
+      type: 'string',
+      ...(s.type === 'strings' ? { multiple: true } : {}),
       ...(s.short ? { short: s.short } : {}),
     };
   }
@@ -36,5 +42,7 @@ export function parseArgs(argv: string[], specs: FlagSpec[]): ParsedArgs {
 
   return {
     getString: (flag) => parsed.values[flag] as string | undefined,
+    getStrings: (flag) => (parsed.values[flag] as string[] | undefined) ?? [],
+    positionals: parsed.positionals,
   };
 }

@@ -17,7 +17,7 @@ import { forge } from '@opys/forge';
 import { java } from '@opys/java';
 
 export default defineConfig({
-  output: 'opys.json',
+  output: 'game.opys',
   plugins: [forge('1.20.1-best'), java('17')],
   manifest: {
     command: ({ java }) => java.bin,
@@ -53,5 +53,43 @@ export function myLoader(version) {
   });
 }
 ```
+
+## Files that travel with the manifest
+
+A plugin can contribute a file that has no URL — a private binary, a generated
+config — as a **blob**. The artifact names the blob by the sha256 of its
+bytes, and the contribution says where those bytes are on this machine:
+
+```js
+import { blobBytes, blobId, sourceBlob } from '@opys/core';
+import { definePlugin } from '@opys/dev';
+
+const motd = () =>
+  definePlugin({
+    name: 'motd',
+    build() {
+      const bytes = new TextEncoder().encode('motd = "hello"\n');
+      const id = blobId(bytes);
+      return {
+        artifacts: [{ path: '${root}/motd.toml', source: sourceBlob(id) }],
+        blobs: { [id]: blobBytes(bytes) },
+      };
+    },
+  });
+```
+
+For a directory of local files, `artifactScanner` does this for you:
+
+```js
+artifactScanner({
+  directory: 'server-files',
+  source: 'blob',
+  path: '${root}/${rel}',
+});
+```
+
+`opys build` writes the blobs into the bundle; `opys launch` reads them from
+where they are, with nothing copied in between. Without `source: 'blob'` the
+scanner emits URL artifacts instead, for files you publish somewhere yourself.
 
 Part of the [opys](https://github.com/harmoniya-net/opys) toolkit.

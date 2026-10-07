@@ -21,7 +21,7 @@ import { fabric } from '@opys/fabric';
 import { java } from '@opys/java';
 
 export default defineConfig({
-  output: 'opys.json',
+  output: 'game.opys',
   plugins: [fabric('1.21.4'), java('21')],
   manifest: {
     command: ({ java }) => java.bin,

@@ -24,7 +24,7 @@ import { neoforge } from '@opys/neoforge';
 import { java } from '@opys/java';
 
 export default defineConfig({
-  output: 'opys.json',
+  output: 'game.opys',
   plugins: [neoforge('1.21.1'), java('21')],
   manifest: {
     command: ({ java }) => java.bin,

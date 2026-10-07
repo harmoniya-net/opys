@@ -1,13 +1,13 @@
 use indexmap::IndexMap;
 use opys_core::{
-    interpolate, resolve_val_defs, resolve_vars, resolved_args, resolved_envs, Manifest, OsOptions,
+    interpolate, resolve_val_defs, resolve_vars, resolved_args, resolved_envs, Head, OsOptions,
     VarMap,
 };
 use tokio::process::{Child, Command};
 
 use crate::errors::InstallError;
-use crate::install::{install, InstallOptions};
-use crate::phases::resolve::{resolve_manifest, ManifestSource};
+use crate::install::{install_resolved, InstallOptions, InstallProgress};
+use crate::phases::resolve::{resolve, resolve_head, ManifestSource};
 use crate::platform::current_platform;
 
 #[derive(Debug, Clone)]
@@ -39,16 +39,12 @@ impl LaunchOptions {
     }
 }
 
-/// Build a `LaunchSpec` without spawning. The pure half exported via napi.
-pub async fn build_launch<'a>(
-    source: ManifestSource<'a>,
-    options: &LaunchOptions,
-) -> Result<(Manifest, LaunchSpec), InstallError> {
-    let manifest = resolve_manifest(source).await?;
+/// The spawn-spec a manifest's head describes. Pure: nothing is read.
+fn launch_spec(head: &Head, options: &LaunchOptions) -> Result<LaunchSpec, InstallError> {
     let platform = options.platform.clone().unwrap_or_else(current_platform);
-    let features = options.features.clone();
+    let features = &options.features;
 
-    let mut flat = resolve_val_defs(&manifest.vars, &platform, &features)?;
+    let mut flat = resolve_val_defs(&head.vars, &platform, features)?;
     if let Some(extra) = &options.vars {
         for (k, v) in extra.clone() {
             flat.insert(k, v);
@@ -56,54 +52,69 @@ pub async fn build_launch<'a>(
     }
     let vars = resolve_vars(&flat).map_err(InstallError::other)?;
 
-    let Some(config) = &manifest.launch else {
+    let Some(config) = &head.launch else {
         return Err(InstallError::other("No launch config in manifest"));
     };
 
     let command = interpolate(&config.command, &vars);
     let workdir = interpolate(options.cwd.as_deref().unwrap_or(&config.workdir), &vars);
-    let args = resolved_args(config, &platform, &features)?
+    let args = resolved_args(config, &platform, features)?
         .into_iter()
         .map(|a| interpolate(&a, &vars))
         .collect();
-    let raw_envs = resolved_envs(config, &platform, &features)?;
+    let raw_envs = resolved_envs(config, &platform, features)?;
     let mut envs = IndexMap::new();
     for (k, v) in raw_envs {
         envs.insert(k, interpolate(&v, &vars));
     }
 
-    Ok((
-        manifest,
-        LaunchSpec {
-            command,
-            args,
-            workdir,
-            envs,
-        },
-    ))
+    Ok(LaunchSpec {
+        command,
+        args,
+        workdir,
+        envs,
+    })
+}
+
+/// Build a `LaunchSpec` without installing or spawning. Everything it needs
+/// is in the head, so for a bundle on disk the artifact list is never read.
+pub async fn build_launch(
+    source: ManifestSource,
+    options: &LaunchOptions,
+) -> Result<LaunchSpec, InstallError> {
+    launch_spec(&resolve_head(source).await?, options)
+}
+
+/// Install (unless `do_install` is off) and return what to spawn. The source
+/// is resolved once for both, so a bundle is opened — or downloaded — once.
+pub async fn prepare(
+    source: ManifestSource,
+    mut options: LaunchOptions,
+) -> Result<LaunchSpec, InstallError> {
+    if !options.do_install {
+        return build_launch(source, &options).await;
+    }
+    let mut io = options.install.take().unwrap_or_default();
+    if io.cancel.is_cancelled() {
+        return Err(InstallError::Cancelled);
+    }
+    if let Some(cb) = &io.on_progress {
+        cb(InstallProgress::Resolve);
+    }
+    let resolved = resolve(source).await?;
+    // A manifest that cannot be launched is found out before it is installed.
+    let spec = launch_spec(&resolved.manifest.head(), &options)?;
+
+    io.platform = Some(options.platform.clone().unwrap_or_else(current_platform));
+    io.features = options.features.clone();
+    io.vars = Some(options.vars.clone().unwrap_or_default());
+    install_resolved(resolved, io).await?;
+    Ok(spec)
 }
 
 /// Public Rust API for the UI: install (optional), build spec, spawn.
-pub async fn launch<'a>(
-    source: ManifestSource<'a>,
-    mut options: LaunchOptions,
-) -> Result<Child, InstallError> {
-    let do_install = options.do_install;
-    let install_opts = options.install.take().unwrap_or_default();
-    let platform = options.platform.clone().unwrap_or_else(current_platform);
-    let features = options.features.clone();
-    let extra_vars = options.vars.clone().unwrap_or_default();
-
-    // Compute the spec from a freshly-resolved manifest.
-    let (manifest, spec) = build_launch(source, &options).await?;
-
-    if do_install {
-        let mut io = install_opts;
-        io.platform = Some(platform);
-        io.features = features;
-        io.vars = Some(extra_vars);
-        install(ManifestSource::Manifest(Box::new(manifest)), io).await?;
-    }
+pub async fn launch(source: ManifestSource, options: LaunchOptions) -> Result<Child, InstallError> {
+    let spec = prepare(source, options).await?;
 
     let mut cmd = Command::new(&spec.command);
     cmd.args(&spec.args).current_dir(&spec.workdir);

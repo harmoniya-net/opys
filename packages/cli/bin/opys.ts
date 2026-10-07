@@ -10,14 +10,20 @@ const USAGE = `\
 opys — declarative manifest toolkit
 
 USAGE
-  opys build   [-i <opys.config.mjs>] [-o <out>] [--mode <m>]  Build manifest
+  opys build   [-i <opys.config.mjs>] [-o <out.opys>] [--mode <m>]  Build a bundle
   opys install [-i <opys.config.mjs>] [--mode <m>]  Build and install, no launch
   opys launch  [-i <opys.config.mjs>] [--mode <m>]  Build, install, launch
+  opys install <bundle.opys> [--var k=v]...         Install a built bundle
+  opys launch  <bundle.opys> [--var k=v]...         Install and launch one
 
 OPTIONS
   -i, --input          Config file  (default: opys.config.mjs)
-  -o, --output         Output file  (default: stdout for build)
+  -o, --output         Bundle to write  (default: the config's \`output\`;
+                       with neither, the manifest is printed as JSON)
   --mode <value>       Mode passed to config function (default: command name)
+  --feature <a,b>      Runtime features to install and launch with
+  --var <key=value>    Set a manifest var; repeatable. A bundle has no config
+                       to take machine paths from, so this is where they go
   --log-level <level>  Log verbosity: silent|error|warn|info|debug  (default: info)
   -v                   Shorthand for --log-level debug
 

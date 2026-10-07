@@ -27,6 +27,8 @@ pub fn build_java(options: &JavaOptions) -> Result<JavaBuild, JavaError> {
 
     let contribution = Contribution {
         artifacts: template.artifacts,
+        // Every artifact here is a download; none travels with the manifest.
+        blobs: Default::default(),
         vars: template.vars,
         launch: [(
             "bin".to_owned(),

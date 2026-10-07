@@ -18,18 +18,21 @@ npx @opys/cli <command>
 
 ### `opys build`
 
-Reads a JS config file, fetches Mojang metadata, and writes a `opys.json` manifest.
+Reads a JS config file, runs its plugins, and writes a **bundle**: the manifest
+and the files it carries, as one file.
 
 ```sh
-opys build [--input opys.config.mjs] [--output opys.json]
+opys build [--input opys.config.mjs] [--output game.opys]
 ```
 
-| Flag       | Short | Default                | Description                       |
-| ---------- | ----- | ---------------------- | --------------------------------- |
-| `--input`  | `-i`  | `opys.config.mjs`      | Path to the JS config file        |
-| `--output` | `-o`  | value from config file | Output path for the manifest JSON |
+| Flag       | Short | Default                | Description                |
+| ---------- | ----- | ---------------------- | -------------------------- |
+| `--input`  | `-i`  | `opys.config.mjs`      | Path to the JS config file |
+| `--output` | `-o`  | value from config file | Where to write the bundle  |
 
-If `--output` is omitted and the config has no `output` field, the manifest is written to stdout.
+If `--output` is omitted and the config has no `output` field, the manifest is
+printed to stdout as JSON. That is a view of it for reading and diffing — the
+files it carries are not in it, so it is not something to install from.
 
 ### `opys install`
 
@@ -37,6 +40,7 @@ Everything `opys launch` does except starting the game.
 
 ```sh
 opys install [--input opys.config.mjs] [--mode m]
+opys install <bundle.opys> [--var key=value ...]
 ```
 
 Artifacts are fetched, verified and extracted as usual. Then, if the manifest
@@ -50,10 +54,14 @@ but here. Forge 1.6.1-1.12.2 names no horno properties and needs no such step.
 Installs missing artifacts and spawns the JVM.
 
 ```sh
-opys launch [manifest] [--var key=value ...]
+opys launch [--input opys.config.mjs] [--mode m]
+opys launch <bundle.opys> [--var key=value ...]
 ```
 
-Common vars to pass at launch: `username`, `uuid`, `token`.
+With no argument the config is built in memory and launched as it is, with no
+bundle written. With a path, that bundle is installed and launched exactly as
+a deployed launcher would: no config is read, so machine-specific vars
+(`root`, `username`, `token`, …) come from `--var`, which is repeatable.
 
 ## Config file (`opys.config.mjs`)
 
@@ -68,7 +76,7 @@ export default defineConfig(async () => {
   const mc = await resolveMinecraft({ version: '1.20.1' });
 
   return {
-    output: 'opys.json',
+    output: 'game.opys',
     manifest: {
       artifacts: [
         mc.artifacts,

@@ -17,7 +17,7 @@ import { lwjgl3ify } from '@opys/lwjgl3ify';
 import { java } from '@opys/java';
 
 export default defineConfig({
-  output: 'opys.json',
+  output: 'game.opys',
   plugins: [lwjgl3ify('1.7.10'), java('25')],
   manifest: {
     command: ({ java }) => java.bin,

@@ -3,24 +3,20 @@
 //!
 //!   1. **Integrity skip** — a present file whose hash still matches its
 //!      manifest entry is *not* re-fetched; a present file whose hash no longer
-//!      matches *is*. The probe is a `string` source whose content differs from
-//!      what's already on disk: if the installer wrongly re-fetches, the bytes
-//!      change and the assertion catches it.
+//!      matches *is*. The probe is a blob kept where it cannot be read: if the
+//!      installer wrongly re-fetches, the install fails.
 //!
 //!   2. **Restrict sweep** — after install, every `restrict` glob is reconciled
 //!      against the manifest: unmanaged files under it are deleted, managed
 //!      files (and anything outside the globs) are left alone.
 
+mod common;
+
+use common::{blob, blob_file, blobs, serve, unreadable_blob};
 use opys_runtime::{install, InstallOptions, InstallProgress, ManifestSource};
 use serde_json::json;
 use std::sync::{Arc, Mutex};
 use tempfile::tempdir;
-
-/// Hashes of the literal probe strings used below (`printf '…' | sha1sum`).
-const SHA1_PRIOR: &str = "4a47653d5fc58fc62757c6b815e715ec77c8ee2e"; // "prior"
-const SHA1_CORRECT: &str = "3179a65eff2523bbde53c99b299b719c10a35235"; // "correct"
-const SHA1_AA: &str = "e0c9035898dd52fc65c41454cec9c4d2611bfb37"; // "aa"
-const SHA1_BB: &str = "9a900f538965a426994e1e90600920aff0b4e8d2"; // "bb"
 
 async fn run(manifest_json: String) -> Vec<InstallProgress> {
     let events = Arc::new(Mutex::new(Vec::<InstallProgress>::new()));
@@ -32,9 +28,11 @@ async fn run(manifest_json: String) -> Vec<InstallProgress> {
     let mut opts = InstallOptions::new();
     opts.on_progress = Some(cb);
     let manifest = opys_core::parse_manifest(&manifest_json).unwrap();
-    install(ManifestSource::Manifest(Box::new(manifest)), opts)
-        .await
-        .unwrap();
+    let source = ManifestSource::Manifest {
+        manifest: Box::new(manifest),
+        blobs: blobs(),
+    };
+    install(source, opts).await.unwrap();
     Arc::try_unwrap(events).unwrap().into_inner().unwrap()
 }
 
@@ -54,8 +52,8 @@ fn download_skipped(events: &[InstallProgress]) -> Option<u32> {
 
 // ── Integrity skip ────────────────────────────────────────────────────────
 
-/// A present file whose hash matches must be left byte-for-byte untouched —
-/// the differing `string` source must never overwrite it.
+/// A present file whose hash matches must be left untouched — the blob is
+/// never read, and here it could not be.
 #[tokio::test]
 async fn matching_integrity_skips_refetch() {
     let dir = tempdir().unwrap();
@@ -66,8 +64,7 @@ async fn matching_integrity_skips_refetch() {
         "vars": { "root": root },
         "artifacts": [{
             "path": "${root}/keep.txt",
-            "source": { "string": "REDOWNLOADED" },
-            "integrity": { "sha1": SHA1_PRIOR }
+            "source": { "blob": unreadable_blob("prior") }
         }]
     })
     .to_string())
@@ -90,8 +87,7 @@ async fn mismatched_integrity_triggers_refetch() {
         "vars": { "root": root },
         "artifacts": [{
             "path": "${root}/file.txt",
-            "source": { "string": "correct" },
-            "integrity": { "sha1": SHA1_CORRECT }
+            "source": { "blob": blob("correct") }
         }]
     })
     .to_string())
@@ -117,8 +113,7 @@ async fn reinstall_restores_tampered_file() {
         "vars": { "root": root },
         "artifacts": [{
             "path": "${root}/a",
-            "source": { "string": "aa" },
-            "integrity": { "sha1": SHA1_AA }
+            "source": { "blob": blob("aa") }
         }]
     })
     .to_string();
@@ -156,11 +151,13 @@ async fn reinstall_restores_tampered_file() {
 async fn reinstall_keeps_hashless_file_untouched() {
     let dir = tempdir().unwrap();
     let root = dir.path().to_string_lossy().into_owned();
+    // Only a download can go without a hash: a blob's name is one.
+    let base = serve(vec![("/a", b"aa".to_vec())]);
     let manifest = json!({
         "vars": { "root": root },
         "artifacts": [{
             "path": "${root}/a",
-            "source": { "string": "aa" }
+            "source": { "url": format!("{base}/a") }
         }]
     })
     .to_string();
@@ -201,8 +198,7 @@ async fn refetches_managed_file_named_by_restrict() {
         "restrict": ["${root}/config.txt"],
         "artifacts": [{
             "path": "${root}/config.txt",
-            "source": { "string": "bb" },
-            "integrity": { "sha1": SHA1_BB }
+            "source": { "blob": blob("bb") }
         }]
     })
     .to_string())
@@ -236,7 +232,7 @@ async fn sweep_removes_unmanaged_keeps_managed() {
         "restrict": ["${root}/mods/**"],
         "artifacts": [{
             "path": "${root}/mods/keep.jar",
-            "source": { "string": "keep" }
+            "source": { "blob": blob("keep") }
         }]
     })
     .to_string())
@@ -264,7 +260,7 @@ async fn sweep_leaves_paths_outside_globs() {
         "restrict": ["${root}/mods/**"],
         "artifacts": [{
             "path": "${root}/mods/keep.jar",
-            "source": { "string": "keep" }
+            "source": { "blob": blob("keep") }
         }]
     })
     .to_string())
@@ -297,7 +293,7 @@ async fn sweep_keeps_nested_managed_and_prunes_empty_dirs() {
         "restrict": ["${root}/mods/**"],
         "artifacts": [{
             "path": "${root}/mods/sub/keep.jar",
-            "source": { "string": "keep" }
+            "source": { "blob": blob("keep") }
         }]
     })
     .to_string())
@@ -353,7 +349,7 @@ async fn sweep_drops_extracted_files_in_scope() {
         "restrict": ["${root}/mods/**"],
         "artifacts": [{
             "path": "${root}/cache/bundle.tar",
-            "source": { "file": src.to_string_lossy() },
+            "source": { "blob": blob_file(&src) },
             "extract": { "into": "${root}/mods" }
         }]
     })
@@ -378,8 +374,8 @@ async fn reinstall_sweeps_stray_keeps_managed() {
         "vars": { "root": root },
         "restrict": ["${root}/dir/**/*"],
         "artifacts": [
-            { "path": "${root}/dir/a", "source": { "string": "a" } },
-            { "path": "${root}/dir/b", "source": { "string": "b" } }
+            { "path": "${root}/dir/a", "source": { "blob": blob("a") } },
+            { "path": "${root}/dir/b", "source": { "blob": blob("b") } }
         ]
     })
     .to_string();
@@ -422,8 +418,8 @@ async fn reinstall_sweeps_nested_stray_and_prunes_dir() {
         "vars": { "root": root },
         "restrict": ["${root}/dir/**/*"],
         "artifacts": [
-            { "path": "${root}/dir/a", "source": { "string": "a" } },
-            { "path": "${root}/dir/b", "source": { "string": "b" } }
+            { "path": "${root}/dir/a", "source": { "blob": blob("a") } },
+            { "path": "${root}/dir/b", "source": { "blob": blob("b") } }
         ]
     })
     .to_string();
@@ -458,7 +454,7 @@ async fn no_restrict_means_no_sweep() {
         "vars": { "root": root },
         "artifacts": [{
             "path": "${root}/mods/keep.jar",
-            "source": { "string": "keep" }
+            "source": { "blob": blob("keep") }
         }]
     })
     .to_string())

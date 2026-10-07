@@ -1,7 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { BUNDLE_FORMAT, readBundle, readBundleHead } from '@opys/core';
 import { cmdBuild } from '../../lib/commands/build';
 import { UsageError } from '../../lib/errors';
 import { Logger } from '../../lib/logger';
@@ -29,19 +31,23 @@ async function writeConfig(file: string, body: string): Promise<string> {
   return path;
 }
 
+/** sha256 of `x` — the one blob the fixture plugin carries. */
+const X = '2d711642b726b04401627ca9fbac32f5c8530fb1903cc4db02258717921a4881';
+
 const INLINE_PLUGIN = `{
   name: 'fixture',
   build: () => ({
     artifacts: [
-      { path: 'a.jar', source: { string: 'x' }, rules: [] },
+      { path: 'a.jar', source: { blob: '${X}' }, rules: [] },
     ],
+    blobs: { '${X}': { bytes: 'eA==' } },
     vars: { root: '/games' },
     launch: {},
   }),
 }`;
 
 const BASE_CONFIG = `export default {
-  output: 'opys.json',
+  output: 'game.opys',
   plugins: [${INLINE_PLUGIN}],
   manifest: {
     command: () => 'java',
@@ -51,29 +57,55 @@ const BASE_CONFIG = `export default {
 };`;
 
 describe('cmdBuild', () => {
-  it('writes the manifest to the config-declared output file', async () => {
+  it('writes a bundle to the config-declared output file', async () => {
     await writeConfig('opys.config.mjs', BASE_CONFIG);
     await cmdBuild(['-i', join(dir, 'opys.config.mjs')], logger, 'build');
-    const written = await readFile(join(dir, 'opys.json'), 'utf8');
-    const manifest = JSON.parse(written);
-    expect(manifest.artifacts).toHaveLength(1);
-    expect(manifest.artifacts[0].path).toBe('a.jar');
-    expect(manifest.launch.command).toBe('java');
-    expect(written.endsWith('\n')).toBe(true);
+    const manifest = readBundle(join(dir, 'game.opys'));
+    expect(manifest.artifacts).toEqual([
+      { path: 'a.jar', source: { blob: X } },
+    ]);
+    expect(manifest.launch?.command).toBe('java');
+    // The head is readable on its own, without the list.
+    expect(readBundleHead(join(dir, 'game.opys'))).toEqual({
+      format: BUNDLE_FORMAT,
+      vars: { root: '/games' },
+      launch: manifest.launch,
+    });
+    expect(existsSync(join(dir, 'game.opys.partial'))).toBe(false);
+  });
+
+  it('the bundle is a zip that carries the blob', async () => {
+    await writeConfig('opys.config.mjs', BASE_CONFIG);
+    await cmdBuild(['-i', join(dir, 'opys.config.mjs')], logger, 'build');
+    const bytes = await readFile(join(dir, 'game.opys'));
+    expect(bytes.subarray(0, 2).toString()).toBe('PK');
+    // Entry names are stored as they are, and so is the head.
+    expect(bytes.includes(`blobs/${X}`)).toBe(true);
+    expect(bytes.includes('"format": 1')).toBe(true);
+  });
+
+  it('fails, and leaves nothing behind, when a blob is not what its name says', async () => {
+    const lying = BASE_CONFIG.replace("bytes: 'eA=='", "bytes: 'eQ=='");
+    await writeConfig('opys.config.mjs', lying);
+    await expect(
+      cmdBuild(['-i', join(dir, 'opys.config.mjs')], logger, 'build'),
+    ).rejects.toThrow(/does not hold what its name says/);
+    expect(existsSync(join(dir, 'game.opys'))).toBe(false);
+    expect(existsSync(join(dir, 'game.opys.partial'))).toBe(false);
   });
 
   it('honours an explicit --output flag over config.output', async () => {
     await writeConfig('opys.config.mjs', BASE_CONFIG);
     await cmdBuild(
-      ['-i', join(dir, 'opys.config.mjs'), '-o', 'custom.json'],
+      ['-i', join(dir, 'opys.config.mjs'), '-o', 'custom.opys'],
       logger,
       'build',
     );
-    const written = await readFile(join(dir, 'custom.json'), 'utf8');
-    expect(JSON.parse(written).artifacts).toHaveLength(1);
+    expect(readBundle(join(dir, 'custom.opys')).artifacts).toHaveLength(1);
+    expect(existsSync(join(dir, 'game.opys'))).toBe(false);
   });
 
-  it('prints the manifest to stdout when no output is configured', async () => {
+  it('prints the manifest as JSON when no output is configured', async () => {
     const noOutput = `export default {
       plugins: [${INLINE_PLUGIN}],
       manifest: { command: () => 'java', args: () => [], workdir: '.' },
@@ -85,7 +117,10 @@ describe('cmdBuild', () => {
       return true;
     });
     await cmdBuild(['-i', join(dir, 'opys.config.mjs')], logger, 'build');
-    expect(out.join('')).toContain('"artifacts"');
+    const printed = JSON.parse(out.join(''));
+    // A view of the manifest: it names the blob and does not carry it.
+    expect(printed.artifacts).toEqual([{ path: 'a.jar', source: { blob: X } }]);
+    expect(out.join('').endsWith('\n')).toBe(true);
   });
 
   it('defaults the input file to opys.config.mjs in cwd', async () => {
@@ -96,13 +131,12 @@ describe('cmdBuild', () => {
     } finally {
       cwd.mockRestore();
     }
-    const written = await readFile(join(dir, 'opys.json'), 'utf8');
-    expect(JSON.parse(written).artifacts).toHaveLength(1);
+    expect(readBundle(join(dir, 'game.opys')).artifacts).toHaveLength(1);
   });
 
   it('passes the mode through to a config function', async () => {
     const fnConfig = `export default (ctx) => ({
-      output: 'mode.json',
+      output: 'mode.opys',
       plugins: [${INLINE_PLUGIN}],
       manifest: {
         command: () => 'java',
@@ -116,8 +150,8 @@ describe('cmdBuild', () => {
       logger,
       'build',
     );
-    const manifest = JSON.parse(await readFile(join(dir, 'mode.json'), 'utf8'));
-    expect(JSON.stringify(manifest.launch.args)).toContain('staging');
+    const head = readBundleHead(join(dir, 'mode.opys'));
+    expect(JSON.stringify(head.launch?.args)).toContain('staging');
   });
 
   it('throws a UsageError when the config has no default export', async () => {

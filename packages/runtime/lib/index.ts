@@ -8,7 +8,23 @@
  */
 
 import { spawn, type ChildProcess } from 'node:child_process';
+import type { Blobs, Manifest } from '@opys/core';
 import * as napi from '@opys/runtime-binding';
+
+/**
+ * Where the manifest to install comes from. Discriminated by which field is
+ * present, like every shape in the format:
+ *
+ *  - `{ bundle }` — a bundle on disk;
+ *  - `{ url }` — a bundle to download, whole, before anything is installed;
+ *  - `{ manifest, blobs }` — a manifest in memory and where each blob it
+ *    names is kept, which is what a build hands over when nothing was written
+ *    out in between.
+ */
+export type ManifestSource =
+  | { readonly bundle: string }
+  | { readonly url: string }
+  | { readonly manifest: Manifest; readonly blobs?: Blobs };
 
 /**
  * Discriminated by `phase`. The Rust bridge populates only the fields
@@ -100,46 +116,78 @@ export function translateError(err: unknown): unknown {
   return err;
 }
 
+/** Adapt the caller's typed callback to the untyped one the binding takes. */
+const bridge = (onProgress: InstallOptions['onProgress']) =>
+  onProgress
+    ? (event: unknown) => onProgress(event as InstallProgress)
+    : undefined;
+
 export async function install(
-  manifest: unknown,
+  source: ManifestSource,
   options: InstallOptions = {},
 ): Promise<void> {
   const { onProgress, ...rest } = options;
-  const bridge = onProgress
-    ? (event: unknown) => onProgress(event as InstallProgress)
-    : undefined;
   try {
-    await napi.install(manifest, rest, bridge);
+    await napi.install(source, rest, bridge(onProgress));
   } catch (err) {
     throw translateError(err);
   }
 }
 
+/**
+ * What to spawn, without installing or spawning. Everything it needs is in
+ * the manifest's head, so for a bundle on disk the artifact list is not read.
+ */
 export async function buildLaunch(
-  manifest: unknown,
+  source: ManifestSource,
   options: Omit<LaunchOptions, 'install'> = {},
 ): Promise<napi.LaunchSpec> {
   try {
-    return await napi.buildLaunch(manifest, options);
+    return await napi.buildLaunch(source, options);
   } catch (err) {
     throw translateError(err);
   }
 }
 
-export async function launch(
-  manifest: unknown,
+/**
+ * Install, then say what to spawn — from one reading of the source, so a
+ * bundle is opened, or downloaded, once for both. With `install: false` this
+ * is `buildLaunch`.
+ */
+export async function prepare(
+  source: ManifestSource,
   options: LaunchOptions = {},
-): Promise<ChildProcess> {
-  const { install: installOpts = {}, cwd, ...launchRest } = options;
-  if (installOpts !== false) {
-    await install(manifest, installOpts);
+): Promise<napi.LaunchSpec> {
+  const { install: installOpts = {}, ...launchRest } = options;
+  if (installOpts === false) return buildLaunch(source, launchRest);
+  const { onProgress, ...installRest } = installOpts;
+  try {
+    // An `AsyncTask` is typed `Promise<unknown>` by the generated `.d.ts`.
+    return (await napi.prepare(
+      source,
+      launchRest,
+      installRest,
+      bridge(onProgress),
+    )) as napi.LaunchSpec;
+  } catch (err) {
+    throw translateError(err);
   }
-  const spec = await buildLaunch(manifest, { ...launchRest, cwd });
+}
+
+/** Spawn what a {@link LaunchSpec} describes, inheriting this process's stdio. */
+export function spawnLaunch(spec: napi.LaunchSpec): ChildProcess {
   return spawn(spec.command, spec.args, {
     cwd: spec.workdir,
     env: { ...process.env, ...spec.envs },
     stdio: 'inherit',
   });
+}
+
+export async function launch(
+  source: ManifestSource,
+  options: LaunchOptions = {},
+): Promise<ChildProcess> {
+  return spawnLaunch(await prepare(source, options));
 }
 
 export const currentPlatform = napi.currentPlatform;

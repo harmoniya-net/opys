@@ -144,3 +144,108 @@ pub struct OpysErrorInfo {
     pub code: String,
     pub message: String,
 }
+
+// ── blobs and the bundle ────────────────────────────────────────────────────
+
+/// The id of the blob holding exactly `bytes`: the hex sha256 of them.
+#[napi(js_name = "blobId")]
+pub fn blob_id(bytes: Buffer) -> String {
+    opys_core::blob_id(&bytes)
+}
+
+#[napi(object, js_name = "HashedBlob")]
+pub struct HashedBlobJs {
+    pub id: String,
+    /// A file size, which fits a JS number long before it fits nowhere.
+    pub size: i64,
+}
+
+/// Hashing a file is a read of all of it, so it runs off the main thread.
+pub struct HashBlobFile(String);
+
+impl Task for HashBlobFile {
+    type Output = (String, u64);
+    type JsValue = HashedBlobJs;
+
+    fn compute(&mut self) -> Result<Self::Output> {
+        let file = std::fs::File::open(&self.0)
+            .map_err(|e| map_err(format!("cannot read {}: {e}", self.0)))?;
+        opys_core::blob_id_of(file).map_err(map_err)
+    }
+
+    fn resolve(&mut self, _env: Env, (id, size): Self::Output) -> Result<Self::JsValue> {
+        Ok(HashedBlobJs {
+            id,
+            size: size as i64,
+        })
+    }
+}
+
+/// The id and size of the blob a file on disk would be.
+#[napi(js_name = "hashBlobFile")]
+pub fn hash_blob_file(path: String) -> AsyncTask<HashBlobFile> {
+    AsyncTask::new(HashBlobFile(path))
+}
+
+pub struct WriteBundle {
+    path: String,
+    manifest: opys_core::Manifest,
+    blobs: opys_core::Blobs,
+}
+
+impl Task for WriteBundle {
+    type Output = ();
+    type JsValue = ();
+
+    fn compute(&mut self) -> Result<Self::Output> {
+        // Written beside its destination and moved into place, so a build that
+        // fails halfway leaves the previous bundle as it was.
+        let partial = format!("{}.partial", self.path);
+        let written = std::fs::File::create(&partial)
+            .map_err(opys_core::BundleError::from)
+            .and_then(|file| opys_core::write_bundle(file, &self.manifest, &self.blobs))
+            .and_then(|()| Ok(std::fs::rename(&partial, &self.path)?));
+        if written.is_err() {
+            let _ = std::fs::remove_file(&partial);
+        }
+        written.map_err(map_err)
+    }
+
+    fn resolve(&mut self, _env: Env, _output: Self::Output) -> Result<Self::JsValue> {
+        Ok(())
+    }
+}
+
+/// Write `manifest` and the blobs it names to `path` as a bundle.
+#[napi(js_name = "writeBundle")]
+pub fn write_bundle(path: String, manifest: Json, blobs: Json) -> Result<AsyncTask<WriteBundle>> {
+    Ok(AsyncTask::new(WriteBundle {
+        path,
+        manifest: from_js(manifest)?,
+        blobs: from_js(blobs)?,
+    }))
+}
+
+fn open(path: &str) -> Result<std::fs::File> {
+    std::fs::File::open(path).map_err(|e| map_err(format!("cannot read {path}: {e}")))
+}
+
+/// The whole manifest of the bundle at `path`.
+#[napi(js_name = "readBundle")]
+pub fn read_bundle(path: String) -> Result<Json> {
+    let bundle = opys_core::open_bundle(open(&path)?).map_err(map_err)?;
+    to_js(bundle.manifest())
+}
+
+/// The head of the bundle at `path` — everything but its artifact list,
+/// which is left unread.
+#[napi(js_name = "readBundleHead")]
+pub fn read_bundle_head(path: String) -> Result<Json> {
+    to_js(&opys_core::read_bundle_head(open(&path)?).map_err(map_err)?)
+}
+
+/// The bundle format this build reads and writes.
+#[napi(js_name = "bundleFormat")]
+pub fn bundle_format() -> u32 {
+    opys_core::BUNDLE_FORMAT
+}

@@ -34,7 +34,9 @@ fn osx_x86() -> OsOptions {
 fn make_artifact(path: &str) -> Artifact {
     Artifact {
         path: path.into(),
-        source: Source::String { string: "x".into() },
+        source: Source::Url {
+            url: "https://x/a".into(),
+        },
         size: None,
         rules: Vec::new(),
         integrity: None,
@@ -79,14 +81,14 @@ fn parse_manifest_with_vars_launch_artifacts_restrict() {
 #[test]
 fn round_trips_minimal_manifest() {
     let m: Manifest = decode(json!({
-        "artifacts": [{ "path": "a", "source": { "string": "x" } }]
+        "artifacts": [{ "path": "a", "source": { "url": "https://x/a" } }]
     }));
     let encoded = encode(&m);
     assert_eq!(
         encoded,
         json!({
             "vars": {},
-            "artifacts": [{ "path": "a", "source": { "string": "x" } }]
+            "artifacts": [{ "path": "a", "source": { "url": "https://x/a" } }]
         })
     );
 }
@@ -144,7 +146,7 @@ fn filter_returns_only_matching_artifacts() {
 fn filter_drops_artifacts_excluded_by_rules() {
     let linux_only: Artifact = decode(json!({
         "path": "l",
-        "source": { "string": "x" },
+        "source": { "url": "https://x/a" },
         "rules": "allow.os.linux"
     }));
     let u = Manifest {
@@ -234,8 +236,30 @@ fn a_discovery_block_is_refused_rather_than_read_past() {
             "discovery": { "integrity": { "url": { "sha256": "${url}.sha256" } } },
         }],
     });
-    let message = serde_json::from_value::<Manifest>(raw).unwrap_err().to_string();
+    let message = serde_json::from_value::<Manifest>(raw)
+        .unwrap_err()
+        .to_string();
     assert!(message.contains("unknown field `discovery`"), "{message}");
+}
+
+#[test]
+fn a_file_written_into_the_manifest_or_read_off_the_machine_is_refused() {
+    // The three sources a blob replaces. Each is refused by name, so an old
+    // manifest fails saying what it asked for.
+    for (field, value) in [
+        ("file", "/srv/a.jar"),
+        ("string", "hello"),
+        ("bytes", "aGVsbG8="),
+    ] {
+        let raw = json!({ "vars": {}, "artifacts": [{ "path": "a", "source": { field: value } }] });
+        let message = serde_json::from_value::<Manifest>(raw)
+            .unwrap_err()
+            .to_string();
+        assert!(
+            message.contains(&format!("unknown field `{field}`")),
+            "{message}"
+        );
+    }
 }
 
 #[test]
@@ -249,5 +273,96 @@ fn metadata_is_where_anything_else_goes() {
         }],
     });
     let manifest: Manifest = serde_json::from_value(raw).unwrap();
-    assert_eq!(manifest.artifacts[0].metadata, Some(json!({ "anything": ["at", "all"] })));
+    assert_eq!(
+        manifest.artifacts[0].metadata,
+        Some(json!({ "anything": ["at", "all"] }))
+    );
+}
+
+// ── blobs ─────────────────────────────────────────────────────────────────
+
+const HELLO: &str = "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824";
+
+#[test]
+fn a_blob_artifact_is_verified_by_its_own_name() {
+    // Nothing is written beside the source, and the artifact still comes out
+    // with an integrity — so an installer verifies it like any download.
+    let artifact: Artifact =
+        decode(json!({ "path": "a.txt", "source": { "blob": HELLO }, "size": 5 }));
+    assert_eq!(artifact.blob_id(), Some(HELLO));
+    assert_eq!(encode(&artifact.integrity), json!({ "sha256": HELLO }));
+}
+
+#[test]
+fn a_blob_artifact_has_one_spelling() {
+    // An integrity that agrees is accepted and not written back.
+    let written = json!({ "path": "a.txt", "source": { "blob": HELLO }, "size": 5, "integrity": { "sha256": HELLO } });
+    let artifact: Artifact = decode(written);
+    assert_eq!(
+        encode(&artifact),
+        json!({ "path": "a.txt", "source": { "blob": HELLO }, "size": 5 })
+    );
+    assert_eq!(
+        encode(&Artifact::blob("a.txt", HELLO, 5)),
+        encode(&artifact)
+    );
+}
+
+#[test]
+fn a_blob_artifact_whose_integrity_names_other_bytes_is_refused() {
+    for integrity in [
+        json!({ "sha256": "0".repeat(64) }),
+        json!({ "sha1": "0".repeat(40) }),
+    ] {
+        let raw = json!({ "path": "a.txt", "source": { "blob": HELLO }, "integrity": integrity });
+        let message = serde_json::from_value::<Artifact>(raw)
+            .unwrap_err()
+            .to_string();
+        assert!(
+            message.contains("a.txt: a blob is verified by its own name"),
+            "{message}"
+        );
+    }
+}
+
+#[test]
+fn a_blob_id_is_a_lowercase_sha256_and_nothing_else() {
+    for id in [
+        "",
+        "abc",
+        &HELLO.to_uppercase(),
+        &format!("{HELLO}00"),
+        "blobs/x",
+        &"g".repeat(64),
+    ] {
+        let raw = json!({ "path": "a", "source": { "blob": id } });
+        let message = serde_json::from_value::<Artifact>(raw)
+            .unwrap_err()
+            .to_string();
+        assert!(message.contains("is not a blob id"), "{id}: {message}");
+    }
+}
+
+#[test]
+fn a_source_names_exactly_one_place() {
+    let both = json!({ "path": "a", "source": { "url": "https://x/a", "blob": HELLO } });
+    assert!(serde_json::from_value::<Artifact>(both)
+        .unwrap_err()
+        .to_string()
+        .contains("not both"));
+    let neither = json!({ "path": "a", "source": {} });
+    assert!(serde_json::from_value::<Artifact>(neither)
+        .unwrap_err()
+        .to_string()
+        .contains("names neither"));
+}
+
+#[test]
+fn a_url_artifact_keeps_the_integrity_it_was_given() {
+    let raw = json!({ "path": "a", "source": { "url": "https://x/a" }, "integrity": { "sha1": "0".repeat(40) } });
+    assert_eq!(encode(&decode::<Artifact>(raw.clone())), raw);
+    assert_eq!(
+        decode::<Artifact>(json!({ "path": "a", "source": { "url": "https://x/a" } })).integrity,
+        None
+    );
 }

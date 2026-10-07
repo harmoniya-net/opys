@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import {
   deduplicateArtifacts,
-  sourceFile,
+  sourceBlob,
   sourceUrl,
   type Artifact,
 } from '../../lib';
@@ -72,8 +72,8 @@ describe('deduplicateArtifacts', () => {
 
   test('source kind is preserved through dedup', () => {
     const out = deduplicateArtifacts([
-      { path: 'a', source: sourceFile('/tmp/a'), rules: [] },
+      { path: 'a', source: sourceBlob('0'.repeat(64)), rules: [] },
     ]);
-    expect(out[0]!.source).toEqual({ file: '/tmp/a' });
+    expect(out[0]!.source).toEqual({ blob: '0'.repeat(64) });
   });
 });

@@ -72,8 +72,12 @@ check('parseManifest preserves vars', decoded.vars.root === '/tmp/opys');
 const filtered = core.filterManifest(
   {
     artifacts: [
-      { path: 'linux.jar', source: { string: 'x' }, rules: 'allow.os.linux' },
-      { path: 'any.jar', source: { string: 'x' } },
+      {
+        path: 'linux.jar',
+        source: { url: 'https://x' },
+        rules: 'allow.os.linux',
+      },
+      { path: 'any.jar', source: { url: 'https://x' } },
     ],
   },
   { name: 'osx', version: '', arch: 'aarch64' },
@@ -133,17 +137,65 @@ console.log('\n— runtime —');
 const dir = mkdtempSync(join(tmpdir(), 'opys-napi-'));
 console.log(`  tmpdir: ${dir}`);
 const events = [];
+// One blob, held as bytes: the manifest names it, the table says where it is.
+const world = Buffer.from('world');
+const worldId = core.blobId(world);
+const helloManifest = {
+  vars: { root: dir },
+  launch: { command: 'java', workdir: '${root}', args: ['-jar', 'a.jar'] },
+  artifacts: [{ path: '${root}/hello.txt', source: { blob: worldId } }],
+};
+const helloBlobs = { [worldId]: { bytes: world.toString('base64') } };
 await runtime.install(
-  {
-    vars: { root: dir },
-    artifacts: [{ path: '${root}/hello.txt', source: { string: 'world' } }],
-  },
+  { manifest: helloManifest, blobs: helloBlobs },
   { verifyIntegrity: true },
   (event) => events.push(event.phase),
 );
 
 const written = readFileSync(join(dir, 'hello.txt'), 'utf8');
-check('install writes the string source to disk', written === 'world');
+check('install copies a blob to disk', written === 'world');
+
+// The same thing published: one file, read back and installed elsewhere.
+const bundlePath = join(dir, 'hello.opys');
+await core.writeBundle(bundlePath, helloManifest, helloBlobs);
+check(
+  'writeBundle writes a zip whose head reads without the list',
+  readFileSync(bundlePath).subarray(0, 2).toString() === 'PK' &&
+    core.readBundleHead(bundlePath).format === core.bundleFormat() &&
+    core.readBundleHead(bundlePath).artifacts === undefined,
+);
+check(
+  'readBundle gives back the manifest that was written',
+  core.readBundle(bundlePath).artifacts[0].source.blob === worldId,
+);
+const elsewhere = mkdtempSync(join(tmpdir(), 'opys-napi-bundle-'));
+const prepared = await runtime.prepare(
+  { bundle: bundlePath },
+  { vars: { root: elsewhere } },
+  {},
+);
+check(
+  'prepare installs from a bundle and says what to spawn',
+  readFileSync(join(elsewhere, 'hello.txt'), 'utf8') === 'world' &&
+    prepared.workdir === elsewhere,
+);
+check(
+  'hashBlobFile names a file the way blobId names its bytes',
+  (await core.hashBlobFile(join(elsewhere, 'hello.txt'))).id === worldId,
+);
+check(
+  'a source the format dropped is refused by name',
+  (() => {
+    try {
+      core.decodeManifest({
+        artifacts: [{ path: 'a', source: { string: 'x' } }],
+      });
+      return false;
+    } catch (e) {
+      return /unknown field `string`/.test(e.message);
+    }
+  })(),
+);
 check('install emits resolve event', events.includes('resolve'));
 check('install emits verify event', events.includes('verify'));
 check('install emits download:done event', events.includes('download:done'));
@@ -161,7 +213,11 @@ const assembled = dev.assemble(
     {
       name: 'other',
       contribution: {
-        artifacts: [{ path: 'a.jar', source: { url: 'https://x/b' } }],
+        artifacts: [
+          { path: 'a.jar', source: { url: 'https://x/b' } },
+          { path: 'hello.txt', source: { blob: worldId } },
+        ],
+        blobs: helloBlobs,
         vars: { root: 'clash' },
         envs: { E: '1' },
       },
@@ -175,8 +231,12 @@ const assembled = dev.assemble(
 );
 check(
   'assemble dedupes by path, last content wins',
-  assembled.manifest.artifacts.length === 1 &&
+  assembled.manifest.artifacts.length === 2 &&
     assembled.manifest.artifacts[0].source.url === 'https://x/b',
+);
+check(
+  'assemble carries the blobs the manifest names',
+  JSON.stringify(assembled.blobs) === JSON.stringify(helloBlobs),
 );
 check(
   'assemble warns on a plugin-vs-plugin var collision',
@@ -198,9 +258,11 @@ check(
 );
 
 const spec = await runtime.buildLaunch({
-  vars: { root: dir, jvm: '/usr/bin/java' },
-  launch: { command: '${jvm}', workdir: '${root}', args: ['-version'] },
-  artifacts: [],
+  manifest: {
+    vars: { root: dir, jvm: '/usr/bin/java' },
+    launch: { command: '${jvm}', workdir: '${root}', args: ['-version'] },
+    artifacts: [],
+  },
 });
 check('buildLaunch interpolates command', spec.command === '/usr/bin/java');
 check('buildLaunch interpolates workdir', spec.workdir === dir);

@@ -16,7 +16,7 @@ import { forge } from '@opys/forge';
 import { curseforge } from '@opys/curseforge';
 
 export default defineConfig({
-  output: 'opys.json',
+  output: 'game.opys',
   plugins: [
     forge('1.20.1-best'),
     curseforge({
@@ -50,7 +50,7 @@ import { curseforgeModpack } from '@opys/curseforge';
 import { java } from '@opys/java';
 
 export default defineConfig({
-  output: 'opys.json',
+  output: 'game.opys',
   plugins: [
     curseforgeModpack({
       token: process.env.CURSEFORGE_TOKEN,

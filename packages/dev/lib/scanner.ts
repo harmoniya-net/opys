@@ -8,8 +8,14 @@ import {
   relative,
   resolve,
 } from 'node:path';
-import type { Artifact, Integrity, Source } from '@opys/core';
-import { sourceFile, sourceUrl, interpolate } from '@opys/core';
+import type { Artifact, BlobSource, Integrity } from '@opys/core';
+import {
+  blobFile,
+  hashBlobFile,
+  interpolate,
+  sourceBlob,
+  sourceUrl,
+} from '@opys/core';
 import { definePlugin, type ChainablePlugin } from './plugin';
 
 /** A file discovered by {@link artifactScanner}, passed to `path`/`url` functions. */
@@ -32,22 +38,35 @@ export interface ScannedFile {
  */
 export type ScanTemplate = string | ((file: ScannedFile) => string);
 
-export interface ArtifactScannerOptions {
+interface ScanOptions {
   /** Directory to scan. */
   directory: string;
-  /** URL for fetching each file — template string or `(file) => string`. */
-  url: ScanTemplate;
   /** Destination path — template or function. Defaults to the file's `rel`. */
   path?: ScanTemplate;
-  hash?: 'sha1' | 'sha256';
+}
+
+/** Each file is published somewhere, and the artifact points at it. */
+export interface UrlScannerOptions extends ScanOptions {
+  source?: 'url';
+  /** URL for fetching each file — template string or `(file) => string`. */
+  url: ScanTemplate;
   /**
-   * 'url'  → emit sourceUrl (default)
-   * 'file' → emit sourceFile pointing at the local copy
-   * Either way the file is hashed, so a content change re-fetches it; clear
+   * The file is always hashed, so a content change re-fetches it; clear
    * integrity with an override for deliberate path-trust.
    */
-  source?: 'url' | 'file';
+  hash?: 'sha1' | 'sha256';
 }
+
+/**
+ * Each file travels with the manifest: it becomes a blob, read from where it
+ * is on this machine and written into the bundle. There is no `url` to give
+ * and no `hash` to choose — a blob is named by its sha256.
+ */
+export interface BlobScannerOptions extends ScanOptions {
+  source: 'blob';
+}
+
+export type ArtifactScannerOptions = UrlScannerOptions | BlobScannerOptions;
 
 /** A {@link ScannedFile} carrying its on-disk `size`. */
 type ScannedEntry = ScannedFile & { readonly size: number };
@@ -99,39 +118,42 @@ function applyTemplate(tpl: ScanTemplate, file: ScannedFile): string {
   });
 }
 
-async function* scanDirectory(
+/** One scanned file as an artifact, and the blob it is made of if it is one. */
+interface Scanned {
+  artifact: Artifact;
+  blob?: { id: string; file: string };
+}
+
+async function scanFile(
   options: ArtifactScannerOptions,
-  baseDir: string,
-): AsyncGenerator<Artifact> {
+  file: ScannedEntry,
+): Promise<Scanned> {
+  const path = options.path ? applyTemplate(options.path, file) : file.rel;
+
+  if (options.source === 'blob') {
+    const { id, size } = await hashBlobFile(file.abs);
+    return {
+      artifact: { path, source: sourceBlob(id), size, rules: [] },
+      blob: { id, file: file.abs },
+    };
+  }
+
+  // Hashed even though the file is fetched from elsewhere: a hashless
+  // artifact is skipped by path alone and never re-fetched, so a content
+  // change would never be picked up.
   const algo = options.hash ?? 'sha1';
-  const sourceKind = options.source ?? 'url';
-  const files = await walkDir(baseDir);
-
-  for (const file of files) {
-    const artifactPath = options.path
-      ? applyTemplate(options.path, file)
-      : file.rel;
-
-    // Hash regardless of source kind: a hashless artifact is skipped by path
-    // alone and never re-fetched, so a `file` source would never pick up a
-    // content change. With integrity, the runtime re-hashes the destination and
-    // re-copies on mismatch. Clear it via an override for deliberate path-trust.
-    const digest = await hashFile(file.abs, algo);
-    const integrity: Integrity =
-      algo === 'sha1' ? { sha1: digest } : { sha256: digest };
-    const source: Source =
-      sourceKind === 'file'
-        ? sourceFile(file.abs)
-        : sourceUrl(applyTemplate(options.url, file));
-
-    yield {
-      path: artifactPath,
-      source,
+  const digest = await hashFile(file.abs, algo);
+  const integrity: Integrity =
+    algo === 'sha1' ? { sha1: digest } : { sha256: digest };
+  return {
+    artifact: {
+      path,
+      source: sourceUrl(applyTemplate(options.url, file)),
       size: file.size,
       rules: [],
       integrity,
-    };
-  }
+    },
+  };
 }
 
 /**
@@ -148,10 +170,16 @@ export function artifactScanner(
       const baseDir = isAbsolute(options.directory)
         ? options.directory
         : resolve(ctx.configDir, options.directory);
-      const artifacts: Artifact[] = [];
-      for await (const a of scanDirectory(options, baseDir)) artifacts.push(a);
-      ctx.log('artifactScanner', `scanned ${artifacts.length} file(s)`);
-      return { artifacts };
+      const scanned: Scanned[] = [];
+      for (const file of await walkDir(baseDir)) {
+        scanned.push(await scanFile(options, file));
+      }
+      ctx.log('artifactScanner', `scanned ${scanned.length} file(s)`);
+      const blobs: Record<string, BlobSource> = {};
+      for (const { blob } of scanned) {
+        if (blob) blobs[blob.id] = blobFile(blob.file);
+      }
+      return { artifacts: scanned.map((s) => s.artifact), blobs };
     },
   });
 }

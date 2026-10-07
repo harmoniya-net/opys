@@ -6,7 +6,7 @@ license.workspace = true
 rust-version.workspace = true
 repository.workspace = true
 homepage.workspace = true
-description = "opys manifest data model + shorthand + Val/Valset. Reference implementation of opys.json."
+description = "opys manifest data model + shorthand + Val/Valset + the bundle. Reference implementation of the opys manifest format."
 
 [dependencies]
 opys-mojang-rules = { path = "../opys-mojang-rules", version = "0.2.0" }
@@ -15,7 +15,14 @@ serde_json = { workspace = true }
 regex = { workspace = true }
 thiserror = { workspace = true }
 base64 = "0.22"
+# The bundle — the published form of a manifest — is a zip, and a blob is
+# named by the sha256 of its bytes.
+zip = { version = "2", default-features = false, features = ["deflate"] }
+sha2 = "0.10"
+hex = "0.4"
 indexmap = { version = "2", features = ["serde"] }
 
 [dev-dependencies]
 serde_json = { workspace = true }
+tempfile = "3"
+zip = { version = "2", default-features = false, features = ["deflate"] }

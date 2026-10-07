@@ -4,7 +4,9 @@
 //! have no counterpart here: the engine receives those already applied, so
 //! what they covered is the caller's plumbing, not the merge.
 
-use opys_core::{Artifact, ConditionalVal, Source, Val, ValDef, ValDefs};
+use opys_core::{
+    blob_id, Artifact, BlobSource, Blobs, ConditionalVal, Source, Val, ValDef, ValDefs,
+};
 use opys_dev::{assemble, Contribution, LaunchFragment, ManifestConfig, PluginOutput};
 
 fn artifact(path: &str, url: &str) -> Artifact {
@@ -339,5 +341,111 @@ fn a_var_reference_arg_and_a_plain_var_coexist() {
     assert_eq!(
         out.manifest.launch.unwrap().args,
         vec![val("${root}"), val("--flag")]
+    );
+}
+
+// ── blobs ─────────────────────────────────────────────────────────────────
+
+fn held(content: &str) -> (String, BlobSource) {
+    (
+        blob_id(content.as_bytes()),
+        BlobSource::Bytes(content.into()),
+    )
+}
+
+#[test]
+fn a_plugins_blobs_travel_with_the_artifacts_that_name_them() {
+    let (a, a_bytes) = held("a");
+    let (b, b_bytes) = held("b");
+    let assembled = assemble(
+        &[
+            plugin(
+                "one",
+                Contribution {
+                    artifacts: vec![Artifact::blob("a.txt", &a, 1)],
+                    blobs: Blobs::from([(a.clone(), a_bytes.clone())]),
+                    ..Default::default()
+                },
+            ),
+            plugin(
+                "two",
+                Contribution {
+                    artifacts: vec![
+                        Artifact::blob("b.txt", &b, 1),
+                        artifact("c.jar", "https://x/c.jar"),
+                    ],
+                    blobs: Blobs::from([(b.clone(), b_bytes.clone())]),
+                    ..Default::default()
+                },
+            ),
+        ],
+        &config(),
+    );
+    assert_eq!(assembled.blobs, Blobs::from([(a, a_bytes), (b, b_bytes)]));
+    assert!(assembled.warnings.is_empty());
+}
+
+#[test]
+fn a_blob_whose_artifact_was_replaced_is_dropped_with_it() {
+    let (old, old_bytes) = held("old");
+    let (new, new_bytes) = held("new");
+    let assembled = assemble(
+        &[
+            plugin(
+                "one",
+                Contribution {
+                    artifacts: vec![Artifact::blob("config.toml", &old, 3)],
+                    blobs: Blobs::from([(old, old_bytes)]),
+                    ..Default::default()
+                },
+            ),
+            plugin(
+                "two",
+                Contribution {
+                    artifacts: vec![Artifact::blob("config.toml", &new, 3)],
+                    blobs: Blobs::from([(new.clone(), new_bytes.clone())]),
+                    ..Default::default()
+                },
+            ),
+        ],
+        &config(),
+    );
+    assert_eq!(assembled.manifest.artifacts.len(), 1);
+    assert_eq!(assembled.blobs, Blobs::from([(new, new_bytes)]));
+}
+
+#[test]
+fn two_plugins_holding_the_same_blob_is_not_a_collision() {
+    let (id, bytes) = held("shared");
+    let contribution = |path: &str| Contribution {
+        artifacts: vec![Artifact::blob(path, &id, 6)],
+        blobs: Blobs::from([(id.clone(), bytes.clone())]),
+        ..Default::default()
+    };
+    let assembled = assemble(
+        &[
+            plugin("one", contribution("a")),
+            plugin("two", contribution("b")),
+        ],
+        &config(),
+    );
+    assert_eq!(assembled.blobs.len(), 1);
+    assert!(assembled.warnings.is_empty());
+}
+
+#[test]
+fn a_contribution_reads_its_blobs_off_the_wire() {
+    let (id, _) = held("hello");
+    let output: PluginOutput = serde_json::from_value(serde_json::json!({
+        "name": "files",
+        "contribution": {
+            "artifacts": [{ "path": "a.txt", "source": { "blob": id } }],
+            "blobs": { id.clone(): { "file": "/srv/build/a.txt" } },
+        },
+    }))
+    .unwrap();
+    assert_eq!(
+        output.contribution.blobs,
+        Blobs::from([(id, BlobSource::File("/srv/build/a.txt".into()))])
     );
 }

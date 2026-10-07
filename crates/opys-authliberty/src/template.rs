@@ -146,6 +146,8 @@ pub fn build_authliberty(options: &AuthLibertyOptions) -> Result<PluginOutput, A
         name: PLUGIN_NAME.to_owned(),
         contribution: Contribution {
             artifacts: template.artifacts,
+            // Every artifact here is a download; none travels with the manifest.
+            blobs: Default::default(),
             vars: Default::default(),
             launch: [(
                 "jvmArgs".to_owned(),

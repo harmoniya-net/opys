@@ -35,6 +35,9 @@ pub enum InstallError {
     #[error(transparent)]
     Core(#[from] opys_core::DecodeError),
 
+    #[error(transparent)]
+    Bundle(#[from] opys_core::BundleError),
+
     #[error("install cancelled")]
     Cancelled,
 

@@ -26,7 +26,7 @@ import { forge } from '@opys/forge';
 import { java } from '@opys/java';
 
 export default defineConfig({
-  output: 'opys.json',
+  output: 'game.opys',
   plugins: [forge('1.20.1'), java('17')],
   manifest: {
     command: ({ java }) => java.bin,

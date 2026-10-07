@@ -40,7 +40,8 @@ sha1 = "0.10"
 sha2 = "0.10"
 md-5 = "0.10"
 hex = "0.4"
-base64 = "0.22"
+# A bundle fetched by URL is downloaded to a temporary file and read from there.
+tempfile = "3"
 
 [dev-dependencies]
-tempfile = "3"
+zip = { version = "2", default-features = false, features = ["deflate"] }

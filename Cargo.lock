@@ -883,12 +883,16 @@ name = "opys-core"
 version = "0.2.0"
 dependencies = [
  "base64 0.22.1",
+ "hex",
  "indexmap",
  "opys-mojang-rules",
  "regex",
  "serde",
  "serde_json",
+ "sha2",
+ "tempfile",
  "thiserror",
+ "zip",
 ]
 
 [[package]]
@@ -1233,7 +1237,6 @@ dependencies = [
 name = "opys-runtime"
 version = "0.2.0"
 dependencies = [
- "base64 0.22.1",
  "bytes",
  "flate2",
  "futures",

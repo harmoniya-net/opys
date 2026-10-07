@@ -1,4 +1,4 @@
-import type { Artifact, ValDefs, Val, Valset } from '@opys/core';
+import type { Artifact, Blobs, ValDefs, Val, Valset } from '@opys/core';
 import { parseShortRuleset } from '@opys/core';
 import { matchesSelector, type RulesetInput, type Selector } from './selector';
 
@@ -22,6 +22,14 @@ export type LaunchGroups = Record<string, Valset | Val | string>;
 export interface Contribution {
   /** Artifacts to download/copy/extract. */
   artifacts?: Artifact[];
+  /**
+   * Where the bytes of this plugin's blob artifacts are on this machine — a
+   * local file, or something the plugin generated. An artifact names a blob
+   * (`source: { blob: id }`); this is where to read it from, and what becomes
+   * the bundle's `blobs/` when one is written. Build both with
+   * `blobId` / `hashBlobFile` and `blobBytes` / `blobFile` from `@opys/core`.
+   */
+  blobs?: Blobs;
   /** Manifest vars this plugin owns. */
   vars?: ValDefs;
   /** Named launch fragments, exposed to the config's accessor functions. */
@@ -57,7 +65,7 @@ export type ArtifactPatch =
  * A plugin you can post-process fluently. Every method returns a **new** plugin
  * with one more artifact transform appended — pure, so the original is
  * untouched and chains read left-to-right. Transforms rewrite `artifacts` only;
- * `vars` / `launch` pass through. The engine sees only `name` / `build`.
+ * `vars` / `launch` / `blobs` pass through. The engine sees only `name` / `build`.
  */
 export interface ChainablePlugin extends OpysPlugin {
   /** Drop every artifact matching `match`. */

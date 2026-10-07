@@ -17,7 +17,7 @@ fn map_err<E: std::fmt::Display>(e: E) -> napi::Error {
 }
 
 /// Merge plugin contributions and the author's manifest config into a
-/// manifest. Returns `{ manifest, warnings }` — warnings are returned rather
+/// manifest. Returns `{ manifest, blobs, warnings }` — warnings are returned rather
 /// than logged so the engine stays pure and JS keeps its own log channel.
 ///
 /// A contribution's `launch` groups are ignored here even when present: the
@@ -32,6 +32,7 @@ pub fn assemble(outputs: Json, config: Json) -> Result<Json> {
 
     Ok(serde_json::json!({
         "manifest": serde_json::to_value(&assembled.manifest).map_err(map_err)?,
+        "blobs": serde_json::to_value(&assembled.blobs).map_err(map_err)?,
         "warnings": assembled.warnings,
     }))
 }

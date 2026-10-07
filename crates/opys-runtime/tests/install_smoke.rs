@@ -1,23 +1,36 @@
-//! Smoke test for the install orchestrator with a `string` source — no
-//! network, no archives. Verifies the pipeline end-to-end up through fetch
-//! and integrity, plus the var-driven path interpolation.
+//! Smoke test for the install orchestrator with a blob source — no network,
+//! no archives. Verifies the pipeline end-to-end up through fetch and
+//! integrity, plus the var-driven path interpolation.
 
-use serde_json::json;
-use std::sync::Arc;
-use tempfile::tempdir;
+mod common;
+
+use opys_core::Manifest;
 use opys_runtime::{
     install, CancellationToken, InstallError, InstallOptions, InstallProgress, ManifestSource,
 };
+use serde_json::json;
+use std::sync::Arc;
+use tempfile::tempdir;
+
+use common::{blob, blobs};
+
+/// The manifest, with the blobs written down so far.
+fn in_memory(manifest: Manifest) -> ManifestSource {
+    ManifestSource::Manifest {
+        manifest: Box::new(manifest),
+        blobs: blobs(),
+    }
+}
 
 #[tokio::test]
-async fn installs_string_source_to_interpolated_path() {
+async fn installs_blob_source_to_interpolated_path() {
     let dir = tempdir().unwrap();
     let root = dir.path().to_string_lossy().into_owned();
 
     let manifest_json = json!({
         "vars": { "root": root },
         "artifacts": [
-            { "path": "${root}/hello.txt", "source": { "string": "world" } }
+            { "path": "${root}/hello.txt", "source": { "blob": blob("world") } }
         ]
     })
     .to_string();
@@ -29,7 +42,11 @@ async fn installs_string_source_to_interpolated_path() {
         Arc::new(move |p: InstallProgress| {
             let s = match p {
                 InstallProgress::Resolve => "resolve".to_owned(),
-                InstallProgress::Download { fetched, total, skipped } => {
+                InstallProgress::Download {
+                    fetched,
+                    total,
+                    skipped,
+                } => {
                     format!("download {fetched}/{total} skipped={skipped}")
                 }
                 InstallProgress::DownloadDone { .. } => "download:done".to_owned(),
@@ -42,7 +59,7 @@ async fn installs_string_source_to_interpolated_path() {
 
     let mut opts = InstallOptions::new();
     opts.on_progress = Some(cb);
-    install(ManifestSource::Manifest(Box::new(manifest)), opts).await.unwrap();
+    install(in_memory(manifest), opts).await.unwrap();
 
     let written = std::fs::read_to_string(dir.path().join("hello.txt")).unwrap();
     assert_eq!(written, "world");
@@ -60,7 +77,9 @@ async fn skips_existing_files() {
     let manifest_json = json!({
         "vars": { "root": root },
         "artifacts": [
-            { "path": "${root}/exists.txt", "source": { "string": "fresh" } }
+            // No integrity, so nothing to hold the present file against — and
+            // nothing listens here, so fetching it would fail.
+            { "path": "${root}/exists.txt", "source": { "url": "http://127.0.0.1:1/fresh" } }
         ]
     })
     .to_string();
@@ -69,7 +88,9 @@ async fn skips_existing_files() {
     std::fs::write(dir.path().join("exists.txt"), b"prior").unwrap();
 
     let manifest = opys_core::parse_manifest(&manifest_json).unwrap();
-    install(ManifestSource::Manifest(Box::new(manifest)), InstallOptions::new()).await.unwrap();
+    install(in_memory(manifest), InstallOptions::new())
+        .await
+        .unwrap();
 
     let content = std::fs::read_to_string(dir.path().join("exists.txt")).unwrap();
     assert_eq!(content, "prior", "scan should have skipped existing file");
@@ -82,7 +103,7 @@ async fn cancels_before_writing_when_token_already_cancelled() {
     let manifest_json = json!({
         "vars": { "root": root },
         "artifacts": [
-            { "path": "${root}/never.txt", "source": { "string": "x" } }
+            { "path": "${root}/never.txt", "source": { "blob": blob("x") } }
         ]
     })
     .to_string();
@@ -92,7 +113,7 @@ async fn cancels_before_writing_when_token_already_cancelled() {
     opts.cancel = CancellationToken::new();
     opts.cancel.cancel(); // cancelled up front — install must bail immediately
 
-    let result = install(ManifestSource::Manifest(Box::new(manifest)), opts).await;
+    let result = install(in_memory(manifest), opts).await;
     assert!(matches!(result, Err(InstallError::Cancelled)));
     assert!(
         !dir.path().join("never.txt").exists(),

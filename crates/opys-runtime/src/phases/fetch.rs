@@ -1,6 +1,6 @@
-use base64::Engine;
 use futures::StreamExt;
 use indexmap::IndexMap;
+use opys_core::{interpolate, Artifact, Source};
 use std::path::Path;
 use std::sync::Arc;
 use tokio::fs;
@@ -8,8 +8,8 @@ use tokio::io::AsyncWriteExt;
 use tokio::sync::Mutex;
 use tokio::task::JoinSet;
 use tokio_util::sync::CancellationToken;
-use opys_core::{interpolate, Artifact, Source};
 
+use crate::blobs::BlobStore;
 use crate::errors::InstallError;
 use crate::fetch::{client, OPYS_USER_AGENT};
 
@@ -34,14 +34,17 @@ const RETRY_DELAYS_MS: &[u64] = &[500, 2_000, 8_000];
 async fn fetch_once(
     task: &FetchTask,
     vars: &IndexMap<String, String>,
+    blobs: &Arc<BlobStore>,
     on_bytes: &(dyn Fn(u64) + Send + Sync),
 ) -> Result<(), InstallError> {
     let final_path = Path::new(&task.final_path);
     if let Some(parent) = final_path.parent() {
-        fs::create_dir_all(parent).await.map_err(|source| InstallError::Io {
-            path: parent.display().to_string(),
-            source,
-        })?;
+        fs::create_dir_all(parent)
+            .await
+            .map_err(|source| InstallError::Io {
+                path: parent.display().to_string(),
+                source,
+            })?;
     }
     let tmp_path = format!("{}.partial", task.final_path);
 
@@ -67,12 +70,13 @@ async fn fetch_once(
                     body,
                 });
             }
-            let mut file = fs::File::create(&tmp_path).await.map_err(|source| {
-                InstallError::Io {
-                    path: tmp_path.clone(),
-                    source,
-                }
-            })?;
+            let mut file =
+                fs::File::create(&tmp_path)
+                    .await
+                    .map_err(|source| InstallError::Io {
+                        path: tmp_path.clone(),
+                        source,
+                    })?;
             let mut total: u64 = 0;
             let mut stream = res.bytes_stream();
             while let Some(chunk) = stream.next().await {
@@ -81,46 +85,24 @@ async fn fetch_once(
                     status: 0,
                     body: e.to_string(),
                 })?;
-                file.write_all(&chunk).await.map_err(|source| InstallError::Io {
-                    path: tmp_path.clone(),
-                    source,
-                })?;
+                file.write_all(&chunk)
+                    .await
+                    .map_err(|source| InstallError::Io {
+                        path: tmp_path.clone(),
+                        source,
+                    })?;
                 total += chunk.len() as u64;
                 on_bytes(total);
             }
             file.flush().await.ok();
         }
-        Source::File { file: path } => {
-            let resolved = interpolate(path, vars);
-            let data = fs::read(&resolved).await.map_err(|source| InstallError::Io {
-                path: resolved.clone(),
-                source,
-            })?;
-            let len = data.len() as u64;
-            fs::write(&tmp_path, &data).await.map_err(|source| InstallError::Io {
-                path: tmp_path.clone(),
-                source,
-            })?;
-            on_bytes(len);
-        }
-        Source::String { string } => {
-            let bytes = string.as_bytes();
-            fs::write(&tmp_path, bytes).await.map_err(|source| InstallError::Io {
-                path: tmp_path.clone(),
-                source,
-            })?;
-            on_bytes(bytes.len() as u64);
-        }
-        Source::Bytes { bytes } => {
-            let decoded = base64::engine::general_purpose::STANDARD
-                .decode(bytes)
-                .map_err(|e| InstallError::other(format!("bad base64: {e}")))?;
-            let len = decoded.len() as u64;
-            fs::write(&tmp_path, &decoded).await.map_err(|source| InstallError::Io {
-                path: tmp_path.clone(),
-                source,
-            })?;
-            on_bytes(len);
+        Source::Blob { blob } => {
+            // A local read, off the async threads.
+            let (store, id, tmp) = (Arc::clone(blobs), blob.clone(), tmp_path.clone());
+            let written = tokio::task::spawn_blocking(move || store.copy_to(&id, Path::new(&tmp)))
+                .await
+                .map_err(|e| InstallError::other(format!("join error: {e}")))??;
+            on_bytes(written);
         }
     }
 
@@ -136,15 +118,19 @@ async fn fetch_once(
 async fn fetch_one(
     task: &FetchTask,
     vars: &IndexMap<String, String>,
+    blobs: &Arc<BlobStore>,
     on_bytes: &(dyn Fn(u64) + Send + Sync),
 ) -> Result<(), InstallError> {
     let mut attempt = 0usize;
     loop {
-        match fetch_once(task, vars, on_bytes).await {
+        match fetch_once(task, vars, blobs, on_bytes).await {
             Ok(()) => return Ok(()),
             Err(err) => {
                 let _ = fs::remove_file(format!("{}.partial", task.final_path)).await;
-                if attempt >= RETRY_DELAYS_MS.len() {
+                // Waiting only helps a network. A blob that could not be read
+                // from this machine will not read better in eight seconds.
+                let local = matches!(task.artifact.source, Source::Blob { .. });
+                if local || attempt >= RETRY_DELAYS_MS.len() {
                     return Err(err);
                 }
                 tokio::time::sleep(std::time::Duration::from_millis(RETRY_DELAYS_MS[attempt]))
@@ -238,12 +224,18 @@ impl Budget {
 pub async fn fetch_all(
     mut tasks: Vec<FetchTask>,
     vars: &IndexMap<String, String>,
+    blobs: &Arc<BlobStore>,
     concurrency: u32,
     hooks: FetchHooks,
     cancel: &CancellationToken,
 ) -> Result<(), InstallError> {
     // Largest-first.
-    tasks.sort_by(|a, b| b.artifact.size.unwrap_or(0).cmp(&a.artifact.size.unwrap_or(0)));
+    tasks.sort_by(|a, b| {
+        b.artifact
+            .size
+            .unwrap_or(0)
+            .cmp(&a.artifact.size.unwrap_or(0))
+    });
 
     let budget = Arc::new(Budget::new(concurrency));
     let vars = Arc::new(vars.clone());
@@ -255,6 +247,7 @@ pub async fn fetch_all(
     for task in tasks {
         let budget = Arc::clone(&budget);
         let vars = Arc::clone(&vars);
+        let blobs = Arc::clone(blobs);
         let hooks = hooks.clone();
         let task = Arc::new(task);
         set.spawn(async move {
@@ -266,7 +259,7 @@ pub async fn fetch_all(
                 }
                 let t = Arc::clone(&task);
                 let hooks_inner = hooks.clone();
-                fetch_one(&task, &vars, &|n| {
+                fetch_one(&task, &vars, &blobs, &|n| {
                     if let Some(h) = &hooks_inner.on_bytes {
                         h(&t, n);
                     }

@@ -17,7 +17,7 @@ import { fabric } from '@opys/fabric';
 import { modrinth } from '@opys/modrinth';
 
 export default defineConfig({
-  output: 'opys.json',
+  output: 'game.opys',
   plugins: [
     fabric('1.20.1'),
     modrinth({
@@ -50,7 +50,7 @@ import { modrinthModpack } from '@opys/modrinth';
 import { java } from '@opys/java';
 
 export default defineConfig({
-  output: 'opys.json',
+  output: 'game.opys',
   plugins: [
     modrinthModpack('fDlgR3Ps'), // a Modrinth modpack version id or URL
     java('17'),

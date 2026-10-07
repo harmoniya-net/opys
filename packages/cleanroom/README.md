@@ -17,7 +17,7 @@ import { cleanroom } from '@opys/cleanroom';
 import { java } from '@opys/java';
 
 export default defineConfig({
-  output: 'opys.json',
+  output: 'game.opys',
   plugins: [cleanroom('1.12.2'), java('25')],
   manifest: {
     command: ({ java }) => java.bin,

@@ -16,7 +16,7 @@ import { minecraft } from '@opys/minecraft-vanilla';
 import { resolveServerlist } from '@opys/minecraft-serverlist';
 
 export default defineConfig({
-  output: 'opys.json',
+  output: 'game.opys',
   plugins: [
     minecraft('1.20.1'),
     {

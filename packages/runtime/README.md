@@ -1,118 +1,88 @@
-# @opys/installer
+# @opys/runtime
 
-Programmatic install and launch for Opys manifests. Downloads artifacts in parallel, verifies integrity, extracts natives, and spawns the JVM.
+[![npm](https://img.shields.io/npm/v/@opys/runtime.svg)](https://www.npmjs.com/package/@opys/runtime)
 
-## Install
+Programmatic install and launch for opys manifests. Downloads artifacts in
+parallel, copies blobs out of the bundle, verifies integrity, extracts
+archives, and spawns the process. Backed by the
+[`opys-runtime`](https://crates.io/crates/opys-runtime) Rust crate via napi-rs.
 
 ```sh
-npm install @opys/installer @opys/core
+npm install @opys/runtime @opys/core
 ```
 
 ## Manifest sources
 
-Both `install` and `launch` accept a **manifest source** as their first argument:
+`install`, `buildLaunch`, `prepare` and `launch` all take a **manifest
+source** as their first argument — discriminated by which field is present:
 
-| Value             | Example                                    |
-| ----------------- | ------------------------------------------ |
-| File path string  | `'opys.json'`                              |
-| HTTPS URL object  | `new URL('https://example.com/pack.json')` |
-| Parsed `Manifest` | object returned by `resolveManifest`       |
+| Source                | What it is                                                                   |
+| --------------------- | ---------------------------------------------------------------------------- |
+| `{ bundle: path }`    | A bundle on disk — the published form of a manifest                          |
+| `{ url }`             | A bundle to download. It is fetched whole before anything is installed       |
+| `{ manifest, blobs }` | A manifest in memory, and where each blob it names is kept (see `@opys/dev`) |
+
+A bundle is a zip: the manifest's head, its artifact list, and one entry per
+blob. See [`@opys/core`](https://www.npmjs.com/package/@opys/core).
 
 ---
 
 ## `install(source, options?)`
 
-Streams missing artifacts to `<finalPath>.partial` then renames them into place; extracts zips for artifacts with `extract` rules. Already-cached artifacts (path exists on disk) are skipped. A failed integrity check throws `IntegrityError` immediately.
+Streams missing artifacts to `<finalPath>.partial` then renames them into
+place; extracts archives for artifacts with `extract` rules. A present file is
+skipped only if it still matches its hash. A failed integrity check throws
+`IntegrityError`.
 
 ```ts
-import { install } from '@opys/installer';
+import { install } from '@opys/runtime';
 
-await install('opys.json', {
-  vars: {
-    root: '/opt/minecraft/1.20.1',
-    username: 'Player',
-    uuid: '...',
-    token: '...',
+await install(
+  { bundle: 'server.opys' },
+  {
+    vars: { root: '/srv/minecraft' },
+    concurrency: 16,
+    onProgress(p) {
+      if (p.phase === 'download') {
+        process.stderr.write(`  ${p.fetched}/${p.total}\r`);
+      }
+    },
   },
-  concurrency: 16,
-  onProgress(p) {
-    if (p.phase === 'download') {
-      process.stderr.write(`  ${p.fetched}/${p.total}\r`);
-    }
-  },
-});
+);
 ```
-
-**Options**
 
 | Option            | Type                           | Default | Description                        |
 | ----------------- | ------------------------------ | ------- | ---------------------------------- |
 | `platform`        | `OsOptions`                    | auto    | Override OS/arch detection         |
 | `vars`            | `Record<string, string>`       | `{}`    | Extra vars; override manifest vars |
+| `features`        | `string[]`                     | `[]`    | Active features, for rule matching |
 | `concurrency`     | `number`                       | `8`     | Max parallel downloads             |
 | `onProgress`      | `(p: InstallProgress) => void` | —       | Progress callback                  |
 | `verifyIntegrity` | `boolean`                      | `true`  | Skip hash checks if `false`        |
-
-**`InstallProgress`**
-
-```ts
-type InstallProgress =
-  | { phase: 'resolve' }
-  | { phase: 'download'; fetched: number; total: number; skipped: number }
-  | { phase: 'verify' }
-  | { phase: 'extract'; count: number };
-```
 
 ---
 
 ## `launch(source, options?)`
 
-Runs `install` then spawns the process described by the manifest's launch config. Returns a `ChildProcess` — the caller decides how to wait on it.
-
-Pass `install: false` to skip installation.
-
-```ts
-import { launch } from '@opys/installer';
-
-const child = await launch('opys.json', {
-  vars: {
-    root: '/opt/minecraft/1.20.1',
-    username: 'Player',
-    uuid: '...',
-    token: '...',
-  },
-  install: { onProgress: (p) => console.log(p) },
-});
-
-await new Promise<void>((resolve, reject) => {
-  child.on('exit', (code) =>
-    code === 0 || code === null ? resolve() : reject(new Error(`exit ${code}`)),
-  );
-  child.on('error', reject);
-});
-```
-
-**Options**
-
-| Option     | Type                      | Default | Description                            |
-| ---------- | ------------------------- | ------- | -------------------------------------- |
-| `platform` | `OsOptions`               | auto    | Override OS/arch detection             |
-| `vars`     | `Record<string, string>`  | `{}`    | Extra vars; typically auth credentials |
-| `install`  | `InstallOptions \| false` | `{}`    | Install options, or `false` to skip    |
-| `log`      | `(level, msg) => void`    | —       | Debug/warn logger for spawn details    |
-
----
-
-## `resolveManifest(source)`
-
-Resolves any manifest source to a `Manifest` object.
+Runs `install`, then spawns the process the manifest's launch block describes.
+Returns a `ChildProcess` — the caller decides how to wait on it. Pass
+`install: false` to skip the install.
 
 ```ts
-import { resolveManifest } from '@opys/installer';
+import { launch } from '@opys/runtime';
 
-const manifest = await resolveManifest('opys.json');
-console.log(manifest.artifacts.length);
+const child = await launch(
+  { bundle: 'server.opys' },
+  { vars: { root: '/srv/minecraft' } },
+);
 ```
+
+`prepare(source, options?)` is the same without the spawn: it installs and
+returns the `LaunchSpec` — `{ command, args, workdir, envs }` — from one
+reading of the source, so a bundle is opened, or downloaded, once for both.
+`spawnLaunch(spec)` spawns one. `buildLaunch(source, options?)` returns the
+spec and installs nothing; for a bundle on disk it reads the head and never
+the artifact list.
 
 ---
 
@@ -120,19 +90,10 @@ console.log(manifest.artifacts.length);
 
 Returns the `OsOptions` for the current host.
 
-```ts
-import { currentPlatform } from '@opys/installer';
-
-const platform = currentPlatform();
-// { name: 'linux', arch: 'x64', version: '...' }
-```
-
----
-
 ## Error types
 
 | Class             | When                               |
 | ----------------- | ---------------------------------- |
 | `NetworkError`    | HTTP download failure              |
-| `IntegrityError`  | Hash mismatch on a downloaded file |
-| `ExtractionError` | ZIP extraction failure             |
+| `IntegrityError`  | Hash mismatch on an installed file |
+| `ExtractionError` | Archive extraction failure         |

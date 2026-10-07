@@ -17,11 +17,9 @@ import { minecraft } from '@opys/minecraft-vanilla';
 import { resolveBifrost } from '@opys/bifrost';
 
 export default defineConfig({
-  output: 'opys.json',
+  output: 'game.opys',
   plugins: [minecraft('1.20.1')],
-  manifest: {
-    /* … */
-  },
+  manifest: {/* … */},
   // runClient runs every launch on the launch machine — the right
   // place for machine-local paths and a freshly-minted auth token.
   runClient: (manifest) => {

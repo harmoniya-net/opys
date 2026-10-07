@@ -29,7 +29,7 @@ describe('@opys/core — napi boundary smoke', () => {
   test('encodeManifest round-trips a minimal wire', () => {
     const m = decodeManifest({
       vars: { root: '/x' },
-      artifacts: [{ path: 'a', source: { string: 'x' } }],
+      artifacts: [{ path: 'a', source: { url: 'https://x/a' } }],
     });
     const out = encodeManifest(m) as { vars: unknown; artifacts: unknown[] };
     expect(out.vars).toEqual({ root: '/x' });
@@ -41,10 +41,10 @@ describe('@opys/core — napi boundary smoke', () => {
       artifacts: [
         {
           path: 'linux.jar',
-          source: { string: 'x' },
+          source: { url: 'https://x/a' },
           rules: 'allow.os.linux',
         },
-        { path: 'any.jar', source: { string: 'x' } },
+        { path: 'any.jar', source: { url: 'https://x/a' } },
       ],
     });
     const out = filterManifest(m, {

@@ -2,8 +2,8 @@
 
 [![npm](https://img.shields.io/npm/v/@opys/core.svg)](https://www.npmjs.com/package/@opys/core)
 
-The frozen-manifest contract for opys: data model, opys shorthand,
-`Val`/`Valset`, glob, interpolation. Behaviors are backed by the
+The manifest contract for opys: data model, opys shorthand, `Val`/`Valset`,
+glob, interpolation, and the bundle a manifest is published as. Behaviors are backed by the
 [`opys-core`](https://crates.io/crates/opys-core) Rust crate via
 napi-rs; domain types and small sugar helpers are hand-written TS.
 
@@ -15,17 +15,51 @@ npm install @opys/core
 
 ### `Source` — artifact origin
 
-Discriminated by which field is present — this is the frozen wire shape, so
-narrow with `'url' in source` rather than a tag.
+An artifact's bytes come from one of two places: somewhere on the network, or
+a **blob** — a file the manifest carries with it, named by the hex sha256 of
+its bytes. Discriminated by which field is present, so narrow with
+`'url' in source` rather than a tag.
 
 ```ts
-type Source =
-  { url: string } | { file: string } | { string: string } | { bytes: string }; // base64
+type Source = { url: string } | { blob: string };
 
 sourceUrl('https://example.com/file.jar');
-sourceFile('./local/file.jar');
-sourceString('inline content');
-Source.bytes(new Uint8Array([1, 2, 3])); // auto-base64
+sourceBlob(blobId(bytes));
+```
+
+A blob artifact needs no `integrity`: its name already is one.
+
+### Blobs — files that travel with the manifest
+
+The manifest says _which_ bytes; where they are kept is separate. Once
+published they are entries of the bundle. Before that, on the machine that
+builds it, they are a table:
+
+```ts
+type BlobSource = { file: string } | { bytes: string }; // base64
+type Blobs = Record<string, BlobSource>; // blob id → where it is
+
+const { id, size } = await hashBlobFile('./server.jar');
+const blobs = { [id]: blobFile('./server.jar') };
+```
+
+### The bundle — the published form
+
+One file, and a plain zip (`unzip -l` reads it):
+
+```text
+opys.json        the head: format, vars, launch, restrict
+artifacts.json   the artifact list
+blobs/<sha256>   one entry per blob
+```
+
+The head is the first entry and is stored uncompressed, so it can be read
+without the megabytes that follow.
+
+```ts
+await writeBundle('server.opys', manifest, blobs);
+readBundleHead('server.opys'); // { format, vars, launch, restrict }
+readBundle('server.opys'); // the whole Manifest
 ```
 
 ### `ExtractRule` — zip extraction instructions
@@ -70,7 +104,7 @@ canonical form, re-exported from `@opys/mojang-rules`, and the only one the
 evaluator takes. `satisfiesRuleset` here accepts both spellings; the strict
 Mojang-only predicate lives in `@opys/mojang`.
 
-### `Manifest` — the frozen wire shape
+### `Manifest`
 
 ```ts
 import { parseManifest, filterManifest, encodeManifest } from '@opys/core';
@@ -109,9 +143,9 @@ Used by every plugin that resolves data from upstream APIs. Bounded
 exponential backoff on transient errors (network failures + 5xx);
 4xx and JSON-parse failures surface unchanged.
 
-## Frozen wire format
+## The format is the contract
 
-`opys.json` is the contract. Other opys packages layer on top:
+Other opys packages layer on top:
 
 - [`@opys/dev`](https://www.npmjs.com/package/@opys/dev) — config +
   plugin SDK that produces manifests.

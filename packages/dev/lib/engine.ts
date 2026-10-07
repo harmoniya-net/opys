@@ -1,12 +1,22 @@
-import type { Manifest } from '@opys/core';
+import type { Blobs, Manifest } from '@opys/core';
 import * as napi from '@opys/dev-binding';
 import type { OpysConfig, PluginMap } from './config';
 import type { BuildContext } from './plugin';
 
 /** What the binding hands back — see `opys-dev`'s `Assembled`. */
-interface Assembled {
-  manifest: Manifest;
+interface Assembled extends Built {
   warnings: string[];
+}
+
+/**
+ * A build's result: the manifest, and where each blob it names is kept on
+ * this machine. The two travel together — to `writeBundle`, which publishes
+ * them as one file, or straight to `@opys/runtime`, which installs from them
+ * with nothing written in between.
+ */
+export interface Built {
+  manifest: Manifest;
+  blobs: Blobs;
 }
 
 /**
@@ -22,7 +32,7 @@ interface Assembled {
 export async function buildManifest(
   config: OpysConfig,
   ctx: BuildContext,
-): Promise<Manifest> {
+): Promise<Built> {
   ctx.log('opys', `resolving ${config.plugins.length} plugin(s)`);
   const results = await Promise.all(
     config.plugins.map(async (p) => ({
@@ -42,12 +52,13 @@ export async function buildManifest(
     name: r.name,
     contribution: {
       artifacts: r.contribution.artifacts ?? [],
+      blobs: r.contribution.blobs ?? {},
       vars: r.contribution.vars ?? {},
       envs: r.contribution.envs ?? {},
     },
   }));
 
-  const { manifest, warnings } = napi.assemble(outputs, {
+  const { manifest, blobs, warnings } = napi.assemble(outputs, {
     artifacts: m.artifacts ?? [],
     vars: m.vars ?? {},
     command: m.command(pluginMap),
@@ -74,5 +85,5 @@ export async function buildManifest(
     `merged ${manifest.artifacts.length} artifact(s) (${submitted - manifest.artifacts.length} deduped)`,
   );
 
-  return manifest;
+  return { manifest, blobs };
 }

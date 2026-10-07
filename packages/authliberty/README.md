@@ -18,7 +18,7 @@ import { authliberty } from '@opys/authliberty';
 import { java } from '@opys/java';
 
 export default defineConfig({
-  output: 'opys.json',
+  output: 'game.opys',
   plugins: [
     minecraft('1.20.1'),
     authliberty('0.3', {

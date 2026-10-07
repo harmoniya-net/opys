@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import { mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join } from 'node:path';
-import { artifactScanner } from '../../lib/scanner';
+import { artifactScanner, type UrlScannerOptions } from '../../lib/scanner';
 import type { BuildContext } from '../../lib/plugin';
 import type { Artifact } from '@opys/core';
 
@@ -32,9 +32,7 @@ const touch = async (rel: string, body: string) => {
 
 const byPath = (a: Artifact, b: Artifact) => a.path.localeCompare(b.path);
 
-const run = async (
-  opts: Omit<Parameters<typeof artifactScanner>[0], 'directory'>,
-) => {
+const run = async (opts: Omit<UrlScannerOptions, 'directory'>) => {
   const plugin = artifactScanner({ directory: dir, ...opts });
   const result = await plugin.build(ctx);
   return (result.artifacts ?? []).sort(byPath);
@@ -60,12 +58,51 @@ describe('artifactScanner', () => {
     expect(arts[0]!.integrity).toEqual({ sha256 });
   });
 
-  it('emits file sources with integrity so a content change re-fetches', async () => {
+  it('in blob mode, each file is a blob and the table says where it is', async () => {
     await touch('a.txt', 'hello');
-    const arts = await run({ url: 'https://cdn/${rel}', source: 'file' });
-    expect('file' in arts[0]!.source).toBe(true);
-    const sha1 = createHash('sha1').update('hello').digest('hex');
-    expect(arts[0]!.integrity).toEqual({ sha1 });
+    await touch('sub/b.txt', 'world');
+    const plugin = artifactScanner({
+      directory: dir,
+      source: 'blob',
+      path: '${root}/${rel}',
+    });
+    const { artifacts, blobs } = await plugin.build(ctx);
+    const hello = createHash('sha256').update('hello').digest('hex');
+    const world = createHash('sha256').update('world').digest('hex');
+    // No url to give and no integrity to choose: the blob's name is its hash.
+    expect([...artifacts!].sort(byPath)).toEqual([
+      { path: '${root}/a.txt', source: { blob: hello }, size: 5, rules: [] },
+      {
+        path: '${root}/sub/b.txt',
+        source: { blob: world },
+        size: 5,
+        rules: [],
+      },
+    ]);
+    expect(blobs).toEqual({
+      [hello]: { file: join(dir, 'a.txt') },
+      [world]: { file: join(dir, 'sub/b.txt') },
+    });
+  });
+
+  it('in blob mode, two files with the same content are one blob', async () => {
+    await touch('a.txt', 'same');
+    await touch('b.txt', 'same');
+    const { artifacts, blobs } = await artifactScanner({
+      directory: dir,
+      source: 'blob',
+    }).build(ctx);
+    expect(artifacts).toHaveLength(2);
+    expect(Object.keys(blobs!)).toHaveLength(1);
+  });
+
+  it('in url mode there are no blobs to carry', async () => {
+    await touch('a.txt', 'hello');
+    const result = await artifactScanner({
+      directory: dir,
+      url: 'https://cdn/${rel}',
+    }).build(ctx);
+    expect(result.blobs).toEqual({});
   });
 
   it('defaults the artifact path to the relative path', async () => {

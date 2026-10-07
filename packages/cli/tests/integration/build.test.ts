@@ -1,8 +1,8 @@
 /**
  * Live full-stack integration test — exercises the whole build pipeline:
  * `cmdBuild` → `@opys/dev` engine → `@opys/minecraft` + `@opys/java`
- * plugins (real Forge + Adoptium APIs) → `@opys/core` manifest encode →
- * `parseManifest` round-trip. Run with `npm run test:int`.
+ * plugins (real Forge + Adoptium APIs) → `@opys/core` bundle write →
+ * `readBundle` round-trip. Run with `npm run test:int`.
  */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { execFile } from 'node:child_process';
@@ -12,7 +12,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
-import { parseManifest } from '@opys/core';
+import { readBundle } from '@opys/core';
 import { cmdBuild } from '../../lib/commands/build';
 import { Logger } from '../../lib/logger';
 
@@ -32,12 +32,11 @@ afterEach(async () => {
 });
 
 describe('cli build — full stack (live: forge + java)', () => {
-  it('builds a real manifest that round-trips through parseManifest', async () => {
-    const out = join(dir, 'opys.json');
+  it('builds a real bundle that reads back as its manifest', async () => {
+    const out = join(dir, 'game.opys');
     await cmdBuild(['-i', FIXTURE, '-o', out], logger, 'build');
 
-    const raw = await readFile(out, 'utf8');
-    const manifest = await parseManifest(raw);
+    const manifest = readBundle(out);
 
     // Forge contributes loader + library artifacts; java contributes the JDK.
     expect(manifest.artifacts.length).toBeGreaterThan(0);
@@ -55,15 +54,14 @@ describe('cli build — full stack (live: forge + java)', () => {
     expect(manifest.vars).toHaveProperty('java_bin');
   });
 
-  it('re-encodes byte-stably (encode→parse→encode is a fixpoint)', async () => {
-    const out = join(dir, 'opys.json');
+  it('builds byte-stably: two builds of the same pinned inputs are one file', async () => {
+    const out = join(dir, 'game.opys');
     await cmdBuild(['-i', FIXTURE, '-o', out], logger, 'build');
-    const first = await readFile(out, 'utf8');
+    const first = await readFile(out);
 
-    const out2 = join(dir, 'opys2.json');
-    // A second build of the same pinned inputs must be identical.
+    const out2 = join(dir, 'game2.opys');
     await cmdBuild(['-i', FIXTURE, '-o', out2], logger, 'build');
-    expect(await readFile(out2, 'utf8')).toBe(first);
+    expect((await readFile(out2)).equals(first)).toBe(true);
   });
 });
 
@@ -71,11 +69,10 @@ describe.skipIf(!existsSync(CLI_BIN))(
   'cli build — via subprocess (live)',
   () => {
     it('runs `opys build` as a real process and exits 0', async () => {
-      const out = join(dir, 'sub.json');
+      const out = join(dir, 'sub.opys');
       // execFile rejects on a non-zero exit, so a crash fails the test.
       await execFileAsync('node', [CLI_BIN, 'build', '-i', FIXTURE, '-o', out]);
-      const manifest = await parseManifest(await readFile(out, 'utf8'));
-      expect(manifest.artifacts.length).toBeGreaterThan(0);
+      expect(readBundle(out).artifacts.length).toBeGreaterThan(0);
     });
   },
 );

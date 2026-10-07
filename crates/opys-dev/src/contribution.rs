@@ -2,7 +2,7 @@
 
 use std::collections::HashMap;
 
-use opys_core::{Artifact, Val, ValDefs, Valset};
+use opys_core::{Artifact, Blobs, Val, ValDefs, Valset};
 use serde::{Deserialize, Serialize};
 
 /// One named launch fragment a plugin exposes — `jvmArgs` (a `Valset`),
@@ -30,6 +30,11 @@ pub type LaunchGroups = HashMap<String, LaunchFragment>;
 pub struct Contribution {
     /// Artifacts to download/copy/extract.
     pub artifacts: Vec<Artifact>,
+    /// Where the bytes of this plugin's blob artifacts are on this machine:
+    /// a local file, or something the plugin generated. An artifact says
+    /// which blob it is made of; this says where to read it from, and is what
+    /// becomes the bundle's `blobs/` when one is written.
+    pub blobs: Blobs,
     /// Manifest vars this plugin owns.
     pub vars: ValDefs,
     /// Named launch fragments, exposed to the config's accessor functions.

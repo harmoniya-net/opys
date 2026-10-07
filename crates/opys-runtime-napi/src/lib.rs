@@ -15,8 +15,8 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use opys_runtime::{
-    build_launch as rt_build_launch, install as rt_install, InstallOptions, InstallProgress,
-    LaunchOptions, ManifestSource,
+    build_launch as rt_build_launch, install as rt_install, prepare as rt_prepare, InstallOptions,
+    InstallProgress, LaunchOptions, ManifestSource,
 };
 
 fn map_err<E: std::fmt::Display>(e: E) -> napi::Error {
@@ -120,30 +120,107 @@ struct ThrottleState {
     last_emit: Option<Instant>,
 }
 
+fn install_options(
+    options: Option<InstallOptionsJs>,
+    tsfn: Option<ThreadsafeFunction<ProgressEventJs, ErrorStrategy::Fatal>>,
+) -> InstallOptions {
+    let mut opts = InstallOptions::new();
+    if let Some(o) = options {
+        opts.platform = o.platform.map(Into::into);
+        opts.vars = o.vars.map(IntoIterator::into_iter).map(Iterator::collect);
+        opts.concurrency = o.concurrency;
+        if let Some(v) = o.verify_integrity {
+            opts.verify_integrity = v;
+        }
+        if let Some(f) = o.features {
+            opts.features = f;
+        }
+    }
+    if let Some(tsfn) = tsfn {
+        let throttle = Arc::new(std::sync::Mutex::new(ThrottleState { last_emit: None }));
+        opts.on_progress = Some(Arc::new(move |p| {
+            if let InstallProgress::DownloadBytes { .. } = &p {
+                let mut s = throttle.lock().unwrap();
+                let now = Instant::now();
+                if let Some(prev) = s.last_emit {
+                    if now.duration_since(prev) < BYTES_THROTTLE {
+                        return;
+                    }
+                }
+                s.last_emit = Some(now);
+            }
+            tsfn.call(
+                progress_to_event(p),
+                ThreadsafeFunctionCallMode::NonBlocking,
+            );
+        }));
+    }
+    opts
+}
+
+fn launch_options(options: Option<BuildLaunchOptionsJs>) -> LaunchOptions {
+    let mut opts = LaunchOptions::new();
+    opts.do_install = false;
+    if let Some(o) = options {
+        opts.platform = o.platform.map(Into::into);
+        if let Some(f) = o.features {
+            opts.features = f;
+        }
+        opts.vars = o.vars.map(IntoIterator::into_iter).map(Iterator::collect);
+        opts.cwd = o.cwd;
+    }
+    opts
+}
+
+/// JsFunction is !Send, so it becomes a ThreadsafeFunction before the task
+/// that calls it leaves the main thread.
+fn threadsafe(
+    progress: Option<JsFunction>,
+) -> Result<Option<ThreadsafeFunction<ProgressEventJs, ErrorStrategy::Fatal>>> {
+    progress
+        .map(|cb| cb.create_threadsafe_function(0, |ctx| Ok(vec![ctx.value])))
+        .transpose()
+}
+
+/// Run `future` to completion on a fresh tokio runtime within this worker
+/// thread.
+fn block_on<T>(
+    future: impl std::future::Future<Output = std::result::Result<T, opys_runtime::InstallError>>,
+) -> Result<T> {
+    tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .map_err(map_err)?
+        .block_on(future)
+        .map_err(map_err)
+}
+
+fn spec_to_js(spec: opys_runtime::LaunchSpec) -> LaunchSpecJs {
+    LaunchSpecJs {
+        command: spec.command,
+        args: spec.args,
+        workdir: spec.workdir,
+        envs: spec.envs.into_iter().collect(),
+    }
+}
+
+/// Install from `source`: `{ manifest, blobs? }`, `{ bundle }` or `{ url }`.
+/// The source decodes itself — see `opys_runtime::ManifestSource`.
 #[napi(js_name = "install")]
 pub fn install_js(
-    manifest: Json,
+    source: Json,
     options: Option<InstallOptionsJs>,
     progress: Option<JsFunction>,
 ) -> Result<AsyncTask<InstallTask>> {
-    let m: opys_core::Manifest = serde_json::from_value(manifest).map_err(map_err)?;
-
-    // Convert JsFunction → ThreadsafeFunction BEFORE crossing into the async
-    // task — JsFunction is !Send.
-    let tsfn: Option<ThreadsafeFunction<ProgressEventJs, ErrorStrategy::Fatal>> = match progress {
-        Some(cb) => Some(cb.create_threadsafe_function(0, |ctx| Ok(vec![ctx.value]))?),
-        None => None,
-    };
-
     Ok(AsyncTask::new(InstallTask {
-        manifest: m,
+        source: Some(serde_json::from_value(source).map_err(map_err)?),
         options,
-        tsfn,
+        tsfn: threadsafe(progress)?,
     }))
 }
 
 pub struct InstallTask {
-    manifest: opys_core::Manifest,
+    source: Option<ManifestSource>,
     options: Option<InstallOptionsJs>,
     tsfn: Option<ThreadsafeFunction<ProgressEventJs, ErrorStrategy::Fatal>>,
 }
@@ -153,53 +230,9 @@ impl Task for InstallTask {
     type JsValue = ();
 
     fn compute(&mut self) -> Result<Self::Output> {
-        let manifest = std::mem::take(&mut self.manifest);
-        let options = self.options.take();
-        let tsfn = self.tsfn.take();
-
-        let mut opts = InstallOptions::new();
-        if let Some(o) = options {
-            opts.platform = o.platform.map(Into::into);
-            opts.vars = o.vars.map(IntoIterator::into_iter).map(Iterator::collect);
-            opts.concurrency = o.concurrency;
-            if let Some(v) = o.verify_integrity {
-                opts.verify_integrity = v;
-            }
-            if let Some(f) = o.features {
-                opts.features = f;
-            }
-        }
-        if let Some(tsfn) = tsfn {
-            let throttle = Arc::new(std::sync::Mutex::new(ThrottleState { last_emit: None }));
-            opts.on_progress = Some(Arc::new(move |p| {
-                if let InstallProgress::DownloadBytes { .. } = &p {
-                    let mut s = throttle.lock().unwrap();
-                    let now = Instant::now();
-                    if let Some(prev) = s.last_emit {
-                        if now.duration_since(prev) < BYTES_THROTTLE {
-                            return;
-                        }
-                    }
-                    s.last_emit = Some(now);
-                }
-                tsfn.call(
-                    progress_to_event(p),
-                    ThreadsafeFunctionCallMode::NonBlocking,
-                );
-            }));
-        }
-
-        // Run the install on a fresh tokio runtime within this worker thread.
-        let rt = tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()
-            .map_err(map_err)?;
-        rt.block_on(async {
-            rt_install(ManifestSource::Manifest(Box::new(manifest)), opts)
-                .await
-                .map_err(map_err)
-        })?;
-        Ok(())
+        let source = self.source.take().expect("a task is computed once");
+        let opts = install_options(self.options.take(), self.tsfn.take());
+        block_on(rt_install(source, opts))
     }
 
     fn resolve(&mut self, _env: napi::Env, _output: Self::Output) -> Result<Self::JsValue> {
@@ -226,31 +259,55 @@ pub struct BuildLaunchOptionsJs {
 /// Pure spawn-spec — no install, no spawn. Q5 in design doc.
 #[napi(js_name = "buildLaunch")]
 pub async fn build_launch_js(
-    manifest: Json,
+    source: Json,
     options: Option<BuildLaunchOptionsJs>,
 ) -> Result<LaunchSpecJs> {
-    let m: opys_core::Manifest = serde_json::from_value(manifest).map_err(map_err)?;
+    let source: ManifestSource = serde_json::from_value(source).map_err(map_err)?;
+    rt_build_launch(source, &launch_options(options))
+        .await
+        .map(spec_to_js)
+        .map_err(map_err)
+}
 
-    let mut launch_opts = LaunchOptions::new();
-    launch_opts.do_install = false;
-    if let Some(o) = options {
-        launch_opts.platform = o.platform.map(Into::into);
-        if let Some(f) = o.features {
-            launch_opts.features = f;
-        }
-        launch_opts.vars = o.vars.map(IntoIterator::into_iter).map(Iterator::collect);
-        launch_opts.cwd = o.cwd;
+/// Install, then say what to spawn — from one reading of the source, so a
+/// bundle is opened, or downloaded, once for both.
+#[napi(js_name = "prepare")]
+pub fn prepare_js(
+    source: Json,
+    launch: Option<BuildLaunchOptionsJs>,
+    install: Option<InstallOptionsJs>,
+    progress: Option<JsFunction>,
+) -> Result<AsyncTask<PrepareTask>> {
+    Ok(AsyncTask::new(PrepareTask {
+        source: Some(serde_json::from_value(source).map_err(map_err)?),
+        launch,
+        install,
+        tsfn: threadsafe(progress)?,
+    }))
+}
+
+pub struct PrepareTask {
+    source: Option<ManifestSource>,
+    launch: Option<BuildLaunchOptionsJs>,
+    install: Option<InstallOptionsJs>,
+    tsfn: Option<ThreadsafeFunction<ProgressEventJs, ErrorStrategy::Fatal>>,
+}
+
+impl Task for PrepareTask {
+    type Output = opys_runtime::LaunchSpec;
+    type JsValue = LaunchSpecJs;
+
+    fn compute(&mut self) -> Result<Self::Output> {
+        let source = self.source.take().expect("a task is computed once");
+        let mut opts = launch_options(self.launch.take());
+        opts.do_install = true;
+        opts.install = Some(install_options(self.install.take(), self.tsfn.take()));
+        block_on(rt_prepare(source, opts))
     }
 
-    let (_manifest, spec) = rt_build_launch(ManifestSource::Manifest(Box::new(m)), &launch_opts)
-        .await
-        .map_err(map_err)?;
-    Ok(LaunchSpecJs {
-        command: spec.command,
-        args: spec.args,
-        workdir: spec.workdir,
-        envs: spec.envs.into_iter().collect(),
-    })
+    fn resolve(&mut self, _env: napi::Env, output: Self::Output) -> Result<Self::JsValue> {
+        Ok(spec_to_js(output))
+    }
 }
 
 #[napi(js_name = "currentPlatform")]

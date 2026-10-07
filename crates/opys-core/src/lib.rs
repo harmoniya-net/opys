@@ -1,10 +1,12 @@
 //! `@opys/core` — manifest data model, shorthand, Val/Valset, glob,
-//! interpolation. Reference implementation of the frozen `opys.json` wire
-//! format. Mirrors the TS package one-to-one.
+//! interpolation, and the bundle a manifest is published as. Reference
+//! implementation of the manifest format. Mirrors the TS package one-to-one.
 //!
 //! Depends on `opys-mojang-rules` for the rule format/evaluator.
 
 mod artifact;
+mod blob;
+mod bundle;
 mod extract;
 mod glob;
 mod integrity;
@@ -16,7 +18,11 @@ mod source;
 mod val;
 mod valdefs;
 
-pub use artifact::{deduplicate_artifacts, Artifact};
+pub use artifact::{deduplicate_artifacts, Artifact, ArtifactError};
+pub use blob::{blob_id, blob_id_of, is_blob_id, BlobSource, Blobs};
+pub use bundle::{
+    open_bundle, read_bundle_head, write_bundle, Bundle, BundleError, Head, BUNDLE_FORMAT,
+};
 pub use extract::{ExtractDump, ExtractPick, ExtractRule, ExtractScan};
 pub use glob::{glob_base, glob_to_regex};
 pub use integrity::{HashAlgo, HashEntry, Integrity};
@@ -30,7 +36,7 @@ pub use shorthand::{
     encode_short_rule, encode_short_ruleset, parse_short_rule, parse_short_ruleset, Rule, Ruleset,
     ShorthandError,
 };
-pub use source::Source;
+pub use source::{Source, SourceError};
 pub use val::{resolve_valset, Val, Valset};
 pub use valdefs::{resolve_val_defs, ConditionalVal, ValDef, ValDefs};
 

@@ -14,7 +14,7 @@ const fakePlugin = (name: string, contribution: Contribution): OpysPlugin => ({
 // `buildManifest` returns the manifest in its canonical wire spelling, the
 // same shape `decodeManifest` produces: a rule-free single value collapses to
 // a bare string, and an arm with no rules drops the `rules` key. `opys build`
-// re-encodes before writing, so `opys.json` is unaffected either way.
+// re-encodes before writing, so a bundle is unaffected either way.
 describe('buildManifest', () => {
   it('merges artifacts and vars, assembles launch from accessors', async () => {
     const config: OpysConfig = {
@@ -42,7 +42,7 @@ describe('buildManifest', () => {
         workdir: '${root}',
       },
     };
-    const m = await buildManifest(config, ctx);
+    const { manifest: m } = await buildManifest(config, ctx);
     expect(m.artifacts).toHaveLength(2);
     expect(m.vars).toEqual({ root: '.' });
     expect(m.launch?.command).toBe('java');
@@ -62,7 +62,7 @@ describe('buildManifest', () => {
         ],
       },
     };
-    const m = await buildManifest(config, ctx);
+    const { manifest: m } = await buildManifest(config, ctx);
     expect(m.vars).toEqual({ root: 'override' });
     expect(m.artifacts).toHaveLength(1);
     expect(m.artifacts[0]!.path).toBe('lit.jar');
@@ -117,7 +117,7 @@ describe('buildManifest', () => {
         args: ({ p }) => [p!.single!, 'tail'],
       },
     };
-    const m = await buildManifest(config, ctx);
+    const { manifest: m } = await buildManifest(config, ctx);
     expect(m.artifacts).toHaveLength(1);
     expect(m.artifacts[0]!.source).toEqual(sourceUrl('http://x/2'));
     expect(m.launch?.args).toEqual(['-flag', 'tail']);
@@ -133,7 +133,7 @@ describe('buildManifest', () => {
         envs: ({ p }) => ({ HOME: p!.dir as string }),
       },
     };
-    const m = await buildManifest(config, ctx);
+    const { manifest: m } = await buildManifest(config, ctx);
     expect(m.launch?.workdir).toBe('/srv');
     expect(m.launch?.envs).toEqual({ HOME: '/srv' });
   });
@@ -146,7 +146,7 @@ describe('buildManifest', () => {
       ],
       manifest: { command: () => 'x', args: () => [] },
     };
-    const m = await buildManifest(config, ctx);
+    const { manifest: m } = await buildManifest(config, ctx);
     expect(m.launch?.envs).toEqual({ JAVA_HOME: '/jdk', OTHER: '1' });
   });
 
@@ -159,7 +159,7 @@ describe('buildManifest', () => {
         envs: { JAVA_HOME: '/override' },
       },
     };
-    const m = await buildManifest(config, ctx);
+    const { manifest: m } = await buildManifest(config, ctx);
     expect(m.launch?.envs).toEqual({ JAVA_HOME: '/override' });
   });
 
@@ -172,7 +172,7 @@ describe('buildManifest', () => {
       ],
       manifest: { command: () => 'x', args: () => [] },
     };
-    const m = await buildManifest(config, {
+    const { manifest: m } = await buildManifest(config, {
       ...ctx,
       log: (_scope, message) => logs.push(message),
     });
@@ -185,7 +185,7 @@ describe('buildManifest', () => {
       plugins: [],
       manifest: { command: () => 'java', args: () => [] },
     };
-    const m = await buildManifest(config, ctx);
+    const { manifest: m } = await buildManifest(config, ctx);
     expect(m.launch?.workdir).toBe('.');
     expect(m.launch?.envs).toEqual({});
   });
@@ -200,7 +200,7 @@ describe('buildManifest', () => {
         restrict: ['mods/**'],
       },
     };
-    const m = await buildManifest(config, ctx);
+    const { manifest: m } = await buildManifest(config, ctx);
     expect(m.launch?.envs).toEqual({ KEY: 'val' });
     expect(m.restrict).toEqual(['mods/**']);
   });
@@ -210,7 +210,9 @@ describe('buildManifest', () => {
       plugins: [],
       manifest: { command: () => 'java', args: () => [], restrict: [] },
     };
-    expect((await buildManifest(config, ctx)).restrict).toBeUndefined();
+    expect(
+      (await buildManifest(config, ctx)).manifest.restrict,
+    ).toBeUndefined();
   });
 
   it('wraps a "${var}" string arg into a Val and preserves a ConditionalVal[] var', async () => {
@@ -222,7 +224,7 @@ describe('buildManifest', () => {
         vars: { game_dir: [{ value: '/home/user/.minecraft', rules: [] }] },
       },
     };
-    const m = await buildManifest(config, ctx);
+    const { manifest: m } = await buildManifest(config, ctx);
     expect(m.launch?.args).toEqual(['${game_dir}']);
     expect(m.vars).toEqual({
       game_dir: [{ value: '/home/user/.minecraft' }],
@@ -242,7 +244,7 @@ describe('buildManifest', () => {
         args: ({ p }) => ['${root}', p!.extra!],
       },
     };
-    const m = await buildManifest(config, ctx);
+    const { manifest: m } = await buildManifest(config, ctx);
     expect(m.vars).toEqual({ root: '/data' });
     expect(m.launch?.args).toEqual(['${root}', '--flag']);
   });

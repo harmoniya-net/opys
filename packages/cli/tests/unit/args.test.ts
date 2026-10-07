@@ -31,6 +31,19 @@ describe('parseArgs', () => {
     expect(() => parseArgs(['--mode'], SPECS)).toThrow(UsageError);
   });
 
+  it('collects a repeatable flag in the order given', () => {
+    const specs: FlagSpec[] = [...SPECS, { long: 'var', type: 'strings' }];
+    const args = parseArgs(['--var', 'a=1', '--var', 'b=2'], specs);
+    expect(args.getStrings('var')).toEqual(['a=1', 'b=2']);
+    expect(parseArgs([], specs).getStrings('var')).toEqual([]);
+  });
+
+  it('returns what is not a flag as positionals', () => {
+    const args = parseArgs(['game.opys', '-i', 'cfg.mjs', 'extra'], SPECS);
+    expect(args.positionals).toEqual(['game.opys', 'extra']);
+    expect(parseArgs([], SPECS).positionals).toEqual([]);
+  });
+
   it('works with an empty spec list', () => {
     expect(() => parseArgs([], [])).not.toThrow();
   });
