@@ -113,6 +113,47 @@ pub fn list_github_releases(
     })
 }
 
+/// Fetch the one release tagged `tag`, by address rather than by listing.
+///
+/// The listing is a single page of a hundred, which is every release only for
+/// a repository that has not made its hundred-and-first. A caller that already
+/// knows the tag should not depend on how far back it is.
+pub fn fetch_github_release(
+    api_base: &str,
+    repo: &str,
+    tag: &str,
+    token: Option<&str>,
+) -> Result<GitHubRelease, GitHubError> {
+    let url = format!("{api_base}/repos/{repo}/releases/tags/{tag}");
+    let auth = token.map(|t| format!("Bearer {t}"));
+    let mut headers: Vec<(&str, &str)> = vec![
+        ("Accept", "application/vnd.github+json"),
+        ("X-GitHub-Api-Version", "2022-11-28"),
+    ];
+    if let Some(auth) = auth.as_deref() {
+        headers.push(("Authorization", auth));
+    }
+
+    let res = http::get(&url, &headers)?;
+    if res.status == 404 {
+        return Err(GitHubError::NoTag {
+            tag: tag.to_owned(),
+            repo: repo.to_owned(),
+            available: "not listed".to_owned(),
+        });
+    }
+    if !res.ok() {
+        return Err(GitHubError::Api {
+            status: res.status,
+            repo: repo.to_owned(),
+        });
+    }
+    serde_json::from_str(&res.body).map_err(|source| GitHubError::Malformed {
+        repo: repo.to_owned(),
+        source,
+    })
+}
+
 /// The hex sha256 behind an asset's `digest` field, when GitHub computed one.
 pub fn github_asset_sha256(asset: &GitHubAsset) -> Option<&str> {
     asset.digest.as_deref()?.strip_prefix("sha256:")

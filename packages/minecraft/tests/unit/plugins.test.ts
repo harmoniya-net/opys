@@ -225,51 +225,50 @@ describe('cleanroom plugin', () => {
 });
 
 describe('lwjgl3ify plugin', () => {
-  it('builds an lwjgl3ify contribution', async () => {
+  it('builds an lwjgl3ify contribution from the published document', async () => {
     reset();
-    routedFetch([
-      [
-        '/repos/GTNewHorizons/lwjgl3ify/releases',
-        [
-          {
-            tag_name: '3.0.16',
-            prerelease: false,
-            draft: false,
-            published_at: '2024-06-01T00:00:00Z',
-            assets: [
-              {
-                name: 'version.json',
-                size: 1,
-                browser_download_url: 'https://gh/version.json',
-              },
-              {
-                name: 'lwjgl3ify-3.0.16.jar',
-                size: 1,
-                browser_download_url: 'https://gh/lwjgl3ify-3.0.16.jar',
-              },
-            ],
-          },
-        ],
-      ],
-      [
-        'gh/version.json',
-        clientJson('1.7.10', {
-          id: '1.7.10-lwjgl3ify',
-          assetIndex: {
-            id: '5',
-            sha1: 'e'.repeat(40),
-            size: 400,
-            totalSize: 5000,
-            url: mojang.assetsUrl,
-          },
-        }),
-      ],
-    ]);
-    const plugin = lwjgl3ify('3.0.16', { unimixins: false });
+    routedFetch([]);
+    const MC = '1.7.10';
+    const TAG = '3.0.37';
+    const base = clientJson(MC);
+    const site = await documentSite({
+      mc: MC,
+      build: TAG,
+      document: {
+        ...base,
+        id: `1.7.10-lwjgl3ify-${TAG}`,
+        assetIndex: { ...base.assetIndex, url: mojang.assetsUrl },
+      },
+      // The mod jar is not in the document; it comes off the GitHub release.
+      routes: {
+        [`/repos/GTNewHorizons/lwjgl3ify/releases/tags/${TAG}`]: {
+          tag_name: TAG,
+          prerelease: false,
+          draft: false,
+          published_at: '2026-10-04T00:00:00Z',
+          assets: [
+            {
+              name: `lwjgl3ify-${TAG}.jar`,
+              size: 1,
+              browser_download_url: `https://gh/lwjgl3ify-${TAG}.jar`,
+            },
+          ],
+        },
+      },
+    });
+
+    const plugin = lwjgl3ify(TAG, {
+      source: site.source,
+      apiBase: site.source,
+      unimixins: false,
+    });
     expect(plugin.name).toBe('lwjgl3ify');
     const c = await plugin.build(ctx);
-    expect(c.artifacts!.length).toBeGreaterThan(0);
-    expect(logs.some((l) => l.includes('resolved 3.0.16'))).toBe(true);
+    expect(c.artifacts!.map((a) => a.path)).toContain(
+      `\${game_directory}/mods/lwjgl3ify-${TAG}.jar`,
+    );
+    expect(logs.some((l) => l.includes(`resolved ${TAG}`))).toBe(true);
+    await site.close();
   });
 });
 

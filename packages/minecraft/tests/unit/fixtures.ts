@@ -228,34 +228,42 @@ export interface DocumentSite {
 /**
  * Serve an index naming one build, and that build's document.
  *
- * Both families spell a build the same way, so the only thing that differs
+ * Every family spells a build the same way, so the only thing that differs
  * between them here is the base URL.
  */
 export async function documentSite(options: {
   mc: string;
   build: string;
   document: Record<string, unknown>;
+  /**
+   * Further exact paths to answer — for a loader that reads something beside
+   * its document, as lwjgl3ify reads its mod jar off a GitHub release.
+   */
+  routes?: Record<string, unknown>;
 }): Promise<DocumentSite> {
   let base = '';
 
   const server = createServer((req, res) => {
     const target = req.url ?? '';
     const url = `${base}/versions/${options.mc}/${options.build}.json`;
-    const body = target.startsWith('/versions/')
-      ? options.document
-      : {
-          versions: {
-            [options.mc]: {
-              latest: options.build,
-              latestUrl: url,
-              recommended: options.build,
-              recommendedUrl: url,
-              best: options.build,
-              bestUrl: url,
-              builds: [{ build: options.build, url }],
+    const routed = options.routes?.[target];
+    const body = routed
+      ? routed
+      : target.startsWith('/versions/')
+        ? options.document
+        : {
+            versions: {
+              [options.mc]: {
+                latest: options.build,
+                latestUrl: url,
+                recommended: options.build,
+                recommendedUrl: url,
+                best: options.build,
+                bestUrl: url,
+                builds: [{ build: options.build, url }],
+              },
             },
-          },
-        };
+          };
     res
       .writeHead(200, { 'content-type': 'application/json' })
       .end(JSON.stringify(body));

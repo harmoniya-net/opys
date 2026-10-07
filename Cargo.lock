@@ -984,6 +984,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "opys-lwjgl3ify"
+version = "0.2.0"
+dependencies = [
+ "opys-core",
+ "opys-dev",
+ "opys-minecraft-vanilla",
+ "opys-mojang",
+ "serde",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
+name = "opys-lwjgl3ify-napi"
+version = "0.2.0"
+dependencies = [
+ "napi",
+ "napi-build",
+ "napi-derive",
+ "opys-lwjgl3ify",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "opys-minecraft-vanilla"
 version = "0.2.0"
 dependencies = [

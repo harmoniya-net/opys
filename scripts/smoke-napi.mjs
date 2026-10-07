@@ -26,6 +26,7 @@ const fabricNapi = require('../crates/opys-fabric-napi/index.js');
 const forgeNapi = require('../crates/opys-forge-napi/index.js');
 const neoforgeNapi = require('../crates/opys-neoforge-napi/index.js');
 const cleanroomNapi = require('../crates/opys-cleanroom-napi/index.js');
+const lwjgl3ifyNapi = require('../crates/opys-lwjgl3ify-napi/index.js');
 
 let ok = 0;
 let fail = 0;
@@ -714,6 +715,92 @@ const cleanroomBuilt = await cleanroomNapi.buildCleanroom(cleanroomOpts);
 check('buildCleanroom names the plugin', cleanroomBuilt.name === 'cleanroom');
 
 cleanroomSite.close();
+
+// ── lwjgl3ify ─────────────────────────────────────────────────────────────
+// A document like cleanroom's, plus the one thing no other loader here does:
+// a second source, GitHub, for the jars that go in `mods/`.
+console.log('\n— lwjgl3ify —');
+
+const LWJGL3IFY_TAG = '3.0.37';
+
+let lwjgl3ifyBase = '';
+const lwjgl3ifySite = createServer((req, res) => {
+  const target = req.url ?? '';
+  const url = `${lwjgl3ifyBase}/versions/1.7.10/${LWJGL3IFY_TAG}.json`;
+  const body = target.startsWith('/repos/')
+    ? {
+        tag_name: LWJGL3IFY_TAG,
+        prerelease: false,
+        draft: false,
+        published_at: '2026-10-04T00:00:00Z',
+        assets: [
+          {
+            name: `lwjgl3ify-${LWJGL3IFY_TAG}.jar`,
+            size: 4242,
+            browser_download_url: `https://example.invalid/lwjgl3ify-${LWJGL3IFY_TAG}.jar`,
+          },
+        ],
+      }
+    : target.startsWith('/versions/')
+      ? CLIENT_JSON('1.7.10', mojangBase)
+      : {
+          versions: {
+            '1.7.10': {
+              latest: LWJGL3IFY_TAG,
+              latestUrl: url,
+              recommended: LWJGL3IFY_TAG,
+              recommendedUrl: url,
+              best: LWJGL3IFY_TAG,
+              bestUrl: url,
+              builds: [{ build: LWJGL3IFY_TAG, url }],
+            },
+          },
+        };
+  res
+    .writeHead(200, { 'content-type': 'application/json' })
+    .end(JSON.stringify(body));
+});
+await new Promise((resolve) => lwjgl3ifySite.listen(0, '127.0.0.1', resolve));
+lwjgl3ifyBase = `http://127.0.0.1:${lwjgl3ifySite.address().port}`;
+const lwjgl3ifyOpts = {
+  version: LWJGL3IFY_TAG,
+  source: lwjgl3ifyBase,
+  apiBase: lwjgl3ifyBase,
+  unimixins: false,
+};
+
+check(
+  'defaultLwjgl3ifyIndex is the published index',
+  lwjgl3ifyNapi.defaultLwjgl3ifyIndex() ===
+    'https://harmoniya-net.github.io/metadata/lwjgl3ify',
+);
+
+const lwjgl3ifyRelease = await lwjgl3ifyNapi.resolveLwjgl3ifyVersion(
+  LWJGL3IFY_TAG,
+  lwjgl3ifyBase,
+);
+check(
+  'resolveLwjgl3ifyVersion finds a tag that names no Minecraft version',
+  lwjgl3ifyRelease.minecraft === '1.7.10' &&
+    lwjgl3ifyRelease.lwjgl3ify === LWJGL3IFY_TAG,
+);
+
+const lwjgl3ified = await lwjgl3ifyNapi.resolveLwjgl3ify(lwjgl3ifyOpts);
+check(
+  'resolveLwjgl3ify puts the mod jar under mods/',
+  lwjgl3ified.artifacts.some(
+    (a) => a.path === `\${game_directory}/mods/lwjgl3ify-${LWJGL3IFY_TAG}.jar`,
+  ),
+);
+check(
+  'resolveLwjgl3ify takes `unimixins: false` as an opt-out',
+  !lwjgl3ified.artifacts.some((a) => a.path.includes('unimixins')),
+);
+
+const lwjgl3ifyBuilt = await lwjgl3ifyNapi.buildLwjgl3ify(lwjgl3ifyOpts);
+check('buildLwjgl3ify names the plugin', lwjgl3ifyBuilt.name === 'lwjgl3ify');
+
+lwjgl3ifySite.close();
 mojangApi.close();
 
 console.log(`\nresult: ${ok} passed, ${fail} failed`);

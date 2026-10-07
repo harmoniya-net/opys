@@ -17,7 +17,7 @@
   "dependencies": {
     "@opys/core": "^0.2.0",
     "@opys/dev": "^0.2.0",
-    "@opys/mojang": "^0.2.0",
+    "@opys/lwjgl3ify-binding": "^0.2.0",
     "@opys/minecraft-vanilla": "^0.2.0"
   },
   "devDependencies": {

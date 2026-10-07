@@ -18,7 +18,7 @@ import { java } from '@opys/java';
 
 export default defineConfig({
   output: 'opys.json',
-  plugins: [lwjgl3ify('3.0.16'), java('21')],
+  plugins: [lwjgl3ify('1.7.10'), java('25')],
   manifest: {
     command: ({ java }) => java.bin,
     args: ({ lwjgl3ify }) => [
@@ -31,10 +31,14 @@ export default defineConfig({
 });
 ```
 
-Each release ships a self-describing `version.json` asset (a
-Mojang-format manifest with the vanilla 1.7.10 client URL, asset
-index, and full library list inline) — no separate Forge-installer
-extraction needed.
+Accepts a Minecraft version (`'1.7.10'`, its newest recommended release), an
+alias (`'1.7.10-latest'` | `'1.7.10-recommended'` | `'1.7.10-best'`), or an
+exact release tag (`'3.0.37'`).
+
+Each release ships a complete `version.json`; opys resolves a published copy
+of it with every library given a path, a hash and a size. The lwjgl3ify mod
+jar and UniMixins are added under `mods/` from their GitHub releases — pass
+`token` if you hit GitHub's anonymous rate limit.
 
 Pass `unimixins: false` to opt out of the bundled UniMixins (e.g.
 if you'll deploy a different mixin runtime via your own mod-folder

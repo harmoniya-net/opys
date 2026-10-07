@@ -57,11 +57,10 @@ Eight packages, a clean DAG, no cycles:
 @opys/minecraft     Minecraft-domain plugins — minecraft / forge / neoforge /
                      fabric / cleanroom / lwjgl3ify / curseforge / authliberty — +
                      bifrost / serverlist helpers. Vanilla, fabric, forge,
-                     neoforge and cleanroom are thin wrappers over the
-                     `opys-minecraft-vanilla`, `opys-fabric`, `opys-forge`,
-                     `opys-neoforge` and `opys-cleanroom` crates, each with its
-                     own `.node`; the remaining loaders get a crate and a
-                     binding apiece on top of vanilla.       → dev, core, mojang
+                     neoforge, cleanroom and lwjgl3ify are thin wrappers over
+                     the `opys-minecraft-vanilla`, `opys-fabric`, `opys-forge`,
+                     `opys-neoforge`, `opys-cleanroom` and `opys-lwjgl3ify`
+                     crates, each with its own `.node`.     → dev, core, mojang
 @opys/java          JDK provisioning — Temurin / Zulu / GraalVM CE.
                      Thin wrapper over the `opys-java` crate.                → dev, core
 @opys/cli           the `opys` binary.                 → dev, runtime, minecraft, java
@@ -166,6 +165,19 @@ Eight packages, a clean DAG, no cycles:
   once, in the generator, when it folds the pre-0.5.16 patches; from 0.5.16 on
   Cleanroom ships the complete document itself. Either way the crate filters
   nothing — what a document declares is what runs.
+
+- **lwjgl3ify is a document and two mods, from two places.**
+  `harmoniya-net.github.io/metadata/lwjgl3ify` publishes each release's own
+  `version.json` — complete, like Cleanroom's — with its libraries made
+  installable: paths derived, bare coordinates resolved to a hash and a size,
+  and the ones its maven has since pruned addressed at the release's assets.
+  `opys-lwjgl3ify` reads that as a `Client`, exactly as `opys-cleanroom` does.
+
+  The mod jar and UniMixins are not in it. They belong in `mods/`, which a
+  version JSON cannot express, so the crate reads them off GitHub Releases and
+  appends them to `artifacts` — never to the classpath. The lwjgl3ify release
+  is fetched **by tag** (`fetch_github_release`), since the index already named
+  it and the repository has more releases than one page of the listing holds.
 
 - **The loader's installer is not a library, and neither is the ancient era's
   overlay zip.** A document names them with `-Dhorno.installer` /

@@ -40,6 +40,7 @@
     "crates/opys-forge-napi",
     "crates/opys-neoforge-napi",
     "crates/opys-cleanroom-napi",
+    "crates/opys-lwjgl3ify-napi",
     "crates/opys-core-napi",
     "crates/opys-runtime-napi"
   ],
