@@ -26,7 +26,7 @@ impl HttpResponse {
 /// Transport failure — DNS, TLS, connect, or a body that isn't UTF-8. An
 /// HTTP status is *not* one of these; it comes back in [`HttpResponse`].
 #[derive(Debug, thiserror::Error)]
-#[error("GET {url} failed: {reason}")]
+#[error("request to {url} failed: {reason}")]
 pub struct HttpError {
     pub url: String,
     pub reason: String,
@@ -87,6 +87,34 @@ pub fn get(url: &str, headers: &[(&str, &str)]) -> Result<HttpResponse, HttpErro
             url: url.to_owned(),
             reason: e.to_string(),
         })?;
+    Ok(HttpResponse { status, body })
+}
+
+/// POST `body` as JSON and read the whole response.
+///
+/// For the one API here that takes its query as a document rather than as a
+/// URL — CurseForge's batched file lookup. Like [`get`], a status is data.
+pub fn post_json(
+    url: &str,
+    headers: &[(&str, &str)],
+    body: &serde_json::Value,
+) -> Result<HttpResponse, HttpError> {
+    let fail = |e: &dyn std::fmt::Display| HttpError {
+        url: url.to_owned(),
+        reason: e.to_string(),
+    };
+    let mut req = agent().post(url).header("content-type", "application/json");
+    for (name, value) in headers {
+        req = req.header(*name, *value);
+    }
+    let mut res = req.send(body.to_string()).map_err(|e| fail(&e))?;
+    let status = res.status().as_u16();
+    let body = res
+        .body_mut()
+        .with_config()
+        .limit(BODY_LIMIT)
+        .read_to_string()
+        .map_err(|e| fail(&e))?;
     Ok(HttpResponse { status, body })
 }
 

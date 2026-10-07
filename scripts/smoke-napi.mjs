@@ -29,6 +29,7 @@ const cleanroomNapi = require('../crates/opys-cleanroom-napi/index.js');
 const lwjgl3ifyNapi = require('../crates/opys-lwjgl3ify-napi/index.js');
 const authlibertyNapi = require('../crates/opys-authliberty-napi/index.js');
 const modrinthNapi = require('../crates/opys-modrinth-napi/index.js');
+const curseforgeNapi = require('../crates/opys-curseforge-napi/index.js');
 
 let ok = 0;
 let fail = 0;
@@ -948,6 +949,83 @@ check(
 );
 
 modrinthApi.close();
+
+// ── curseforge ────────────────────────────────────────────────────────────
+// The one addon that POSTs, and the one whose references are a number or a
+// string — both spellings have to arrive as what they were.
+console.log('\n— curseforge —');
+
+let curseforgeKey = '';
+const curseforgeApi = createServer((req, res) => {
+  let raw = '';
+  req.on('data', (chunk) => (raw += chunk));
+  req.on('end', () => {
+    curseforgeKey = req.headers['x-api-key'] ?? '';
+    const { fileIds } = JSON.parse(raw);
+    res.writeHead(200, { 'content-type': 'application/json' }).end(
+      JSON.stringify({
+        data: fileIds.map((id) => ({
+          id,
+          modId: 1,
+          fileName: `mod-${id}.jar`,
+          fileLength: 10,
+          hashes: [{ value: 'a'.repeat(40), algo: 1 }],
+          downloadUrl: null,
+        })),
+      }),
+    );
+  });
+});
+await new Promise((resolve) => curseforgeApi.listen(0, '127.0.0.1', resolve));
+const curseforgeBase = `http://127.0.0.1:${curseforgeApi.address().port}`;
+
+check(
+  'defaultCurseforgeApi is the public API',
+  curseforgeNapi.defaultCurseforgeApi() === 'https://api.curseforge.com/v1',
+);
+check(
+  'parseFileRef reads a number and a URL alike',
+  curseforgeNapi.parseFileRef(6307712) === 6307712 &&
+    curseforgeNapi.parseFileRef('https://x/files/2283837') === 2283837,
+);
+
+const cfFiles = await curseforgeNapi.resolveCurseforgeFiles(
+  'smoke-key',
+  [6307712, 'https://www.curseforge.com/minecraft/mc-mods/x/files/2283837'],
+  curseforgeBase,
+);
+check(
+  'resolveCurseforgeFiles sends the key and keeps the order asked for',
+  curseforgeKey === 'smoke-key' &&
+    cfFiles.map((f) => f.fileId).join() === '6307712,2283837',
+);
+check(
+  'resolveCurseforgeFiles addresses a withheld file on the CDN',
+  cfFiles[0].url === 'https://edge.forgecdn.net/files/6307/712/mod-6307712.jar',
+);
+
+const cfArtifacts = curseforgeNapi.curseforgeFileArtifacts(cfFiles, [
+  'mods/a.jar',
+  'mods/b.jar',
+]);
+check(
+  'curseforgeFileArtifacts puts each file at the path chosen for it',
+  cfArtifacts.map((a) => a.path).join() === 'mods/a.jar,mods/b.jar',
+);
+check(
+  'loaderSpecFromManifest reads the primary loader',
+  curseforgeNapi.loaderSpecFromManifest({
+    minecraft: {
+      version: '1.20.1',
+      modLoaders: [{ id: 'fabric-0.15.11', primary: true }],
+    },
+    files: [],
+    overrides: 'overrides',
+    name: 'Pack',
+  }).fabricLoader === '0.15.11',
+);
+
+curseforgeApi.close();
 mojangApi.close();
 
 console.log(`\nresult: ${ok} passed, ${fail} failed`);

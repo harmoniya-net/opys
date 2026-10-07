@@ -172,9 +172,21 @@ describe('fabric plugin', () => {
         { name: 'org.ow2.asm:asm:9.7.1', url: 'https://maven.fabricmc.net/' },
       ],
     };
-    routedFetch([['/profile/json', profile]]);
+    routedFetch([]);
+    // Fabric Meta, on loopback. The resolver runs natively, so a stubbed
+    // `fetch` never reached it — this test was quietly asking the real Meta,
+    // and timed out whenever the network was slow.
+    const meta = createServer((_req, res) => {
+      res
+        .writeHead(200, { 'content-type': 'application/json' })
+        .end(JSON.stringify(profile));
+    });
+    await new Promise<void>((resolve) => meta.listen(0, '127.0.0.1', resolve));
+    const source = `http://127.0.0.1:${(meta.address() as AddressInfo).port}`;
+
     const plugin = fabric('1.20.1', {
       loader: LOADER,
+      source,
       manifestBase: mojang.manifestBase,
     });
     expect(plugin.name).toBe('fabric');
@@ -182,6 +194,7 @@ describe('fabric plugin', () => {
     expect(c.artifacts!.length).toBeGreaterThan(0);
     expect(c.launch).toHaveProperty('mainClass');
     expect(logs.some((l) => l.includes('resolved 1.20.1'))).toBe(true);
+    await new Promise<void>((resolve) => meta.close(() => resolve()));
   });
 });
 
@@ -324,25 +337,33 @@ describe('authliberty plugin', () => {
 describe('curseforge plugin', () => {
   it('builds a curseforge contribution from file refs', async () => {
     reset();
-    routedFetch([
-      [
-        '/mods/files',
-        {
-          data: [
-            {
-              id: 555,
-              modId: 1,
-              fileName: 'jei.jar',
-              fileLength: 10,
-              hashes: [{ value: 'sha1', algo: 1 }],
-              downloadUrl: 'https://cdn/jei.jar',
-            },
-          ],
-        },
-      ],
-    ]);
+    routedFetch([]);
+    // CurseForge's API, on loopback: the resolver runs natively and would not
+    // see a stubbed `fetch`.
+    const api = createServer((req, res) => {
+      req.resume().on('end', () => {
+        res.writeHead(200, { 'content-type': 'application/json' }).end(
+          JSON.stringify({
+            data: [
+              {
+                id: 555,
+                modId: 1,
+                fileName: 'jei.jar',
+                fileLength: 10,
+                hashes: [{ value: 'sha1', algo: 1 }],
+                downloadUrl: 'https://cdn/jei.jar',
+              },
+            ],
+          }),
+        );
+      });
+    });
+    await new Promise<void>((resolve) => api.listen(0, '127.0.0.1', resolve));
+    const apiBase = `http://127.0.0.1:${(api.address() as AddressInfo).port}`;
+
     const plugin = curseforge({
       token: 't',
+      apiBase,
       path: (i) => `mods/${i.filename}`,
       files: [555],
     });
@@ -351,6 +372,7 @@ describe('curseforge plugin', () => {
     expect(c.artifacts).toHaveLength(1);
     expect(c.artifacts![0]!.path).toBe('mods/jei.jar');
     expect(logs.some((l) => l.includes('1 file(s)'))).toBe(true);
+    await new Promise<void>((resolve) => api.close(() => resolve()));
   });
 });
 

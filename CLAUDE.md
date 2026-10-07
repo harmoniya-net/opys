@@ -56,10 +56,9 @@ Eight packages, a clean DAG, no cycles:
 @opys/runtime       install + launch executor.                              → core ONLY
 @opys/minecraft     Minecraft-domain plugins — minecraft / forge / neoforge /
                      fabric / cleanroom / lwjgl3ify / curseforge / authliberty — +
-                     bifrost / serverlist helpers. Vanilla, fabric, forge,
-                     neoforge, cleanroom, lwjgl3ify and authliberty are thin
-                     wrappers over the crates of the same names, each with
-                     its own `.node`.                       → dev, core, mojang
+                     bifrost / serverlist helpers. Every plugin here is a thin
+                     wrapper over the crate of the same name, each with its
+                     own `.node`.                           → dev, core, mojang
 @opys/java          JDK provisioning — Temurin / Zulu / GraalVM CE.
                      Thin wrapper over the `opys-java` crate.                → dev, core
 @opys/cli           the `opys` binary.                 → dev, runtime, minecraft, java
@@ -209,8 +208,11 @@ Eight packages, a clean DAG, no cycles:
   `@opys/dev-binding`. Driving the plugins stays in JS because plugins and the
   author's `command`/`args` accessors are closures — but a native builder
   running Rust plugins reaches the identical merge.
-- **Build-time HTTP is one blocking GET.** `opys-dev`'s `http::get` — no
-  retry, no streaming, no resume. Resolvers run once against small JSON APIs;
+- **Build-time HTTP is one blocking request.** `opys-dev`'s `http::get` — no
+  retry, no streaming, no resume. It has two siblings, each for one caller:
+  `post_json`, because CurseForge takes its batched file lookup as a document,
+  and `get_bytes`, because a modpack's index is inside its archive and has to
+  be read to resolve it. Neither is a downloader. Resolvers run once against small JSON APIs;
   the install path has its own downloader in `opys-runtime`, and the two must
   never be confused for one another. `opys-dev-napi` builds with the `net`
   feature off, since merging contributions needs no network.
@@ -220,6 +222,20 @@ Eight packages, a clean DAG, no cycles:
   one spelling across the family; `http::get` stays underneath it for the
   callers that treat a status as data (a 404 for a platform a release doesn't
   ship).
+- **A callback never crosses napi; its answers do.** `modrinth` and
+  `curseforge` take a `path` function from the config author, and
+  `authliberty` may take `hosts` as one. A closure cannot be handed to Rust,
+  so each is split in two on the crate side: resolve to plain data, then build
+  from that data plus what the callback returned (`file_artifacts(files,
+paths)`). The wrapper's only job is the call in between.
+- **A modpack resolves to a `LoaderSpec` and stops.** Standing a loader up
+  means running another plugin, and plugins are driven from the host, so
+  `modrinthModpack` / `curseforgeModpack` compose in JS — `(options.loader ??
+loaderPlugin)(pack.loader)`. What the two pack formats share lives in
+  `opys-modpack`, which has no binding: the `LoaderSpec` itself, and
+  `PackArchive`, which reads an entry out of the downloaded archive and
+  describes that same archive to the runtime as the artifact that unpacks the
+  overrides, with the hash of the bytes that were read.
 - **A resolver is a pure core with one impure call.** Version normalisation,
   query spelling, asset matching and template assembly are plain functions
   with plain unit tests; the request is the only part that touches the world.

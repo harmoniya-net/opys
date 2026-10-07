@@ -906,6 +906,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "opys-curseforge"
+version = "0.2.0"
+dependencies = [
+ "opys-core",
+ "opys-dev",
+ "opys-modpack",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "zip",
+]
+
+[[package]]
+name = "opys-curseforge-napi"
+version = "0.2.0"
+dependencies = [
+ "napi",
+ "napi-build",
+ "napi-derive",
+ "opys-curseforge",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "opys-dev"
 version = "0.2.0"
 dependencies = [

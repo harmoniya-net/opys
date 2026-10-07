@@ -43,6 +43,7 @@
     "crates/opys-lwjgl3ify-napi",
     "crates/opys-authliberty-napi",
     "crates/opys-modrinth-napi",
+    "crates/opys-curseforge-napi",
     "crates/opys-core-napi",
     "crates/opys-runtime-napi"
   ],

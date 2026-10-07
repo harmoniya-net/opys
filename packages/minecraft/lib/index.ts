@@ -10,6 +10,10 @@ export * from '@opys/lwjgl3ify';
 export * from '@opys/authliberty';
 export * from '@opys/curseforge';
 export * from '@opys/modrinth';
+// Both modpack packages export `LoaderSpec` — the same type, since a pack's
+// loader is described one way whichever site it came from — and `export *`
+// refuses a name it sees twice. Name it once here.
+export type { LoaderSpec } from '@opys/modrinth';
 export * from '@opys/minecraft-serverlist';
 export * from '@opys/java';
 
