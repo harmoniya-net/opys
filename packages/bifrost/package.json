@@ -14,6 +14,9 @@
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run tests/unit --passWithNoTests"
   },
+  "dependencies": {
+    "@opys/bifrost-binding": "^0.2.0"
+  },
   "devDependencies": {
     "tsdown": "*",
     "vitest": "*"

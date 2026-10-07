@@ -1,18 +1,20 @@
-import {
-  blobBytes,
-  blobId,
-  parseShortRuleset,
-  sourceBlob,
-  type Artifact,
-  type BlobSource,
-  type Ruleset,
-} from '@opys/core';
+/**
+ * `@opys/minecraft-serverlist` — the multiplayer server list, generated at
+ * build time and carried by the manifest as a blob.
+ *
+ * Encoding `servers.dat`, grouping entries by ruleset and building the
+ * artifacts are the `opys-minecraft-serverlist` crate's and are tested there.
+ * What is left here is the typed surface and the plugin closure. The
+ * codegen'd `.d.ts` types the return value as `Json` (≈ unknown), so the
+ * wrapper carries one `as`-cast at the boundary. No `as unknown as`.
+ */
 import {
   definePlugin,
   type ChainablePlugin,
+  type Contribution,
   type RulesetInput,
 } from '@opys/dev';
-import { write } from 'nbtify';
+import * as napi from '@opys/minecraft-serverlist-binding';
 
 export interface ServerEntry {
   name: string;
@@ -22,86 +24,29 @@ export interface ServerEntry {
 }
 
 export interface ServerlistOptions {
-  /** Where the generated `servers.dat` lands. Defaults to `${game_directory}/servers.dat`. */
+  /** Where the generated `servers.dat` lands. Defaults to {@link DEFAULT_PATH}. */
   path?: string;
 }
 
-/** Encode `servers` as an uncompressed big-endian Java NBT `servers.dat` buffer. */
-async function encodeServersDat(
-  servers: Pick<ServerEntry, 'name' | 'ip'>[],
-): Promise<Buffer> {
-  const root = {
-    servers: servers.map((entry) => ({ name: entry.name, ip: entry.ip })),
-  };
-  const bytes = await write(root, {
-    rootName: '',
-    endian: 'big',
-    compression: null,
-    bedrockLevel: false,
-  });
-  return Buffer.from(bytes);
-}
+/** Where the list goes unless `path` says otherwise. */
+export const DEFAULT_PATH: string = napi.defaultServerlistPath();
 
-/** One generated `servers.dat`: the artifact, and the blob it is made of. */
-interface Generated {
-  artifact: Artifact;
-  id: string;
-  blob: BlobSource;
-}
-
-async function generate(
-  entries: Pick<ServerEntry, 'name' | 'ip'>[],
-  rules: Ruleset,
-  path: string,
-): Promise<Generated> {
-  const bytes = await encodeServersDat(entries);
-  const id = blobId(bytes);
-  return {
-    artifact: { path, source: sourceBlob(id), size: bytes.length, rules },
-    id,
-    blob: blobBytes(bytes),
-  };
-}
-
-const contribution = (generated: Generated[]) => ({
-  artifacts: generated.map((g) => g.artifact),
-  blobs: Object.fromEntries(generated.map((g) => [g.id, g.blob])),
-});
-
+/**
+ * A `servers.dat` holding `servers`. Entries that carry rules are split out:
+ * each distinct ruleset gets its own file at the same path, installed only
+ * where those rules hold. No entries at all is still a file — an empty list.
+ */
 export function serverlist(
   servers: ServerEntry[],
   options: ServerlistOptions = {},
 ): ChainablePlugin {
-  const path = options.path ?? '${game_directory}/servers.dat';
   return definePlugin({
     name: 'serverlist',
-    async build() {
-      // Group entries by their canonical (expanded) ruleset.
-      const groups = new Map<
-        string,
-        { rules: Ruleset; entries: ServerEntry[] }
-      >();
-      for (const entry of servers) {
-        const rules = parseShortRuleset(entry.rules ?? []);
-        const key = JSON.stringify(rules);
-        let group = groups.get(key);
-        if (!group) {
-          group = { rules, entries: [] };
-          groups.set(key, group);
-        }
-        group.entries.push(entry);
-      }
-
-      // No entries at all → still emit an empty artifact.
-      if (groups.size === 0) {
-        return contribution([await generate([], [], path)]);
-      }
-
-      return contribution(
-        await Promise.all(
-          [...groups.values()].map((g) => generate(g.entries, g.rules, path)),
-        ),
-      );
+    build() {
+      const output = napi.buildServerlist(servers, options) as {
+        contribution: Contribution;
+      };
+      return output.contribution;
     },
   });
 }

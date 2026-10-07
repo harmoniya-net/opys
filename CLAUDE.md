@@ -304,7 +304,18 @@ them, and the list below names the layers rather than every one:
   may take `hosts` as one. A closure cannot be handed to Rust,
   so each is split in two on the crate side: resolve to plain data, then build
   from that data plus what the callback returned (`file_artifacts(files,
-paths)`). The wrapper's only job is the call in between.
+paths)`). The wrapper's only job is the call in between. `artifactScanner`
+  is the same shape for a local directory: `scan_directory` says what is on
+  disk, JS places each file with the author's `path` / `url`, and
+  `scanned_files` hashes them and builds the artifacts.
+- **Every plugin is a wrapper over the crate of the same name.** The last
+  three to go were `bifrost` (a signer), the server list (an NBT encoder) and
+  the scanner (a directory walk). Each was ported against output captured
+  from the TypeScript it replaced: the same token, the same `servers.dat`,
+  byte for byte. What a plugin keeps in JS is what only JS has — the author's
+  closures, a `Date`, the plugin object. This is a statement about plugins,
+  not about `lib/`: the cli is TypeScript throughout, and `@opys/dev` still
+  carries `gitHubReleaseArtifacts`, `userDataDir` and the config loader.
 - **A modpack resolves to a `LoaderSpec` and stops.** Standing a loader up
   means running another plugin, and plugins are driven from the host, so
   `modrinthModpack` / `curseforgeModpack` compose in JS — `(options.loader ??
@@ -453,8 +464,9 @@ export default defineConfig(({ mode }) => ({
 
 - npm workspaces. `npm run build` / `npm run typecheck` / `npm test` fan out
   across every package.
-- **`npm test`** runs the unit suites (`tests/unit`). CI (`.gitlab-ci.yml`)
-  runs `build` + `typecheck` + `test`; every `tsconfig` includes `tests/**`, so
+- **`npm test`** runs the unit suites (`tests/unit`). CI
+  (`.github/workflows/ci.yml`) runs the architecture check, `cargo test` on
+  Linux and Windows, and `build` + `typecheck` + `test`; every `tsconfig` includes `tests/**`, so
   `typecheck` covers test code too.
 - **`npm run test:int`** runs the live-network integration suite
   (`tests/integration`) against the real Mojang / Forge / Adoptium /

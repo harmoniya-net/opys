@@ -32,6 +32,8 @@ const modrinthNapi = require('../crates/opys-modrinth-napi/index.js');
 const curseforgeNapi = require('../crates/opys-curseforge-napi/index.js');
 const linkNapi = require('../crates/opys-link-napi/index.js');
 const dgpujNapi = require('../crates/opys-dgpuj-napi/index.js');
+const bifrostNapi = require('../crates/opys-bifrost-napi/index.js');
+const serverlistNapi = require('../crates/opys-minecraft-serverlist-napi/index.js');
 
 let ok = 0;
 let fail = 0;
@@ -1187,6 +1189,97 @@ const dgpujBuilt = await dgpujNapi.buildDgpuj(dgpujOpts);
 check('buildDgpuj names the plugin', dgpujBuilt.output.name === 'dgpuj');
 
 dgpujApi.close();
+
+// ── bifrost ───────────────────────────────────────────────────────────────
+
+console.log('\n— bifrost —');
+
+// A throwaway key made for this script; it signs nothing anyone trusts.
+const BIFROST_KEY =
+  'MC4CAQAwBQYDK2VwBCIEIJ+DYvh6SEqVTm50DFtMDoQikTmiCqirVv9mWG9qfSnF';
+const minted = bifrostNapi.mintBifrost({
+  privateKey: BIFROST_KEY,
+  username: 'Player',
+  uuid: 'AAAA-bbbb',
+  now: 1704067200000,
+});
+const claims = JSON.parse(
+  Buffer.from(minted.token.split('.')[1], 'base64url').toString('utf8'),
+);
+check(
+  'mintBifrost signs the claims Bifrost reads',
+  minted.uuid === 'aaaabbbb' &&
+    claims.uuid === 'aaaabbbb' &&
+    claims.username === 'Player' &&
+    claims.exp - claims.iat === bifrostNapi.defaultBifrostTtl(),
+);
+check(
+  'mintBifrost says where a missing key comes from',
+  (() => {
+    try {
+      bifrostNapi.mintBifrost({ privateKey: '', username: 'a', uuid: 'b' });
+      return false;
+    } catch (e) {
+      return /privateKey is required/.test(e.message);
+    }
+  })(),
+);
+
+// ── serverlist ────────────────────────────────────────────────────────────
+
+console.log('\n— serverlist —');
+
+const listed = serverlistNapi.buildServerlist(
+  [
+    { name: 'Home', ip: 'play.example' },
+    { name: 'Linux', ip: 'linux.example', rules: 'allow.os.linux' },
+  ],
+  {},
+);
+check(
+  'buildServerlist names the plugin and splits the list by ruleset',
+  listed.name === 'serverlist' &&
+    listed.contribution.artifacts.length === 2 &&
+    listed.contribution.artifacts.every(
+      (a) => a.path === serverlistNapi.defaultServerlistPath(),
+    ),
+);
+const listedBlob = listed.contribution.artifacts[0].source.blob;
+check(
+  'buildServerlist carries each list as a blob named by its hash',
+  core.blobId(
+    Buffer.from(listed.contribution.blobs[listedBlob].bytes, 'base64'),
+  ) === listedBlob,
+);
+
+// ── scanner ───────────────────────────────────────────────────────────────
+
+console.log('\n— scanner —');
+
+const scanned = await dev.scanDirectory(elsewhere);
+check(
+  'scanDirectory finds the files under a directory',
+  scanned.length === 1 &&
+    scanned[0].rel === 'hello.txt' &&
+    scanned[0].size === 5,
+);
+const scannedBlob = await dev.scannedFiles([
+  { abs: scanned[0].abs, path: '${root}/hello.txt' },
+]);
+check(
+  'scannedFiles makes a file with no url a blob read from where it is',
+  scannedBlob.artifacts[0].source.blob === worldId &&
+    scannedBlob.blobs[worldId].file === scanned[0].abs,
+);
+const scannedUrl = await dev.scannedFiles(
+  [{ abs: scanned[0].abs, path: 'hello.txt', url: 'https://cdn/hello.txt' }],
+  'sha256',
+);
+check(
+  'scannedFiles pins a file with a url and carries nothing',
+  scannedUrl.artifacts[0].integrity.sha256 === worldId &&
+    Object.keys(scannedUrl.blobs).length === 0,
+);
 mojangApi.close();
 
 console.log(`\nresult: ${ok} passed, ${fail} failed`);

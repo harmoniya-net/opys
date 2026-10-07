@@ -49,6 +49,8 @@
     "crates/opys-curseforge-napi",
     "crates/opys-link-napi",
     "crates/opys-dgpuj-napi",
+    "crates/opys-bifrost-napi",
+    "crates/opys-minecraft-serverlist-napi",
     "crates/opys-core-napi",
     "crates/opys-runtime-napi"
   ],

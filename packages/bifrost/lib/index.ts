@@ -7,9 +7,14 @@
  * and only requires two claims: `uuid` and `username`. We sign here with
  * the matching Ed25519 private key — same alg (`EdDSA`), same payload shape
  * as Bifrost's own `/token` endpoint (`{ uuid, username, iat, exp }`).
+ *
+ * The signing is the `opys-bifrost` crate's and is tested there. What is
+ * left here is the typed surface, and the one thing only JS has: a `Date`.
+ * The codegen'd `.d.ts` types the return value as `Json` (≈ unknown), so the
+ * wrapper carries one `as`-cast at the boundary. No `as unknown as`.
  */
 
-import { createPrivateKey, sign, type KeyObject } from 'node:crypto';
+import * as napi from '@opys/bifrost-binding';
 
 export interface BifrostOptions {
   /**
@@ -40,47 +45,8 @@ export interface BifrostAuth {
   token: string;
 }
 
-const DEFAULT_TTL_SECONDS = 24 * 60 * 60;
-
-function normalizePrivateKey(raw: string): KeyObject {
-  if (!raw) {
-    throw new Error(
-      'bifrost: privateKey is required (got empty/undefined). ' +
-        'Set BIFROST_PRIVATE_KEY in your environment, e.g. ' +
-        '`export BIFROST_PRIVATE_KEY="$(cat path/to/key.pem)"`.',
-    );
-  }
-  const unescaped = raw.replace(/\\n/g, '\n').trim();
-  const pem = unescaped.includes('-----BEGIN ')
-    ? unescaped
-    : `-----BEGIN PRIVATE KEY-----\n${unescaped}\n-----END PRIVATE KEY-----`;
-  const key = createPrivateKey({ key: pem, format: 'pem' });
-  if (key.asymmetricKeyType !== 'ed25519') {
-    throw new Error(
-      `Bifrost private key must be Ed25519; got ${key.asymmetricKeyType ?? 'unknown'}`,
-    );
-  }
-  return key;
-}
-
-function base64url(input: string | Uint8Array): string {
-  const buf = typeof input === 'string' ? Buffer.from(input, 'utf8') : input;
-  return Buffer.from(buf)
-    .toString('base64')
-    .replace(/=+$/, '')
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_');
-}
-
-function unixSeconds(t: number | Date | undefined): number {
-  if (t === undefined) return Math.floor(Date.now() / 1000);
-  const ms = t instanceof Date ? t.getTime() : t;
-  return Math.floor(ms / 1000);
-}
-
-function sanitizeUuid(uuid: string): string {
-  return uuid.replace(/-/g, '').toLowerCase();
-}
+/** How long a token lives when `expiresIn` is not given, in seconds. */
+export const DEFAULT_TTL_SECONDS: number = napi.defaultBifrostTtl();
 
 /**
  * Sign an Ed25519 JWT with `{ uuid, username, iat, exp }` claims and return
@@ -99,23 +65,15 @@ function sanitizeUuid(uuid: string): string {
  * passes `authMiddleware` validation against the matching public key.
  */
 export function resolveBifrost(options: BifrostOptions): BifrostAuth {
-  const key = normalizePrivateKey(options.privateKey);
-  const uuid = sanitizeUuid(options.uuid);
-  const username = options.username;
-
-  const iat = unixSeconds(options.now);
-  const ttl = options.expiresIn ?? DEFAULT_TTL_SECONDS;
-  const exp = ttl > 0 ? iat + ttl : null;
-
-  const header = { alg: 'EdDSA', typ: 'JWT' };
-  const payload: Record<string, unknown> = { uuid, username, iat };
-  if (exp !== null) payload.exp = exp;
-
-  const headerB64 = base64url(JSON.stringify(header));
-  const payloadB64 = base64url(JSON.stringify(payload));
-  const signingInput = `${headerB64}.${payloadB64}`;
-  const signature = sign(null, Buffer.from(signingInput), key);
-  const token = `${signingInput}.${base64url(signature)}`;
-
-  return { username, uuid, token };
+  const { now, privateKey, ...rest } = options;
+  return napi.mintBifrost({
+    ...rest,
+    // An unset environment variable arrives as `undefined` whatever the type
+    // says. Passed on as empty, it gets the crate's message about where a key
+    // comes from rather than one about a missing field.
+    privateKey: privateKey ?? '',
+    ...(now === undefined
+      ? {}
+      : { now: Math.floor(now instanceof Date ? now.getTime() : now) }),
+  }) as BifrostAuth;
 }

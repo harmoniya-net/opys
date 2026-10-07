@@ -17,7 +17,7 @@
   "dependencies": {
     "@opys/core": "^0.2.0",
     "@opys/dev": "^0.2.0",
-    "nbtify": "^2.2.0"
+    "@opys/minecraft-serverlist-binding": "^0.2.0"
   },
   "devDependencies": {
     "tsdown": "*",

@@ -1,0 +1,19 @@
+[package]
+name = "opys-minecraft-serverlist"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "A generated Minecraft servers.dat for opys — the multiplayer server list, as a blob the manifest carries."
+
+[dependencies]
+opys-core = { path = "../opys-core", version = "0.2.0" }
+# The plugin contract only; a server list is generated, never fetched.
+opys-dev = { path = "../opys-dev", version = "0.2.0", default-features = false }
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+[dev-dependencies]
+base64 = "0.22"

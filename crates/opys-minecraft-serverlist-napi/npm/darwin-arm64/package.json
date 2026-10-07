@@ -1,0 +1,26 @@
+{
+  "name": "@opys/minecraft-serverlist-binding-darwin-arm64",
+  "version": "0.2.0",
+  "os": [
+    "darwin"
+  ],
+  "cpu": [
+    "arm64"
+  ],
+  "main": "index.darwin-arm64.node",
+  "files": [
+    "index.darwin-arm64.node"
+  ],
+  "description": "napi-rs binary binding for @opys/minecraft-serverlist. Not consumed directly \u2014 re-exported by @opys/minecraft-serverlist.",
+  "engines": {
+    "node": ">=20"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/harmoniya-net/opys.git",
+    "directory": "crates/opys-minecraft-serverlist-napi"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

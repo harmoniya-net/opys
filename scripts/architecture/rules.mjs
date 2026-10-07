@@ -49,6 +49,12 @@ export const crates = {
     ]),
   ),
 
+  // Signs a token from its options and nothing else: no manifest, no network.
+  'opys-bifrost': { deps: [], binding: true },
+  'opys-minecraft-serverlist': {
+    deps: ['opys-core', 'opys-dev'],
+    binding: true,
+  },
   'opys-java': { deps: ['opys-core', 'opys-dev'], binding: true },
   'opys-authliberty': { deps: ['opys-core', 'opys-dev'], binding: true },
   'opys-dgpuj': { deps: ['opys-core', 'opys-dev'], binding: true },
@@ -123,11 +129,10 @@ export const packages = {
     binding: true,
   },
 
-  // Not ported: plain TypeScript, no crate behind them.
-  '@opys/bifrost': { deps: [], binding: false },
+  '@opys/bifrost': { deps: [], binding: true },
   '@opys/minecraft-serverlist': {
     deps: ['@opys/core', '@opys/dev'],
-    binding: false,
+    binding: true,
   },
 
   // The umbrella: re-exports the plugins and adds nothing of its own.
@@ -275,4 +280,6 @@ export const hashMaps = {
  */
 export const withoutDefaultFeatures = [
   { crate: 'opys-dev-napi', dependency: 'opys-dev' },
+  // Generates a file; it never fetches one.
+  { crate: 'opys-minecraft-serverlist', dependency: 'opys-dev' },
 ];

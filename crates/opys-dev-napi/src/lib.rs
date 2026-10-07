@@ -36,3 +36,66 @@ pub fn assemble(outputs: Json, config: Json) -> Result<Json> {
         "warnings": assembled.warnings,
     }))
 }
+
+/// Walking a tree and hashing what is in it are both reads of the disk, so
+/// they run off the main thread.
+pub struct ScanDirectory(String);
+
+impl Task for ScanDirectory {
+    type Output = Vec<opys_dev::ScannedFile>;
+    type JsValue = Unknown;
+
+    fn compute(&mut self) -> Result<Self::Output> {
+        opys_dev::scan_directory(std::path::Path::new(&self.0)).map_err(map_err)
+    }
+
+    /// `serde_json::Value` has no `TypeName`, so the conversion to JS happens
+    /// here, on the main thread, where an `Env` is in hand.
+    fn resolve(&mut self, env: Env, output: Self::Output) -> Result<Self::JsValue> {
+        env.to_js_value(&output)
+    }
+}
+
+/// Every regular file under `directory`, in path order:
+/// `{ rel, dir, filename, abs, size }[]`.
+#[napi(js_name = "scanDirectory")]
+pub fn scan_directory(directory: String) -> AsyncTask<ScanDirectory> {
+    AsyncTask::new(ScanDirectory(directory))
+}
+
+pub struct ScannedFiles {
+    files: Vec<opys_dev::PlacedFile>,
+    hash: opys_dev::ScanHash,
+}
+
+impl Task for ScannedFiles {
+    type Output = opys_dev::Contribution;
+    type JsValue = Unknown;
+
+    fn compute(&mut self) -> Result<Self::Output> {
+        opys_dev::scanned_files(&self.files, self.hash).map_err(map_err)
+    }
+
+    /// `serde_json::Value` has no `TypeName`, so the conversion to JS happens
+    /// here, on the main thread, where an `Env` is in hand.
+    fn resolve(&mut self, env: Env, output: Self::Output) -> Result<Self::JsValue> {
+        env.to_js_value(&output)
+    }
+}
+
+/// Hash the placed files — `{ abs, path, url? }[]` — and return the
+/// contribution: a blob artifact for each file with no `url`, a pinned URL
+/// artifact for each with one.
+///
+/// Placing is the caller's because it is the config author's: `path` and
+/// `url` may be functions, and a function does not cross into here.
+#[napi(js_name = "scannedFiles")]
+pub fn scanned_files(files: Json, hash: Option<String>) -> Result<AsyncTask<ScannedFiles>> {
+    Ok(AsyncTask::new(ScannedFiles {
+        files: serde_json::from_value(files).map_err(map_err)?,
+        hash: match hash {
+            Some(hash) => serde_json::from_value(Json::String(hash)).map_err(map_err)?,
+            None => opys_dev::ScanHash::default(),
+        },
+    }))
+}

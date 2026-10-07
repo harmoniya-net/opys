@@ -70,14 +70,10 @@ describe('artifactScanner', () => {
     const hello = createHash('sha256').update('hello').digest('hex');
     const world = createHash('sha256').update('world').digest('hex');
     // No url to give and no integrity to choose: the blob's name is its hash.
-    expect([...artifacts!].sort(byPath)).toEqual([
-      { path: '${root}/a.txt', source: { blob: hello }, size: 5, rules: [] },
-      {
-        path: '${root}/sub/b.txt',
-        source: { blob: world },
-        size: 5,
-        rules: [],
-      },
+    // Already in path order: the crate sorts what the filesystem lists.
+    expect(artifacts).toEqual([
+      { path: '${root}/a.txt', source: { blob: hello }, size: 5 },
+      { path: '${root}/sub/b.txt', source: { blob: world }, size: 5 },
     ]);
     expect(blobs).toEqual({
       [hello]: { file: join(dir, 'a.txt') },

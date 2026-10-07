@@ -25,9 +25,11 @@ pub mod gitlab;
 pub mod http;
 #[cfg(feature = "net")]
 pub mod pin;
+mod scan;
 pub mod url;
 
 pub use contribution::{Contribution, LaunchFragment, LaunchGroups, PluginOutput};
 pub use engine::{assemble, Assembled, ManifestConfig};
 #[cfg(feature = "net")]
 pub use http::{HttpBytes, HttpError, HttpResponse, JsonGetError, OPYS_USER_AGENT};
+pub use scan::{scan_directory, scanned_files, PlacedFile, ScanError, ScanHash, ScannedFile};
