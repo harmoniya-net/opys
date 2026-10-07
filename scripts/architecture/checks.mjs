@@ -577,13 +577,18 @@ function outOfOrder(order, depsOf) {
 }
 
 /**
- * A crate or binding added to the workspace is also added to everything that
- * builds, stamps, publishes and smoke-tests the workspace. Each of these is a
- * hand-kept list, and each has been forgotten at least once.
+ * What still has to be kept by hand when a package or binding is added: the
+ * npm workspace list, in build order, and a smoke test that loads the addon.
+ *
+ * The release used to be four more such lists — a build, upload, download
+ * and publish step per binding, a `cargo publish` per crate in dependency
+ * order, and the crates to stamp a version into. Those are derived now, from
+ * the directory listing and the dependency graph, so what is checked here is
+ * only that the workflow still derives them.
  */
 export function checkWiring(rules, world) {
   const out = [];
-  const { workflow, script, smoke } = world.release;
+  const { workflow, smoke } = world.release;
 
   // npm workspaces: every package and binding, packages in dependency order
   // (`npm run build --workspaces` builds them in the order listed).
@@ -614,101 +619,7 @@ export function checkWiring(rules, world) {
     );
   }
 
-  // crates.io: every publishable crate, dependencies first.
-  const published = [...workflow.matchAll(/cargo publish -p ([\w-]+)/g)].map(
-    (m) => m[1],
-  );
-  const crates = new Map(world.crates.map((c) => [c.name, c]));
-  for (const crate of world.crates) {
-    if (crate.publish && !published.includes(crate.name))
-      out.push(
-        violation(
-          'wiring',
-          'release.yml',
-          `never runs cargo publish -p ${crate.name}`,
-        ),
-      );
-  }
-  for (const name of published) {
-    if (!crates.get(name)?.publish)
-      out.push(
-        violation(
-          'wiring',
-          'release.yml',
-          `publishes ${name}, which is not a publishable crate`,
-        ),
-      );
-  }
-  for (const [name, dep] of outOfOrder(
-    published.filter((n) => crates.has(n)),
-    (n) =>
-      crates
-        .get(n)
-        .deps.filter((d) => d.kind !== 'dev')
-        .map((d) => d.name),
-  )) {
-    out.push(
-      violation(
-        'wiring',
-        'release.yml',
-        `publishes ${name} before ${dep}, which it depends on`,
-      ),
-    );
-  }
-
-  // The version stamp rewrites every internal path dependency.
-  for (const crate of world.crates) {
-    if (crate.deps.length > 0 && !script.includes(`'${crate.dir}'`))
-      out.push(
-        violation(
-          'wiring',
-          'scripts/release.mjs',
-          `does not stamp ${crate.dir}`,
-        ),
-      );
-  }
-
-  // Each binding: built and uploaded per target, gathered, and published.
   for (const binding of world.bindings) {
-    const short = binding.name.replace('@opys/', '');
-    const needs = [
-      [`Build ${binding.name}`, 'build step'],
-      [`path: ${binding.dir}/*.node`, 'an upload step'],
-      [`pattern: ${short}-*`, 'download step'],
-      [`path: ${binding.dir}/artifacts`, 'download step'],
-      [`Publish ${binding.name}`, 'publish step'],
-    ];
-    for (const [text, what] of needs) {
-      if (!workflow.includes(text))
-        out.push(
-          violation(
-            'wiring',
-            'release.yml',
-            `has no ${what} for ${binding.name} (looked for "${text}")`,
-          ),
-        );
-    }
-    if (workflow.split(`working-directory: ${binding.dir}\n`).length - 1 < 2)
-      out.push(
-        violation(
-          'wiring',
-          'release.yml',
-          `runs fewer than two steps in ${binding.dir} (build, publish)`,
-        ),
-      );
-    const loop =
-      workflow.split('\n').find((line) => /^\s*for c in /.test(line)) ?? '';
-    if (
-      !loop.split(/\s+/).includes(binding.dir) &&
-      !loop.includes(`${binding.dir};`)
-    )
-      out.push(
-        violation(
-          'wiring',
-          'release.yml',
-          `the artifacts loop does not visit ${binding.dir}`,
-        ),
-      );
     if (!smoke.includes(`'../${binding.dir}/index.js'`))
       out.push(
         violation(
@@ -718,6 +629,41 @@ export function checkWiring(rules, world) {
         ),
       );
   }
+
+  // The release finds its bindings and orders its crates; neither is a list.
+  for (const [text, what] of [
+    [
+      'crates/opys-*-napi',
+      'no longer finds the bindings by their directory name',
+    ],
+    [
+      'scripts/release/crates.mjs',
+      'no longer takes the crates.io publish order from the dependency graph',
+    ],
+  ]) {
+    if (!workflow.includes(text))
+      out.push(violation('wiring', 'release.yml', what));
+  }
+  const named = [...workflow.matchAll(/crates\/(opys-[a-z-]+-napi)\b/g)].map(
+    (m) => m[1],
+  );
+  for (const name of new Set(named)) {
+    out.push(
+      violation(
+        'wiring',
+        'release.yml',
+        `names ${name}; a binding is found, not listed`,
+      ),
+    );
+  }
+  if (/cargo publish -p opys-/.test(workflow))
+    out.push(
+      violation(
+        'wiring',
+        'release.yml',
+        'publishes a crate by name; the order is derived, not listed',
+      ),
+    );
   return out;
 }
 

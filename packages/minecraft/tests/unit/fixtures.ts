@@ -142,8 +142,7 @@ export function routedFetch(
 //
 // The vanilla client is fetched inside the `opys-minecraft-vanilla` crate now, not
 // through `globalThis.fetch`, so a `vi.stubGlobal('fetch', …)` route can no
-// longer intercept it. Each loader's own APIs still go through
-// `fetchWithRetry` and keep their stub — only the Mojang half needs a real
+// longer intercept it. Every resolver is native now, so each needs a real
 // socket.
 // ──────────────────────────────────────────────────────────────────────────
 

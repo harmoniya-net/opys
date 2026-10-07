@@ -147,23 +147,12 @@ const world = () => ({
   },
   release: {
     workflow: [
-      ...['core', 'forge'].flatMap((x) => [
-        `- name: Build @opys/${x}-binding`,
-        `  working-directory: crates/opys-${x}-napi`,
-        `  path: crates/opys-${x}-napi/*.node`,
-        `  pattern: ${x}-binding-*`,
-        `  path: crates/opys-${x}-napi/artifacts`,
-        `- name: Publish @opys/${x}-binding`,
-        `  working-directory: crates/opys-${x}-napi`,
-      ]),
-      '  for c in crates/opys-core-napi crates/opys-forge-napi; do',
-      '- run: cargo publish -p opys-core',
-      '- run: cargo publish -p opys-dev',
-      '- run: cargo publish -p opys-runtime',
-      '- run: cargo publish -p opys-forge',
+      '  for crate in crates/opys-*-napi; do',
+      '  path: crates/opys-*-napi/*.node',
+      '  for crate in $(node scripts/release/crates.mjs); do',
+      '    cargo publish -p "$crate"',
       '',
     ].join('\n'),
-    script: `['crates/opys-dev', 'crates/opys-runtime', 'crates/opys-forge', 'crates/opys-core-napi', 'crates/opys-forge-napi']`,
     smoke: `require('../crates/opys-core-napi/index.js'); require('../crates/opys-forge-napi/index.js');`,
   },
 });
@@ -609,9 +598,6 @@ test('a wall that names something that does not exist is refused', () => {
 
 // ── wiring ──────────────────────────────────────────────────────────────────
 
-const without = (text) => (w) =>
-  (w.release.workflow = w.release.workflow.replace(text, ''));
-
 test('a package or binding missing from workspaces is refused', () => {
   one(
     broken(checkWiring, (w) => w.root.workspaces.pop()),
@@ -628,90 +614,7 @@ test('workspaces lists a package after what it is built on', () => {
   );
 });
 
-test('every publishable crate is published, dependencies first, and nothing else is', () => {
-  one(
-    broken(checkWiring, without('- run: cargo publish -p opys-runtime\n')),
-    /never runs cargo publish -p opys-runtime/,
-  );
-  // core moved to the end: all three crates built on it now go out first.
-  const late = broken(checkWiring, (w) => {
-    w.release.workflow = w.release.workflow
-      .replace('- run: cargo publish -p opys-core\n', '')
-      .replace(
-        '- run: cargo publish -p opys-forge\n',
-        '- run: cargo publish -p opys-forge\n- run: cargo publish -p opys-core\n',
-      );
-  });
-  assert.deepEqual(late, [
-    'publishes opys-dev before opys-core, which it depends on',
-    'publishes opys-runtime before opys-core, which it depends on',
-    'publishes opys-forge before opys-core, which it depends on',
-  ]);
-  one(
-    broken(
-      checkWiring,
-      (w) =>
-        (w.release.workflow += '- run: cargo publish -p opys-forge-napi\n'),
-    ),
-    /not a publishable crate/,
-  );
-});
-
-test('a dev-dependency does not constrain the publish order', () => {
-  assert.deepEqual(
-    broken(checkWiring, (w) =>
-      crateOf(w, 'opys-core').deps.push(dep('opys-forge', { kind: 'dev' })),
-    ).filter((m) => /before/.test(m)),
-    [],
-  );
-});
-
-test('a crate with internal dependencies is stamped at release', () => {
-  one(
-    broken(
-      checkWiring,
-      (w) =>
-        (w.release.script = w.release.script.replace(
-          "'crates/opys-forge', ",
-          '',
-        )),
-    ),
-    /does not stamp crates\/opys-forge$/,
-  );
-});
-
-test('each binding has every release step and is smoke-tested', () => {
-  one(
-    broken(checkWiring, without('- name: Build @opys/forge-binding\n')),
-    /has no build step/,
-  );
-  one(
-    broken(checkWiring, without('  path: crates/opys-forge-napi/*.node\n')),
-    /upload step/,
-  );
-  one(
-    broken(checkWiring, without('  pattern: forge-binding-*\n')),
-    /download step/,
-  );
-  one(
-    broken(checkWiring, without('  path: crates/opys-forge-napi/artifacts\n')),
-    /download step/,
-  );
-  one(
-    broken(checkWiring, without('- name: Publish @opys/forge-binding\n')),
-    /publish step/,
-  );
-  one(
-    broken(
-      checkWiring,
-      without('  working-directory: crates/opys-forge-napi\n'),
-    ),
-    /fewer than two steps/,
-  );
-  one(
-    broken(checkWiring, without(' crates/opys-forge-napi;')),
-    /artifacts loop/,
-  );
+test('each binding is smoke-tested', () => {
   one(
     broken(
       checkWiring,
@@ -719,6 +622,46 @@ test('each binding has every release step and is smoke-tested', () => {
         (w.release.smoke = "require('../crates/opys-core-napi/index.js');"),
     ),
     /never loads @opys\/forge-binding/,
+  );
+});
+
+test('the release finds its bindings and orders its crates, and lists neither', () => {
+  one(
+    broken(
+      checkWiring,
+      (w) =>
+        (w.release.workflow = w.release.workflow.replaceAll(
+          'crates/opys-*-napi',
+          'bindings',
+        )),
+    ),
+    /no longer finds the bindings/,
+  );
+  one(
+    broken(
+      checkWiring,
+      (w) =>
+        (w.release.workflow = w.release.workflow.replace(
+          'scripts/release/crates.mjs',
+          'order.txt',
+        )),
+    ),
+    /no longer takes the crates\.io publish order/,
+  );
+  one(
+    broken(
+      checkWiring,
+      (w) =>
+        (w.release.workflow += '  working-directory: crates/opys-forge-napi\n'),
+    ),
+    /names opys-forge-napi; a binding is found, not listed/,
+  );
+  one(
+    broken(
+      checkWiring,
+      (w) => (w.release.workflow += '- run: cargo publish -p opys-core\n'),
+    ),
+    /publishes a crate by name/,
   );
 });
 

@@ -296,9 +296,11 @@ them, and the list below names the layers rather than every one:
   none, downloads the asset and hashes it. `opys-link`, `opys-dgpuj` and
   `opys-lwjgl3ify`'s mod jars all go through it, so none of them can ship an
   asset unverified — which is what lwjgl3ify's mod jar did while that choice
-  was spelled per crate. `@opys/dev`'s `gitHubReleaseArtifacts` is the public
-  JS helper for a config author who needs a predicate over assets; nothing
-  inside opys calls it.
+  was spelled per crate. `@opys/dev` once carried a TypeScript GitHub
+  client beside this one, and `@opys/core` a retrying `fetch`; neither had a
+  caller left inside opys, and a second implementation beside the Rust one is
+  what drifted before, so both were deleted. An author with a release asset
+  uses `links`.
 - **A callback never crosses napi; its answers do.** `modrinth`, `curseforge`
   and `links` take a `path` function from the config author, and `authliberty`
   may take `hosts` as one. A closure cannot be handed to Rust,
@@ -322,7 +324,7 @@ paths)`). The wrapper's only job is the call in between. `files` is
   byte for byte. What a plugin keeps in JS is what only JS has — the author's
   closures, a `Date`, the plugin object. This is a statement about plugins,
   not about `lib/`: the cli is TypeScript throughout, and `@opys/dev` still
-  carries `gitHubReleaseArtifacts`, `userDataDir` and the config loader.
+  carries `userDataDir`, the selectors and the config loader.
 - **A modpack resolves to a `LoaderSpec` and stops.** Standing a loader up
   means running another plugin, and plugins are driven from the host, so
   `modrinthModpack` / `curseforgeModpack` compose in JS — `(options.loader ??

@@ -7,5 +7,4 @@ export * from './files';
 
 // Build-time helpers shared by loader/fetcher plugins. Expand here when
 // gitlab/maven/etc. fetchers land.
-export * from './github';
 export * from './loader';

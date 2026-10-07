@@ -25,12 +25,6 @@ import type {
   RuleAction,
 } from '@opys/mojang-rules';
 
-// `fetchWithRetry` is a build-time HTTP utility (used by Mojang/Forge/Java
-// plugins). It's not part of the manifest contract, so it stays as TS —
-// build-time consumers can't reach into `@opys/runtime`, so it lives here.
-export { fetchWithRetry, OPYS_USER_AGENT } from './fetch';
-export type { FetchRetryOptions } from './fetch';
-
 // The Mojang rule format — types plus the two trivial factories — is owned
 // by `@opys/mojang-rules`. `core` re-exports it rather than restating it,
 // and extends it below with opys's own spelling (`Rule` / `Ruleset`, which

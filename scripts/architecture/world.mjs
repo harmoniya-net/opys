@@ -183,7 +183,6 @@ export function readWorld(root) {
         join(root, '.github/workflows/release.yml'),
         'utf8',
       ),
-      script: readFileSync(join(root, 'scripts/release.mjs'), 'utf8'),
       smoke: readFileSync(join(root, 'scripts/smoke-napi.mjs'), 'utf8'),
     },
   };

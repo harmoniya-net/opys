@@ -12,7 +12,7 @@ env:
 jobs:
   # Holds the tree to scripts/architecture/rules.mjs: the dependency DAG of
   # crates and packages, the walls across it, one binding per crate, and the
-  # hand-kept release lists. Reads manifests and sources only, so it needs
+  # hand-kept lists that remain. Reads manifests and sources only, so it needs
   # nothing built and runs first.
   architecture:
     name: Architecture boundaries
@@ -27,6 +27,9 @@ jobs:
       - run: npm ci --ignore-scripts
       - run: npm run test:architecture
       - run: npm run architecture
+      # The release workflow only runs on a tag, so the one piece of it that
+      # can be exercised on every push is: the publish order still resolves.
+      - run: node scripts/release/crates.mjs
 
   cargo:
     name: Cargo build + test
@@ -34,9 +37,15 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
         with:
           shared-key: cargo-linux
+      # Both used to run only in the pre-commit hook, which a commit from
+      # another machine, or one made with --no-verify, never sees.
+      - run: cargo fmt --all -- --check
+      - run: cargo clippy --workspace --all-targets --locked -- -D warnings
       - run: cargo build --workspace --locked
       - run: cargo test --workspace --locked
 

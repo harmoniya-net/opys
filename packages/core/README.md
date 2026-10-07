@@ -128,21 +128,6 @@ const vars = resolveVars(flat); // resolve ${ref} chains
 const result = interpolate('${root}/assets', vars);
 ```
 
-## Build-time HTTP helper
-
-```ts
-import { fetchWithRetry } from '@opys/core';
-
-const res = await fetchWithRetry('https://api.example.com/data', {
-  attempts: 4,
-  baseDelayMs: 250,
-});
-```
-
-Used by every plugin that resolves data from upstream APIs. Bounded
-exponential backoff on transient errors (network failures + 5xx);
-4xx and JSON-parse failures surface unchanged.
-
 ## The format is the contract
 
 Other opys packages layer on top:

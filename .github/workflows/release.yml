@@ -79,195 +79,27 @@ jobs:
 
       - run: npm ci --ignore-scripts
 
-      - name: Build @opys/core-binding
-        run: npx napi build --platform --release --target ${{ matrix.target }} ${{ contains(matrix.target, '-musl') && '--zig' || '' }}
-        working-directory: crates/opys-core-napi
+      # Every binding, found rather than listed: a crate directory that ends
+      # in `-napi` is one. `bash` on every host, Windows included, so the
+      # loop is one spelling.
+      - name: Build every binding
+        shell: bash
+        run: |
+          set -euo pipefail
+          for crate in crates/opys-*-napi; do
+            echo "::group::$crate"
+            (cd "$crate" && npx napi build --platform --release --target ${{ matrix.target }} ${{ contains(matrix.target, '-musl') && '--zig' || '' }})
+            echo "::endgroup::"
+          done
 
-      - name: Build @opys/runtime-binding
-        run: npx napi build --platform --release --target ${{ matrix.target }} ${{ contains(matrix.target, '-musl') && '--zig' || '' }}
-        working-directory: crates/opys-runtime-napi
-
-      - name: Build @opys/mojang-binding
-        run: npx napi build --platform --release --target ${{ matrix.target }} ${{ contains(matrix.target, '-musl') && '--zig' || '' }}
-        working-directory: crates/opys-mojang-napi
-
-      - name: Build @opys/dev-binding
-        run: npx napi build --platform --release --target ${{ matrix.target }} ${{ contains(matrix.target, '-musl') && '--zig' || '' }}
-        working-directory: crates/opys-dev-napi
-
-      - name: Build @opys/java-binding
-        run: npx napi build --platform --release --target ${{ matrix.target }} ${{ contains(matrix.target, '-musl') && '--zig' || '' }}
-        working-directory: crates/opys-java-napi
-
-      - name: Build @opys/minecraft-vanilla-binding
-        run: npx napi build --platform --release --target ${{ matrix.target }} ${{ contains(matrix.target, '-musl') && '--zig' || '' }}
-        working-directory: crates/opys-minecraft-vanilla-napi
-
-      - name: Build @opys/fabric-binding
-        run: npx napi build --platform --release --target ${{ matrix.target }} ${{ contains(matrix.target, '-musl') && '--zig' || '' }}
-        working-directory: crates/opys-fabric-napi
-
-      - name: Build @opys/forge-binding
-        run: npx napi build --platform --release --target ${{ matrix.target }} ${{ contains(matrix.target, '-musl') && '--zig' || '' }}
-        working-directory: crates/opys-forge-napi
-
-      - name: Build @opys/neoforge-binding
-        run: npx napi build --platform --release --target ${{ matrix.target }} ${{ contains(matrix.target, '-musl') && '--zig' || '' }}
-        working-directory: crates/opys-neoforge-napi
-
-      - name: Build @opys/cleanroom-binding
-        run: npx napi build --platform --release --target ${{ matrix.target }} ${{ contains(matrix.target, '-musl') && '--zig' || '' }}
-        working-directory: crates/opys-cleanroom-napi
-
-      - name: Build @opys/lwjgl3ify-binding
-        run: npx napi build --platform --release --target ${{ matrix.target }} ${{ contains(matrix.target, '-musl') && '--zig' || '' }}
-        working-directory: crates/opys-lwjgl3ify-napi
-
-      - name: Build @opys/authliberty-binding
-        run: npx napi build --platform --release --target ${{ matrix.target }} ${{ contains(matrix.target, '-musl') && '--zig' || '' }}
-        working-directory: crates/opys-authliberty-napi
-
-      - name: Build @opys/modrinth-binding
-        run: npx napi build --platform --release --target ${{ matrix.target }} ${{ contains(matrix.target, '-musl') && '--zig' || '' }}
-        working-directory: crates/opys-modrinth-napi
-
-      - name: Build @opys/curseforge-binding
-        run: npx napi build --platform --release --target ${{ matrix.target }} ${{ contains(matrix.target, '-musl') && '--zig' || '' }}
-        working-directory: crates/opys-curseforge-napi
-
-      - name: Build @opys/link-binding
-        run: npx napi build --platform --release --target ${{ matrix.target }} ${{ contains(matrix.target, '-musl') && '--zig' || '' }}
-        working-directory: crates/opys-link-napi
-
-      - name: Build @opys/dgpuj-binding
-        run: npx napi build --platform --release --target ${{ matrix.target }} ${{ contains(matrix.target, '-musl') && '--zig' || '' }}
-        working-directory: crates/opys-dgpuj-napi
-
-      - name: Build @opys/bifrost-binding
-        run: npx napi build --platform --release --target ${{ matrix.target }} ${{ contains(matrix.target, '-musl') && '--zig' || '' }}
-        working-directory: crates/opys-bifrost-napi
-
-      - name: Build @opys/minecraft-serverlist-binding
-        run: npx napi build --platform --release --target ${{ matrix.target }} ${{ contains(matrix.target, '-musl') && '--zig' || '' }}
-        working-directory: crates/opys-minecraft-serverlist-napi
-
-      - name: Upload @opys/core-binding artifact
+      # One artifact per target, holding every binding's `.node`. The path
+      # is kept from the first wildcard on, so it unpacks as
+      # `opys-<x>-napi/<file>.node`.
+      - name: Upload the bindings
         uses: actions/upload-artifact@v7
         with:
-          name: core-binding-${{ matrix.target }}
-          path: crates/opys-core-napi/*.node
-          if-no-files-found: error
-
-      - name: Upload @opys/runtime-binding artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: runtime-binding-${{ matrix.target }}
-          path: crates/opys-runtime-napi/*.node
-          if-no-files-found: error
-
-      - name: Upload @opys/mojang-binding artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: mojang-binding-${{ matrix.target }}
-          path: crates/opys-mojang-napi/*.node
-          if-no-files-found: error
-
-      - name: Upload @opys/dev-binding artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: dev-binding-${{ matrix.target }}
-          path: crates/opys-dev-napi/*.node
-          if-no-files-found: error
-
-      - name: Upload @opys/java-binding artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: java-binding-${{ matrix.target }}
-          path: crates/opys-java-napi/*.node
-          if-no-files-found: error
-
-      - name: Upload @opys/minecraft-vanilla-binding artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: minecraft-vanilla-binding-${{ matrix.target }}
-          path: crates/opys-minecraft-vanilla-napi/*.node
-          if-no-files-found: error
-
-      - name: Upload @opys/fabric-binding artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: fabric-binding-${{ matrix.target }}
-          path: crates/opys-fabric-napi/*.node
-          if-no-files-found: error
-
-      - name: Upload @opys/forge-binding artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: forge-binding-${{ matrix.target }}
-          path: crates/opys-forge-napi/*.node
-          if-no-files-found: error
-
-      - name: Upload @opys/neoforge-binding artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: neoforge-binding-${{ matrix.target }}
-          path: crates/opys-neoforge-napi/*.node
-          if-no-files-found: error
-      - name: Upload @opys/cleanroom-binding artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: cleanroom-binding-${{ matrix.target }}
-          path: crates/opys-cleanroom-napi/*.node
-          if-no-files-found: error
-      - name: Upload @opys/lwjgl3ify-binding artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: lwjgl3ify-binding-${{ matrix.target }}
-          path: crates/opys-lwjgl3ify-napi/*.node
-          if-no-files-found: error
-      - name: Upload @opys/authliberty-binding artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: authliberty-binding-${{ matrix.target }}
-          path: crates/opys-authliberty-napi/*.node
-          if-no-files-found: error
-      - name: Upload @opys/modrinth-binding artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: modrinth-binding-${{ matrix.target }}
-          path: crates/opys-modrinth-napi/*.node
-          if-no-files-found: error
-      - name: Upload @opys/curseforge-binding artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: curseforge-binding-${{ matrix.target }}
-          path: crates/opys-curseforge-napi/*.node
-          if-no-files-found: error
-      - name: Upload @opys/link-binding artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: link-binding-${{ matrix.target }}
-          path: crates/opys-link-napi/*.node
-          if-no-files-found: error
-      - name: Upload @opys/dgpuj-binding artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: dgpuj-binding-${{ matrix.target }}
-          path: crates/opys-dgpuj-napi/*.node
-          if-no-files-found: error
-
-      - name: Upload @opys/bifrost-binding artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: bifrost-binding-${{ matrix.target }}
-          path: crates/opys-bifrost-napi/*.node
-          if-no-files-found: error
-
-      - name: Upload @opys/minecraft-serverlist-binding artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: minecraft-serverlist-binding-${{ matrix.target }}
-          path: crates/opys-minecraft-serverlist-napi/*.node
+          name: bindings-${{ matrix.target }}
+          path: crates/opys-*-napi/*.node
           if-no-files-found: error
 
   # ─────────────────────────────────────────────────────────────
@@ -294,251 +126,42 @@ jobs:
 
       - run: npm ci
 
-      # Pull every target's .node into its binding crate dir.
+      # Every target's `.node` for every binding, merged into one tree:
+      # `napi-artifacts/opys-<x>-napi/<file>.node`.
       - uses: actions/download-artifact@v8
         with:
-          pattern: core-binding-*
-          path: crates/opys-core-napi/artifacts
-          merge-multiple: true
-
-      - uses: actions/download-artifact@v8
-        with:
-          pattern: runtime-binding-*
-          path: crates/opys-runtime-napi/artifacts
-          merge-multiple: true
-
-      - uses: actions/download-artifact@v8
-        with:
-          pattern: mojang-binding-*
-          path: crates/opys-mojang-napi/artifacts
-          merge-multiple: true
-
-      - uses: actions/download-artifact@v8
-        with:
-          pattern: dev-binding-*
-          path: crates/opys-dev-napi/artifacts
-          merge-multiple: true
-
-      - uses: actions/download-artifact@v8
-        with:
-          pattern: java-binding-*
-          path: crates/opys-java-napi/artifacts
-          merge-multiple: true
-
-      - uses: actions/download-artifact@v8
-        with:
-          pattern: minecraft-vanilla-binding-*
-          path: crates/opys-minecraft-vanilla-napi/artifacts
-          merge-multiple: true
-
-      - uses: actions/download-artifact@v8
-        with:
-          pattern: fabric-binding-*
-          path: crates/opys-fabric-napi/artifacts
-          merge-multiple: true
-
-      - uses: actions/download-artifact@v8
-        with:
-          pattern: forge-binding-*
-          path: crates/opys-forge-napi/artifacts
-          merge-multiple: true
-
-      - uses: actions/download-artifact@v8
-        with:
-          pattern: neoforge-binding-*
-          path: crates/opys-neoforge-napi/artifacts
-          merge-multiple: true
-
-      - uses: actions/download-artifact@v8
-        with:
-          pattern: cleanroom-binding-*
-          path: crates/opys-cleanroom-napi/artifacts
-          merge-multiple: true
-
-      - uses: actions/download-artifact@v8
-        with:
-          pattern: lwjgl3ify-binding-*
-          path: crates/opys-lwjgl3ify-napi/artifacts
-          merge-multiple: true
-
-      - uses: actions/download-artifact@v8
-        with:
-          pattern: authliberty-binding-*
-          path: crates/opys-authliberty-napi/artifacts
-          merge-multiple: true
-
-      - uses: actions/download-artifact@v8
-        with:
-          pattern: modrinth-binding-*
-          path: crates/opys-modrinth-napi/artifacts
-          merge-multiple: true
-
-      - uses: actions/download-artifact@v8
-        with:
-          pattern: curseforge-binding-*
-          path: crates/opys-curseforge-napi/artifacts
-          merge-multiple: true
-
-      - uses: actions/download-artifact@v8
-        with:
-          pattern: link-binding-*
-          path: crates/opys-link-napi/artifacts
-          merge-multiple: true
-
-      - uses: actions/download-artifact@v8
-        with:
-          pattern: dgpuj-binding-*
-          path: crates/opys-dgpuj-napi/artifacts
-          merge-multiple: true
-
-      - uses: actions/download-artifact@v8
-        with:
-          pattern: bifrost-binding-*
-          path: crates/opys-bifrost-napi/artifacts
-          merge-multiple: true
-
-      - uses: actions/download-artifact@v8
-        with:
-          pattern: minecraft-serverlist-binding-*
-          path: crates/opys-minecraft-serverlist-napi/artifacts
+          pattern: bindings-*
+          path: napi-artifacts
           merge-multiple: true
 
       # The `npm/<target>/` per-platform sub-package scaffolding is checked
       # into git (see `crates/opys-*-napi/npm/`). `napi artifacts` walks
-      # the downloaded `.node` files (filename encodes the target) and
-      # routes each into the matching `npm/<target>/` directory.
+      # `./artifacts` (the filename encodes the target) and routes each
+      # `.node` into the matching `npm/<target>/` directory.
       - name: Route .node files into per-platform sub-packages
         run: |
-          set -eux
-          for c in crates/opys-core-napi crates/opys-runtime-napi crates/opys-mojang-napi crates/opys-dev-napi crates/opys-java-napi crates/opys-minecraft-vanilla-napi crates/opys-fabric-napi crates/opys-forge-napi crates/opys-neoforge-napi crates/opys-cleanroom-napi crates/opys-lwjgl3ify-napi crates/opys-authliberty-napi crates/opys-modrinth-napi crates/opys-curseforge-napi crates/opys-link-napi crates/opys-dgpuj-napi crates/opys-bifrost-napi crates/opys-minecraft-serverlist-napi; do
-            (cd "$c" && npx napi artifacts)
-            ls -R "$c/npm"
+          set -euo pipefail
+          for crate in crates/opys-*-napi; do
+            name=$(basename "$crate")
+            # A binding with nothing built for it is a release that would
+            # publish an empty package: stop here instead.
+            ls "napi-artifacts/$name"/*.node > /dev/null
+            mkdir -p "$crate/artifacts"
+            cp "napi-artifacts/$name"/*.node "$crate/artifacts/"
+            (cd "$crate" && npx napi artifacts)
+            ls -R "$crate/npm"
           done
 
       # `napi prepublish` updates each sub-package's version (matches the
       # loader's) and publishes them all via `npm publish` under the hood.
-      - name: Publish @opys/core-binding (loader + platform sub-packages)
-        run: npx napi prepublish -t npm --skip-gh-release
-        working-directory: crates/opys-core-napi
-        env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-      - name: Publish @opys/runtime-binding (loader + platform sub-packages)
-        run: npx napi prepublish -t npm --skip-gh-release
-        working-directory: crates/opys-runtime-napi
-        env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-      - name: Publish @opys/mojang-binding (loader + platform sub-packages)
-        run: npx napi prepublish -t npm --skip-gh-release
-        working-directory: crates/opys-mojang-napi
-        env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-      - name: Publish @opys/dev-binding (loader + platform sub-packages)
-        run: npx napi prepublish -t npm --skip-gh-release
-        working-directory: crates/opys-dev-napi
-        env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-      - name: Publish @opys/java-binding (loader + platform sub-packages)
-        run: npx napi prepublish -t npm --skip-gh-release
-        working-directory: crates/opys-java-napi
-        env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-      - name: Publish @opys/minecraft-vanilla-binding (loader + platform sub-packages)
-        run: npx napi prepublish -t npm --skip-gh-release
-        working-directory: crates/opys-minecraft-vanilla-napi
-        env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-      - name: Publish @opys/fabric-binding (loader + platform sub-packages)
-        run: npx napi prepublish -t npm --skip-gh-release
-        working-directory: crates/opys-fabric-napi
-        env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-      - name: Publish @opys/forge-binding (loader + platform sub-packages)
-        run: npx napi prepublish -t npm --skip-gh-release
-        working-directory: crates/opys-forge-napi
-        env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-      - name: Publish @opys/neoforge-binding (loader + platform sub-packages)
-        run: npx napi prepublish -t npm --skip-gh-release
-        working-directory: crates/opys-neoforge-napi
-        env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-      - name: Publish @opys/cleanroom-binding (loader + platform sub-packages)
-        run: npx napi prepublish -t npm --skip-gh-release
-        working-directory: crates/opys-cleanroom-napi
-        env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-      - name: Publish @opys/lwjgl3ify-binding (loader + platform sub-packages)
-        run: npx napi prepublish -t npm --skip-gh-release
-        working-directory: crates/opys-lwjgl3ify-napi
-        env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-      - name: Publish @opys/authliberty-binding (loader + platform sub-packages)
-        run: npx napi prepublish -t npm --skip-gh-release
-        working-directory: crates/opys-authliberty-napi
-        env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-      - name: Publish @opys/modrinth-binding (loader + platform sub-packages)
-        run: npx napi prepublish -t npm --skip-gh-release
-        working-directory: crates/opys-modrinth-napi
-        env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-      - name: Publish @opys/curseforge-binding (loader + platform sub-packages)
-        run: npx napi prepublish -t npm --skip-gh-release
-        working-directory: crates/opys-curseforge-napi
-        env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-      - name: Publish @opys/link-binding (loader + platform sub-packages)
-        run: npx napi prepublish -t npm --skip-gh-release
-        working-directory: crates/opys-link-napi
-        env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-      - name: Publish @opys/dgpuj-binding (loader + platform sub-packages)
-        run: npx napi prepublish -t npm --skip-gh-release
-        working-directory: crates/opys-dgpuj-napi
-        env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-      - name: Publish @opys/bifrost-binding (loader + platform sub-packages)
-        run: npx napi prepublish -t npm --skip-gh-release
-        working-directory: crates/opys-bifrost-napi
-        env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-      - name: Publish @opys/minecraft-serverlist-binding (loader + platform sub-packages)
-        run: npx napi prepublish -t npm --skip-gh-release
-        working-directory: crates/opys-minecraft-serverlist-napi
+      - name: Publish every binding (loader + platform sub-packages)
+        run: |
+          set -euo pipefail
+          for crate in crates/opys-*-napi; do
+            echo "::group::$crate"
+            (cd "$crate" && npx napi prepublish -t npm --skip-gh-release)
+            echo "::endgroup::"
+          done
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
@@ -566,46 +189,17 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
 
-      # `cargo publish` since 1.66 waits for crates.io indexing between
-      # packages, so a sequential publish in dep order just works.
-      - run: cargo publish -p opys-mojang-rules
-        env: { CARGO_REGISTRY_TOKEN: '${{ secrets.CARGO_REGISTRY_TOKEN }}' }
-      - run: cargo publish -p opys-mojang
-        env: { CARGO_REGISTRY_TOKEN: '${{ secrets.CARGO_REGISTRY_TOKEN }}' }
-      - run: cargo publish -p opys-core
-        env: { CARGO_REGISTRY_TOKEN: '${{ secrets.CARGO_REGISTRY_TOKEN }}' }
-      - run: cargo publish -p opys-dev
-        env: { CARGO_REGISTRY_TOKEN: '${{ secrets.CARGO_REGISTRY_TOKEN }}' }
-      - run: cargo publish -p opys-java
-        env: { CARGO_REGISTRY_TOKEN: '${{ secrets.CARGO_REGISTRY_TOKEN }}' }
-      - run: cargo publish -p opys-minecraft-vanilla
-        env: { CARGO_REGISTRY_TOKEN: '${{ secrets.CARGO_REGISTRY_TOKEN }}' }
-      - run: cargo publish -p opys-fabric
-        env: { CARGO_REGISTRY_TOKEN: '${{ secrets.CARGO_REGISTRY_TOKEN }}' }
-
-      - run: cargo publish -p opys-forge
-        env: { CARGO_REGISTRY_TOKEN: '${{ secrets.CARGO_REGISTRY_TOKEN }}' }
-      - run: cargo publish -p opys-neoforge
-        env: { CARGO_REGISTRY_TOKEN: '${{ secrets.CARGO_REGISTRY_TOKEN }}' }
-      - run: cargo publish -p opys-cleanroom
-        env: { CARGO_REGISTRY_TOKEN: '${{ secrets.CARGO_REGISTRY_TOKEN }}' }
-      - run: cargo publish -p opys-lwjgl3ify
-        env: { CARGO_REGISTRY_TOKEN: '${{ secrets.CARGO_REGISTRY_TOKEN }}' }
-      - run: cargo publish -p opys-authliberty
-        env: { CARGO_REGISTRY_TOKEN: '${{ secrets.CARGO_REGISTRY_TOKEN }}' }
-      - run: cargo publish -p opys-modpack
-        env: { CARGO_REGISTRY_TOKEN: '${{ secrets.CARGO_REGISTRY_TOKEN }}' }
-      - run: cargo publish -p opys-modrinth
-        env: { CARGO_REGISTRY_TOKEN: '${{ secrets.CARGO_REGISTRY_TOKEN }}' }
-      - run: cargo publish -p opys-curseforge
-        env: { CARGO_REGISTRY_TOKEN: '${{ secrets.CARGO_REGISTRY_TOKEN }}' }
-      - run: cargo publish -p opys-link
-        env: { CARGO_REGISTRY_TOKEN: '${{ secrets.CARGO_REGISTRY_TOKEN }}' }
-      - run: cargo publish -p opys-dgpuj
-        env: { CARGO_REGISTRY_TOKEN: '${{ secrets.CARGO_REGISTRY_TOKEN }}' }
-      - run: cargo publish -p opys-bifrost
-        env: { CARGO_REGISTRY_TOKEN: '${{ secrets.CARGO_REGISTRY_TOKEN }}' }
-      - run: cargo publish -p opys-minecraft-serverlist
-        env: { CARGO_REGISTRY_TOKEN: '${{ secrets.CARGO_REGISTRY_TOKEN }}' }
-      - run: cargo publish -p opys-runtime
-        env: { CARGO_REGISTRY_TOKEN: '${{ secrets.CARGO_REGISTRY_TOKEN }}' }
+      # The order is derived from the dependency graph, every crate after
+      # the ones it depends on — see `scripts/release/order.mjs`. `cargo
+      # publish` since 1.66 waits for crates.io indexing between packages, so
+      # a sequential publish in that order just works.
+      - name: Publish every crate, dependencies first
+        run: |
+          set -euo pipefail
+          for crate in $(node scripts/release/crates.mjs); do
+            echo "::group::$crate"
+            cargo publish -p "$crate"
+            echo "::endgroup::"
+          done
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}

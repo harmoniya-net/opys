@@ -29,30 +29,28 @@ export default defineConfig({
 
 ### Plugin authors
 
-```js
-import { definePlugin, gitHubReleaseArtifacts } from '@opys/dev';
+A plugin is `{ name, build }`: pure to construct, with all network and
+filesystem work inside `build`. `definePlugin` returns it with the fluent
+post-processing methods (`exclude`, `addRule`, `updateMany`, …) attached.
 
-export function myLoader(version) {
+```js
+import { definePlugin } from '@opys/dev';
+
+export function motd(text) {
   return definePlugin({
-    name: 'myloader',
-    async build() {
-      const { artifacts } = await gitHubReleaseArtifacts(
-        'me/myloader',
-        version,
-        {
-          assets: [
-            {
-              match: (a) => a.name.endsWith('.jar'),
-              path: '${mods_directory}/myloader.jar',
-            },
-          ],
-        },
-      );
-      return { artifacts };
+    name: 'motd',
+    build(ctx) {
+      ctx.log('motd', 'adding a var');
+      return { vars: { motd: text } };
     },
   });
 }
 ```
+
+For a file that is already published — a GitHub release asset, a GitLab
+package, a Modrinth or CurseForge file, a plain URL — use `links` from
+[`@opys/link`](https://www.npmjs.com/package/@opys/link), which resolves it
+to a pinned artifact. For a file on your disk, use `files`, below.
 
 ## Files that travel with the manifest
 

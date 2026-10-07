@@ -12,7 +12,13 @@
 // `@opys/*-binding` packages, which carry the same version.
 
 import { execSync } from 'node:child_process';
-import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 
 const sh = (cmd) => execSync(cmd, { stdio: 'inherit' });
 const out = (cmd) => execSync(cmd, { encoding: 'utf8' }).trim();
@@ -78,45 +84,11 @@ const stampCargoCrate = (path) => {
   writeFileSync(path, next);
 };
 stampCargoWorkspace('Cargo.toml');
-for (const crate of [
-  'crates/opys-core',
-  'crates/opys-mojang',
-  'crates/opys-dev',
-  'crates/opys-java',
-  'crates/opys-minecraft-vanilla',
-  'crates/opys-fabric',
-  'crates/opys-forge',
-  'crates/opys-neoforge',
-  'crates/opys-cleanroom',
-  'crates/opys-lwjgl3ify',
-  'crates/opys-authliberty',
-  'crates/opys-modpack',
-  'crates/opys-modrinth',
-  'crates/opys-curseforge',
-  'crates/opys-link',
-  'crates/opys-dgpuj',
-  'crates/opys-minecraft-serverlist',
-  'crates/opys-runtime',
-  'crates/opys-core-napi',
-  'crates/opys-mojang-napi',
-  'crates/opys-dev-napi',
-  'crates/opys-java-napi',
-  'crates/opys-minecraft-vanilla-napi',
-  'crates/opys-fabric-napi',
-  'crates/opys-forge-napi',
-  'crates/opys-neoforge-napi',
-  'crates/opys-cleanroom-napi',
-  'crates/opys-lwjgl3ify-napi',
-  'crates/opys-authliberty-napi',
-  'crates/opys-modrinth-napi',
-  'crates/opys-curseforge-napi',
-  'crates/opys-link-napi',
-  'crates/opys-dgpuj-napi',
-  'crates/opys-bifrost-napi',
-  'crates/opys-minecraft-serverlist-napi',
-  'crates/opys-runtime-napi',
-]) {
-  stampCargoCrate(`${crate}/Cargo.toml`);
+// Every crate, found rather than listed: a directory under `crates/` with a
+// `Cargo.toml`. One with no internal dependency has nothing to rewrite.
+for (const crate of readdirSync('crates')) {
+  const manifest = `crates/${crate}/Cargo.toml`;
+  if (existsSync(manifest)) stampCargoCrate(manifest);
 }
 
 // 3. Sync both lockfiles. A clean reinstall (instead of
