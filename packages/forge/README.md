@@ -41,10 +41,25 @@ alias (`1.20.1-latest` / `1.20.1-recommended` / `1.20.1-best`), or a full Forge
 build id (`1.20.1-47.4.10`). `best` is Forge's `recommended` promotion when
 there is one and `latest` otherwise.
 
-Pre-1.13 builds launch through
-[horno](https://github.com/harmoniya-net/horno), which the document declares
-as one of its libraries — there is nothing to configure and nothing for a
-launcher to know.
+Wherever a build needs something done on the launching machine — running the
+installer's processors from 1.13 on, rewriting the client jar before 1.6 — it
+launches through [horno](https://github.com/harmoniya-net/horno), which the
+document declares as one of its libraries. There is nothing to configure and
+nothing for a launcher to know.
+
+## Which Java
+
+`java('8')` up to 1.16.5, `'17'` from 1.17, `'21'` from 1.20.5, `'25'` for
+26.x. Every Minecraft version Forge publishes for has been launched that way
+(`scripts/launch-matrix`), with these exceptions, none of them opys's:
+
+- **1.7.2** predates Java 8 and dies in LaunchWrapper on it. It runs on Java
+  7: `java('7', { vendor: 'zulu' })`.
+- **1.16.4** reads a JDK internal that Java 8u321 changed, in its recommended
+  build and its latest alike. Pin the last update before that:
+  `java('8u312-b07')`.
+- **1.5 and 1.5.1** do not install: FML wants two files from a host that no
+  longer exists. See horno's `TODO.md`.
 
 ## Options
 
