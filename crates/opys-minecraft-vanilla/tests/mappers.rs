@@ -6,8 +6,9 @@ use opys_core::{
     Source,
 };
 use opys_minecraft_vanilla::{
-    build_classpath, build_launch, inherited_classpath, library_to_artifact, map_asset_index,
-    asset_directory, map_asset_objects, map_client_jar, map_libraries, superseded, ClasspathEntry, CLIENT_MODULE,
+    asset_directory, build_classpath, build_launch, inherited_classpath, library_to_artifact,
+    map_asset_index, map_asset_objects, map_client_jar, map_libraries, superseded, ClasspathEntry,
+    CLIENT_MODULE,
 };
 use opys_mojang::{AssetIndex, AssetManifest, Client, Libraries, Library};
 use serde_json::json;
