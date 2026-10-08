@@ -221,6 +221,16 @@ export interface ExtractDump {
 }
 export type ExtractRule = ExtractPick | ExtractScan | ExtractDump;
 
+/** An artifact's extract rules as a list, whichever way they were written. */
+export function extractRules(artifact: Artifact): readonly ExtractRule[] {
+  const { extract } = artifact;
+  return extract === undefined
+    ? []
+    : Array.isArray(extract)
+      ? extract
+      : [extract];
+}
+
 export interface Artifact {
   readonly path: string;
   readonly source: Source;
@@ -228,7 +238,8 @@ export interface Artifact {
   readonly rules?: Ruleset;
   readonly integrity?: Integrity;
   readonly metadata?: unknown;
-  readonly extract?: ExtractRule[];
+  /** One rule or several — both are the manifest format; read with `extractRules`. */
+  readonly extract?: ExtractRule | ExtractRule[];
 }
 
 /**

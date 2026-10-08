@@ -6,6 +6,7 @@
  * The CurseForge block is skipped unless `CURSEFORGE_TOKEN` is set.
  */
 import { describe, expect, it } from 'vitest';
+import { extractRules } from '@opys/core';
 import type { BuildContext } from '@opys/dev';
 import {
   forge,
@@ -112,10 +113,12 @@ describe.skipIf(!token)(
       expect(mods.length).toBeGreaterThan(10);
 
       const archives = c.artifacts!.filter((a) => a.path.endsWith('.zip'));
-      const overrides = archives.find((a) => a.extract?.length);
+      const overrides = archives.find((a) => extractRules(a).length > 0);
       expect(overrides).toBeDefined();
-      expect(overrides!.extract!.some((r) => 'matches' in r)).toBe(true);
-    });
+      expect(extractRules(overrides!).some((r) => 'matches' in r)).toBe(true);
+      // The pack's archive is downloaded to read its index, so this is the one
+      // test here whose length follows the link it runs on.
+    }, 120_000);
   },
 );
 
@@ -166,7 +169,7 @@ describe('modrinth modpack plugin (live)', () => {
     // are also extract-bearing artifacts, so filter by the archive itself.)
     const archives = c.artifacts!.filter((a) => a.path.endsWith('.mrpack'));
     expect(archives).toHaveLength(1);
-    expect(archives[0]!.extract!.some((r) => 'matches' in r)).toBe(true);
+    expect(extractRules(archives[0]!).some((r) => 'matches' in r)).toBe(true);
 
     // The pack's own mod files are plain downloads, never extracted.
     expect(mods.every((a) => !a.extract)).toBe(true);

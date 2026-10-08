@@ -22,8 +22,11 @@ pub fn map_asset_index(index: &AssetIndex) -> Artifact {
 /// [`AssetManifest`] keys its objects in a `BTreeMap` — an artifact list must
 /// not reshuffle between builds.
 ///
-/// No `integrity`: the hash *is* the path, so the runtime's content-addressed
-/// layout verifies these on its own.
+/// Pinned by the same sha1 that names the object. It was left off once, on the
+/// belief that a content-addressed path verifies itself — but a path is only a
+/// name, and nothing in the runtime reads a hash out of one. Without the pin
+/// the thousands of files that make up most of an installation were the only
+/// ones never checked: a truncated download was kept, and stayed.
 pub fn map_asset_objects(manifest: &AssetManifest) -> Vec<Artifact> {
     manifest
         .objects
@@ -35,7 +38,9 @@ pub fn map_asset_objects(manifest: &AssetManifest) -> Vec<Artifact> {
             },
             size: Some(object.size),
             rules: Vec::new(),
-            integrity: None,
+            integrity: Some(Integrity::One(HashEntry::Sha1 {
+                sha1: object.hash.clone(),
+            })),
             metadata: Some(serde_json::json!({ "name": name })),
             extract: None,
         })

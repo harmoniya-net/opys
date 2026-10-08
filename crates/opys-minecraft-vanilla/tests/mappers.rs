@@ -131,8 +131,14 @@ fn asset_objects_are_content_addressed_and_name_tagged() {
         arts[0].metadata,
         Some(json!({ "name": "minecraft/sounds/step.ogg" }))
     );
-    // The hash *is* the path, so the runtime's layout verifies these itself.
-    assert!(arts[0].integrity.is_none());
+    // Pinned by the hash that names it: a path is only a name, and an object
+    // with no pin is one the installer never checks.
+    assert_eq!(
+        arts[0].integrity,
+        Some(opys_core::Integrity::One(opys_core::HashEntry::Sha1 {
+            sha1: "abcdef0123456789".to_owned()
+        }))
+    );
 }
 
 #[test]
