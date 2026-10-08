@@ -503,10 +503,10 @@ export default defineConfig(({ mode }) => ({
   resolvers are exercised in `crates/opys-java/tests`.
 - **`scripts/launch-matrix`** is the check that a manifest _runs_: a bundle
   per case, installed and launched cold and warm, passed when the game owns a
-  window and stays up. It is too heavy for a push and what it guards moves
-  without one — the published documents, horno — so a handful of versions run
-  on a schedule (`.github/workflows/launch-matrix.yml`) and the full list by
-  hand. A change to a loader crate, the runtime or horno is not verified until
+  window and stays up. It is too heavy for a push, so it runs by hand only —
+  locally, or through `.github/workflows/launch-matrix.yml`, which launches a
+  handful of versions unless asked for the full list. What it guards also
+  moves without a commit here: the published documents, horno. A change to a loader crate, the runtime or horno is not verified until
   the cases it touches have been launched.
 - **`npm run architecture`** holds the tree to
   `scripts/architecture/rules.mjs`. It reads manifests and sources only, so it

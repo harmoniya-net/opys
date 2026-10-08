@@ -6,14 +6,15 @@ has settled. This is the check that a manifest _runs_, which nothing else in
 the repository makes: the unit suites and `test:int` stop at a manifest that
 resolves.
 
-It does not run on a push — a case downloads up to a gigabyte and starts a
-game. A handful of cases run every morning instead
-(`.github/workflows/launch-matrix.yml`): Forge for 1.7.10, 1.12.2, 1.16.5,
-1.20.1 and 1.21.1, NeoForge for 1.21.1, and the newest version of each
-loader. What that guards moves without a commit here — the version documents
-regenerate nightly and a horno release rewrites all of them — so a red run
-is as likely to be theirs as ours. The same workflow runs the `key` or
-`full` list when dispatched by hand.
+It does not run on a push or on a schedule — a case downloads up to a
+gigabyte and starts a game. It runs when somebody asks, here or through
+`.github/workflows/launch-matrix.yml`, which launches the `slice` list unless
+told `key` or `full`: Forge for 1.7.10, 1.12.2, 1.16.5, 1.20.1 and 1.21.1,
+the two Forge builds that break first on a new Java (1.20.2 and 26.1),
+NeoForge for 1.21.1, and the newest version of each loader. What it guards
+moves without a commit here — the version documents regenerate nightly and a
+horno release rewrites all of them — so run it after a horno release, and a
+red run is as likely to be theirs as ours.
 
 ```sh
 npm run build                         # the matrix drives packages/cli/dist

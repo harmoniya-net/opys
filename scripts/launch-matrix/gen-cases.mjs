@@ -1,6 +1,6 @@
 // Writes cases.json — the key set — cases.full.json, which adds every
 // Minecraft version the Forge and NeoForge indexes publish, and
-// cases.slice.json, the handful a scheduled run launches.
+// cases.slice.json, the handful the workflow launches by default.
 import fs from 'node:fs';
 const idx = async (l) =>
   Object.keys(
@@ -90,11 +90,11 @@ const write = (name, list) =>
     new URL(name, import.meta.url),
     JSON.stringify(unique(list.map(pinned)), null, 1) + '\n',
   );
-// What a scheduled run launches: the versions people actually play, on Forge,
+// What the workflow launches by default: the versions people actually play, on Forge,
 // and whatever is newest on every loader. "Newest" is the last Minecraft
 // version a loader's own index lists rather than Mojang's latest release — a
 // loader is days behind a release, and a case that cannot resolve would fail
-// the schedule for a reason that is nobody's fault.
+// the run for a reason that is nobody's fault.
 const newest = async (l) => (await idx(l)).at(-1);
 const fabricNewest = (
   await (await fetch('https://meta.fabricmc.net/v2/versions/game')).json()

@@ -4,14 +4,12 @@ name: Launch matrix
 # play: build a bundle, install it, start the game, twice. Everything else in
 # CI stops at a manifest that resolves.
 #
-# It is on a schedule rather than on every push because what it guards moves
-# without a commit here: the version documents are regenerated nightly, and a
-# horno release changes every one of them. A failure is as likely to be
-# theirs as ours. See scripts/launch-matrix/README.md.
+# It runs by hand only. A case downloads up to a gigabyte and starts a game,
+# which is too much for a push, and what it guards moves without a commit
+# here — the version documents are regenerated nightly, and a horno release
+# changes every one of them — so run it after either. A failure is as likely
+# to be theirs as ours. See scripts/launch-matrix/README.md.
 on:
-  schedule:
-    # After the documents' own nightly run (05:17 UTC), so it sees today's.
-    - cron: '43 6 * * *'
   workflow_dispatch:
     inputs:
       cases:
