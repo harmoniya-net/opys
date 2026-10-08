@@ -1,8 +1,8 @@
 //! Zip/tar dispatch + extract rules (pick, scan, dump).
 //!
 //! Mirrors `runtime/lib/archive.ts`. `matches_glob` is the tiny dialect
-//! local to `extract`-rule includes/excludes — NOT the same as `core::glob`'s
-//! `restrict` semantics (frozen — don't unify).
+//! local to `extract`-rule includes/excludes — NOT the same as `core::glob`,
+//! which `cleanup` rules are written in (frozen — don't unify).
 
 use std::io::{Cursor, Read};
 use std::path::Path;
@@ -162,11 +162,12 @@ async fn entry_dest(dest_dir: &Path, out_name: &str) -> std::io::Result<std::pat
     Ok(dest)
 }
 
+/// Write one entry and say where it went.
 async fn write_entry(
     entry: &NormalizedEntry,
     dest_dir: &Path,
     out_name: &str,
-) -> std::io::Result<()> {
+) -> std::io::Result<std::path::PathBuf> {
     let dest = entry_dest(dest_dir, out_name).await?;
     if let Some(parent) = dest.parent() {
         fs::create_dir_all(parent).await?;
@@ -185,7 +186,7 @@ async fn write_entry(
             create_symlink(&target, &dest).await?;
         }
     }
-    Ok(())
+    Ok(dest)
 }
 
 #[cfg(unix)]
@@ -238,15 +239,17 @@ async fn read_normalized(archive_path: &str) -> std::io::Result<Vec<NormalizedEn
 
 /// Extract entries from `archive_path` into `target_dir`, applying include/
 /// exclude globs and optional path-prefix stripping. The archive is read
-/// into memory once.
+/// into memory once. Returns every path written, which is what makes an
+/// unpacked file the manifest's own when `cleanup` runs.
 pub async fn extract_archive(
     archive_path: &str,
     target_dir: &Path,
     includes: Option<&[String]>,
     excludes: Option<&[String]>,
     strip_prefixes: Option<&[String]>,
-) -> std::io::Result<()> {
+) -> std::io::Result<Vec<std::path::PathBuf>> {
     let entries = read_normalized(archive_path).await?;
+    let mut written = Vec::new();
     for entry in entries {
         if let Some(inc) = includes {
             if !inc.iter().any(|p| matches_glob(&entry.name, p)) {
@@ -270,9 +273,9 @@ pub async fn extract_archive(
                 continue;
             }
         }
-        write_entry(&entry, target_dir, &out_name).await?;
+        written.push(write_entry(&entry, target_dir, &out_name).await?);
     }
-    Ok(())
+    Ok(written)
 }
 
 /// Extract a single named entry to a destination file.

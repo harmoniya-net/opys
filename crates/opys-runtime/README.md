@@ -4,7 +4,7 @@
 
 Install + launch executor — consumes a bundle, or a `Manifest` and its blobs,
 from [`opys-core`](https://crates.io/crates/opys-core), runs the
-resolve → scan → fetch → verify → extract → sweep pipeline, then spawns the configured process.
+resolve → scan → fetch → verify → extract → cleanup pipeline, then spawns the configured process.
 
 ```sh
 cargo add opys-runtime

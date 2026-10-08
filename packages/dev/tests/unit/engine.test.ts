@@ -190,29 +190,40 @@ describe('buildManifest', () => {
     expect(m.launch?.envs).toEqual({});
   });
 
-  it('accepts a literal envs object and emits restrict', async () => {
+  it('accepts a literal envs object and emits cleanup', async () => {
     const config: OpysConfig = {
       plugins: [],
       manifest: {
         command: () => 'java',
         args: () => [],
         envs: { KEY: 'val' },
-        restrict: ['mods/**'],
+        cleanup: [{ includes: ['/srv/mods/**'], excludes: ['*.bak'] }],
       },
     };
     const { manifest: m } = await buildManifest(config, ctx);
     expect(m.launch?.envs).toEqual({ KEY: 'val' });
-    expect(m.restrict).toEqual(['mods/**']);
+    expect(m.cleanup).toEqual([
+      { includes: ['/srv/mods/**'], excludes: ['*.bak'] },
+    ]);
   });
 
-  it('omits restrict when the config provides an empty list', async () => {
+  it('omits cleanup when the config provides an empty list', async () => {
     const config: OpysConfig = {
       plugins: [],
-      manifest: { command: () => 'java', args: () => [], restrict: [] },
+      manifest: { command: () => 'java', args: () => [], cleanup: [] },
     };
-    expect(
-      (await buildManifest(config, ctx)).manifest.restrict,
-    ).toBeUndefined();
+    expect((await buildManifest(config, ctx)).manifest.cleanup).toBeUndefined();
+  });
+
+  it('refuses the field cleanup replaced, by name', async () => {
+    const manifest = {
+      command: () => 'java',
+      args: () => [],
+      restrict: ['mods/**'],
+    };
+    await expect(buildManifest({ plugins: [], manifest }, ctx)).rejects.toThrow(
+      /manifest\.cleanup/,
+    );
   });
 
   it('wraps a "${var}" string arg into a Val and preserves a ConditionalVal[] var', async () => {

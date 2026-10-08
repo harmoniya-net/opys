@@ -16,7 +16,7 @@ export default defineConfig(({ mode }) => ({
     ],
     workdir: '${game_directory}',
     envs: { PACK_NAME: 'config-full' },
-    restrict: ['${game_directory}/mods/*.jar'],
+    cleanup: [{ includes: ['${game_directory}/mods/*.jar'] }],
   },
   runClient: (manifest) => ({
     vars: {

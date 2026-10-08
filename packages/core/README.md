@@ -28,7 +28,7 @@ satisfiesRuleset(rules, { name: 'linux', version: '', arch: 'x86_64' }); // true
 const { id } = await hashBlobFile('./server.jar');
 const blobs = { [id]: blobFile('./server.jar') };
 await writeBundle('server.opys', manifest, blobs); // manifest names { blob: id }
-const head = readBundleHead('server.opys'); // format, vars, launch, restrict
+const head = readBundleHead('server.opys'); // format, vars, launch, cleanup
 ```
 
 - A source is `{ url }` or `{ blob }`, told apart by which field is present. A blob artifact needs no `integrity`: its name is the hash.

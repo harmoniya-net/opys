@@ -47,11 +47,13 @@ Package layout, plugin API, config shape, and CLI flags may all change freely;
 the format changes only on purpose, and a bundle says which format it is
 written in (`format`, in its head) so a reader refuses what it does not know.
 
-It has been changed on purpose twice. `pointer` sources and the `discovery`
-block were removed, because a manifest must be fully resolved. Then the three
-sources that put a file _into_ the manifest or read it off the installing
-machine — `file`, `string`, `bytes` — gave way to `blob`, and the manifest
-went from a JSON document to a bundle. Both are described under _Invariants_.
+It has been changed on purpose three times. `pointer` sources and the
+`discovery` block were removed, because a manifest must be fully resolved.
+Then the three sources that put a file _into_ the manifest or read it off the
+installing machine — `file`, `string`, `bytes` — gave way to `blob`, and the
+manifest went from a JSON document to a bundle. Then `restrict`, a list of
+globs, became `cleanup`, a list of rules, and the format went from 1 to 2.
+All three are described under _Invariants_.
 
 ## Packages
 
@@ -99,7 +101,7 @@ them, and the list below names the layers rather than every one:
   is the whole difference from the `file` and `bytes` sources it replaced,
   which made a manifest either machine-specific or megabytes of base64.
 - **A manifest is published as a bundle, and a bundle is a zip.** `opys.json`
-  (the head: `format`, `vars`, `launch`, `restrict`), `artifacts.json` (the
+  (the head: `format`, `vars`, `launch`, `cleanup`), `artifacts.json` (the
   list), and `blobs/<sha256>`. Not a format of our own: the reader is
   `unzip`. The manifest is split because its halves are read for different
   reasons and differ a thousandfold in size — the list is one line per file
@@ -125,6 +127,21 @@ them, and the list below names the layers rather than every one:
   file verifies a transfer and pins nothing, and "follow latest" is what
   rebuilding the manifest is for: a deployed launcher fetches the bundle
   itself, so the manifest is the pointer.
+- **`cleanup` removes what its rules name, and never what the manifest
+  installed.** A rule is `includes` less `excludes`, globs over whole paths,
+  applied as the last phase of an install. It has no switch for sparing the
+  manifest's own files, because the only other setting would delete what was
+  just installed; and "the manifest's own" includes whatever an artifact was
+  unpacked into, which the `restrict` it replaced swept. Paths are compared
+  as paths: `${game_directory}` ends in `/`, and comparing strings once made
+  `${game_directory}/mods/a.jar` and `${root}/mods/a.jar` two files, one of
+  them stale. A rule that could reach further than its author meant — an
+  undefined variable, a relative path, a `..`, no directory ahead of its
+  first wildcard — is a manifest error raised before anything is fetched. A
+  directory goes with its files when it is left empty, so one rule covers
+  both a stray jar and the whole game directory of an earlier pack version.
+  The field is the author's alone: a plugin cannot contribute a rule, since
+  a rule that deletes is not something to receive from a dependency.
 - **`core` holds only what _both_ sides need.** A contract named by build-time
   alone — `Contribution`, the plugin output — belongs in `dev`; one named by
   runtime alone belongs in `runtime`. `core` is the intersection, not the union.
@@ -483,7 +500,7 @@ export default defineConfig(({ mode }) => ({
   is loaded, so there is no `runClient`; machine paths and credentials come
   from `--var key=value`.
 - The runtime install pipeline is phased: resolve → scan → fetch → verify →
-  extract → sweep. A manifest comes from one of three sources — a bundle on
+  extract → cleanup. A manifest comes from one of three sources — a bundle on
   disk, a URL to one (downloaded whole first), or memory — and `prepare`
   resolves it once for both the install and the launch spec. A failure is
   told apart by its `code` — `network`, `integrity`, `extraction`, `manifest`,

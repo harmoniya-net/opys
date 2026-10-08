@@ -7,6 +7,7 @@
 mod artifact;
 mod blob;
 mod bundle;
+mod cleanup;
 mod extract;
 mod glob;
 mod integrity;
@@ -23,6 +24,7 @@ pub use blob::{blob_id, blob_id_of, is_blob_id, BlobSource, Blobs};
 pub use bundle::{
     open_bundle, read_bundle_head, write_bundle, Bundle, BundleError, Head, BUNDLE_FORMAT,
 };
+pub use cleanup::CleanupRule;
 pub use extract::{ExtractDump, ExtractPick, ExtractRule, ExtractScan};
 pub use glob::{glob_base, glob_to_regex};
 pub use integrity::{HashAlgo, HashEntry, Integrity};

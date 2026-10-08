@@ -3,7 +3,7 @@
 //! It is a zip, and deliberately nothing more — `unzip -l` reads it:
 //!
 //! ```text
-//! opys.json        the head: format, vars, launch, restrict
+//! opys.json        the head: format, vars, launch, cleanup
 //! artifacts.json   the artifact list
 //! blobs/<sha256>   one entry per blob
 //! ```
@@ -29,13 +29,14 @@ use zip::{CompressionMethod, DateTime, ZipArchive, ZipWriter};
 
 use crate::artifact::Artifact;
 use crate::blob::{BlobSource, Blobs};
+use crate::cleanup::CleanupRule;
 use crate::launch::Launch;
 use crate::manifest::Manifest;
 use crate::valdefs::ValDefs;
 
 /// The format this reader and writer speak. A bundle that says anything else
 /// is refused before another byte of it is interpreted.
-pub const BUNDLE_FORMAT: u32 = 1;
+pub const BUNDLE_FORMAT: u32 = 2;
 
 const HEAD_ENTRY: &str = "opys.json";
 const ARTIFACTS_ENTRY: &str = "artifacts.json";
@@ -81,7 +82,7 @@ pub enum BundleError {
 pub struct Head {
     pub vars: ValDefs,
     pub launch: Option<Launch>,
-    pub restrict: Option<Vec<String>>,
+    pub cleanup: Vec<CleanupRule>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -91,8 +92,8 @@ pub(crate) struct HeadWire {
     vars: ValDefs,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     launch: Option<Launch>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    restrict: Option<Vec<String>>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    cleanup: Vec<CleanupRule>,
 }
 
 impl From<HeadWire> for Head {
@@ -100,7 +101,7 @@ impl From<HeadWire> for Head {
         Head {
             vars: raw.vars,
             launch: raw.launch,
-            restrict: raw.restrict,
+            cleanup: raw.cleanup,
         }
     }
 }
@@ -111,7 +112,7 @@ impl From<Head> for HeadWire {
             format: BUNDLE_FORMAT,
             vars: head.vars,
             launch: head.launch,
-            restrict: head.restrict.filter(|r| !r.is_empty()),
+            cleanup: head.cleanup,
         }
     }
 }
@@ -122,7 +123,7 @@ impl Manifest {
         Head {
             vars: self.vars.clone(),
             launch: self.launch.clone(),
-            restrict: self.restrict.clone(),
+            cleanup: self.cleanup.clone(),
         }
     }
 
@@ -141,7 +142,7 @@ impl Head {
             vars: self.vars,
             launch: self.launch,
             artifacts,
-            restrict: self.restrict,
+            cleanup: self.cleanup,
         }
     }
 }

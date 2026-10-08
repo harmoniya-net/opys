@@ -49,7 +49,7 @@ jobs:
       - run: cargo build --workspace --locked
       - run: cargo test --workspace --locked
 
-  # The sweep/extract path handling branches on `\` vs `/` and case-folds on
+  # The cleanup/extract path handling branches on `\` vs `/` and case-folds on
   # Windows; only a real Windows filesystem walk exercises that end to end.
   cargo-windows:
     name: Cargo test (Windows)

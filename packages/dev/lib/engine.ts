@@ -47,6 +47,13 @@ export async function buildManifest(
     results.map((r) => [r.name, r.contribution.launch ?? {}]),
   );
   const m = config.manifest;
+  // A config is plain JavaScript as often as not, and an unknown key there is
+  // silently dropped — which for this one would mean a pack that stops
+  // removing stale mods without anybody being told.
+  if ('restrict' in m)
+    throw new Error(
+      "`manifest.restrict` is now `manifest.cleanup`: write `cleanup: [{ includes: ['…'] }]`",
+    );
 
   const outputs = results.map((r) => ({
     name: r.name,
@@ -72,7 +79,7 @@ export async function buildManifest(
         }),
     args: m.args(pluginMap),
     envs: typeof m.envs === 'function' ? m.envs(pluginMap) : (m.envs ?? {}),
-    restrict: m.restrict ?? [],
+    cleanup: m.cleanup ?? [],
   }) as Assembled;
 
   for (const warning of warnings) ctx.log('opys', warning);

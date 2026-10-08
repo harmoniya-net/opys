@@ -53,7 +53,8 @@ export type InstallProgress =
   | { phase: 'download:done'; path: string }
   | { phase: 'verify' }
   | { phase: 'extract'; count: number }
-  | { phase: 'sweep'; removed: number };
+  /** `removed` counts files and the directories they left empty. */
+  | { phase: 'cleanup'; removed: number };
 
 export interface InstallOptions {
   platform?: napi.OsOptions;

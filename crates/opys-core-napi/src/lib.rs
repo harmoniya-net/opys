@@ -132,7 +132,7 @@ pub fn glob_to_regex_source(glob: String) -> String {
     opys_core::glob_to_regex(&glob).as_str().to_owned()
 }
 
-/// The non-wildcard prefix of a glob, used as a sweep starting point.
+/// The non-wildcard prefix of a glob, where a cleanup rule starts walking.
 #[napi(js_name = "globBase")]
 pub fn glob_base(glob: String) -> String {
     opys_core::glob_base(&glob)

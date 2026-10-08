@@ -15,18 +15,28 @@ pub struct ExtractTask {
     pub artifact: Artifact,
 }
 
+/// Run every task's extract rules. Returns each path a rule wrote: those
+/// files are the manifest's as much as an artifact is, and `cleanup` keeps
+/// them on that account.
 pub async fn extract_all(
     tasks: Vec<ExtractTask>,
     vars: &IndexMap<String, String>,
-) -> Result<(), InstallError> {
+) -> Result<Vec<String>, InstallError> {
     let mut cleaned: HashSet<String> = HashSet::new();
+    let mut written: Vec<String> = Vec::new();
     for task in tasks {
         if task.artifact.extract.is_none() {
             continue;
         }
         let path = task.artifact.path.clone();
-        if let Err(err) =
-            extract_artifact(&task.final_path, &task.artifact, vars, &mut cleaned).await
+        if let Err(err) = extract_artifact(
+            &task.final_path,
+            &task.artifact,
+            vars,
+            &mut cleaned,
+            &mut written,
+        )
+        .await
         {
             return Err(InstallError::Extraction {
                 artifact_path: path,
@@ -34,7 +44,7 @@ pub async fn extract_all(
             });
         }
     }
-    Ok(())
+    Ok(written)
 }
 
 async fn extract_artifact(
@@ -42,7 +52,11 @@ async fn extract_artifact(
     artifact: &Artifact,
     vars: &IndexMap<String, String>,
     cleaned: &mut HashSet<String>,
+    written: &mut Vec<String>,
 ) -> std::io::Result<()> {
+    let mut wrote = |paths: Vec<std::path::PathBuf>| {
+        written.extend(paths.iter().map(|p| p.to_string_lossy().into_owned()));
+    };
     if let Some(rules) = &artifact.extract {
         for rule in rules {
             match rule {
@@ -62,14 +76,16 @@ async fn extract_artifact(
                         .excludes
                         .clone()
                         .unwrap_or_else(|| vec!["META-INF/".into()]);
-                    extract_archive(
-                        final_path,
-                        Path::new(&target_dir),
-                        d.includes.as_deref(),
-                        Some(&excludes),
-                        None,
-                    )
-                    .await?;
+                    wrote(
+                        extract_archive(
+                            final_path,
+                            Path::new(&target_dir),
+                            d.includes.as_deref(),
+                            Some(&excludes),
+                            None,
+                        )
+                        .await?,
+                    );
                 }
                 ExtractRule::Scan(s) => {
                     let target_dir = interpolate(&s.into, vars);
@@ -78,18 +94,21 @@ async fn extract_artifact(
                     if let Some(extra) = &s.includes {
                         includes.extend(extra.iter().cloned());
                     }
-                    extract_archive(
-                        final_path,
-                        Path::new(&target_dir),
-                        Some(&includes),
-                        s.excludes.as_deref(),
-                        s.strip.as_deref(),
-                    )
-                    .await?;
+                    wrote(
+                        extract_archive(
+                            final_path,
+                            Path::new(&target_dir),
+                            Some(&includes),
+                            s.excludes.as_deref(),
+                            s.strip.as_deref(),
+                        )
+                        .await?,
+                    );
                 }
                 ExtractRule::Pick(p) => {
                     let dest = interpolate(&p.into, vars);
                     extract_archive_pick(final_path, &p.file, Path::new(&dest)).await?;
+                    wrote(vec![dest.into()]);
                 }
             }
         }

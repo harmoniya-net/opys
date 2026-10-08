@@ -121,8 +121,8 @@ fn progress_to_event(p: InstallProgress) -> ProgressEventJs {
             count: Some(count),
             ..Default::default()
         },
-        InstallProgress::Sweep { removed } => ProgressEventJs {
-            phase: "sweep".into(),
+        InstallProgress::Cleanup { removed } => ProgressEventJs {
+            phase: "cleanup".into(),
             removed: Some(removed),
             ..Default::default()
         },

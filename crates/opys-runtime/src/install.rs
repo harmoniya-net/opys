@@ -5,11 +5,11 @@ use tokio_util::sync::CancellationToken;
 
 use crate::constants::DEFAULT_CONCURRENCY;
 use crate::errors::InstallError;
+use crate::phases::cleanup::{cleanup, plan};
 use crate::phases::extract::{extract_all, ExtractTask};
 use crate::phases::fetch::{fetch_all, FetchHooks, FetchTask};
 use crate::phases::resolve::{resolve, ManifestSource, Resolved};
 use crate::phases::scan::scan;
-use crate::phases::sweep::{sweep, SweepOptions};
 use crate::phases::verify::verify_all;
 use crate::platform::current_platform;
 
@@ -42,7 +42,7 @@ pub enum InstallProgress {
     Extract {
         count: u32,
     },
-    Sweep {
+    Cleanup {
         removed: u32,
     },
 }
@@ -123,6 +123,9 @@ pub(crate) async fn install_resolved(
         flat.insert(k, v);
     }
     let vars = resolve_vars(&flat).map_err(InstallError::other)?;
+    // Before anything is fetched: a rule this install would have to refuse
+    // should not cost a download first.
+    let cleanup_plan = plan(&manifest.cleanup, &vars).map_err(InstallError::Manifest)?;
 
     let scanned = scan(&manifest, &vars, &platform, &features).await?;
     let total_fetch = scanned.tasks.len() as u32;
@@ -234,28 +237,32 @@ pub(crate) async fn install_resolved(
     if cancel.is_cancelled() {
         return Err(InstallError::Cancelled);
     }
+    let mut unpacked = Vec::new();
     if !extract_tasks.is_empty() {
         report(InstallProgress::Extract {
             count: extract_tasks.len() as u32,
         });
-        extract_all(extract_tasks, &vars).await?;
+        unpacked = extract_all(extract_tasks, &vars).await?;
     }
 
-    if let Some(restrict) = manifest.restrict.as_ref().filter(|r| !r.is_empty()) {
-        let managed: HashSet<String> = applicable
+    if !cleanup_plan.is_empty() {
+        // What the manifest installed, which no rule removes: its artifacts
+        // and the files they were unpacked into.
+        let kept: HashSet<String> = applicable
             .artifacts
             .iter()
             .map(|a| interpolate(&a.path, &vars))
+            .chain(unpacked)
             .collect();
-        let result = sweep(restrict, &vars, SweepOptions { managed: &managed })
+        let removed = cleanup(&cleanup_plan, &kept)
             .await
             .map_err(|source| InstallError::Io {
                 path: String::new(),
                 source,
             })?;
-        if !result.removed.is_empty() {
-            report(InstallProgress::Sweep {
-                removed: result.removed.len() as u32,
+        if !removed.is_empty() {
+            report(InstallProgress::Cleanup {
+                removed: removed.len() as u32,
             });
         }
     }

@@ -282,11 +282,23 @@ export interface Launch {
   readonly envs: ValDefs;
 }
 
+/**
+ * Files an installation should not have: every path one of `includes`
+ * matches and none of `excludes` does. Removed after everything else is in
+ * place, and never a file the manifest itself installed.
+ */
+export interface CleanupRule {
+  /** Globs over whole paths. Each must be absolute once interpolated. */
+  readonly includes: ReadonlyArray<string>;
+  /** Globs to spare. One that is not absolute matches at any depth. */
+  readonly excludes?: ReadonlyArray<string>;
+}
+
 export interface Manifest {
   readonly vars: ValDefs;
   readonly launch?: Launch;
   readonly artifacts: ReadonlyArray<Artifact>;
-  readonly restrict?: ReadonlyArray<string>;
+  readonly cleanup?: ReadonlyArray<CleanupRule>;
 }
 
 /**

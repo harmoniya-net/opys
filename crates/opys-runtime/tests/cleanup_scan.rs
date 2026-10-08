@@ -6,9 +6,9 @@
 //!      matches *is*. The probe is a blob kept where it cannot be read: if the
 //!      installer wrongly re-fetches, the install fails.
 //!
-//!   2. **Restrict sweep** — after install, every `restrict` glob is reconciled
-//!      against the manifest: unmanaged files under it are deleted, managed
-//!      files (and anything outside the globs) are left alone.
+//!   2. **Cleanup** — after install, every `cleanup` rule is reconciled
+//!      against the manifest: files it names are deleted, unless the manifest
+//!      installed them; anything a rule does not name is left alone.
 
 mod common;
 
@@ -36,9 +36,9 @@ async fn run(manifest_json: String) -> Vec<InstallProgress> {
     Arc::try_unwrap(events).unwrap().into_inner().unwrap()
 }
 
-fn sweep_removed(events: &[InstallProgress]) -> Option<u32> {
+fn cleanup_removed(events: &[InstallProgress]) -> Option<u32> {
     events.iter().find_map(|e| match e {
-        InstallProgress::Sweep { removed } => Some(*removed),
+        InstallProgress::Cleanup { removed } => Some(*removed),
         _ => None,
     })
 }
@@ -183,11 +183,11 @@ async fn reinstall_keeps_hashless_file_untouched() {
     );
 }
 
-/// A file that is *both* a managed artifact and matched by a `restrict` glob:
-/// its hash changed (aa → bb) so install must re-fetch it, and being managed it
-/// must survive the sweep rather than be deleted as a stray.
+/// A file that is *both* an artifact and named by a cleanup rule: its hash
+/// changed (aa → bb) so install must re-fetch it, and being the manifest's it
+/// must survive the cleanup rather than be deleted as a stray.
 #[tokio::test]
-async fn refetches_managed_file_named_by_restrict() {
+async fn refetches_managed_file_named_by_cleanup() {
     let dir = tempdir().unwrap();
     let root = dir.path().to_string_lossy().into_owned();
     // On disk: the old content.
@@ -195,7 +195,7 @@ async fn refetches_managed_file_named_by_restrict() {
 
     run(json!({
         "vars": { "root": root },
-        "restrict": ["${root}/config.txt"],
+        "cleanup": [{ "includes": ["${root}/config.txt"] }],
         "artifacts": [{
             "path": "${root}/config.txt",
             "source": { "blob": blob("bb") }
@@ -206,7 +206,7 @@ async fn refetches_managed_file_named_by_restrict() {
 
     assert!(
         dir.path().join("config.txt").exists(),
-        "managed file must not be swept"
+        "managed file must not be removed"
     );
     assert_eq!(
         std::fs::read_to_string(dir.path().join("config.txt")).unwrap(),
@@ -215,12 +215,12 @@ async fn refetches_managed_file_named_by_restrict() {
     );
 }
 
-// ── Restrict sweep ────────────────────────────────────────────────────────
+// ── Cleanup ───────────────────────────────────────────────────────────────
 
-/// The canonical case: a `mods/**` restrict deletes a stray jar while keeping
-/// the managed one.
+/// The canonical case: a `mods/**` rule deletes a stray jar while keeping
+/// the one the manifest installed.
 #[tokio::test]
-async fn sweep_removes_unmanaged_keeps_managed() {
+async fn cleanup_removes_strays_keeps_installed() {
     let dir = tempdir().unwrap();
     let root = dir.path().to_string_lossy().into_owned();
     let mods = dir.path().join("mods");
@@ -229,7 +229,7 @@ async fn sweep_removes_unmanaged_keeps_managed() {
 
     let events = run(json!({
         "vars": { "root": root },
-        "restrict": ["${root}/mods/**"],
+        "cleanup": [{ "includes": ["${root}/mods/**"] }],
         "artifacts": [{
             "path": "${root}/mods/keep.jar",
             "source": { "blob": blob("keep") }
@@ -239,13 +239,16 @@ async fn sweep_removes_unmanaged_keeps_managed() {
     .await;
 
     assert!(mods.join("keep.jar").exists(), "managed jar must survive");
-    assert!(!mods.join("stray.jar").exists(), "stray jar must be swept");
-    assert_eq!(sweep_removed(&events), Some(1));
+    assert!(
+        !mods.join("stray.jar").exists(),
+        "stray jar must be removed"
+    );
+    assert_eq!(cleanup_removed(&events), Some(1));
 }
 
-/// Files outside every restrict glob are never touched, even when unmanaged.
+/// Files no rule names are never touched, even when the manifest did not install them.
 #[tokio::test]
-async fn sweep_leaves_paths_outside_globs() {
+async fn cleanup_leaves_paths_no_rule_names() {
     let dir = tempdir().unwrap();
     let root = dir.path().to_string_lossy().into_owned();
     let mods = dir.path().join("mods");
@@ -257,7 +260,7 @@ async fn sweep_leaves_paths_outside_globs() {
 
     run(json!({
         "vars": { "root": root },
-        "restrict": ["${root}/mods/**"],
+        "cleanup": [{ "includes": ["${root}/mods/**"] }],
         "artifacts": [{
             "path": "${root}/mods/keep.jar",
             "source": { "blob": blob("keep") }
@@ -268,7 +271,7 @@ async fn sweep_leaves_paths_outside_globs() {
 
     assert!(
         !mods.join("stray.jar").exists(),
-        "stray under glob is swept"
+        "stray under glob is removed"
     );
     assert!(
         config.join("user.cfg").exists(),
@@ -279,7 +282,7 @@ async fn sweep_leaves_paths_outside_globs() {
 /// A managed file nested in a subdir survives; a sibling stray is removed and
 /// its now-empty directory is pruned.
 #[tokio::test]
-async fn sweep_keeps_nested_managed_and_prunes_empty_dirs() {
+async fn cleanup_keeps_nested_installed_and_removes_emptied_dirs() {
     let dir = tempdir().unwrap();
     let root = dir.path().to_string_lossy().into_owned();
     let sub = dir.path().join("mods/sub");
@@ -290,7 +293,7 @@ async fn sweep_keeps_nested_managed_and_prunes_empty_dirs() {
 
     run(json!({
         "vars": { "root": root },
-        "restrict": ["${root}/mods/**"],
+        "cleanup": [{ "includes": ["${root}/mods/**"] }],
         "artifacts": [{
             "path": "${root}/mods/sub/keep.jar",
             "source": { "blob": blob("keep") }
@@ -300,7 +303,7 @@ async fn sweep_keeps_nested_managed_and_prunes_empty_dirs() {
     .await;
 
     assert!(sub.join("keep.jar").exists(), "nested managed jar survives");
-    assert!(!old.join("stray.jar").exists(), "nested stray is swept");
+    assert!(!old.join("stray.jar").exists(), "nested stray is removed");
     assert!(!old.exists(), "emptied directory is pruned");
     assert!(sub.exists(), "directory holding a managed file is kept");
 }
@@ -333,20 +336,21 @@ fn ustar(name: &str, content: &[u8]) -> Vec<u8> {
     out
 }
 
-/// Accepted edge case: `restrict` is a literal "everything in scope that isn't
-/// a manifest artifact gets dropped". Files unpacked by an `extract` rule aren't
-/// artifacts, so a restrict over their target sweeps them too. Pins the agreed
-/// behavior — don't extract into a restricted dir.
+/// A file an `extract` rule unpacked is the manifest's as much as an artifact
+/// is. It used to be removed, which made "extract into a cleaned directory" a
+/// way to install nothing.
 #[tokio::test]
-async fn sweep_drops_extracted_files_in_scope() {
+async fn cleanup_keeps_what_was_unpacked() {
     let dir = tempdir().unwrap();
     let root = dir.path().to_string_lossy().into_owned();
     let src = dir.path().join("bundle.tar");
     std::fs::write(&src, ustar("inner.jar", b"jar-bytes")).unwrap();
+    std::fs::create_dir_all(dir.path().join("mods")).unwrap();
+    std::fs::write(dir.path().join("mods/stray.jar"), b"stray").unwrap();
 
     run(json!({
         "vars": { "root": root },
-        "restrict": ["${root}/mods/**"],
+        "cleanup": [{ "includes": ["${root}/mods/**"] }],
         "artifacts": [{
             "path": "${root}/cache/bundle.tar",
             "source": { "blob": blob_file(&src) },
@@ -357,22 +361,26 @@ async fn sweep_drops_extracted_files_in_scope() {
     .await;
 
     assert!(
-        !dir.path().join("mods/inner.jar").exists(),
-        "extracted file in a restricted dir is swept like any non-artifact"
+        dir.path().join("mods/inner.jar").exists(),
+        "unpacked file is kept"
+    );
+    assert!(
+        !dir.path().join("mods/stray.jar").exists(),
+        "stray is removed"
     );
 }
 
 /// Full lifecycle: a first install populates the managed files, a stray then
-/// appears in the restricted scope, and re-running the *same* manifest sweeps
+/// appears where the rule reaches, and re-running the *same* manifest removes
 /// the stray while leaving the managed files in place.
 #[tokio::test]
-async fn reinstall_sweeps_stray_keeps_managed() {
+async fn reinstall_removes_stray_keeps_installed() {
     let dir = tempdir().unwrap();
     let root = dir.path().to_string_lossy().into_owned();
     let den = dir.path().join("dir");
     let manifest = json!({
         "vars": { "root": root },
-        "restrict": ["${root}/dir/**/*"],
+        "cleanup": [{ "includes": ["${root}/dir/**/*"] }],
         "artifacts": [
             { "path": "${root}/dir/a", "source": { "blob": blob("a") } },
             { "path": "${root}/dir/b", "source": { "blob": blob("b") } }
@@ -380,43 +388,43 @@ async fn reinstall_sweeps_stray_keeps_managed() {
     })
     .to_string();
 
-    // First install: nothing on disk → both managed files land, nothing swept.
+    // First install: nothing on disk → both managed files land, nothing removed.
     let first = run(manifest.clone()).await;
     assert!(
         den.join("a").exists() && den.join("b").exists(),
         "managed files installed"
     );
     assert_eq!(
-        sweep_removed(&first),
+        cleanup_removed(&first),
         None,
-        "nothing to sweep on a clean install"
+        "nothing to remove on a clean install"
     );
 
     // A stray appears in scope.
     std::fs::write(den.join("c"), b"c").unwrap();
 
-    // Re-install the same manifest: a/b are skipped (still present), c is swept.
+    // Re-install the same manifest: a/b are skipped (still present), c is removed.
     let second = run(manifest).await;
     assert!(den.join("a").exists(), "managed file a survives reinstall");
     assert!(den.join("b").exists(), "managed file b survives reinstall");
-    assert!(!den.join("c").exists(), "stray c is swept on reinstall");
+    assert!(!den.join("c").exists(), "stray c is removed on reinstall");
     assert_eq!(
-        sweep_removed(&second),
+        cleanup_removed(&second),
         Some(1),
         "exactly the stray is removed"
     );
 }
 
 /// Same lifecycle, but the stray appears in a *new subdirectory*. The reinstall
-/// sweeps the nested file and prunes the directory it left empty.
+/// removes the nested file and the directory it left empty.
 #[tokio::test]
-async fn reinstall_sweeps_nested_stray_and_prunes_dir() {
+async fn reinstall_removes_nested_stray_and_its_dir() {
     let dir = tempdir().unwrap();
     let root = dir.path().to_string_lossy().into_owned();
     let den = dir.path().join("dir");
     let manifest = json!({
         "vars": { "root": root },
-        "restrict": ["${root}/dir/**/*"],
+        "cleanup": [{ "includes": ["${root}/dir/**/*"] }],
         "artifacts": [
             { "path": "${root}/dir/a", "source": { "blob": blob("a") } },
             { "path": "${root}/dir/b", "source": { "blob": blob("b") } }
@@ -437,13 +445,13 @@ async fn reinstall_sweeps_nested_stray_and_prunes_dir() {
     run(manifest).await;
     assert!(den.join("a").exists(), "managed file a survives reinstall");
     assert!(den.join("b").exists(), "managed file b survives reinstall");
-    assert!(!den.join("subdir/c").exists(), "nested stray is swept");
+    assert!(!den.join("subdir/c").exists(), "nested stray is removed");
     assert!(!den.join("subdir").exists(), "emptied directory is pruned");
 }
 
-/// Without a `restrict` list, nothing is swept — unmanaged files stay put.
+/// Without `cleanup` rules, nothing is removed.
 #[tokio::test]
-async fn no_restrict_means_no_sweep() {
+async fn no_cleanup_means_nothing_removed() {
     let dir = tempdir().unwrap();
     let root = dir.path().to_string_lossy().into_owned();
     let mods = dir.path().join("mods");
@@ -460,13 +468,195 @@ async fn no_restrict_means_no_sweep() {
     .to_string())
     .await;
 
-    assert!(
-        mods.join("stray.jar").exists(),
-        "no restrict ⇒ stray is kept"
-    );
+    assert!(mods.join("stray.jar").exists(), "no rule ⇒ stray is kept");
     assert_eq!(
-        sweep_removed(&events),
+        cleanup_removed(&events),
         None,
-        "no sweep event without restrict"
+        "no cleanup event without a rule"
+    );
+}
+
+/// The path-spelling defect: `game_directory` ends in `/`, so an artifact
+/// written with `${root}` and a rule written with `${game_directory}` were
+/// different strings for one file, and the file the manifest had just
+/// installed was removed.
+#[tokio::test]
+async fn an_artifact_is_kept_however_the_rule_spells_its_directory() {
+    let dir = tempdir().unwrap();
+    let root = dir.path().to_string_lossy().into_owned();
+
+    run(json!({
+        "vars": { "root": root, "game_directory": "${root}/" },
+        "cleanup": [{ "includes": ["${game_directory}/mods/*.jar"] }],
+        "artifacts": [{
+            "path": "${root}/mods/keep.jar",
+            "source": { "blob": blob("keep") }
+        }]
+    })
+    .to_string())
+    .await;
+
+    assert!(dir.path().join("mods/keep.jar").exists());
+}
+
+/// `excludes` spares what `includes` would take.
+#[tokio::test]
+async fn an_excluded_file_is_left_alone() {
+    let dir = tempdir().unwrap();
+    let root = dir.path().to_string_lossy().into_owned();
+    let mods = dir.path().join("mods");
+    std::fs::create_dir_all(&mods).unwrap();
+    std::fs::write(mods.join("autogen.jar"), b"made by a mod").unwrap();
+    std::fs::write(mods.join("stray.jar"), b"stray").unwrap();
+    std::fs::write(mods.join("notes.txt"), b"not a jar").unwrap();
+
+    run(json!({
+        "vars": { "root": root },
+        "cleanup": [{ "includes": ["${root}/mods/*.jar"], "excludes": ["*/autogen.jar"] }]
+    })
+    .to_string())
+    .await;
+
+    assert!(mods.join("autogen.jar").exists(), "excluded");
+    assert!(mods.join("notes.txt").exists(), "not named");
+    assert!(!mods.join("stray.jar").exists());
+}
+
+/// A directory a rule empties goes with its files: `logs/**` leaves no `logs`.
+#[tokio::test]
+async fn a_directory_left_empty_is_removed() {
+    let dir = tempdir().unwrap();
+    let root = dir.path().to_string_lossy().into_owned();
+    let logs = dir.path().join("logs");
+    std::fs::create_dir_all(logs.join("old")).unwrap();
+    std::fs::write(logs.join("latest.log"), b"log").unwrap();
+    std::fs::write(logs.join("old/1.log.gz"), b"log").unwrap();
+
+    let events = run(json!({
+        "vars": { "root": root },
+        "cleanup": [{ "includes": ["${root}/logs/**"] }]
+    })
+    .to_string())
+    .await;
+
+    assert!(!logs.exists(), "the directory itself is gone");
+    assert!(
+        dir.path().exists(),
+        "its parent is not the rule's to remove"
+    );
+    // Two files and two directories.
+    assert_eq!(cleanup_removed(&events), Some(4));
+}
+
+/// A directory the last stray was removed from goes too, though the rule
+/// names only files in it; one that was empty all along, and that no rule
+/// names, stays.
+#[tokio::test]
+async fn only_a_directory_the_rule_emptied_or_names_is_removed() {
+    let dir = tempdir().unwrap();
+    let root = dir.path().to_string_lossy().into_owned();
+    let mods = dir.path().join("mods");
+    let saves = dir.path().join("saves");
+    std::fs::create_dir_all(&mods).unwrap();
+    std::fs::create_dir_all(&saves).unwrap();
+    std::fs::write(mods.join("stray.jar"), b"stray").unwrap();
+
+    run(json!({
+        "vars": { "root": root },
+        "cleanup": [{ "includes": ["${root}/*/*.jar"] }]
+    })
+    .to_string())
+    .await;
+
+    assert!(!mods.exists(), "emptied by the rule");
+    assert!(saves.exists(), "empty before, and not named");
+}
+
+/// Dropping the game directories of earlier pack versions: every sibling
+/// goes, saves and all, and the one excluded is not looked into.
+#[tokio::test]
+async fn earlier_game_directories_are_removed_and_the_current_one_is_not() {
+    let dir = tempdir().unwrap();
+    let root = dir.path().to_string_lossy().into_owned();
+    for version in ["pack-1.0", "pack-1.1", "pack-1.2"] {
+        let saves = dir.path().join(version).join("saves/world");
+        std::fs::create_dir_all(&saves).unwrap();
+        std::fs::write(saves.join("level.dat"), b"world").unwrap();
+        std::fs::create_dir_all(dir.path().join(version).join("screenshots")).unwrap();
+    }
+    std::fs::write(dir.path().join("launcher.json"), b"{}").unwrap();
+
+    run(json!({
+        "vars": { "root": root, "game_directory": "${root}/pack-1.2/" },
+        "cleanup": [{
+            "includes": ["${root}/pack-*/**"],
+            "excludes": ["${game_directory}/**"]
+        }],
+        "artifacts": [{
+            "path": "${game_directory}/mods/a.jar",
+            "source": { "blob": blob("a") }
+        }]
+    })
+    .to_string())
+    .await;
+
+    assert!(!dir.path().join("pack-1.0").exists());
+    assert!(!dir.path().join("pack-1.1").exists());
+    let current = dir.path().join("pack-1.2");
+    assert!(
+        current.join("saves/world/level.dat").exists(),
+        "the player's"
+    );
+    assert!(current.join("screenshots").exists(), "empty, and excluded");
+    assert!(current.join("mods/a.jar").exists());
+    assert!(dir.path().join("launcher.json").exists(), "not named");
+}
+
+/// A rule that cannot be trusted stops the install before it starts: nothing
+/// is fetched, and nothing is removed.
+#[tokio::test]
+async fn a_rule_naming_an_undefined_variable_fails_before_anything_is_installed() {
+    let dir = tempdir().unwrap();
+    let root = dir.path().to_string_lossy().into_owned();
+    std::fs::create_dir_all(dir.path().join("mods")).unwrap();
+    std::fs::write(dir.path().join("mods/stray.jar"), b"stray").unwrap();
+
+    let manifest = opys_core::parse_manifest(
+        &json!({
+            "vars": { "root": root },
+            "cleanup": [
+                { "includes": ["${root}/mods/**"] },
+                { "includes": ["${game_dir}/logs/**"] }
+            ],
+            "artifacts": [{
+                "path": "${root}/mods/keep.jar",
+                "source": { "blob": blob("keep") }
+            }]
+        })
+        .to_string(),
+    )
+    .unwrap();
+    let error = install(
+        ManifestSource::Manifest {
+            manifest: Box::new(manifest),
+            blobs: blobs(),
+        },
+        InstallOptions::new(),
+    )
+    .await
+    .unwrap_err();
+
+    assert!(
+        matches!(error.report(), opys_runtime::ErrorReport::Manifest { .. }),
+        "{error}"
+    );
+    assert!(error.to_string().contains("${game_dir}/logs/**"), "{error}");
+    assert!(
+        !dir.path().join("mods/keep.jar").exists(),
+        "nothing fetched"
+    );
+    assert!(
+        dir.path().join("mods/stray.jar").exists(),
+        "nothing removed"
     );
 }

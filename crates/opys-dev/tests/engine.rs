@@ -5,7 +5,7 @@
 //! what they covered is the caller's plumbing, not the merge.
 
 use opys_core::{
-    blob_id, Artifact, BlobSource, Blobs, ConditionalVal, Source, Val, ValDef, ValDefs,
+    blob_id, Artifact, BlobSource, Blobs, CleanupRule, ConditionalVal, Source, Val, ValDef, ValDefs,
 };
 use opys_dev::{assemble, Contribution, LaunchFragment, ManifestConfig, PluginOutput};
 
@@ -275,25 +275,28 @@ fn defaults_workdir_to_dot_and_envs_to_empty() {
 }
 
 #[test]
-fn accepts_a_literal_envs_map_and_emits_restrict() {
+fn accepts_a_literal_envs_map_and_emits_cleanup() {
     let out = assemble(
         &[],
         &ManifestConfig {
             envs: flat(&[("KEY", "val")]),
-            restrict: vec!["mods/**".to_owned()],
+            cleanup: vec![CleanupRule {
+                includes: vec!["mods/**".to_owned()],
+                excludes: Vec::new(),
+            }],
             ..config()
         },
     );
 
     assert_eq!(out.manifest.launch.unwrap().envs, flat(&[("KEY", "val")]));
-    assert_eq!(out.manifest.restrict, Some(vec!["mods/**".to_owned()]));
+    assert_eq!(out.manifest.cleanup[0].includes, ["mods/**"]);
 }
 
 #[test]
-fn omits_restrict_when_the_config_provides_an_empty_list() {
+fn omits_cleanup_when_the_config_provides_no_rules() {
     let out = assemble(&[], &config());
 
-    assert_eq!(out.manifest.restrict, None);
+    assert!(out.manifest.cleanup.is_empty());
 }
 
 #[test]

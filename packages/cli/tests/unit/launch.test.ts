@@ -278,8 +278,8 @@ describe('cmdLaunch — progress reporting', () => {
       onP({ phase: 'verify' });
       onP({ phase: 'extract', count: 1 });
       onP({ phase: 'extract', count: 3 });
-      onP({ phase: 'sweep', removed: 1 });
-      onP({ phase: 'sweep', removed: 5 });
+      onP({ phase: 'cleanup', removed: 1 });
+      onP({ phase: 'cleanup', removed: 5 });
     });
     const cfg = await fixture();
     await expect(

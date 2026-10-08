@@ -76,8 +76,10 @@ export async function installWithProgress(
             ` Extracting ${p.count} archive${p.count === 1 ? '' : 's'}...`,
           );
           break;
-        case 'sweep':
-          pw.log(` Swept ${p.removed} stale file${p.removed === 1 ? '' : 's'}`);
+        case 'cleanup':
+          pw.log(
+            ` Removed ${p.removed} stale file${p.removed === 1 ? '' : 's'}`,
+          );
           break;
       }
     },

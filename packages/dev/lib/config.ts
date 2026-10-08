@@ -1,4 +1,11 @@
-import type { Artifact, ValDefs, Manifest, Val, Valset } from '@opys/core';
+import type {
+  Artifact,
+  CleanupRule,
+  ValDefs,
+  Manifest,
+  Val,
+  Valset,
+} from '@opys/core';
 import type { OpysPlugin, LaunchGroups } from './plugin';
 
 /** Map of plugin name → its launch groups, passed to launch accessors. */
@@ -20,8 +27,11 @@ export interface OpysManifestConfig {
   workdir?: string | ((plugins: PluginMap) => string);
   /** Environment variables for the launched process. */
   envs?: ValDefs | ((plugins: PluginMap) => ValDefs);
-  /** `restrict` globs swept clean after install. */
-  restrict?: string[];
+  /**
+   * Files to remove after install: what `includes` matches, less `excludes`.
+   * A file the manifest installs is never removed.
+   */
+  cleanup?: CleanupRule[];
 }
 
 export interface OpysConfig {

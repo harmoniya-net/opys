@@ -228,7 +228,7 @@ const assembled = dev.assemble(
   {
     command: 'java',
     args: [[{ rules: [], value: ['-Xmx2G'] }], 'Main'],
-    restrict: ['mods/**'],
+    cleanup: [{ includes: ['/srv/mods/**'] }],
   },
 );
 check(
@@ -254,9 +254,10 @@ check(
   assembled.manifest.launch.workdir === '.',
 );
 check(
-  'assemble merges plugin envs and emits restrict',
+  'assemble merges plugin envs and emits cleanup',
   assembled.manifest.launch.envs.E === '1' &&
-    JSON.stringify(assembled.manifest.restrict) === JSON.stringify(['mods/**']),
+    JSON.stringify(assembled.manifest.cleanup) ===
+      JSON.stringify([{ includes: ['/srv/mods/**'] }]),
 );
 
 const spec = await runtime.buildLaunch({

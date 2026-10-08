@@ -14,11 +14,11 @@ mod platform;
 mod tar_reader;
 
 mod phases {
+    pub mod cleanup;
     pub mod extract;
     pub mod fetch;
     pub mod resolve;
     pub mod scan;
-    pub mod sweep;
     pub mod verify;
 }
 

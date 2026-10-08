@@ -14,7 +14,7 @@ fn manifest(artifacts: serde_json::Value) -> Manifest {
     serde_json::from_value(json!({
         "vars": { "root": "/srv/game" },
         "launch": { "command": "java", "workdir": "${root}", "args": ["-jar", "server.jar"] },
-        "restrict": ["${root}/mods/**"],
+        "cleanup": [{ "includes": ["${root}/mods/**"] }],
         "artifacts": artifacts,
     }))
     .unwrap()
@@ -154,7 +154,7 @@ fn the_head_carries_the_format_and_everything_but_the_list() {
             "format": BUNDLE_FORMAT,
             "vars": { "root": "/srv/game" },
             "launch": { "command": "java", "workdir": "${root}", "args": ["-jar", "server.jar"], "envs": {} },
-            "restrict": ["${root}/mods/**"],
+            "cleanup": [{ "includes": ["${root}/mods/**"] }],
         })
     );
     let list: serde_json::Value = serde_json::from_slice(&all[1].1).unwrap();
@@ -291,15 +291,15 @@ fn a_zip_without_a_head_or_without_a_list_is_not_a_bundle() {
 #[test]
 fn a_format_this_reader_does_not_know_is_refused_before_anything_else_is_read() {
     // The rest of this head would not parse — and that is not what is reported.
-    let head = serde_json::to_vec(&json!({ "format": 2, "vars": "spelled some new way" })).unwrap();
+    let head = serde_json::to_vec(&json!({ "format": 3, "vars": "spelled some new way" })).unwrap();
     let bundle = zip_of(&[("opys.json", &head), ("artifacts.json", b"[]")]);
     assert!(matches!(
         open_error(bundle.clone()),
-        BundleError::Format { found: 2 }
+        BundleError::Format { found: 3 }
     ));
     assert!(matches!(
         read_bundle_head(Cursor::new(bundle)),
-        Err(BundleError::Format { found: 2 })
+        Err(BundleError::Format { found: 3 })
     ));
 }
 

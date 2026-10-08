@@ -6,7 +6,9 @@
 
 use std::collections::HashMap;
 
-use opys_core::{deduplicate_artifacts, Artifact, Blobs, Launch, Manifest, Val, ValDefs, Valset};
+use opys_core::{
+    deduplicate_artifacts, Artifact, Blobs, CleanupRule, Launch, Manifest, Val, ValDefs, Valset,
+};
 use serde::Deserialize;
 
 use crate::contribution::{Contribution, LaunchFragment, PluginOutput};
@@ -38,7 +40,7 @@ pub struct ManifestConfig {
     pub envs: ValDefs,
     /// Emitted only when non-empty, matching the wire format.
     #[serde(default)]
-    pub restrict: Vec<String>,
+    pub cleanup: Vec<CleanupRule>,
 }
 
 /// The assembled manifest plus the collision warnings raised while merging.
@@ -146,7 +148,7 @@ pub fn assemble(outputs: &[PluginOutput], config: &ManifestConfig) -> Assembled 
             vars,
             launch: Some(launch),
             artifacts,
-            restrict: (!config.restrict.is_empty()).then(|| config.restrict.clone()),
+            cleanup: config.cleanup.clone(),
         },
         blobs,
         warnings,

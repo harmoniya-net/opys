@@ -270,8 +270,6 @@ export const hashMaps = {
   'crates/opys-core-napi/src/lib.rs': 'the vars object as it crosses napi',
   // The install side reads a manifest and produces none.
   'crates/opys-runtime-napi/src/lib.rs': 'vars and envs as they cross napi',
-  'crates/opys-runtime/src/phases/sweep.rs':
-    'sweep patterns grouped by directory; the order only decides which is walked first',
 };
 
 /**

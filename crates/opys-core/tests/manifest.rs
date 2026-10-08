@@ -1,7 +1,8 @@
 //! Mirrors core/tests/unit/manifest.test.ts.
 
 use opys_core::{
-    deduplicate_artifacts, filter_manifest, parse_manifest, Artifact, Manifest, OsOptions, Source,
+    deduplicate_artifacts, filter_manifest, parse_manifest, Artifact, CleanupRule, Manifest,
+    OsOptions, Source,
 };
 use serde_json::json;
 
@@ -64,18 +65,19 @@ fn parse_manifest_rejects_schema_invalid() {
 }
 
 #[test]
-fn parse_manifest_with_vars_launch_artifacts_restrict() {
+fn parse_manifest_with_vars_launch_artifacts_cleanup() {
     let input = json!({
         "vars": { "root": "." },
         "launch": { "command": "java", "workdir": "." },
         "artifacts": [{ "path": "a.jar", "source": { "url": "https://x" } }],
-        "restrict": ["mods/**"]
+        "cleanup": [{ "includes": ["mods/**"], "excludes": ["mods/keep.jar"] }]
     });
     let u = parse_manifest(&input.to_string()).unwrap();
     assert_eq!(u.vars.len(), 1);
     assert_eq!(u.launch.as_ref().unwrap().command, "java");
     assert_eq!(u.artifacts.len(), 1);
-    assert_eq!(u.restrict.as_ref().unwrap(), &vec!["mods/**".to_owned()]);
+    assert_eq!(u.cleanup[0].includes, ["mods/**"]);
+    assert_eq!(u.cleanup[0].excludes, ["mods/keep.jar"]);
 }
 
 #[test]
@@ -94,29 +96,32 @@ fn round_trips_minimal_manifest() {
 }
 
 #[test]
-fn round_trips_vars_launch_restrict() {
+fn round_trips_vars_launch_cleanup() {
     let m: Manifest = decode(json!({
         "vars": { "root": "." },
         "launch": { "command": "java", "workdir": "/srv", "args": ["-jar"] },
         "artifacts": [],
-        "restrict": ["mods/**"]
+        "cleanup": [{ "includes": ["mods/**"], "excludes": ["mods/keep.jar"] }]
     }));
     let encoded = encode(&m);
     assert_eq!(encoded["vars"]["root"], json!("."));
     assert_eq!(encoded["launch"]["command"], json!("java"));
-    assert_eq!(encoded["restrict"], json!(["mods/**"]));
+    assert_eq!(
+        encoded["cleanup"],
+        json!([{ "includes": ["mods/**"], "excludes": ["mods/keep.jar"] }])
+    );
 }
 
 #[test]
-fn omits_empty_restrict_on_encode() {
+fn omits_empty_cleanup_on_encode() {
     let m = Manifest {
         vars: Default::default(),
         launch: None,
         artifacts: Vec::new(),
-        restrict: Some(Vec::new()),
+        cleanup: Vec::new(),
     };
     let encoded = encode(&m);
-    assert!(encoded.get("restrict").is_none());
+    assert!(encoded.get("cleanup").is_none());
 }
 
 #[test]
@@ -124,7 +129,7 @@ fn defaults_missing_vars_and_artifacts() {
     let m: Manifest = decode(json!({}));
     assert_eq!(m.vars.len(), 0);
     assert_eq!(m.artifacts.len(), 0);
-    assert!(m.restrict.is_none());
+    assert!(m.cleanup.is_empty());
     assert!(m.launch.is_none());
 }
 
@@ -134,7 +139,7 @@ fn filter_returns_only_matching_artifacts() {
         vars: Default::default(),
         launch: None,
         artifacts: vec![make_artifact("a"), make_artifact("b")],
-        restrict: None,
+        cleanup: Vec::new(),
     };
     assert_eq!(
         filter_manifest(&u, &linux(), &[]).unwrap().artifacts.len(),
@@ -153,7 +158,7 @@ fn filter_drops_artifacts_excluded_by_rules() {
         vars: Default::default(),
         launch: None,
         artifacts: vec![linux_only, make_artifact("b")],
-        restrict: None,
+        cleanup: Vec::new(),
     };
     assert_eq!(
         filter_manifest(&u, &linux(), &[]).unwrap().artifacts.len(),
@@ -165,18 +170,18 @@ fn filter_drops_artifacts_excluded_by_rules() {
 }
 
 #[test]
-fn filter_preserves_restrict() {
+fn filter_preserves_cleanup() {
     let u = Manifest {
         vars: Default::default(),
         launch: None,
         artifacts: Vec::new(),
-        restrict: Some(vec!["mods/**".into()]),
+        cleanup: vec![CleanupRule {
+            includes: vec!["mods/**".into()],
+            excludes: Vec::new(),
+        }],
     };
     let filtered = filter_manifest(&u, &linux(), &[]).unwrap();
-    assert_eq!(
-        filtered.restrict.as_ref().unwrap(),
-        &vec!["mods/**".to_owned()]
-    );
+    assert_eq!(filtered.cleanup, u.cleanup);
 }
 
 #[test]
@@ -365,4 +370,15 @@ fn a_url_artifact_keeps_the_integrity_it_was_given() {
         decode::<Artifact>(json!({ "path": "a", "source": { "url": "https://x/a" } })).integrity,
         None
     );
+}
+
+#[test]
+fn a_cleanup_rule_omits_empty_excludes_and_refuses_an_unknown_key() {
+    let m: Manifest = decode(json!({ "cleanup": [{ "includes": ["logs/**"] }] }));
+    assert_eq!(encode(&m)["cleanup"], json!([{ "includes": ["logs/**"] }]));
+
+    let unknown = json!({ "cleanup": [{ "includes": ["logs/**"], "keepOpys": true }] });
+    assert!(parse_manifest(&unknown.to_string()).is_err());
+    // A rule that names nothing to remove is a mistake, not an empty rule.
+    assert!(parse_manifest(&json!({ "cleanup": [{}] }).to_string()).is_err());
 }

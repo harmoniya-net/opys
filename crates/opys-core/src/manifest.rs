@@ -2,6 +2,7 @@ use opys_mojang_rules::OsOptions;
 use serde::{Deserialize, Serialize};
 
 use crate::artifact::Artifact;
+use crate::cleanup::CleanupRule;
 use crate::launch::Launch;
 use crate::valdefs::ValDefs;
 use crate::DecodeError;
@@ -12,7 +13,7 @@ pub struct Manifest {
     pub vars: ValDefs,
     pub launch: Option<Launch>,
     pub artifacts: Vec<Artifact>,
-    pub restrict: Option<Vec<String>>,
+    pub cleanup: Vec<CleanupRule>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -23,8 +24,8 @@ pub(crate) struct ManifestWire {
     launch: Option<Launch>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     artifacts: Option<Vec<Artifact>>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    restrict: Option<Vec<String>>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    cleanup: Vec<CleanupRule>,
 }
 
 impl From<ManifestWire> for Manifest {
@@ -33,20 +34,20 @@ impl From<ManifestWire> for Manifest {
             vars: raw.vars.unwrap_or_default(),
             launch: raw.launch,
             artifacts: raw.artifacts.unwrap_or_default(),
-            restrict: raw.restrict,
+            cleanup: raw.cleanup,
         }
     }
 }
 
 impl From<Manifest> for ManifestWire {
-    /// `vars` and `artifacts` are always emitted; `restrict` only when it has
-    /// entries, since an empty sweep list and no sweep list mean the same.
+    /// `vars` and `artifacts` are always emitted; `cleanup` only when it has
+    /// rules, since an empty list and no list mean the same.
     fn from(m: Manifest) -> Self {
         ManifestWire {
             vars: Some(m.vars),
             launch: m.launch,
             artifacts: Some(m.artifacts),
-            restrict: m.restrict.filter(|r| !r.is_empty()),
+            cleanup: m.cleanup,
         }
     }
 }
