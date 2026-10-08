@@ -1,0 +1,79 @@
+name: Launch matrix
+
+# The check that a manifest runs, on the handful of versions people actually
+# play: build a bundle, install it, start the game, twice. Everything else in
+# CI stops at a manifest that resolves.
+#
+# It is on a schedule rather than on every push because what it guards moves
+# without a commit here: the version documents are regenerated nightly, and a
+# horno release changes every one of them. A failure is as likely to be
+# theirs as ours. See scripts/launch-matrix/README.md.
+on:
+  schedule:
+    # After the documents' own nightly run (05:17 UTC), so it sees today's.
+    - cron: '43 6 * * *'
+  workflow_dispatch:
+    inputs:
+      cases:
+        description: 'Which list to run: slice, key or full'
+        default: slice
+
+permissions:
+  contents: read
+
+concurrency:
+  group: launch-matrix
+  cancel-in-progress: false
+
+jobs:
+  launch:
+    name: Launch the ${{ inputs.cases || 'slice' }} cases
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: node-napi
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: npm
+      - name: Install a display, software GL and what the game links against
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            xvfb x11-utils x11-xserver-utils imagemagick unzip \
+            libgl1-mesa-dri libglx-mesa0 libgl1 libegl1 libgles2 \
+            libxrandr2 libxcursor1 libxxf86vm1 libxi6 libxtst6 libxrender1 libxinerama1 libxext6 libx11-xcb1 \
+            libopenal1 libpulse0 libfreetype6 libfontconfig1
+          # lwjgl3ify will not start without it.
+          mkdir -p ~/.local/share
+      - run: npm ci
+      - run: npm run build
+      - name: Launch
+        working-directory: scripts/launch-matrix
+        env:
+          MATRIX_STAGE: xvfb
+          CASES: ${{ inputs.cases || 'slice' }}
+        run: |
+          node gen-cases.mjs
+          case "$CASES" in
+            slice) list=cases.slice.json ;;
+            key) list=cases.json ;;
+            full) list=cases.full.json ;;
+            *) echo "unknown list: $CASES" >&2; exit 1 ;;
+          esac
+          node run.mjs --cases "$list" --no-pool --budget 10
+      - name: Keep the logs and screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: launch-matrix
+          retention-days: 14
+          path: |
+            scripts/launch-matrix/work/*/*.log
+            scripts/launch-matrix/work/*/*.png
+            scripts/launch-matrix/work/*/result.json
+            scripts/launch-matrix/work/summary.json

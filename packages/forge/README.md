@@ -51,15 +51,13 @@ nothing for a launcher to know.
 
 `java('8')` up to 1.16.5, `'17'` from 1.17, `'21'` from 1.20.5, `'25'` for
 26.x. Every Minecraft version Forge publishes for has been launched that way
-(`scripts/launch-matrix`), with these exceptions, none of them opys's:
+(`scripts/launch-matrix`), with two exceptions, neither of them opys's:
 
 - **1.7.2** predates Java 8 and dies in LaunchWrapper on it. It runs on Java
   7: `java('7', { vendor: 'zulu' })`.
 - **1.16.4** reads a JDK internal that Java 8u321 changed, in its recommended
   build and its latest alike. Pin the last update before that:
   `java('8u312-b07')`.
-- **1.5 and 1.5.1** do not install: FML wants two files from a host that no
-  longer exists. See horno's `TODO.md`.
 
 ## Options
 

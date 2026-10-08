@@ -6,12 +6,19 @@ has settled. This is the check that a manifest _runs_, which nothing else in
 the repository makes: the unit suites and `test:int` stop at a manifest that
 resolves.
 
-It is not part of CI. A case downloads up to a gigabyte and starts a game.
+It does not run on a push — a case downloads up to a gigabyte and starts a
+game. A handful of cases run every morning instead
+(`.github/workflows/launch-matrix.yml`): Forge for 1.7.10, 1.12.2, 1.16.5,
+1.20.1 and 1.21.1, NeoForge for 1.21.1, and the newest version of each
+loader. What that guards moves without a commit here — the version documents
+regenerate nightly and a horno release rewrites all of them — so a red run
+is as likely to be theirs as ours. The same workflow runs the `key` or
+`full` list when dispatched by hand.
 
 ```sh
 npm run build                         # the matrix drives packages/cli/dist
 cd scripts/launch-matrix
-node gen-cases.mjs                    # cases.json (key set), cases.full.json
+node gen-cases.mjs                    # cases.json (key), cases.full.json, cases.slice.json
 node run.mjs                          # the key set
 node run.mjs --cases cases.full.json  # every Minecraft version Forge and NeoForge publish
 ```
@@ -19,8 +26,9 @@ node run.mjs --cases cases.full.json  # every Minecraft version Forge and NeoFor
 Each case leaves `work/<id>/`: `case.opys`, `build.log`, `cold.log`,
 `warm.log`, a screenshot of each launch, and `result.json`. A case that
 already has a result is skipped; `--force` runs it again, `--only <substr>`
-narrows the list, and `--keep` keeps the installation of a passing case
-(a failing one is always kept).
+narrows the list, `--keep` keeps the installation of a passing case (a
+failing one is always kept), and `--budget <minutes>` is how long a launch
+may take to show a window (30 by default). The run exits 1 if a case failed.
 
 A screenshot is the evidence worth looking at. A pass means a window and a
 live process, which a loader's error screen also satisfies.
@@ -66,9 +74,7 @@ allows it.
 
 `gen-cases.mjs` pins two builds to a Java they can start on, because the
 recommended Java 8 is too new for them: Forge 1.7.2 (Java 7) and Forge
-for 1.16.4 (8u312). Forge for 1.5 and 1.5.1 does not
-install at all — see horno's `TODO.md` — and shows an error dialog rather
-than exiting, so those two cases run out their budget.
+for 1.16.4 (8u312).
 
 ## Fixing horno against a real installation
 

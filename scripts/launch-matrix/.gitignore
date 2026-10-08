@@ -3,3 +3,4 @@ pool
 *.log
 cases.full.json
 cases.json
+cases.slice.json

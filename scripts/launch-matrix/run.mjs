@@ -2,7 +2,10 @@
 // (cold, then warm), and call it a pass when the game owns a window and is
 // still alive once it has settled. See README.md.
 //
-//   node run.mjs [--cases <file>] [--only <substr>] [--force] [--keep] [--no-pool]
+//   node run.mjs [--cases <file>] [--only <substr>] [--force] [--keep]
+//                [--no-pool] [--budget <minutes>]
+//
+// Exits 1 when any case failed.
 import { spawn, execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -19,6 +22,10 @@ const cases = JSON.parse(
   fs.readFileSync(opt('--cases') ?? path.join(HERE, 'cases.json'), 'utf8'),
 );
 const only = opt('--only');
+// How long a launch may take to show a window. Generous by default, because a
+// cold install on a slow link is most of half an hour; a scheduled run on a
+// fast one wants a hang to cost minutes.
+const BUDGET_MS = Number(opt('--budget') ?? 30) * 60e3;
 
 const READY =
   /Sound engine started|OpenAL initialized|SoundSystem.*started|Starting up SoundSystem|Created: \d+x\d+.*atlas|Forge Mod Loader has successfully loaded/;
@@ -367,8 +374,8 @@ for (const c of cases) {
     res.seeded = flag('--no-pool') ? 0 : link(POOL, vars.root, rels);
     console.log(`seeded  ${res.seeded}/${rels.length} file(s) from the pool`);
     for (const [tag, budgetMs] of [
-      ['cold', 30 * 60e3],
-      ['warm', 10 * 60e3],
+      ['cold', BUDGET_MS],
+      ['warm', Math.min(BUDGET_MS, 10 * 60e3)],
     ]) {
       const r = await launch(dir, tag, vars, {
         budgetMs,
@@ -403,3 +410,4 @@ fs.writeFileSync(
   path.join(WORK, 'summary.json'),
   JSON.stringify(summary, null, 2),
 );
+if (summary.some((s) => !s.pass)) process.exitCode = 1;
