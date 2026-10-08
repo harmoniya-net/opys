@@ -2,41 +2,30 @@
 
 [![npm](https://img.shields.io/npm/v/@opys/minecraft-serverlist.svg)](https://www.npmjs.com/package/@opys/minecraft-serverlist)
 
-Emit a Minecraft `servers.dat` (NBT) Artifact from a JS-side list of
-servers. Pre-populates the multiplayer server list so users land on
-your server with one click after first launch.
+Write the game's `servers.dat`, so the multiplayer screen already lists your servers when a player first opens it. The file is built from the list you give and carried in the bundle like any other file.
 
 ```sh
-npm install @opys/minecraft-serverlist
+npm install -D @opys/dev @opys/minecraft-serverlist
 ```
 
 ```js
-import { defineConfig } from '@opys/dev';
-import { minecraft } from '@opys/minecraft-vanilla';
-import { resolveServerlist } from '@opys/minecraft-serverlist';
+import { serverlist } from '@opys/minecraft-serverlist';
 
-export default defineConfig({
-  output: 'game.opys',
-  plugins: [
-    minecraft('1.20.1'),
-    {
-      name: 'servers',
-      build: () => ({
-        artifacts: [
-          resolveServerlist({
-            path: '${game_directory}/servers.dat',
-            entries: [{ name: 'My SMP', ip: 'mc.example.com', hidden: false }],
-          }),
-        ],
-      }),
-    },
-  ],
-});
+// In the `plugins` of defineConfig():
+serverlist([
+  { name: 'My SMP', ip: 'mc.example.com' },
+  { name: 'Friends', ip: 'friends.example.com:25566' },
+]),
 ```
 
-The `opys-minecraft-serverlist` crate encodes the uncompressed NBT itself.
-The bytes travel as a blob — in the bundle once published — so nothing is
-fetched for it at install time.
+- `serverlist(servers, options?)` is a plugin. An entry is `{ name, ip, rules? }`, and `options.path` defaults to `${game_directory}/servers.dat`.
+- The bytes are in the bundle, so nothing is fetched at install. The file is checked like any other, so a list the player changed is put back to yours.
+- Give every entry the same `rules`, or none. With more than one ruleset only one group's file is kept and the other entries are dropped.
+- An empty list still writes a file, and it replaces the player's list.
 
-Part of the [opys](https://github.com/harmoniya-net/opys) toolkit;
-re-exported by [`@opys/minecraft`](https://www.npmjs.com/package/@opys/minecraft).
+## Documentation
+
+- [serverlist plugin](https://harmoniya-net.github.io/opys/plugins/serverlist): options and what it contributes
+- [Accounts, servers, GPUs](https://harmoniya-net.github.io/opys/guide/extras): pre-filling the server list
+
+Part of the [opys](https://github.com/harmoniya-net/opys) toolkit; re-exported by [`@opys/minecraft`](https://www.npmjs.com/package/@opys/minecraft).

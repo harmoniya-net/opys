@@ -1,32 +1,29 @@
 # opys
 
-TypeScript monorepo for building and launching Minecraft client installations from declarative manifests.
+opys builds and launches Minecraft installations from a declarative manifest. A config file composes plugins (a loader, a Java runtime, mods) into the manifest at build time. The manifest is fully resolved: every artifact names one concrete source and, where one can be had, a hash, so an installer downloads and verifies and looks nothing up. `opys build` publishes it as a bundle, a single zip file, and `opys launch` installs and starts it. Values that belong to the launching machine, such as paths and the player's account, are supplied at launch and never baked into the bundle.
 
-## How it works
-
-1. **Write a config** (`opys.config.mjs`) — a list of plugins plus a `manifest` block.
-2. **Run `opys build`** — every plugin's `build` hook runs, the contributions are merged, and a **bundle** is written: the manifest and the files it carries, as one file.
-3. **Run `opys launch`** — builds the same manifest in memory, applies the `runClient` launch-time patch, installs every artifact (skipping cached ones), then spawns the process. `opys launch game.opys` does the same from a built bundle.
+**Documentation: [harmoniya-net.github.io/opys](https://harmoniya-net.github.io/opys/)** (English), [harmoniya-net.github.io/opys/uk](https://harmoniya-net.github.io/opys/uk/) (Ukrainian)
 
 ## Quick start
 
 ```sh
 npm install -g @opys/cli
+mkdir my-pack && cd my-pack
+npm init -y
 npm install -D @opys/dev @opys/minecraft
 ```
 
-The CLI is resolved globally; `opys.config.mjs` is imported from your project, so its `@opys/…` imports resolve through your project's `node_modules` — like any config-driven tool (Vite, Vitest, …).
+Put this in `opys.config.mjs`, then run `opys launch`. The first run downloads about a gigabyte: the game, its assets and a JDK. `opys build` writes `game.opys` instead, one file that anyone with opys can launch.
 
 ```js
-// opys.config.mjs
 import { defineConfig, userDataDir } from '@opys/dev';
-import { minecraft } from '@opys/minecraft';
+import { java, minecraft } from '@opys/minecraft';
 
 export default defineConfig({
   output: 'game.opys',
-  plugins: [minecraft('1.20.1')],
+  plugins: [minecraft('1.21.1'), java('21')],
   manifest: {
-    command: () => 'java',
+    command: ({ java }) => java.bin,
     args: ({ minecraft }) => [
       minecraft.jvmArgs,
       minecraft.mainClass,
@@ -34,79 +31,50 @@ export default defineConfig({
     ],
     workdir: '${game_directory}',
   },
-  // Runs on the launching machine, every launch — so machine paths go here,
-  // never in `manifest.vars`, which is baked into the bundle.
   runClient: (manifest) => ({
     vars: {
       ...manifest.vars,
       root: userDataDir('my-pack'),
       username: 'Player',
-      uuid: '…',
-      token: '…',
+      uuid: '00000000-0000-0000-0000-000000000001',
+      token: '0',
     },
   }),
 });
 ```
 
-```sh
-opys build     # → game.opys
-opys launch    # install + launch
-```
-
-## Architecture
-
-A **plugin** is a bundler-style `{ name, build }` object — pure to construct, all
-I/O inside `build`. Each plugin contributes `{ artifacts, vars, launch }`; the
-`@opys/dev` engine merges every plugin's contribution and assembles the manifest
-via the config's `command`/`args` accessor functions.
-
-The build side (`dev` + plugins) and the runtime side (`runtime`) are joined
-**only** by the manifest format — `runtime` depends on `core` alone.
-
 ## Packages
 
-| Package                               | Description                                            |
-| ------------------------------------- | ------------------------------------------------------ |
-| [`@opys/mojang-rules`](mojang-rules/) | Mojang-standard rule format — types only, no deps      |
-| [`@opys/core`](core/)                 | Manifest data model + shorthand + `Val` + the bundle   |
-| [`@opys/dev`](dev/)                   | Plugin SDK + `defineConfig` + the build engine         |
-| [`@opys/mojang`](mojang/)             | Mojang JSON parsers — Rust crate behind a napi binding |
-| [`@opys/minecraft`](minecraft/)       | Minecraft-domain plugins (minecraft/forge/curseforge…) |
-| [`@opys/java`](java/)                 | OpenJDK provisioning plugin                            |
-| [`@opys/runtime`](runtime/)           | Install + launch executor                              |
-| [`@opys/cli`](cli/)                   | `opys` CLI entry point                                 |
-
-### Dependency graph
-
-```
-cli       → dev, runtime, minecraft, java
-dev       → core
-runtime   → core
-minecraft → dev, core, mojang
-java      → dev, core
-core      → mojang-rules
-mojang    → mojang-rules
-```
-
-## Manifest format
-
-A manifest describes:
-
-- **`vars`** — interpolation variables, optionally OS-conditional
-- **`artifacts`** — files to install, each with a source, integrity, extract rules, and platform rules. A source is a `url`, or a `blob`: a file the manifest carries with it, named by its sha256.
-- **`launch`** — command, workdir, args, and env vars to spawn after installation
-
-It is published as a **bundle** — a zip holding the manifest's head
-(`opys.json`), its artifact list (`artifacts.json`) and one entry per blob
-(`blobs/<sha256>`). The head is first and uncompressed, so it reads without
-the rest.
+| Package                                                       | Description                                                                        |
+| ------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| [`@opys/cli`](packages/cli)                                   | The `opys` command: build, install and launch                                      |
+| [`@opys/dev`](packages/dev)                                   | Build SDK: `defineConfig`, the build engine, the plugin contract, `files`          |
+| [`@opys/core`](packages/core)                                 | The manifest data model and the bundle; the reference implementation of the format |
+| [`@opys/runtime`](packages/runtime)                           | Installs a manifest and starts its game, for a launcher you write                  |
+| [`@opys/minecraft`](packages/minecraft)                       | Meta-package: re-exports the plugins below in one import                           |
+| [`@opys/minecraft-vanilla`](packages/minecraft-vanilla)       | The `minecraft` plugin, and the version JSON mapping every loader shares           |
+| [`@opys/forge`](packages/forge)                               | Forge, for every Minecraft version in its index from 1.1 on                        |
+| [`@opys/neoforge`](packages/neoforge)                         | NeoForge, for every Minecraft version in its index from 1.20.2 on                  |
+| [`@opys/fabric`](packages/fabric)                             | Fabric                                                                             |
+| [`@opys/cleanroom`](packages/cleanroom)                       | Cleanroom, a successor to Forge for 1.12.2 on a modern Java                        |
+| [`@opys/lwjgl3ify`](packages/lwjgl3ify)                       | lwjgl3ify: Forge 1.7.10 on LWJGL 3 and a modern Java                               |
+| [`@opys/java`](packages/java)                                 | A Java runtime for each platform                                                   |
+| [`@opys/modrinth`](packages/modrinth)                         | Mods and modpacks from Modrinth                                                    |
+| [`@opys/curseforge`](packages/curseforge)                     | Mods and modpacks from CurseForge                                                  |
+| [`@opys/link`](packages/link)                                 | Any published file, from a pasted link, as a pinned artifact                       |
+| [`@opys/authliberty`](packages/authliberty)                   | Signs players in against your own auth server                                      |
+| [`@opys/bifrost`](packages/bifrost)                           | Mints a signed session token at launch, for `runClient`                            |
+| [`@opys/minecraft-serverlist`](packages/minecraft-serverlist) | Pre-fills the multiplayer server list                                              |
+| [`@opys/dgpuj`](packages/dgpuj)                               | Starts the game on the discrete GPU                                                |
+| [`@opys/mojang`](packages/mojang)                             | Parsers for Mojang's formats, and the strict rule evaluator                        |
+| [`@opys/mojang-rules`](packages/mojang-rules)                 | The types of Mojang's rule format                                                  |
 
 ## Development
 
 ```sh
-npm run build    # build all packages
-npm run test     # run unit tests
-npm run test:int # run integration tests
+npm run build           # build every package
+npm test                # unit suites
+cd docs && npm run dev  # the documentation site
 ```
 
-See [`CLAUDE.md`](CLAUDE.md) for the architecture, principles, and conventions.
+Also `npm run architecture` (holds the tree to `scripts/architecture/rules.mjs`), `npm run typecheck`, `npm run test:int` (live network, run locally only), `npm run test:architecture`, `npm run format`, `npm run release` (bump every workspace to one version, then build, commit, tag and publish) and `cargo test --workspace`. See [`CLAUDE.md`](CLAUDE.md) for the architecture, principles and conventions.

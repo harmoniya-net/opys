@@ -23,7 +23,7 @@ const cases = JSON.parse(
 );
 const only = opt('--only');
 // How long a launch may take to show a window. Generous by default, because a
-// cold install on a slow link is most of half an hour; a scheduled run on a
+// cold install on a slow link is most of half an hour; a CI run on a
 // fast one wants a hang to cost minutes.
 const BUDGET_MS = Number(opt('--budget') ?? 30) * 60e3;
 

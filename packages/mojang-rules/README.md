@@ -1,65 +1,29 @@
 # @opys/mojang-rules
 
-The Mojang-standard rule format — `os` / `features` / `rule` / `ruleset` — as
-TypeScript types.
-
-**Types only.** No zod, no native code, no dependencies. The package exists so
-both sides of the build/runtime wall can name the rule contract without
-pulling anything in.
-
-## Install
+The types of Mojang's rule format: a rule that allows or disallows something for an operating system or a feature. The package has no native code and no dependencies, and its only runtime code is two factory functions. Evaluation lives in `@opys/mojang`.
 
 ```sh
 npm install @opys/mojang-rules
 ```
 
-## Concepts
-
-A **MojangRule** either allows or disallows based on OS constraints, feature
-flags, or unconditionally:
-
-```ts
-type MojangRule =
-  | { action: 'allow' | 'disallow'; os: OsConstraint }
-  | { action: 'allow' | 'disallow'; features: FeatureConstraint }
-  | { action: 'allow' | 'disallow' };
-```
-
-A **MojangRuleset** is an array of rules. All rules must be satisfied for the
-ruleset to pass.
-
-The `Mojang` prefix is load-bearing: an opys manifest may also spell a rule as
-a shorthand string (`'allow.os.linux'`), and the type that admits both
-spellings is `@opys/core`'s `Rule` / `Ruleset`. Everything here is the
-expanded form those parse into, and the only form the evaluator sees.
-
-## Helpers
-
-```ts
-import { emptyRuleset, allowOsRuleset } from '@opys/mojang-rules';
-
-emptyRuleset(); // []
-allowOsRuleset('linux'); // [{ action: 'allow', os: { name: 'linux' } }]
-```
-
-## Evaluation
-
-Evaluation lives in Rust ([`opys-mojang-rules`](https://crates.io/crates/opys-mojang-rules))
-and reaches JavaScript through two packages with deliberately different
-contracts:
-
-| Package                                                  | Contract                                                               |
-| -------------------------------------------------------- | ---------------------------------------------------------------------- |
-| [`@opys/mojang`](https://npmjs.com/package/@opys/mojang) | **Strict** Mojang format. `'allow.os.linux'` is an error.              |
-| [`@opys/core`](https://npmjs.com/package/@opys/core)     | Additionally expands the opys shorthand, so it accepts both spellings. |
-
 ```ts
 import { satisfiesRuleset } from '@opys/mojang';
+import type { MojangRuleset } from '@opys/mojang-rules';
 
-satisfiesRuleset([{ action: 'allow', os: { name: 'linux' } }], {
-  name: 'linux',
-  version: '6.12',
-  arch: 'x86_64',
-});
-// true
+// Satisfied everywhere except osx.
+const notOsx: MojangRuleset = [
+  { action: 'allow' },
+  { action: 'disallow', os: { name: 'osx' } },
+];
+
+satisfiesRuleset(notOsx, { name: 'linux', version: '6.12', arch: 'x86_64' }); // true
 ```
+
+- A rule is an action (`allow` or `disallow`) with at most one constraint, `os` or `features`. A ruleset is an array of rules.
+- A ruleset is satisfied when every rule in it is. The evaluator does not pick the first or last match, so two `allow` rules for different operating systems are satisfied on no platform.
+- The `Mojang` prefix marks the expanded form. A manifest may also write a rule as shorthand, such as `'allow.os.linux'`; `@opys/core` accepts both spellings and `@opys/mojang` rejects the shorthand.
+- A rule with both `os` and `features` keeps only `os`, and a rule whose `os` cannot be read is read as a bare rule. Neither is reported as an error.
+
+## Documentation
+
+- [@opys/mojang-rules](https://harmoniya-net.github.io/opys/plugins/mojang-rules): the types, the helpers, how a ruleset is evaluated and the shorthand.

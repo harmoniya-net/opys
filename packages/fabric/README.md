@@ -2,17 +2,13 @@
 
 [![npm](https://img.shields.io/npm/v/@opys/fabric.svg)](https://www.npmjs.com/package/@opys/fabric)
 
-The Fabric mod loader — resolves a loader build from Fabric Meta, reads its
-launcher profile, and folds the profile's libraries and arguments onto the
-vanilla version it inherits from.
-
-Resolution and mapping live in the `opys-fabric` crate and reach JS through
-`@opys/fabric-binding`; this package is the typed surface over it, plus the
-`fabric()` plugin closure the build engine calls. A native builder embedding
-the crate gets the same fold and the same contribution.
+`fabric()` adds the Fabric mod loader to an opys installation: the game, its
+libraries and assets, and Fabric's own libraries and launch arguments. You name
+a Minecraft version, and the plugin picks a Fabric loader build for it from
+Fabric Meta. Use it in place of `minecraft()`.
 
 ```sh
-npm install @opys/fabric
+npm install -D @opys/dev @opys/fabric @opys/java
 ```
 
 ```js
@@ -31,25 +27,18 @@ export default defineConfig({
 });
 ```
 
-`version` is always the **Minecraft** version — a Fabric loader build is
-independent of it. Omit `loader` for the newest stable build targeting that
-version, or pin one: `fabric('1.21.4', { loader: '0.16.10' })`.
+- `version` is always the Minecraft version. There are no aliases and no build
+  ids: `'1.21.4-best'` is not a version for Fabric.
+- Without `loader` the newest stable loader build is used, so it can change
+  between builds. Pin one: `fabric('1.21.4', { loader: '0.16.10' })`.
+- Fabric needs nothing run on the launching machine before the game starts.
+- Launching needs `username`, `uuid` and `token`, from `runClient` or `--var`.
 
-## Options
+## Documentation
 
-- `loader` — pin a Fabric loader build. Default: the newest `stable` build
-  Meta lists for `version`.
-- `source` — Fabric Meta base URL. Default: `DEFAULT_FABRIC_META`
-  (`https://meta.fabricmc.net`).
-- `manifestBase` — the Mojang version manifest, when it is not Mojang's own —
-  a mirror, or a stand-in server under test.
-
-`resolveFabric(options)` returns the template directly — artifacts, vars, the
-per-OS `classpath` arms, and the decomposed `jvmArgs` / `mainClass` /
-`gameArgs` — for composing with other plugins.
-`resolveFabricVersion(game, meta?, loader?)` resolves just the release
-(`{ gameVersion, loaderVersion, profileUrl }`); with a loader pinned it makes
-no request at all.
+- https://harmoniya-net.github.io/opys/plugins/fabric
+- https://harmoniya-net.github.io/opys/guide/loaders
+- https://harmoniya-net.github.io/opys/guide/java
 
 Part of the [opys](https://github.com/harmoniya-net/opys) toolkit;
 re-exported by [`@opys/minecraft`](https://www.npmjs.com/package/@opys/minecraft).

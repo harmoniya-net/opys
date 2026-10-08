@@ -199,7 +199,10 @@ them, and the list below names the layers rather than every one:
   jar) and `minecraft-launcher-lib` (`get_libraries`: the loop, then the jar)
   both put it. It matters wherever a library carries a patched copy of a class
   the client jar also has: the library only wins by being ahead. opys had it
-  first until this was checked.
+  first until this was checked. Where a loader's document lists
+  `com.mojang:minecraft` as a library of its own — every build horno
+  installs — that entry supersedes the vanilla jar and takes whatever place
+  the document gave it, and there is no client jar left to put last.
 - **Forge has no eras.** Forge installs four ways — processors, a LaunchWrapper
   tweaker, a client-jar overlay, or a bare universal zip — but none of that is
   in `opys-forge`. Every build that has ever shipped is published as an
@@ -267,7 +270,7 @@ them, and the list below names the layers rather than every one:
   and was already wrong.
 - **One binding per crate.** `opys-<x>-napi` → `@opys/<x>-binding`, named after
   the module it exposes and nothing else; a JS package imports its own binding,
-  never a sibling's. Every addon statically links the same ~4 MB of
+  never a sibling's. Every addon that resolves anything statically links the same ~4 MB of
   ureq/rustls/serde across seven triples, and that cost is accepted on purpose:
   the crate split is the architecture and the binding count must not be allowed
   to shape it. Collapsing addons into one `.node` stays a live option, but it
@@ -383,11 +386,13 @@ What it holds:
 - **The source-level principles that can be read syntactically**: a `class` in
   `lib/` is an `Error` or a named exemption; no `as unknown as`; a `…Wire`
   type is never `pub`; a file that names `HashMap` says why.
-- **The hand-kept lists.** npm workspaces, the release workflow's
-  build / upload / download / publish steps per binding, `cargo publish` for
-  every publishable crate in dependency order, the version stamp, and the
-  smoke test. Adding a binding means touching all of them, and each has been
-  missed before.
+- **The hand-kept lists**, of which two are left: npm workspaces, in build
+  order, and the smoke test that loads every addon. The release's own lists —
+  a build, upload, download and publish step per binding, `cargo publish` per
+  crate in dependency order, the version stamp — were four more, each missed
+  at least once; they are derived now, from the directory listing and the
+  dependency graph, and what is checked is that the workflow still derives
+  them.
 
 What it cannot hold — purity, total transforms, that a resolver has exactly
 one impure call — stays a matter of review. The checks themselves are pure
@@ -412,8 +417,10 @@ interface Contribution {
 - **Pure to construct.** `forge('1.20.1-best')` returns `{ name, build }` with
   zero I/O; all network/fs work happens inside `build`.
 - **`build` is the only hook** — build-phase only; plugins never run at launch.
-- `definePlugin` is an identity helper; `defineArtifactPlugin` wraps a plugin
-  so its artifacts run through `applyOverrides`.
+- `definePlugin` returns the plugin with the post-processing methods
+  attached — `exclude`, `addRule`, `removeIntegrity`, `updateFirst`,
+  `updateMany` — each a selector plus what to do to the artifacts it matches,
+  applied to what `build` returns.
 
 ## Config & composition
 
@@ -491,7 +498,7 @@ export default defineConfig(({ mode }) => ({
   across every package.
 - **`npm test`** runs the unit suites (`tests/unit`). CI
   (`.github/workflows/ci.yml`) runs the architecture check, `cargo test` on
-  Linux and Windows, and `build` + `typecheck` + `test`; every `tsconfig` includes `tests/**`, so
+  Linux (and `opys-runtime`'s on Windows), and `build` + `typecheck` + `test`; every `tsconfig` that has tests includes `tests/**`, so
   `typecheck` covers test code too.
 - **`npm run test:int`** runs the live-network integration suite
   (`tests/integration`) against the real Mojang / Forge / Adoptium /

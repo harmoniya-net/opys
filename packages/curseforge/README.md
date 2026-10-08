@@ -2,86 +2,40 @@
 
 [![npm](https://img.shields.io/npm/v/@opys/curseforge.svg)](https://www.npmjs.com/package/@opys/curseforge)
 
-CurseForge mod-file plugin — resolves a list of CurseForge file
-references (numeric IDs or `/files/<id>` URLs) into downloadable
-Artifacts via the [CurseForge API](https://docs.curseforge.com/).
+The CurseForge plugins for opys: `curseforge` adds the mod files you name, and `curseforgeModpack` adds a whole modpack with its loader and overrides. Both need a CurseForge API key at build time.
 
 ```sh
-npm install @opys/curseforge
+npm install -D @opys/dev @opys/minecraft @opys/curseforge
 ```
 
 ```js
-import { defineConfig } from '@opys/dev';
-import { forge } from '@opys/forge';
+import { forge, java } from '@opys/minecraft';
 import { curseforge } from '@opys/curseforge';
 
-export default defineConfig({
-  output: 'game.opys',
-  plugins: [
-    forge('1.20.1-best'),
-    curseforge({
-      token: process.env.CURSEFORGE_TOKEN,
-      path: (info) => `\${game_directory}/mods/${info.filename}`,
-      files: [
-        238222, // Just Enough Items
-        'https://curseforge.com/.../files/5847', // JourneyMap
-      ],
-    }),
-  ],
-});
-```
+const token = process.env.CURSEFORGE_TOKEN;
+if (!token) throw new Error('Set CURSEFORGE_TOKEN to a CurseForge API key');
 
-Requires a [CurseForge API key](https://console.curseforge.com/)
-passed as `token` (or via the `CURSEFORGE_TOKEN` env var that the
-opys integration tests use).
-
-## Modpacks
-
-`curseforgeModpack({ token, file })` is the all-in-one modpack plugin.
-Point it at a CurseForge modpack file and it does everything: downloads
-and parses the pack's `manifest.json`, **detects the Minecraft version
-and mod loader**, stands up the matching loader (Fabric / Forge /
-NeoForge — which already bundles vanilla), installs every mod file, and
-extracts the pack's `overrides/`.
-
-```js
-import { defineConfig } from '@opys/dev';
-import { curseforgeModpack } from '@opys/curseforge';
-import { java } from '@opys/java';
-
-export default defineConfig({
-  output: 'game.opys',
-  plugins: [
-    curseforgeModpack({
-      token: process.env.CURSEFORGE_TOKEN,
-      file: 1040985, // a modpack's CurseForge file id or /files/<id> URL
-    }),
-    java('17'),
-  ],
-  manifest: {
-    command: ({ curseforgeModpack }) => curseforgeModpack.command,
-    args: ({ curseforgeModpack }) => [
-      curseforgeModpack.jvmArgs,
-      curseforgeModpack.mainClass,
-      curseforgeModpack.gameArgs,
+// In the `plugins` of defineConfig():
+plugins: [
+  forge('1.20.1'),
+  java('17'),
+  curseforge({
+    token,
+    path: (info) => '${game_directory}/mods/' + info.filename,
+    files: [
+      6717445, // a file id; the file's page URL works too
     ],
-    workdir: '${game_directory}',
-  },
-});
+  }),
+],
 ```
 
-Every supported loader exposes the same launch groups, so the `manifest`
-block is **loader-agnostic** — the same config launches a Fabric, Forge,
-or NeoForge pack. Notes:
+- The key is passed as `token`; the plugin does not read the environment itself. It is used at build time only, and the bundle installs without it.
+- A file is named by its file id (the number after `/files/` in the file's page URL), not its project id. A mod's dependencies are not added.
+- `curseforgeModpack({ token, file })` stands up the loader the pack names and unpacks its overrides. A Quilt pack fails the build. Add `java(...)` yourself.
 
-- **Token required** at build time (each file is resolved by ID through
-  the authenticated API); the resulting URLs are public, so `opys launch`
-  against a built manifest needs none.
-- **Java is separate.** Add `java(...)` yourself (match the major version
-  the pack's Minecraft release needs).
-- The manifest's `files` go to `mods/`; everything else (resourcepacks,
-  configs) ships in `overrides/`.
-- **Quilt** packs are unsupported — opys has no Quilt loader plugin.
+## Documentation
 
-Part of the [opys](https://github.com/harmoniya-net/opys) toolkit;
-re-exported by [`@opys/minecraft`](https://www.npmjs.com/package/@opys/minecraft).
+- [curseforge plugin](https://harmoniya-net.github.io/opys/plugins/curseforge): options, modpacks, the `loader` option
+- [Mods and files](https://harmoniya-net.github.io/opys/guide/mods): choosing between `modrinth`, `curseforge`, `links` and `files`
+
+Part of the [opys](https://github.com/harmoniya-net/opys) toolkit; re-exported by [`@opys/minecraft`](https://www.npmjs.com/package/@opys/minecraft).

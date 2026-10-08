@@ -2,20 +2,12 @@
 
 [![npm](https://img.shields.io/npm/v/@opys/minecraft-vanilla.svg)](https://www.npmjs.com/package/@opys/minecraft-vanilla)
 
-Vanilla Minecraft template — resolves the client JAR, asset index,
-asset objects, and library classpath for any released version. The
-substrate every forge-family loader (forge, neoforge, fabric,
-cleanroom, lwjgl3ify) builds on.
-
-Resolution and mapping live in the `opys-minecraft-vanilla` crate and reach JS
-through `@opys/minecraft-vanilla-binding`; this package is the typed surface
-over it, plus the `minecraft()` plugin closure the build engine calls.
-Each loader built on it ships its own crate and its own binding.
-A native builder embedding the crate gets the same mappers and the same
-contribution.
+The package behind the `minecraft()` plugin, which adds the vanilla client, its
+libraries, natives and assets, for any version Mojang has published. It also
+exports the mappers that every loader plugin shares.
 
 ```sh
-npm install @opys/minecraft-vanilla
+npm install -D @opys/dev @opys/minecraft-vanilla @opys/java
 ```
 
 ```js
@@ -25,7 +17,7 @@ import { java } from '@opys/java';
 
 export default defineConfig({
   output: 'game.opys',
-  plugins: [minecraft('1.20.1'), java('17')],
+  plugins: [minecraft('1.21.1'), java('21')],
   manifest: {
     command: ({ java }) => java.bin,
     args: ({ minecraft }) => [
@@ -38,23 +30,16 @@ export default defineConfig({
 });
 ```
 
-Pass no version (`minecraft()`) to resolve the latest stable release
-at build time.
+- `minecraft()` with no version takes whatever Mojang's latest release is on
+  the day you build. Name the version. `minecraft('latest')` is not an alias.
+- A loader plugin already contributes the vanilla game; do not add both.
+- Loader authors: nothing exported here folds an `inheritsFrom` document.
+- Launching needs `username`, `uuid` and `token`, from `runClient` or `--var`.
 
-## Mappers
+## Documentation
 
-The mappers are exported because they are the shared half of the loader
-family — `buildClasspath`, `buildLaunch`, `mapLibraries`,
-`mapAssetIndex`, `mapAssetObjects`, `mapClientJar`, and the pure
-`mapClientToTemplate(client, assets)`. A loader resolves a version JSON
-its own way (an installer zip, a launcher profile, a GitHub release) and
-then reuses these, so the per-OS classpath and the natives extraction
-rule have exactly one implementation.
-
-`fetchClient`, `clientToTemplate`, `fetchVersionManifest` and
-`fetchAssetManifest` are the fetching half. Every entry point takes an
-optional `manifestBase`, for a Mojang mirror or a stand-in server under
-test.
+- https://harmoniya-net.github.io/opys/plugins/minecraft
+- https://harmoniya-net.github.io/opys/plugins/minecraft-vanilla
 
 Part of the [opys](https://github.com/harmoniya-net/opys) toolkit;
 re-exported by [`@opys/minecraft`](https://www.npmjs.com/package/@opys/minecraft).

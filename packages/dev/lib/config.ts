@@ -42,7 +42,7 @@ export interface OpysConfig {
 }
 
 export interface OpysConfigContext {
-  /** Value of `opys build --mode <m>`; empty string when unset. */
+  /** Value of `--mode <m>`; the cli passes the command's name when unset. */
   mode: string;
 }
 

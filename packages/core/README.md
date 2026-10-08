@@ -2,141 +2,44 @@
 
 [![npm](https://img.shields.io/npm/v/@opys/core.svg)](https://www.npmjs.com/package/@opys/core)
 
-The manifest contract for opys: data model, opys shorthand, `Val`/`Valset`,
-glob, interpolation, and the bundle a manifest is published as. Behaviors are backed by the
-[`opys-core`](https://crates.io/crates/opys-core) Rust crate via
-napi-rs; domain types and small sugar helpers are hand-written TS.
+The manifest data model: the types a manifest is made of, the functions that read, write and check one, and the bundle it is published as. It is the reference implementation of the manifest format. Its functions are typed wrappers over native code; its types are plain data.
 
 ```sh
 npm install @opys/core
 ```
 
-## Domain types
+```js
+import {
+  blobFile,
+  hashBlobFile,
+  readBundleHead,
+  satisfiesRuleset,
+  writeBundle,
+} from '@opys/core';
 
-### `Source` — artifact origin
-
-An artifact's bytes come from one of two places: somewhere on the network, or
-a **blob** — a file the manifest carries with it, named by the hex sha256 of
-its bytes. Discriminated by which field is present, so narrow with
-`'url' in source` rather than a tag.
-
-```ts
-type Source = { url: string } | { blob: string };
-
-sourceUrl('https://example.com/file.jar');
-sourceBlob(blobId(bytes));
-```
-
-A blob artifact needs no `integrity`: its name already is one.
-
-### Blobs — files that travel with the manifest
-
-The manifest says _which_ bytes; where they are kept is separate. Once
-published they are entries of the bundle. Before that, on the machine that
-builds it, they are a table:
-
-```ts
-type BlobSource = { file: string } | { bytes: string }; // base64
-type Blobs = Record<string, BlobSource>; // blob id → where it is
-
-const { id, size } = await hashBlobFile('./server.jar');
-const blobs = { [id]: blobFile('./server.jar') };
-```
-
-### The bundle — the published form
-
-One file, and a plain zip (`unzip -l` reads it):
-
-```text
-opys.json        the head: format, vars, launch, restrict
-artifacts.json   the artifact list
-blobs/<sha256>   one entry per blob
-```
-
-The head is the first entry and is stored uncompressed, so it can be read
-without the megabytes that follow.
-
-```ts
-await writeBundle('server.opys', manifest, blobs);
-readBundleHead('server.opys'); // { format, vars, launch, restrict }
-readBundle('server.opys'); // the whole Manifest
-```
-
-### `ExtractRule` — zip extraction instructions
-
-Discriminated the same way: `file` → pick, `matches` → scan, otherwise dump.
-
-```ts
-type ExtractRule =
-  | { file: string; into: string } // single file
-  | { matches: string; into: string; ... } // glob match
-  | { into: string; clean?: boolean; ... }; // full extract
-
-extractPick('lwjgl.dll', '${natives_directory}');
-extractScan('*.so', '${natives_directory}', { excludes: ['META-INF/'] });
-extractDump('${natives_directory}', { clean: true, excludes: ['META-INF/'] });
-```
-
-### `Artifact` — a single installable artifact
-
-An artifact has a source, optional integrity/size checks, optional
-extract rules, and an optional ruleset that gates it per platform or
-feature. `extract` is one rule or an array of them — both are the format, and
-one rule is written bare — so read it with `extractRules(artifact)`, which
-gives a list either way.
-
-### `Rule` / `Ruleset` — how a rule is written
-
-A rule may be written two ways, and both are first-class: the opys shorthand
-string, or the expanded Mojang object. A ruleset is one rule or an array of
-them, and may be omitted entirely.
-
-```ts
-import type { Ruleset } from '@opys/core';
-
-const rules: Ruleset = 'allow.os.linux';
-const mixed: Ruleset = [
-  'allow.os.osx@^10\\.',
+// A rule is written as shorthand or as an object; both are the format.
+const rules = [
+  'allow.os.linux',
   { action: 'disallow', features: { demo: true } },
 ];
+satisfiesRuleset(rules, { name: 'linux', version: '', arch: 'x86_64' }); // true
+
+// A blob is named by the sha256 of its bytes; a bundle holds a manifest and its blobs.
+const { id } = await hashBlobFile('./server.jar');
+const blobs = { [id]: blobFile('./server.jar') };
+await writeBundle('server.opys', manifest, blobs); // manifest names { blob: id }
+const head = readBundleHead('server.opys'); // format, vars, launch, restrict
 ```
 
-`parseShortRuleset` expands either spelling into a `MojangRuleset` — the
-canonical form, re-exported from `@opys/mojang-rules`, and the only one the
-evaluator takes. `satisfiesRuleset` here accepts both spellings; the strict
-Mojang-only predicate lives in `@opys/mojang`.
+- A source is `{ url }` or `{ blob }`, told apart by which field is present. A blob artifact needs no `integrity`: its name is the hash.
+- A bundle is a plain zip: `opys.json` (the head, first and uncompressed), `artifacts.json` and `blobs/<sha256>`. `readBundleHead` reads the head without the artifact list.
+- `Rule` and `Ruleset` admit the shorthand and the expanded object. `MojangRule` and `MojangRuleset` are the expanded form, and the only one the evaluator takes. `satisfiesRuleset` here accepts both; the strict one is in `@opys/mojang`.
+- `filterManifest` filters artifacts only. `vars` and `launch` keep their conditional arms, and `resolveVars` takes a flat map of strings.
 
-### `Manifest`
+## Documentation
 
-```ts
-import { parseManifest, filterManifest, encodeManifest } from '@opys/core';
-
-const manifest = parseManifest(jsonString);
-const filtered = filterManifest(manifest, {
-  name: 'linux',
-  version: '',
-  arch: 'x86_64',
-});
-const wire = encodeManifest(filtered);
-```
-
-### `ValDefs` — interpolation variables with OS-conditional arms
-
-```ts
-import { filterManifest, resolveVars, interpolate } from '@opys/core';
-
-const flat = filterManifest(manifest, platform).vars; // OS-appropriate values
-const vars = resolveVars(flat); // resolve ${ref} chains
-const result = interpolate('${root}/assets', vars);
-```
-
-## The format is the contract
-
-Other opys packages layer on top:
-
-- [`@opys/dev`](https://www.npmjs.com/package/@opys/dev) — config +
-  plugin SDK that produces manifests.
-- [`@opys/runtime`](https://www.npmjs.com/package/@opys/runtime) —
-  install + launch executor that consumes manifests.
+- [@opys/core](https://harmoniya-net.github.io/opys/plugins/core): every export, with its signature.
+- [The manifest](https://harmoniya-net.github.io/opys/reference/manifest): every field of the format.
+- [The bundle format](https://harmoniya-net.github.io/opys/reference/bundle-format): the layout of the zip.
 
 Part of the [opys](https://github.com/harmoniya-net/opys) toolkit.

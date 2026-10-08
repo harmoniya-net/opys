@@ -1,67 +1,35 @@
 # @opys/dgpuj
 
-Provision the [`dgpuj`](https://github.com/harmoniya-net/dgpuj) launcher as an
-opys plugin. `dgpuj` forces the **discrete GPU** on hybrid-graphics systems and
-runs the JVM in-process, so it drops in as the launch `command` on every
-platform — forcing the dGPU on Windows/Linux and acting as a harmless
-passthrough on macOS.
+Start the game through [dgpuj](https://github.com/harmoniya-net/dgpuj), a small launcher that asks for the discrete GPU on machines with two graphics chips. Use `dgpuj.bin` as the launch `command` in place of `java.bin`; dgpuj then starts the JVM inside its own process.
 
-## Why
-
-GPU selection is decided per-process for the process that creates the GL
-context, with no inheritance — so a launcher that merely _spawns_ `javaw` can't
-force it (the child is a different process). `dgpuj` applies the per-OS hint to
-itself (`NvOptimusEnablement` export on Windows, NVIDIA PRIME env vars on Linux)
-and hosts the JVM via `JNI_CreateJavaVM`. See the
-[dgpuj README](https://github.com/harmoniya-net/dgpuj) for the gory details.
-
-## Usage
-
-Add `dgpuj()` alongside `java` and point the launch `command` at it.
-`@opys/java` exports `JAVA_HOME` by default, so dgpuj finds the JVM
-automatically — no extra args needed. It's re-exported from `@opys/minecraft`:
-
-```js
-import { defineConfig } from '@opys/dev';
-import { forge, java, dgpuj } from '@opys/minecraft';
-
-export default defineConfig(() => ({
-  output: 'game.opys',
-  plugins: [forge('1.20.1-best'), java('17'), dgpuj()],
-  manifest: {
-    command: ({ dgpuj }) => dgpuj.bin,
-    args: ({ forge }) => [forge.jvmArgs, forge.mainClass, forge.gameArgs],
-    workdir: '${game_directory}',
-  },
-}));
+```sh
+npm install -D @opys/dev @opys/minecraft @opys/dgpuj
 ```
 
-`dgpuj.bin` is the launcher binary. If nothing exports `JAVA_HOME` (e.g. you
-don't use `@opys/java`), tell dgpuj where the JVM is — prepend the `home` launch
-group (`args: ({ dgpuj, forge }) => [dgpuj.home, …]`, which expands to
-`--dgpuj-home ${java_home}`), or set `JAVA_HOME` / pass `--dgpuj-jvm <path>`
-yourself.
+```js
+import { java, minecraft } from '@opys/minecraft';
+import { dgpuj } from '@opys/dgpuj';
 
-## API
+// In the config passed to defineConfig():
+plugins: [minecraft('1.21.1'), java('21'), dgpuj()],
+manifest: {
+  command: ({ dgpuj }) => dgpuj.bin,
+  args: ({ dgpuj, minecraft }) => [
+    dgpuj.home,
+    minecraft.jvmArgs,
+    minecraft.mainClass,
+    minecraft.gameArgs,
+  ],
+  workdir: '${game_directory}',
+},
+```
 
-### `dgpuj(options?)`
+- It is a command and not a JVM argument because the GPU is chosen for the process that creates the graphics context. A launcher that only spawns `java` cannot choose for the child.
+- `dgpuj.home` expands to `--dgpuj-home ${java_home}`, which only the `java` plugin defines. Without it, dgpuj finds the JDK through `JAVA_HOME`.
+- Archives exist for Windows (`x86_64`, `aarch64`), Linux (`x86_64`) and macOS (`x86_64`, `aarch64`). There is none for Linux `aarch64`, so a launch there fails. Releases before `v0.3.0` cannot be used.
+- On macOS dgpuj forces no GPU. On Linux it sets NVIDIA's render-offload variables, and only when the proprietary NVIDIA driver is present.
 
-Returns a `ChainablePlugin` named `dgpuj`.
+## Documentation
 
-| option      | default                 | meaning                                                                     |
-| ----------- | ----------------------- | --------------------------------------------------------------------------- |
-| `version`   | `'latest'`              | Release selector: `'latest'`, `'prerelease'`, or an exact tag (`'v0.3.0'`). |
-| `platforms` | all 5 targets           | Override the platform set (`DEFAULT_PLATFORMS`).                            |
-| `repo`      | `'harmoniya-net/dgpuj'` | Source `owner/name`.                                                        |
-| `token`     | —                       | GitHub token to raise API rate limits.                                      |
-
-**Owns** the `dgpuj_dir` (default `${root}/dgpuj`) and per-OS `dgpuj_bin` vars.
-**Exposes** the `bin` and `home` launch groups.
-
-Each target's release archive (`.tar.gz`/`.zip`) is emitted as its own
-OS+arch-scoped artifact that extracts the single binary — so only the archive
-matching the launch platform downloads, and the tarball preserves the +x bit.
-
-## License
-
-MIT
+- [dgpuj plugin](https://harmoniya-net.github.io/opys/plugins/dgpuj): options, launch groups, variables, platforms
+- [Accounts, servers, GPUs](https://harmoniya-net.github.io/opys/guide/extras): using the discrete GPU

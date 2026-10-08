@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// End-to-end smoke test for the napi bindings. Loads all eight .node files,
+// End-to-end smoke test for the napi bindings. Loads every .node file,
 // exercises core decode/encode/resolve, the mojang parsers, the dev engine's
 // merge, a java resolve against a loopback stand-in for the Adoptium API, a
 // vanilla Minecraft resolve against one for the Mojang endpoints, and fabric

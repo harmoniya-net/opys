@@ -2,114 +2,49 @@
 
 [![npm](https://img.shields.io/npm/v/@opys/runtime.svg)](https://www.npmjs.com/package/@opys/runtime)
 
-Programmatic install and launch for opys manifests. Downloads artifacts in
-parallel, copies blobs out of the bundle, verifies integrity, extracts
-archives, and spawns the process. Backed by the
-[`opys-runtime`](https://crates.io/crates/opys-runtime) Rust crate via napi-rs.
+Installs an opys manifest and starts its game, for a launcher you write yourself. It downloads and verifies what the manifest lists, extracts archives, and spawns the process the manifest describes. Backed by the `opys-runtime` Rust crate via napi-rs.
 
 ```sh
-npm install @opys/runtime @opys/core
+npm install @opys/runtime
 ```
 
-## Manifest sources
+It needs Node.js 20 or newer. It depends on `@opys/core` for types only, and on its own binding.
 
-`install`, `buildLaunch`, `prepare` and `launch` all take a **manifest
-source** as their first argument — discriminated by which field is present:
+```js
+import { launch, RuntimeError } from '@opys/runtime';
 
-| Source                | What it is                                                                   |
-| --------------------- | ---------------------------------------------------------------------------- |
-| `{ bundle: path }`    | A bundle on disk — the published form of a manifest                          |
-| `{ url }`             | A bundle to download. It is fetched whole before anything is installed       |
-| `{ manifest, blobs }` | A manifest in memory, and where each blob it names is kept (see `@opys/dev`) |
-
-A bundle is a zip: the manifest's head, its artifact list, and one entry per
-blob. See [`@opys/core`](https://www.npmjs.com/package/@opys/core).
-
----
-
-## `install(source, options?)`
-
-Streams missing artifacts to `<finalPath>.partial` then renames them into
-place; extracts archives for artifacts with `extract` rules. A present file is
-skipped only if it still matches its hash. A failed integrity check throws
-`IntegrityError`.
-
-```ts
-import { install } from '@opys/runtime';
-
-await install(
-  { bundle: 'server.opys' },
-  {
-    vars: { root: '/srv/minecraft' },
-    concurrency: 16,
-    onProgress(p) {
-      if (p.phase === 'download') {
-        process.stderr.write(`  ${p.fetched}/${p.total}\r`);
-      }
-    },
-  },
-);
-```
-
-| Option            | Type                           | Default | Description                        |
-| ----------------- | ------------------------------ | ------- | ---------------------------------- |
-| `platform`        | `OsOptions`                    | auto    | Override OS/arch detection         |
-| `vars`            | `Record<string, string>`       | `{}`    | Extra vars; override manifest vars |
-| `features`        | `string[]`                     | `[]`    | Active features, for rule matching |
-| `concurrency`     | `number`                       | `8`     | Max parallel downloads             |
-| `onProgress`      | `(p: InstallProgress) => void` | —       | Progress callback                  |
-| `verifyIntegrity` | `boolean`                      | `true`  | Skip hash checks if `false`        |
-
----
-
-## `launch(source, options?)`
-
-Runs `install`, then spawns the process the manifest's launch block describes.
-Returns a `ChildProcess` — the caller decides how to wait on it. Pass
-`install: false` to skip the install.
-
-```ts
-import { launch } from '@opys/runtime';
-
-const child = await launch(
-  { bundle: 'server.opys' },
-  { vars: { root: '/srv/minecraft' } },
-);
-```
-
-`prepare(source, options?)` is the same without the spawn: it installs and
-returns the `LaunchSpec` — `{ command, args, workdir, envs }` — from one
-reading of the source, so a bundle is opened, or downloaded, once for both.
-`spawnLaunch(spec)` spawns one. `buildLaunch(source, options?)` returns the
-spec and installs nothing; for a bundle on disk it reads the head and never
-the artifact list.
-
----
-
-## `currentPlatform()`
-
-Returns the `OsOptions` for the current host.
-
-## Errors
-
-Every failure the runtime names is a `RuntimeError` with a `code`. Branch on
-the code, not on the message — the wording is free to change.
-
-| `code`       | Class             | When                                            | Also carries            |
-| ------------ | ----------------- | ----------------------------------------------- | ----------------------- |
-| `network`    | `NetworkError`    | A download was refused                          | `url`, `status`, `body` |
-| `integrity`  | `IntegrityError`  | A file on disk is not the one the manifest pins | `paths`                 |
-| `extraction` | `ExtractionError` | An archive could not be unpacked                | `artifactPath`, `cause` |
-| `manifest`   | `RuntimeError`    | The manifest or its bundle is not readable      |                         |
-| `io`         | `RuntimeError`    | The file system refused something               |                         |
-| `cancelled`  | `RuntimeError`    | The install was cancelled                       |                         |
-| `other`      | `RuntimeError`    | Anything else                                   |                         |
-
-```ts
 try {
-  await install(source);
+  const child = await launch(
+    { bundle: '/home/player/packs/my-pack.opys' },
+    {
+      vars: {
+        root: '/home/player/.local/share/my-pack',
+        username: 'Player',
+        uuid: '00000000-0000-0000-0000-000000000001',
+        token: '0',
+      },
+      install: {
+        onProgress(p) {
+          if (p.phase === 'download') {
+            process.stderr.write(`\r${p.fetched}/${p.total} files`);
+          }
+        },
+      },
+    },
+  );
+  child.on('exit', (code) => console.log(`the game exited with code ${code}`));
 } catch (err) {
-  if (err instanceof RuntimeError && err.code === 'network') retryLater();
+  if (err instanceof RuntimeError) console.error(`${err.code}: ${err.message}`);
   else throw err;
 }
 ```
+
+- The first argument of `install`, `prepare`, `buildLaunch` and `launch` is a source: `{ bundle }` (an absolute path on disk), `{ url }` (a bundle, downloaded whole first) or `{ manifest, blobs }` (in memory).
+- `install` only installs. `launch` is `prepare` (install, then return the `LaunchSpec`) followed by `spawnLaunch`. `buildLaunch` returns the spec and installs nothing.
+- Values that belong to the machine, such as `root`, are passed as `vars`. Pass `install: false` to `launch` or `prepare` to skip the install.
+- Every failure is a `RuntimeError` with a `code`: `network`, `integrity`, `extraction`, `manifest`, `io`, `cancelled` or `other`. Branch on the code or the class, never on the message.
+
+## Documentation
+
+- [@opys/runtime](https://harmoniya-net.github.io/opys/plugins/runtime): every export, option, progress event and error.
+- [Install and launch](https://harmoniya-net.github.io/opys/launcher/embedding): sources, options and a complete launcher.

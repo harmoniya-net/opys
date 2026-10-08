@@ -1,97 +1,35 @@
 # @opys/mojang
 
-Mojang protocol parsers — version manifest, client JSON, libraries, assets and
-Maven coordinates — as a typed wrapper over the
-[`opys-mojang`](https://crates.io/crates/opys-mojang) Rust crate.
-
-**No I/O.** The package parses; the caller fetches.
-
-## Install
+Parsers for the formats Mojang publishes: the version manifest, a version JSON, libraries, arguments, asset indexes and Maven coordinates. It also holds the strict Mojang rule evaluator. A typed wrapper over the `opys-mojang` Rust crate.
 
 ```sh
 npm install @opys/mojang
 ```
 
-## API
-
-### Version manifest
-
-```ts
+```js
 import {
-  parseVersionManifest,
-  findVersion,
-  latestRelease,
   VERSION_MANIFEST_URL,
+  findVersion,
+  parseClient,
+  parseVersionManifest,
 } from '@opys/mojang';
 
 const manifest = parseVersionManifest(
   await (await fetch(VERSION_MANIFEST_URL)).json(),
 );
-
-const version = findVersion(manifest, '1.20.1');
-const latest = latestRelease(manifest);
-
-console.log(latest.id); // e.g. '1.21.4'
-console.log(latest.url); // URL to the version JSON
-```
-
-### Client JSON
-
-```ts
-import { parseClient } from '@opys/mojang';
+const version = findVersion(manifest, '1.21.1'); // Version | undefined
+if (!version) throw new Error('no such version');
 
 const client = parseClient(await (await fetch(version.url)).json());
-
-client.id; // version string
 client.mainClass; // entry point class
 client.args.game; // game arguments
-client.args.jvm; // JVM arguments
-client.libraries; // library list with rules and artifact info
-client.assetIndex; // asset index reference
+client.libraries; // libraries, with their rules and artifact info
 ```
 
-### Asset manifest
+- The package does no I/O: you fetch the documents and it parses them. The fetch functions (`fetchVersionManifest`, `fetchAssetManifest`, `fetchClient`) are in `@opys/minecraft-vanilla`.
+- The rule functions (`satisfiesRuleset`, `decodeRuleset`, and the rest) take Mojang's own form only. The opys shorthand, such as `'allow.os.linux'`, is rejected; `@opys/core` accepts both spellings.
+- It also exports `parseAssetManifest`, `parseLibraries`, `parseArguments`, `mergeArgs` and the Maven helpers (`parseMaven`, `encodeMaven`, and others).
 
-```ts
-import { parseAssetManifest } from '@opys/mojang';
+## Documentation
 
-const assets = parseAssetManifest(
-  await (await fetch(client.assetIndex.url)).json(),
-);
-// assets.objects: Record<string, { hash: string; size: number }>
-```
-
-### Argument merging
-
-```ts
-import { mergeArgs } from '@opys/mojang';
-
-// Merge vanilla args with a mod loader's overrides
-const merged = mergeArgs(client.args, forgeArgs);
-```
-
-### Rules
-
-The addon links `opys-mojang-rules` in statically, so the rule surface ships
-here too — in **strict** Mojang form. The opys shorthand (`'allow.os.linux'`)
-is `@opys/core`'s own spelling and is rejected:
-
-```ts
-import { satisfiesRuleset, decodeRuleset } from '@opys/mojang';
-
-satisfiesRuleset(client.libraries[0].rules, {
-  name: 'linux',
-  version: '6.12',
-  arch: 'x86_64',
-});
-
-decodeRuleset('allow.os.linux'); // throws — use @opys/core for shorthand
-```
-
-## Notes
-
-- The only `@opys/*` dependency is
-  [`@opys/mojang-rules`](https://npmjs.com/package/@opys/mojang-rules), which
-  is types-only. Fetching, and every manifest concern, lives elsewhere.
-- Use `@opys/minecraft` to convert parsed Mojang types into Manifest artifacts,
-  and its `fetchVersionManifest` / `fetchAssetManifest` for retrying HTTP.
+- [@opys/mojang](https://harmoniya-net.github.io/opys/plugins/mojang): every export, with its signature and types.

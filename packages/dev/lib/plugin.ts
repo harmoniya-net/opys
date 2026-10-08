@@ -8,7 +8,7 @@ export interface BuildContext {
   log: (scope: string, message: string) => void;
   /** Absolute directory of `opys.config.mjs` — anchor for relative paths. */
   configDir: string;
-  /** Value of `opys build --mode <m>`; empty string when unset. */
+  /** Value of `--mode <m>`; the cli passes the command's name when unset. */
   mode: string;
 }
 

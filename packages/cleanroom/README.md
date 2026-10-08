@@ -2,13 +2,12 @@
 
 [![npm](https://img.shields.io/npm/v/@opys/cleanroom.svg)](https://www.npmjs.com/package/@opys/cleanroom)
 
-[Cleanroom](https://github.com/CleanroomMC/Cleanroom) loader plugin
-— a 1.12.2 Forge successor on a modern JVM. Resolves a published version
-document for the release; no installer is downloaded or run, at build time or
-at launch.
+`cleanroom()` adds [Cleanroom](https://github.com/CleanroomMC/Cleanroom), a
+successor to Forge for Minecraft 1.12.2 on a modern Java with LWJGL 3: the game,
+its libraries and assets. Use it in place of `minecraft()`.
 
 ```sh
-npm install @opys/cleanroom
+npm install -D @opys/dev @opys/cleanroom @opys/java
 ```
 
 ```js
@@ -31,9 +30,16 @@ export default defineConfig({
 });
 ```
 
-Accepts a Minecraft version (`'1.12.2'`, its newest recommended release), an
-alias (`'1.12.2-latest'` | `'1.12.2-recommended'` | `'1.12.2-best'`), or an
-exact release tag (`'0.6.13-alpha'`). Cleanroom needs JDK 25.
+- `version` is `1.12.2` (its `best` release), an alias such as
+  `1.12.2-latest`, or a release tag such as `0.6.13-alpha`. Only a tag pins.
+- Use Java 25. opys does not check the pairing.
+- Each release is a complete version document: no installer, no vanilla fetch.
+- Launching needs `username`, `uuid` and `token`, from `runClient` or `--var`.
+
+## Documentation
+
+- https://harmoniya-net.github.io/opys/plugins/cleanroom
+- https://harmoniya-net.github.io/opys/guide/loaders
 
 Part of the [opys](https://github.com/harmoniya-net/opys) toolkit;
 re-exported by [`@opys/minecraft`](https://www.npmjs.com/package/@opys/minecraft).

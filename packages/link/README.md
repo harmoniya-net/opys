@@ -2,53 +2,38 @@
 
 [![npm](https://img.shields.io/npm/v/@opys/link.svg)](https://www.npmjs.com/package/@opys/link)
 
-Turn a link into an artifact. Paste the URL you already have — a GitHub
-release asset, a file in a GitLab package registry, a mod's page on Modrinth or
-CurseForge, or any address a file is served from — and it resolves, at build
-time, to a pinned download.
+Turn a link into a pinned file. Paste a URL you already have, such as a GitHub release asset or a Modrinth version page, and `links()` finds its size and hash when you build.
 
 ```sh
-npm install @opys/link
+npm install -D @opys/dev @opys/minecraft @opys/link
 ```
 
 ```js
-import { defineConfig } from '@opys/dev';
+import { fabric, java } from '@opys/minecraft';
 import { links } from '@opys/link';
 
-export default defineConfig({
-  plugins: [
-    links({
-      path: (file) => '${game_directory}/mods/' + file.filename,
-      links: [
-        'https://modrinth.com/mod/sodium/version/JjCVwmVA',
-        'https://www.curseforge.com/minecraft/mc-mods/jei/files/6307712',
-        'https://github.com/owner/repo/releases/latest/download/mod.jar',
-        'https://example.com/files/custom-mod.jar',
-      ],
-      curseforgeToken: process.env.CURSEFORGE_TOKEN,
-    }),
-  ],
-});
+// In the `plugins` of defineConfig():
+plugins: [
+  fabric('1.21.1'),
+  java('21'),
+  links({
+    path: (file) => '${game_directory}/mods/' + file.filename,
+    links: [
+      'https://modrinth.com/mod/sodium/version/SMxNOGZ6',
+      'https://maven.fabricmc.net/net/fabricmc/fabric-api/fabric-api/0.116.0+1.21.1/fabric-api-0.116.0+1.21.1.jar',
+    ],
+  }),
+],
 ```
 
-| Link                                                                         | Hash comes from                                                        |
-| ---------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
-| `github.com/<owner>/<repo>/releases/download/<tag>/<asset>`                  | GitHub's asset digest; hashed at build time for assets older than 2024 |
-| `github.com/<owner>/<repo>/releases/latest/download/<asset>`                 | the same, on the newest stable release that has the asset              |
-| `<gitlab>/api/v4/projects/<project>/packages/generic/<pkg>/<version>/<file>` | the registry's `file_sha256`                                           |
-| `modrinth.com/…/version/<id>`                                                | Modrinth's sha1                                                        |
-| `curseforge.com/…/files/<id>`                                                | CurseForge's sha1 — needs `curseforgeToken`                            |
-| anything else                                                                | downloaded once at build time and hashed                               |
+- Every link is resolved at build time. The manifest carries the size, URL and hash, and a `latest` link is pinned to the release it meant that day.
+- GitHub release assets, GitLab generic-package files, Modrinth version pages and CurseForge file pages are recognised. CurseForge needs `curseforgeToken`. Any other `http(s)` URL is downloaded once and hashed.
+- A link that matches none of these is taken as the file itself, so a Modrinth project page, which has no `/version/`, pins its HTML and not a mod.
+- One `path` function serves every link in a `links()` call.
 
-Every link is resolved when the manifest is built, never on the installing
-machine. A `latest` link is pinned to the release it meant that day; rebuild the
-manifest to follow it.
+## Documentation
 
-`path` receives the resolved file — `{ link, provider, filename, url, size,
-integrity }` — and returns where it goes. Use `links()` once per destination.
+- [links plugin](https://harmoniya-net.github.io/opys/plugins/link): options, link shapes, where each hash comes from
+- [Mods and files](https://harmoniya-net.github.io/opys/guide/mods): choosing between `modrinth`, `curseforge`, `links` and `files`
 
-Tokens are optional except for CurseForge: `githubToken` raises the rate limit
-and reaches private repositories, `gitlabToken` reaches private projects.
-
-Part of the [opys](https://github.com/harmoniya-net/opys) toolkit;
-re-exported by [`@opys/minecraft`](https://www.npmjs.com/package/@opys/minecraft).
+Part of the [opys](https://github.com/harmoniya-net/opys) toolkit; re-exported by [`@opys/minecraft`](https://www.npmjs.com/package/@opys/minecraft).

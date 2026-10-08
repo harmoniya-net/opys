@@ -2,13 +2,12 @@
 
 [![npm](https://img.shields.io/npm/v/@opys/lwjgl3ify.svg)](https://www.npmjs.com/package/@opys/lwjgl3ify)
 
-[lwjgl3ify](https://github.com/GTNewHorizons/lwjgl3ify) plugin — a
-1.7.10 Forge variant on a modern LWJGL3 runtime. Bundles the required
-[UniMixins](https://github.com/LegacyModdingMC/UniMixins) mod
-automatically.
+`lwjgl3ify()` adds [lwjgl3ify](https://github.com/GTNewHorizons/lwjgl3ify), Forge on Minecraft
+1.7.10 with LWJGL 3 and a modern Java: the game plus the lwjgl3ify and UniMixins
+jars in `mods/`. Use it in place of `minecraft()` and `forge()`, with `java('25')`.
 
 ```sh
-npm install @opys/lwjgl3ify
+npm install -D @opys/dev @opys/lwjgl3ify @opys/java
 ```
 
 ```js
@@ -31,18 +30,16 @@ export default defineConfig({
 });
 ```
 
-Accepts a Minecraft version (`'1.7.10'`, its newest recommended release), an
-alias (`'1.7.10-latest'` | `'1.7.10-recommended'` | `'1.7.10-best'`), or an
-exact release tag (`'3.0.37'`).
+- `version` is `1.7.10` (its `best` release), an alias such as
+  `1.7.10-latest`, or a release tag such as `3.0.37`. Only a tag pins.
+- lwjgl3ify does not load without UniMixins. `unimixins: false` leaves it out,
+  and is for a pack that provides its own mixin runtime in `mods/`.
+- Launching needs `username`, `uuid` and `token`, from `runClient` or `--var`.
 
-Each release ships a complete `version.json`; opys resolves a published copy
-of it with every library given a path, a hash and a size. The lwjgl3ify mod
-jar and UniMixins are added under `mods/` from their GitHub releases — pass
-`token` if you hit GitHub's anonymous rate limit.
+## Documentation
 
-Pass `unimixins: false` to opt out of the bundled UniMixins (e.g.
-if you'll deploy a different mixin runtime via your own mod-folder
-pipeline).
+- https://harmoniya-net.github.io/opys/plugins/lwjgl3ify
+- https://harmoniya-net.github.io/opys/guide/loaders
 
 Part of the [opys](https://github.com/harmoniya-net/opys) toolkit;
 re-exported by [`@opys/minecraft`](https://www.npmjs.com/package/@opys/minecraft).
