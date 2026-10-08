@@ -17,3 +17,6 @@ message.txt
 
 # Scratch configs for hand-testing a loader.
 tmp/
+
+# VitePress
+docs/.vitepress/cache/

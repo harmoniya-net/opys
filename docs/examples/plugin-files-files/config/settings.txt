@@ -1,0 +1,2 @@
+max-fps = 120
+render-distance = 12

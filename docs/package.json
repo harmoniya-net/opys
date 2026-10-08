@@ -1,0 +1,15 @@
+{
+  "name": "opys-docs",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vitepress dev",
+    "build": "vitepress build",
+    "preview": "vitepress preview",
+    "examples": "node check-examples.mjs",
+    "i18n": "node i18n.mjs"
+  },
+  "devDependencies": {
+    "vitepress": "^1.6.4"
+  }
+}
