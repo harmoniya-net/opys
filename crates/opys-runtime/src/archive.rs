@@ -120,12 +120,54 @@ fn to_normalized(entry: TarEntry) -> NormalizedEntry {
     }
 }
 
+/// Where an entry named `out_name` lands under `dest_dir`, or a refusal.
+///
+/// An archive is somebody else's file — a modpack's overrides are whatever
+/// its author zipped — and an entry's name is the only thing in it that says
+/// where to write. So a name may only walk down: one that is absolute, or
+/// climbs with `..`, is refused rather than followed, and so is one that
+/// passes through a symlink, since a tar can plant a link in one entry and
+/// write through it in the next. Refused, not skipped: an archive that tries
+/// this is not one to install the rest of.
+async fn entry_dest(dest_dir: &Path, out_name: &str) -> std::io::Result<std::path::PathBuf> {
+    use std::path::Component;
+    let refuse = |why: &str| {
+        std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            format!("archive entry '{out_name}' {why}"),
+        )
+    };
+    let mut dest = dest_dir.to_path_buf();
+    let mut parts = Path::new(out_name).components().peekable();
+    while let Some(part) = parts.next() {
+        match part {
+            Component::Normal(name) => dest.push(name),
+            Component::CurDir => continue,
+            _ => {
+                return Err(refuse(
+                    "names a path outside the directory it is extracted into",
+                ))
+            }
+        }
+        // Every directory on the way down, not the entry itself: replacing a
+        // link an earlier extraction left is what `create_symlink` is for.
+        if parts.peek().is_some() {
+            if let Ok(meta) = fs::symlink_metadata(&dest).await {
+                if meta.file_type().is_symlink() {
+                    return Err(refuse("is written through a symbolic link"));
+                }
+            }
+        }
+    }
+    Ok(dest)
+}
+
 async fn write_entry(
     entry: &NormalizedEntry,
     dest_dir: &Path,
     out_name: &str,
 ) -> std::io::Result<()> {
-    let dest = dest_dir.join(out_name);
+    let dest = entry_dest(dest_dir, out_name).await?;
     if let Some(parent) = dest.parent() {
         fs::create_dir_all(parent).await?;
     }
@@ -287,6 +329,70 @@ mod tests {
         builder.append(&link_header, &[][..]).unwrap();
 
         builder.into_inner().unwrap()
+    }
+
+    fn zip_with(names: &[&str]) -> Vec<u8> {
+        let mut zip = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
+        for name in names {
+            zip.start_file(*name, zip::write::SimpleFileOptions::default())
+                .unwrap();
+            zip.write_all(b"hello").unwrap();
+        }
+        zip.finish().unwrap().into_inner()
+    }
+
+    /// An entry's name is the archive author's, and the archive is not ours.
+    /// One that climbs out of the directory, or is absolute, stops the
+    /// extraction and writes nothing where it pointed.
+    #[tokio::test]
+    async fn an_entry_that_leaves_the_directory_is_refused() {
+        for name in ["../escape.txt", "a/../../escape.txt", "/escape.txt"] {
+            let dir = tempfile::tempdir().unwrap();
+            let into = dir.path().join("into");
+            let archive_path = dir.path().join("bundle.zip");
+            std::fs::write(&archive_path, zip_with(&["ok.txt", name])).unwrap();
+
+            let err = extract_archive(archive_path.to_str().unwrap(), &into, None, None, None)
+                .await
+                .unwrap_err();
+
+            assert_eq!(err.kind(), std::io::ErrorKind::InvalidData, "{name}");
+            assert!(!dir.path().join("escape.txt").exists(), "{name}");
+        }
+    }
+
+    /// A tar can plant a link and then name a file beneath it. Following it
+    /// is the same escape with one more step.
+    #[tokio::test]
+    async fn an_entry_written_through_a_symlink_is_refused() {
+        let dir = tempfile::tempdir().unwrap();
+        let outside = dir.path().join("outside");
+        std::fs::create_dir(&outside).unwrap();
+        let into = dir.path().join("into");
+
+        let mut builder = tar::Builder::new(Vec::new());
+        let mut link = tar::Header::new_gnu();
+        link.set_entry_type(tar::EntryType::Symlink);
+        link.set_path("door").unwrap();
+        link.set_link_name(&outside).unwrap();
+        link.set_size(0);
+        link.set_cksum();
+        builder.append(&link, &[][..]).unwrap();
+        let mut file = tar::Header::new_gnu();
+        file.set_path("door/escape.txt").unwrap();
+        file.set_size(5);
+        file.set_mode(0o644);
+        file.set_cksum();
+        builder.append(&file, &b"hello"[..]).unwrap();
+        let archive_path = dir.path().join("bundle.tar");
+        std::fs::write(&archive_path, builder.into_inner().unwrap()).unwrap();
+
+        let err = extract_archive(archive_path.to_str().unwrap(), &into, None, None, None)
+            .await
+            .unwrap_err();
+
+        assert_eq!(err.kind(), std::io::ErrorKind::InvalidData);
+        assert!(!outside.join("escape.txt").exists());
     }
 
     /// Re-extracting the same archive into the same directory must not fail
