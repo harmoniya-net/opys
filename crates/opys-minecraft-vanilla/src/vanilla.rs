@@ -85,7 +85,9 @@ pub fn client_to_template(
     };
     flat("root", ".");
     flat("launcher_name", "opys");
-    flat("launcher_version", "0.1");
+    // What the game logs and sends as its launcher's version: opys's own, as
+    // released. It said `0.1` for as long as nobody looked.
+    flat("launcher_version", env!("CARGO_PKG_VERSION"));
     flat("version_type", &client.metadata.kind);
     flat("version_name", &client.id);
     flat("game_directory", "${root}/");

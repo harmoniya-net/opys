@@ -193,6 +193,14 @@ export function java(
   version: string,
   opts: Omit<JavaOptions, 'version'> = {},
 ): ChainablePlugin {
+  // A config is usually plain JavaScript, where nothing has checked this call.
+  // `java({ version: '17' })` reads naturally and used to fail deep in the
+  // build as "invalid type: map, expected a string".
+  if (typeof version !== 'string') {
+    throw new TypeError(
+      `java(version, options?) takes the version first, as a string — java('17') or java('17', { vendor: 'zulu' }) — and was given ${JSON.stringify(version)}`,
+    );
+  }
   return definePlugin({
     name: 'java',
     async build(ctx) {

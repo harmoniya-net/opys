@@ -207,6 +207,13 @@ describe('per-vendor resolvers', () => {
 });
 
 describe('java', () => {
+  it('says how it is called when handed the options object first', () => {
+    // @ts-expect-error — TypeScript refuses it too; a `.mjs` config has no TypeScript.
+    expect(() => java({ version: '17' })).toThrow(
+      /takes the version first, as a string/,
+    );
+  });
+
   it('returns a plugin named "java"', () => {
     const plugin = java('21');
     expect(plugin.name).toBe('java');
