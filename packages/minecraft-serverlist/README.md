@@ -34,9 +34,9 @@ export default defineConfig({
 });
 ```
 
-Encodes uncompressed NBT via [`nbtify`](https://www.npmjs.com/package/nbtify);
-the resulting bytes are inlined as a `bytes` Source so no fetch
-happens at install time.
+The `opys-minecraft-serverlist` crate encodes the uncompressed NBT itself.
+The bytes travel as a blob — in the bundle once published — so nothing is
+fetched for it at install time.
 
 Part of the [opys](https://github.com/harmoniya-net/opys) toolkit;
 re-exported by [`@opys/minecraft`](https://www.npmjs.com/package/@opys/minecraft).

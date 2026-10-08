@@ -2,9 +2,8 @@ node_modules
 dist/
 coverage/
 
-# build output — manifests produced by `opys build`
-output.json
-wizard.json
+# build output — bundles produced by `opys build`
+*.opys
 
 # Rust build artifacts
 target/

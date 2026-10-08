@@ -4,11 +4,11 @@
 
 Mojang-standard rule format (`os` / `features` / `MojangRule` / `MojangRuleset`) — the
 allow/disallow evaluator that gates entries in a `version.json` manifest.
-Pure Rust port of `@opys/mojang-rules`, no I/O.
+Pure, no I/O, and the only implementation: the `@opys/mojang-rules` npm
+package carries the types and nothing else.
 
-```toml
-[dependencies]
-opys-mojang-rules = "0.1"
+```sh
+cargo add opys-mojang-rules
 ```
 
 ```rust

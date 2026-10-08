@@ -26,7 +26,7 @@ import { defineConfig } from '@opys/dev';
 import { forge, java, dgpuj } from '@opys/minecraft';
 
 export default defineConfig(() => ({
-  output: 'output.json',
+  output: 'game.opys',
   plugins: [forge('1.20.1-best'), java('17'), dgpuj()],
   manifest: {
     command: ({ dgpuj }) => dgpuj.bin,

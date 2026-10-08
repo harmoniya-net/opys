@@ -3,9 +3,8 @@
 [![npm](https://img.shields.io/npm/v/@opys/dev.svg)](https://www.npmjs.com/package/@opys/dev)
 
 Build SDK for opys: `defineConfig`, the build engine, the plugin
-contract, artifact overrides, an artifact scanner, plus shared
-fetchers (GitHub Releases today; GitLab and Maven next) used by every
-loader plugin.
+contract, artifact overrides, `files` for what is on your disk, and
+`userDataDir`.
 
 ```sh
 npm install @opys/dev @opys/core

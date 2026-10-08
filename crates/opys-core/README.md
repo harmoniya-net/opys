@@ -5,9 +5,8 @@
 Manifest data model + opys shorthand + `Val`/`Valset` + the bundle — the
 reference implementation of the opys manifest format.
 
-```toml
-[dependencies]
-opys-core = "0.1"
+```sh
+cargo add opys-core
 ```
 
 ```rust
@@ -32,7 +31,7 @@ reimplementation would reimplement exactly. Other opys
 crates layer on top:
 
 - [`opys-runtime`](https://crates.io/crates/opys-runtime) consumes a
-  `Manifest` and installs + launches it.
+  bundle, or a `Manifest` and its blobs, and installs + launches it.
 - [`opys-mojang-rules`](https://crates.io/crates/opys-mojang-rules) is
   the rule evaluator this crate depends on.
 

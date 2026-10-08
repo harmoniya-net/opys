@@ -419,7 +419,7 @@ interface Contribution {
 
 ```js
 export default defineConfig(({ mode }) => ({
-  output: 'output.json',
+  output: 'game.opys',
   plugins: [forge('1.20.1-best'), java('17')],
   manifest: {
     command: ({ java }) => java.bin,

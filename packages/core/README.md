@@ -81,7 +81,9 @@ extractDump('${natives_directory}', { clean: true, excludes: ['META-INF/'] });
 
 An artifact has a source, optional integrity/size checks, optional
 extract rules, and an optional ruleset that gates it per platform or
-feature.
+feature. `extract` is one rule or an array of them — both are the format, and
+one rule is written bare — so read it with `extractRules(artifact)`, which
+gives a list either way.
 
 ### `Rule` / `Ruleset` — how a rule is written
 
