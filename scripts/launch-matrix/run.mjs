@@ -153,7 +153,14 @@ const xvfb = {
     );
     return {
       display,
-      env: { DISPLAY: display, LIBGL_ALWAYS_SOFTWARE: '1' },
+      env: {
+        DISPLAY: display,
+        LIBGL_ALWAYS_SOFTWARE: '1',
+        // 26.3 opens its window through SDL, which asks GLX for a visual
+        // Xvfb on Mesa 25 (the GitHub runner) does not offer, and then has no
+        // backend at all. EGL on the same display does work there.
+        SDL_VIDEO_FORCE_EGL: '1',
+      },
       close: () => server.kill('SIGKILL'),
     };
   },
