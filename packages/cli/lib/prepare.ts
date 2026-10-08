@@ -38,7 +38,7 @@ function parseVars(pairs: string[]): Record<string, string> {
  * memory and handed over as it is — the manifest, and its blobs still where
  * they are on this machine, with no bundle written in between. With a path,
  * that bundle is what gets installed, exactly as a deployed launcher would
- * install it: no config, no `dev`, and so no `runClient` either, which is
+ * install it: no config, no `dev`, and so no `run` either, which is
  * what `--var` is for.
  */
 export async function prepare(
@@ -93,9 +93,14 @@ export async function prepare(
   };
   const built = await buildManifest(config, ctx);
 
-  // runClient is the launch-time manifest patch: a shallow per-field override.
-  const manifest: Manifest = config.runClient
-    ? { ...built.manifest, ...config.runClient(built.manifest) }
+  // A plain `.mjs` config written for the old name would otherwise launch
+  // with its machine paths and credentials quietly left out.
+  if ('runClient' in config)
+    throw new Error('`runClient` is now `run`: rename the key');
+
+  // `run` is the launch-time manifest patch: a shallow per-field override.
+  const manifest: Manifest = config.run
+    ? { ...built.manifest, ...config.run(built.manifest) }
     : built.manifest;
 
   for (const [key, val] of Object.entries(manifest.vars)) {

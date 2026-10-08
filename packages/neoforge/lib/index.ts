@@ -17,7 +17,12 @@
  */
 
 import * as napi from '@opys/neoforge-binding';
-import { definePlugin, launchGroups, type ChainablePlugin } from '@opys/dev';
+import {
+  definePlugin,
+  launchGroups,
+  type ChainablePlugin,
+  type LoaderGroups,
+} from '@opys/dev';
 import type { Artifact, ConditionalVal, ValDefs } from '@opys/core';
 import type { LaunchParts } from '@opys/minecraft-vanilla';
 
@@ -98,7 +103,7 @@ export async function resolveNeoForgeVersion(
 export function neoforge(
   version: string,
   opts: Omit<NeoForgeOptions, 'version'> = {},
-): ChainablePlugin {
+): ChainablePlugin<'neoforge', LoaderGroups> {
   return definePlugin({
     name: 'neoforge',
     async build(ctx) {

@@ -142,7 +142,9 @@ export interface LinksPluginOptions extends LinkOptions {
  * ],
  * ```
  */
-export function links(options: LinksPluginOptions): ChainablePlugin {
+export function links(
+  options: LinksPluginOptions,
+): ChainablePlugin<'links', never> {
   return definePlugin({
     name: 'links',
     async build(ctx) {

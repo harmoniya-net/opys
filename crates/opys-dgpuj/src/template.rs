@@ -120,7 +120,7 @@ fn os_arch_ruleset(os: OsName, arch: OsArch) -> MojangRuleset {
 /// Each target's archive downloads into `${dgpuj_dir}` and unpacks the single
 /// binary beside it; only the one matching the launching machine installs.
 /// `dgpuj_bin` points at that binary, so a config wires
-/// `command: ({ dgpuj }) => dgpuj.bin`.
+/// `command: '@dgpuj.bin'`.
 pub fn resolve_dgpuj(options: &DgpujOptions) -> Result<DgpujTemplate, DgpujError> {
     let api = options.api_base.as_deref().unwrap_or(GITHUB_API_BASE);
     let repo = options.repo.as_deref().unwrap_or(DEFAULT_REPO);

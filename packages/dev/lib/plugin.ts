@@ -16,10 +16,17 @@ export interface BuildContext {
  * Named launch fragments a plugin exposes for the config's `command`/`args`
  * accessor functions — e.g. `{ jvmArgs, mainClass, gameArgs }` or `{ bin }`.
  */
-export type LaunchGroups = Record<string, Valset | Val | string>;
+export type LaunchGroups<G extends string = string> = Record<
+  G,
+  Valset | Val | string
+>;
 
-/** What a plugin's `build` hook returns. */
-export interface Contribution {
+/**
+ * What a plugin's `build` hook returns. `G` is the names of the launch
+ * groups in it — inferred from what `build` returns, so a plugin's type says
+ * what a config may reference without anybody writing the list twice.
+ */
+export interface Contribution<G extends string = string> {
   /** Artifacts to download/copy/extract. */
   artifacts?: Artifact[];
   /**
@@ -32,8 +39,11 @@ export interface Contribution {
   blobs?: Blobs;
   /** Manifest vars this plugin owns. */
   vars?: ValDefs;
-  /** Named launch fragments, exposed to the config's accessor functions. */
-  launch?: LaunchGroups;
+  /**
+   * Named launch fragments. A config puts them on the launch line by name:
+   * `args: ['@forge.jvmArgs']`.
+   */
+  launch?: LaunchGroups<G>;
   /**
    * Launch environment variables this plugin sets by default (e.g. `@opys/java`
    * exports `JAVA_HOME`). Merged across plugins in list order — last wins, with
@@ -48,9 +58,16 @@ export interface Contribution {
  * constructor (`forge('1.20.1-best')`, …) does zero I/O; all network/fs work
  * happens inside `build`, which the engine drives.
  */
-export interface OpysPlugin {
-  name: string;
-  build(ctx: BuildContext): Promise<Contribution> | Contribution;
+export interface OpysPlugin<
+  N extends string = string,
+  G extends string = string,
+> {
+  /**
+   * What a config calls this plugin in a reference — `@<name>.<group>` — so
+   * no two plugins of a config may share one. Rename with `.as('…')`.
+   */
+  name: N;
+  build(ctx: BuildContext): Promise<Contribution<G>> | Contribution<G>;
 }
 
 /**
@@ -67,20 +84,28 @@ export type ArtifactPatch =
  * untouched and chains read left-to-right. Transforms rewrite `artifacts` only;
  * `vars` / `launch` / `blobs` pass through. The engine sees only `name` / `build`.
  */
-export interface ChainablePlugin extends OpysPlugin {
+export interface ChainablePlugin<
+  N extends string = string,
+  G extends string = string,
+> extends OpysPlugin<N, G> {
+  /**
+   * The same plugin under another name — what a config needs when it uses
+   * one kind twice, since a reference goes by name.
+   */
+  as<const M extends string>(name: M): ChainablePlugin<M, G>;
   /** Drop every artifact matching `match`. */
-  exclude(match: Selector): ChainablePlugin;
+  exclude(match: Selector): ChainablePlugin<N, G>;
   /**
    * Append a ruleset (shorthand `'allow.os.osx'` or a full `Ruleset`) to each
    * matched artifact's existing `rules`.
    */
-  addRule(match: Selector, rules: RulesetInput): ChainablePlugin;
+  addRule(match: Selector, rules: RulesetInput): ChainablePlugin<N, G>;
   /** Clear `integrity` on matched artifacts, so they install unverified. */
-  removeIntegrity(match: Selector): ChainablePlugin;
+  removeIntegrity(match: Selector): ChainablePlugin<N, G>;
   /** Shallow-merge a patch into the first matching artifact (input order). */
-  updateFirst(match: Selector, patch: ArtifactPatch): ChainablePlugin;
+  updateFirst(match: Selector, patch: ArtifactPatch): ChainablePlugin<N, G>;
   /** Shallow-merge a patch into every matching artifact. */
-  updateMany(match: Selector, patch: ArtifactPatch): ChainablePlugin;
+  updateMany(match: Selector, patch: ArtifactPatch): ChainablePlugin<N, G>;
 }
 
 /** A pure artifact-list rewrite accumulated by one fluent call. */
@@ -91,10 +116,10 @@ const merge = (artifact: Artifact, patch: ArtifactPatch): Artifact => ({
   ...(typeof patch === 'function' ? patch(artifact) : patch),
 });
 
-function chainable(
-  base: OpysPlugin,
+function chainable<N extends string, G extends string>(
+  base: OpysPlugin<N, G>,
   transforms: readonly Transform[],
-): ChainablePlugin {
+): ChainablePlugin<N, G> {
   const push = (t: Transform) => chainable(base, [...transforms, t]);
   const mapMatched =
     (match: Selector, f: (a: Artifact) => Artifact): Transform =>
@@ -112,6 +137,8 @@ function chainable(
       );
       return { ...contribution, artifacts };
     },
+    as: (name) =>
+      chainable({ name, build: (ctx) => base.build(ctx) }, transforms),
     exclude: (match) =>
       push((arts) => arts.filter((a) => !matchesSelector(match, a))),
     addRule: (match, rules) =>
@@ -149,7 +176,15 @@ function chainable(
  * Identity helper for authoring a plugin — returns a {@link ChainablePlugin}
  * so the result carries the fluent `exclude` / `addRule` / `removeIntegrity` /
  * `updateFirst` / `updateMany` post-processing methods.
+ *
+ * The plugin's name and the launch groups it returns are part of its type,
+ * which is what lets `defineConfig` check `'@name.group'`. Both are inferred;
+ * a plugin that returns no `launch` exposes nothing. Where `build` returns a
+ * contribution of unknown shape — one handed over by a native crate — say
+ * what it holds: `definePlugin<'java', 'bin'>({ … })`.
  */
-export function definePlugin(plugin: OpysPlugin): ChainablePlugin {
+export function definePlugin<const N extends string, G extends string = never>(
+  plugin: OpysPlugin<N, G>,
+): ChainablePlugin<N, G> {
   return chainable(plugin, []);
 }

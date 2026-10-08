@@ -4,7 +4,7 @@ import type { OpysConfig } from '../../lib/config';
 
 const base: OpysConfig = {
   plugins: [],
-  manifest: { command: () => 'java', args: () => [] },
+  manifest: { command: 'java', args: [] },
 };
 
 describe('defineConfig', () => {

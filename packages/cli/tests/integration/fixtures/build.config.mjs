@@ -5,8 +5,8 @@ import { forge, java } from '@opys/minecraft';
 export default {
   plugins: [forge('1.20.1-best'), java('17')],
   manifest: {
-    command: ({ java }) => java.bin,
-    args: ({ forge }) => [forge.jvmArgs, forge.mainClass, forge.gameArgs],
+    command: '@java.bin',
+    args: ['@forge.jvmArgs', '@forge.mainClass', '@forge.gameArgs'],
     workdir: '${game_directory}',
   },
 };

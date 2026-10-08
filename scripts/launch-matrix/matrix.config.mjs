@@ -11,11 +11,8 @@ export default defineConfig({
     mc.java(JAVA, { vendor: JAVA_VENDOR || 'temurin' }),
   ],
   manifest: {
-    command: ({ java }) => java.bin,
-    args: (plugins) => {
-      const p = plugins[LOADER];
-      return [p.jvmArgs, p.mainClass, p.gameArgs];
-    },
+    command: '@java.bin',
+    args: [`@${LOADER}.jvmArgs`, `@${LOADER}.mainClass`, `@${LOADER}.gameArgs`],
     workdir: '${game_directory}',
   },
 });

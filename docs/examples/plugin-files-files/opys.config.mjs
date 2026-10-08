@@ -9,15 +9,11 @@ export default defineConfig({
     files({ from: 'config', to: '${game_directory}/config/${rel}' }),
   ],
   manifest: {
-    command: ({ java }) => java.bin,
-    args: ({ minecraft }) => [
-      minecraft.jvmArgs,
-      minecraft.mainClass,
-      minecraft.gameArgs,
-    ],
+    command: '@java.bin',
+    args: ['@minecraft.jvmArgs', '@minecraft.mainClass', '@minecraft.gameArgs'],
     workdir: '${game_directory}',
   },
-  runClient: (manifest) => ({
+  run: (manifest) => ({
     vars: {
       ...manifest.vars,
       root: userDataDir('my-pack'),

@@ -23,7 +23,7 @@ const logger = new Logger('silent');
 // cmdLaunch builds the manifest in-memory from this config — no bundle.
 const CONFIG = `export default {
   plugins: [],
-  manifest: { command: () => 'java', args: () => [], workdir: '.' },
+  manifest: { command: 'java', args: [], workdir: '.' },
 };`;
 
 beforeEach(async () => {
@@ -100,11 +100,11 @@ describe('cmdLaunch — happy path', () => {
     expect(launchMock).toHaveBeenCalledOnce();
   });
 
-  it('applies a runClient patch over the built manifest', async () => {
+  it('applies a run patch over the built manifest', async () => {
     const patched = `export default {
       plugins: [],
-      manifest: { command: () => 'java', args: () => [], workdir: '.' },
-      runClient: (m) => ({ vars: { ...m.vars, username: 'Steve' } }),
+      manifest: { command: 'java', args: [], workdir: '.' },
+      run: (m) => ({ vars: { ...m.vars, username: 'Steve' } }),
     };`;
     const cfg = await fixture(patched);
     await cmdLaunch(['-i', cfg], logger, 'launch');
@@ -113,12 +113,26 @@ describe('cmdLaunch — happy path', () => {
   });
 });
 
+describe('cmdLaunch — the name `run` replaced', () => {
+  it('refuses a config that still says runClient, by name', async () => {
+    const old = `export default {
+      plugins: [],
+      manifest: { command: 'java', args: [], workdir: '.' },
+      runClient: (m) => ({ vars: m.vars }),
+    };`;
+    const cfg = await fixture(old);
+    await expect(cmdLaunch(['-i', cfg], logger, 'launch')).rejects.toThrow(
+      /`runClient` is now `run`/,
+    );
+  });
+});
+
 describe('cmdLaunch — manifest var validation', () => {
-  it('throws when runClient produces a numeric var value', async () => {
+  it('throws when run produces a numeric var value', async () => {
     const patched = `export default {
       plugins: [],
-      manifest: { command: () => 'java', args: () => [], workdir: '.' },
-      runClient: () => ({ vars: { xmx: 4000 } }),
+      manifest: { command: 'java', args: [], workdir: '.' },
+      run: () => ({ vars: { xmx: 4000 } }),
     };`;
     const cfg = await fixture(patched);
     await expect(cmdLaunch(['-i', cfg], logger, 'launch')).rejects.toThrow(
@@ -126,11 +140,11 @@ describe('cmdLaunch — manifest var validation', () => {
     );
   });
 
-  it('accepts string and ConditionalVal[] var values from runClient', async () => {
+  it('accepts string and ConditionalVal[] var values from run', async () => {
     const patched = `export default {
       plugins: [],
-      manifest: { command: () => 'java', args: () => [], workdir: '.' },
-      runClient: () => ({
+      manifest: { command: 'java', args: [], workdir: '.' },
+      run: () => ({
         vars: {
           xmx: '4000',
           token: [{ value: 'abc', rules: [] }],

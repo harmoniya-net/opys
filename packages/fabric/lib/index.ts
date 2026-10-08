@@ -12,7 +12,12 @@
  */
 
 import * as napi from '@opys/fabric-binding';
-import { definePlugin, launchGroups, type ChainablePlugin } from '@opys/dev';
+import {
+  definePlugin,
+  launchGroups,
+  type ChainablePlugin,
+  type LoaderGroups,
+} from '@opys/dev';
 import type { Artifact, ConditionalVal, ValDefs } from '@opys/core';
 import type { LaunchParts } from '@opys/minecraft-vanilla';
 
@@ -100,7 +105,7 @@ export async function resolveFabricVersion(
 export function fabric(
   version: string,
   opts: Omit<FabricOptions, 'version'> = {},
-): ChainablePlugin {
+): ChainablePlugin<'fabric', LoaderGroups> {
   return definePlugin({
     name: 'fabric',
     async build(ctx) {

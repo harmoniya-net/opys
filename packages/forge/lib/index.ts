@@ -17,7 +17,12 @@
  */
 
 import * as napi from '@opys/forge-binding';
-import { definePlugin, launchGroups, type ChainablePlugin } from '@opys/dev';
+import {
+  definePlugin,
+  launchGroups,
+  type ChainablePlugin,
+  type LoaderGroups,
+} from '@opys/dev';
 import type { Artifact, ConditionalVal, ValDefs } from '@opys/core';
 import type { LaunchParts } from '@opys/minecraft-vanilla';
 
@@ -98,7 +103,7 @@ export async function resolveForgeVersion(
 export function forge(
   version: string,
   opts: Omit<ForgeOptions, 'version'> = {},
-): ChainablePlugin {
+): ChainablePlugin<'forge', LoaderGroups> {
   return definePlugin({
     name: 'forge',
     async build(ctx) {

@@ -50,8 +50,8 @@ const BASE_CONFIG = `export default {
   output: 'game.opys',
   plugins: [${INLINE_PLUGIN}],
   manifest: {
-    command: () => 'java',
-    args: () => ['-jar', 'a.jar'],
+    command: 'java',
+    args: ['-jar', 'a.jar'],
     workdir: '.',
   },
 };`;
@@ -81,7 +81,7 @@ describe('cmdBuild', () => {
     expect(bytes.subarray(0, 2).toString()).toBe('PK');
     // Entry names are stored as they are, and so is the head.
     expect(bytes.includes(`blobs/${X}`)).toBe(true);
-    expect(bytes.includes('"format": 1')).toBe(true);
+    expect(bytes.includes('"format": 2')).toBe(true);
   });
 
   it('fails, and leaves nothing behind, when a blob is not what its name says', async () => {
@@ -108,7 +108,7 @@ describe('cmdBuild', () => {
   it('prints the manifest as JSON when no output is configured', async () => {
     const noOutput = `export default {
       plugins: [${INLINE_PLUGIN}],
-      manifest: { command: () => 'java', args: () => [], workdir: '.' },
+      manifest: { command: 'java', args: [], workdir: '.' },
     };`;
     await writeConfig('opys.config.mjs', noOutput);
     const out: string[] = [];
@@ -139,8 +139,8 @@ describe('cmdBuild', () => {
       output: 'mode.opys',
       plugins: [${INLINE_PLUGIN}],
       manifest: {
-        command: () => 'java',
-        args: () => [ctx.mode],
+        command: 'java',
+        args: [ctx.mode],
         workdir: '.',
       },
     });`;

@@ -37,16 +37,16 @@ export default defineConfig({
   output: 'game.opys',
   plugins: [minecraft('1.21.1'), java('21'), welcome('Hello from opys')],
   manifest: {
-    command: ({ java }) => java.bin,
-    args: ({ welcome, minecraft }) => [
-      welcome.jvmArg,
-      minecraft.jvmArgs,
-      minecraft.mainClass,
-      minecraft.gameArgs,
+    command: '@java.bin',
+    args: [
+      '@welcome.jvmArg',
+      '@minecraft.jvmArgs',
+      '@minecraft.mainClass',
+      '@minecraft.gameArgs',
     ],
     workdir: '${game_directory}',
   },
-  runClient: (manifest) => ({
+  run: (manifest) => ({
     vars: {
       ...manifest.vars,
       root: userDataDir('my-pack'),

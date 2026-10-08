@@ -17,7 +17,12 @@
  */
 
 import * as napi from '@opys/minecraft-vanilla-binding';
-import { definePlugin, launchGroups, type ChainablePlugin } from '@opys/dev';
+import {
+  definePlugin,
+  launchGroups,
+  type ChainablePlugin,
+  type LoaderGroups,
+} from '@opys/dev';
 import type {
   Artifact,
   ConditionalVal,
@@ -204,7 +209,7 @@ export function buildLaunch(
 export function minecraft(
   version?: string,
   options: Omit<MinecraftOptions, 'version'> = {},
-): ChainablePlugin {
+): ChainablePlugin<'minecraft', LoaderGroups> {
   return definePlugin({
     name: 'minecraft',
     async build(ctx) {

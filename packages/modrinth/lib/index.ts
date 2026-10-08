@@ -20,7 +20,12 @@
  */
 
 import * as napi from '@opys/modrinth-binding';
-import { definePlugin, type ChainablePlugin } from '@opys/dev';
+import {
+  definePlugin,
+  type ChainablePlugin,
+  type LoaderGroups,
+  type OpysPlugin,
+} from '@opys/dev';
 import type { Artifact } from '@opys/core';
 import { minecraft } from '@opys/minecraft-vanilla';
 import { fabric } from '@opys/fabric';
@@ -163,7 +168,9 @@ export interface ModrinthPluginOptions extends ModrinthOptions {
 }
 
 /** Mod files resolved from the Modrinth API. */
-export function modrinth(options: ModrinthPluginOptions): ChainablePlugin {
+export function modrinth(
+  options: ModrinthPluginOptions,
+): ChainablePlugin<'modrinth', never> {
   return definePlugin({
     name: 'modrinth',
     async build(ctx) {
@@ -206,7 +213,7 @@ export async function resolveModrinthModpack(
 }
 
 /** The opys loader plugin a {@link LoaderSpec} stands for, with its defaults. */
-function loaderPlugin(spec: LoaderSpec): ChainablePlugin {
+function loaderPlugin(spec: LoaderSpec): OpysPlugin<string, LoaderGroups> {
   switch (spec.loader) {
     case 'fabric':
       return fabric(spec.minecraft, { loader: spec.fabricLoader });
@@ -228,7 +235,7 @@ export interface ModrinthModpackOptions {
    * with its own defaults; pass this to give it options of your own — a
    * mirror for the document index, say.
    */
-  loader?: (spec: LoaderSpec) => ChainablePlugin;
+  loader?: (spec: LoaderSpec) => OpysPlugin<string, LoaderGroups>;
 }
 
 /**
@@ -242,11 +249,11 @@ export interface ModrinthModpackOptions {
  * ```js
  * plugins: [modrinthModpack('xVcA1pSL'), java('17')],
  * manifest: {
- *   command: ({ modrinthModpack }) => modrinthModpack.command,
- *   args: ({ modrinthModpack }) => [
- *     modrinthModpack.jvmArgs,
- *     modrinthModpack.mainClass,
- *     modrinthModpack.gameArgs,
+ *   command: '@modrinthModpack.command',
+ *   args: [
+ *     '@modrinthModpack.jvmArgs',
+ *     '@modrinthModpack.mainClass',
+ *     '@modrinthModpack.gameArgs',
  *   ],
  *   workdir: '${game_directory}',
  * },
@@ -258,7 +265,7 @@ export interface ModrinthModpackOptions {
 export function modrinthModpack(
   ref: ModrinthModpackRef,
   options: ModrinthModpackOptions = {},
-): ChainablePlugin {
+): ChainablePlugin<'modrinthModpack', LoaderGroups> {
   return definePlugin({
     name: 'modrinthModpack',
     async build(ctx) {

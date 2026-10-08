@@ -5,15 +5,11 @@ export default defineConfig({
   output: 'game.opys',
   plugins: [lwjgl3ify('1.7.10'), java('25')],
   manifest: {
-    command: ({ java }) => java.bin,
-    args: ({ lwjgl3ify }) => [
-      lwjgl3ify.jvmArgs,
-      lwjgl3ify.mainClass,
-      lwjgl3ify.gameArgs,
-    ],
+    command: '@java.bin',
+    args: ['@lwjgl3ify.jvmArgs', '@lwjgl3ify.mainClass', '@lwjgl3ify.gameArgs'],
     workdir: '${game_directory}',
   },
-  runClient: (manifest) => ({
+  run: (manifest) => ({
     vars: {
       ...manifest.vars,
       root: userDataDir('my-pack'),

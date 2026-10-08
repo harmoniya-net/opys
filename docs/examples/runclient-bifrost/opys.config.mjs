@@ -5,17 +5,13 @@ export default defineConfig({
   output: 'game.opys',
   plugins: [minecraft('1.21.1'), java('21')],
   manifest: {
-    command: ({ java }) => java.bin,
-    args: ({ minecraft }) => [
-      minecraft.jvmArgs,
-      minecraft.mainClass,
-      minecraft.gameArgs,
-    ],
+    command: '@java.bin',
+    args: ['@minecraft.jvmArgs', '@minecraft.mainClass', '@minecraft.gameArgs'],
     workdir: '${game_directory}',
   },
   // Runs on every `opys launch` and `opys install` from this config, never on
   // `opys build`, so the signing key is needed only where the game starts.
-  runClient: (manifest) => ({
+  run: (manifest) => ({
     vars: {
       ...manifest.vars,
       root: userDataDir('my-pack'),

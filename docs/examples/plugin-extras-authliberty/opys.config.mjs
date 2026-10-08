@@ -15,16 +15,16 @@ export default defineConfig({
     java('21'),
   ],
   manifest: {
-    command: ({ java }) => java.bin,
-    args: ({ authliberty, minecraft }) => [
-      authliberty.jvmArgs,
-      minecraft.jvmArgs,
-      minecraft.mainClass,
-      minecraft.gameArgs,
+    command: '@java.bin',
+    args: [
+      '@authliberty.jvmArgs',
+      '@minecraft.jvmArgs',
+      '@minecraft.mainClass',
+      '@minecraft.gameArgs',
     ],
     workdir: '${game_directory}',
   },
-  runClient: (manifest) => ({
+  run: (manifest) => ({
     vars: {
       ...manifest.vars,
       root: userDataDir('my-pack'),

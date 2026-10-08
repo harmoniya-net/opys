@@ -295,9 +295,29 @@ them, and the list below names the layers rather than every one:
   only yields a half-merged layout that is neither.
 - **One merge, one implementation.** Folding plugin contributions into a
   `Manifest` is `opys-dev`'s `assemble`; `@opys/dev` calls it through
-  `@opys/dev-binding`. Driving the plugins stays in JS because plugins and the
-  author's `command`/`args` accessors are closures — but a native builder
-  running Rust plugins reaches the identical merge.
+  `@opys/dev-binding`. Driving the plugins stays in JS because plugins are
+  closures — but a native builder running Rust plugins reaches the identical
+  merge.
+- **The launch line is data, and a reference is resolved where the merge
+  is.** `args: ['@forge.jvmArgs', '-Xmx4G']`: a bare string that begins with
+  `@` names a launch group a plugin exposes, `\@file` is the literal `@file`,
+  and `command` and `workdir` take the same spelling. `assemble` replaces
+  each reference and refuses one that names nothing, listing what there is,
+  so a misspelt group stops the build rather than the launch. These were
+  functions over a map of plugins, which made a config code where it could be
+  data, typed the map as strings, and left the lookup in JS beside a merge
+  that was already in Rust. A reference goes by plugin name, so **a name
+  means one plugin**: two of a name are refused whether or not anything names
+  them, and `.as('…')` renames one. None of it is in the format — a manifest
+  holds the arguments, never a reference.
+- **A plugin's type says what it is called and what it exposes.**
+  `OpysPlugin<N, G>`: both are inferred from what `definePlugin` is given, the
+  groups from the `launch` its `build` returns, and `defineConfig` infers the
+  plugins and the launch line together. So `'@forge.jvmArg'` is a compile
+  error at the place it is written. What the compiler cannot see — a plugin
+  held as a bare `OpysPlugin`, strings from elsewhere, a plugin that is only
+  sometimes in the list — is left to `assemble`, which checks every string
+  whatever its type.
 - **Build-time HTTP is one blocking request.** `opys-dev`'s `http::get` — no
   retry, no streaming, no resume. It has two siblings, each for one caller:
   `post_json`, because CurseForge takes its batched file lookup as a document,
@@ -431,13 +451,17 @@ interface Contribution {
 }
 ```
 
+The name and the group names are part of a plugin's type —
+`OpysPlugin<'forge', 'command' | 'jvmArgs' | 'mainClass' | 'gameArgs'>` — and
+are inferred; see _Invariants_.
+
 - **Pure to construct.** `forge('1.20.1-best')` returns `{ name, build }` with
   zero I/O; all network/fs work happens inside `build`.
 - **`build` is the only hook** — build-phase only; plugins never run at launch.
 - `definePlugin` returns the plugin with the post-processing methods
   attached — `exclude`, `addRule`, `removeIntegrity`, `updateFirst`,
   `updateMany` — each a selector plus what to do to the artifacts it matches,
-  applied to what `build` returns.
+  applied to what `build` returns. `as` gives it another name.
 
 ## Config & composition
 
@@ -446,29 +470,30 @@ export default defineConfig(({ mode }) => ({
   output: 'game.opys',
   plugins: [forge('1.20.1-best'), java('17')],
   manifest: {
-    command: ({ java }) => java.bin,
-    args: ({ forge }) => [forge.jvmArgs, forge.mainClass, forge.gameArgs],
+    command: '@java.bin',
+    args: ['@forge.jvmArgs', '@forge.mainClass', '@forge.gameArgs'],
     workdir: '${game_directory}',
   },
-  // runClient runs on the LAUNCH machine, every launch — the only correct
+  // `run` runs on the LAUNCH machine, every launch — the only correct
   // place for machine-specific paths. `userDataDir()` resolves the *build*
   // machine's home dir, so it must NEVER go in `manifest.vars` (baked into
   // the bundle); it belongs here.
-  runClient: (manifest) => ({
+  run: (manifest) => ({
     vars: { ...manifest.vars, root: userDataDir('my-pack') },
   }),
 }));
 ```
 
-- Flat `plugins: []` — no roles, no cardinality enforcement.
+- Flat `plugins: []` — no roles, no cardinality enforcement, and no two of
+  one name.
 - The engine merges artifacts (concat + last-wins dedup by normalized path) and
   vars (plugin-list order, last-wins, **warns** on plugin-vs-plugin collision).
   `manifest.vars` is the silent override layer — but it is baked into
   the bundle, so it takes build-time constants only, never machine-specific
-  paths (those go in `runClient`).
-- `command` / `args` / `workdir` / `envs` are author functions over a
-  `PluginMap` keyed by plugin `name`. The author owns arg order — there is no
-  role-based default.
+  paths (those go in `run`).
+- `command` / `args` / `workdir` are data: literals, and `'@plugin.group'`
+  references to what a plugin exposes. The author owns arg order — there is
+  no role-based default.
 - **One var, one owner.** e.g. only the `java` plugin emits
   `java_home` / `java_bin` / `java_runtime_dir`.
 - `mode` is a build-time-only `ctx` value (`opys build --mode X`).
@@ -476,8 +501,8 @@ export default defineConfig(({ mode }) => ({
 ## Build & launch
 
 - **`opys build`** — `resolveConfig` → run every plugin's `build(ctx)` in
-  parallel → concat + dedup artifacts → merge vars → assemble `launch` via the
-  author functions → gather the blobs the manifest names → `writeBundle`. With
+  parallel → concat + dedup artifacts → merge vars → put `launch` together,
+  each reference replaced by the group it names → gather the blobs the manifest names → `writeBundle`. With
   no output named it prints the manifest as JSON instead: a view for reading
   and diffing, not something to install from, since the blobs are not in it.
 - **`opys install`** — the same build and install as `launch`, stopping before
@@ -489,7 +514,7 @@ export default defineConfig(({ mode }) => ({
   is built as the manifest says and the flag is added to what comes back.
 - **`opys launch`** — builds the manifest in-memory from the config and
   launches it directly; no bundle is written, and the blobs are read from
-  where they are. `runClient(manifest) => Partial<Manifest>` is the
+  where they are. `run(manifest) => Partial<Manifest>` is the
   launch-time patch, applied every launch (so e.g. `bifrost` mints a fresh
   token) as a shallow per-field override. The build/runtime wall holds — `cli`
   orchestrates `dev` + `runtime`, joined by the in-memory `Manifest` and its
@@ -497,7 +522,7 @@ export default defineConfig(({ mode }) => ({
   bundle with no `dev`.
 - **`opys launch <bundle>` / `opys install <bundle>`** — that second path,
   from the command line: install and launch a built bundle as it is. No config
-  is loaded, so there is no `runClient`; machine paths and credentials come
+  is loaded, so there is no `run`; machine paths and credentials come
   from `--var key=value`.
 - The runtime install pipeline is phased: resolve → scan → fetch → verify →
   extract → cleanup. A manifest comes from one of three sources — a bundle on

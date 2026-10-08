@@ -19,7 +19,12 @@
  */
 
 import * as napi from '@opys/cleanroom-binding';
-import { definePlugin, launchGroups, type ChainablePlugin } from '@opys/dev';
+import {
+  definePlugin,
+  launchGroups,
+  type ChainablePlugin,
+  type LoaderGroups,
+} from '@opys/dev';
 import type { Artifact, ConditionalVal, ValDefs } from '@opys/core';
 import type { LaunchParts } from '@opys/minecraft-vanilla';
 
@@ -95,7 +100,7 @@ export async function resolveCleanroomVersion(
 export function cleanroom(
   version: string,
   opts: Omit<CleanroomOptions, 'version'> = {},
-): ChainablePlugin {
+): ChainablePlugin<'cleanroom', LoaderGroups> {
   return definePlugin({
     name: 'cleanroom',
     async build(ctx) {

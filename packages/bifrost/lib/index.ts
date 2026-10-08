@@ -1,6 +1,6 @@
 /**
  * Mint a [Bifrost](https://gitlab.com/harmoniya/bifrost)-compatible JWT
- * locally so opys's `runClient` can launch Minecraft against a self-hosted
+ * locally so opys's `run` can launch Minecraft against a self-hosted
  * Yggdrasil server without going through the OAuth `/token` flow.
  *
  * Bifrost validates incoming bearer tokens with a single Ed25519 public key
@@ -50,7 +50,7 @@ export const DEFAULT_TTL_SECONDS: number = napi.defaultBifrostTtl();
 
 /**
  * Sign an Ed25519 JWT with `{ uuid, username, iat, exp }` claims and return
- * an auth object ready to spread into `runClient.vars`.
+ * an auth object ready to spread into `run.vars`.
  *
  * ```ts
  * const auth = resolveBifrost({

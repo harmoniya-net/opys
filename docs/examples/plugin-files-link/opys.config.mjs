@@ -15,11 +15,11 @@ export default defineConfig({
     }),
   ],
   manifest: {
-    command: ({ java }) => java.bin,
-    args: ({ fabric }) => [fabric.jvmArgs, fabric.mainClass, fabric.gameArgs],
+    command: '@java.bin',
+    args: ['@fabric.jvmArgs', '@fabric.mainClass', '@fabric.gameArgs'],
     workdir: '${game_directory}',
   },
-  runClient: (manifest) => ({
+  run: (manifest) => ({
     vars: {
       ...manifest.vars,
       root: userDataDir('my-pack'),

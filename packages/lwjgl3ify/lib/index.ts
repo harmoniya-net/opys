@@ -17,7 +17,12 @@
  */
 
 import * as napi from '@opys/lwjgl3ify-binding';
-import { definePlugin, launchGroups, type ChainablePlugin } from '@opys/dev';
+import {
+  definePlugin,
+  launchGroups,
+  type ChainablePlugin,
+  type LoaderGroups,
+} from '@opys/dev';
 import type { Artifact, ConditionalVal, ValDefs } from '@opys/core';
 import type { LaunchParts } from '@opys/minecraft-vanilla';
 
@@ -116,7 +121,7 @@ export async function resolveLwjgl3ifyVersion(
 export function lwjgl3ify(
   version: string,
   opts: Omit<Lwjgl3ifyOptions, 'version'> = {},
-): ChainablePlugin {
+): ChainablePlugin<'lwjgl3ify', LoaderGroups> {
   return definePlugin({
     name: 'lwjgl3ify',
     async build(ctx) {

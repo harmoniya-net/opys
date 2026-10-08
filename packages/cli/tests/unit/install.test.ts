@@ -23,7 +23,7 @@ const logger = new Logger('silent');
 
 const config = (args: string) => `export default {
   plugins: [],
-  manifest: { command: () => 'java', args: () => ${args}, workdir: '.' },
+  manifest: { command: 'java', args: ${args}, workdir: '.' },
 };`;
 
 const HORNO = `['-Dhorno.installer=x.jar', '-cp', 'a.jar', 'Main']`;

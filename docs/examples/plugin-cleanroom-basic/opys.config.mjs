@@ -5,15 +5,11 @@ export default defineConfig({
   output: 'game.opys',
   plugins: [cleanroom('1.12.2'), java('25')],
   manifest: {
-    command: ({ java }) => java.bin,
-    args: ({ cleanroom }) => [
-      cleanroom.jvmArgs,
-      cleanroom.mainClass,
-      cleanroom.gameArgs,
-    ],
+    command: '@java.bin',
+    args: ['@cleanroom.jvmArgs', '@cleanroom.mainClass', '@cleanroom.gameArgs'],
     workdir: '${game_directory}',
   },
-  runClient: (manifest) => ({
+  run: (manifest) => ({
     vars: {
       ...manifest.vars,
       root: userDataDir('my-pack'),

@@ -2,7 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { sourceUrl, type Artifact } from '@opys/core';
 import { buildManifest } from '../../lib/engine';
 import type { OpysConfig } from '../../lib/config';
-import type { BuildContext, Contribution, OpysPlugin } from '../../lib/plugin';
+import {
+  definePlugin,
+  type BuildContext,
+  type Contribution,
+  type OpysPlugin,
+} from '../../lib/plugin';
 
 const ctx: BuildContext = { log: () => {}, configDir: '/tmp', mode: '' };
 
@@ -16,7 +21,7 @@ const fakePlugin = (name: string, contribution: Contribution): OpysPlugin => ({
 // a bare string, and an arm with no rules drops the `rules` key. `opys build`
 // re-encodes before writing, so a bundle is unaffected either way.
 describe('buildManifest', () => {
-  it('merges artifacts and vars, assembles launch from accessors', async () => {
+  it('merges artifacts and vars, assembles launch from references', async () => {
     const config: OpysConfig = {
       plugins: [
         fakePlugin('base', {
@@ -37,8 +42,8 @@ describe('buildManifest', () => {
         }),
       ],
       manifest: {
-        command: ({ extra }) => extra!.bin as string,
-        args: ({ base }) => [base!.jvmArgs!, base!.mainClass!],
+        command: '@extra.bin',
+        args: ['@base.jvmArgs', '@base.mainClass'],
         workdir: '${root}',
       },
     };
@@ -54,8 +59,8 @@ describe('buildManifest', () => {
     const config: OpysConfig = {
       plugins: [fakePlugin('p', { vars: { root: 'plugin' } })],
       manifest: {
-        command: () => 'java',
-        args: () => [],
+        command: 'java',
+        args: [],
         vars: { root: 'override' },
         artifacts: [
           { path: 'lit.jar', source: sourceUrl('http://x/l'), rules: [] },
@@ -75,7 +80,7 @@ describe('buildManifest', () => {
         fakePlugin('a', { vars: { x: '1' } }),
         fakePlugin('b', { vars: { x: '2' } }),
       ],
-      manifest: { command: () => 'java', args: () => [] },
+      manifest: { command: 'java', args: [] },
     };
     await buildManifest(config, {
       log: (_scope, msg) => logs.push(msg),
@@ -89,7 +94,7 @@ describe('buildManifest', () => {
     const logs: string[] = [];
     const config: OpysConfig = {
       plugins: [fakePlugin('a', { vars: { x: '1' } })],
-      manifest: { command: () => 'java', args: () => [] },
+      manifest: { command: 'java', args: [] },
     };
     await buildManifest(config, {
       log: (_s, msg) => logs.push(msg),
@@ -113,8 +118,8 @@ describe('buildManifest', () => {
         }),
       ],
       manifest: {
-        command: () => 'java',
-        args: ({ p }) => [p!.single!, 'tail'],
+        command: 'java',
+        args: ['@p.single', 'tail'],
       },
     };
     const { manifest: m } = await buildManifest(config, ctx);
@@ -123,14 +128,14 @@ describe('buildManifest', () => {
     expect(m.launch?.args).toEqual(['-flag', 'tail']);
   });
 
-  it('resolves workdir and envs from accessor functions', async () => {
+  it('resolves a workdir written as a reference', async () => {
     const config: OpysConfig = {
       plugins: [fakePlugin('p', { launch: { dir: '/srv' } })],
       manifest: {
-        command: () => 'java',
-        args: () => [],
-        workdir: ({ p }) => p!.dir as string,
-        envs: ({ p }) => ({ HOME: p!.dir as string }),
+        command: 'java',
+        args: [],
+        workdir: '@p.dir',
+        envs: { HOME: '/srv' },
       },
     };
     const { manifest: m } = await buildManifest(config, ctx);
@@ -144,7 +149,7 @@ describe('buildManifest', () => {
         fakePlugin('java', { envs: { JAVA_HOME: '/jdk' } }),
         fakePlugin('other', { envs: { OTHER: '1' } }),
       ],
-      manifest: { command: () => 'x', args: () => [] },
+      manifest: { command: 'x', args: [] },
     };
     const { manifest: m } = await buildManifest(config, ctx);
     expect(m.launch?.envs).toEqual({ JAVA_HOME: '/jdk', OTHER: '1' });
@@ -154,8 +159,8 @@ describe('buildManifest', () => {
     const config: OpysConfig = {
       plugins: [fakePlugin('java', { envs: { JAVA_HOME: '/plugin' } })],
       manifest: {
-        command: () => 'x',
-        args: () => [],
+        command: 'x',
+        args: [],
         envs: { JAVA_HOME: '/override' },
       },
     };
@@ -170,7 +175,7 @@ describe('buildManifest', () => {
         fakePlugin('a', { envs: { DUP: 'first' } }),
         fakePlugin('b', { envs: { DUP: 'second' } }),
       ],
-      manifest: { command: () => 'x', args: () => [] },
+      manifest: { command: 'x', args: [] },
     };
     const { manifest: m } = await buildManifest(config, {
       ...ctx,
@@ -183,7 +188,7 @@ describe('buildManifest', () => {
   it('defaults workdir to "." and envs to {} when omitted', async () => {
     const config: OpysConfig = {
       plugins: [],
-      manifest: { command: () => 'java', args: () => [] },
+      manifest: { command: 'java', args: [] },
     };
     const { manifest: m } = await buildManifest(config, ctx);
     expect(m.launch?.workdir).toBe('.');
@@ -194,8 +199,8 @@ describe('buildManifest', () => {
     const config: OpysConfig = {
       plugins: [],
       manifest: {
-        command: () => 'java',
-        args: () => [],
+        command: 'java',
+        args: [],
         envs: { KEY: 'val' },
         cleanup: [{ includes: ['/srv/mods/**'], excludes: ['*.bak'] }],
       },
@@ -210,15 +215,15 @@ describe('buildManifest', () => {
   it('omits cleanup when the config provides an empty list', async () => {
     const config: OpysConfig = {
       plugins: [],
-      manifest: { command: () => 'java', args: () => [], cleanup: [] },
+      manifest: { command: 'java', args: [], cleanup: [] },
     };
     expect((await buildManifest(config, ctx)).manifest.cleanup).toBeUndefined();
   });
 
   it('refuses the field cleanup replaced, by name', async () => {
     const manifest = {
-      command: () => 'java',
-      args: () => [],
+      command: 'java',
+      args: [],
       restrict: ['mods/**'],
     };
     await expect(buildManifest({ plugins: [], manifest }, ctx)).rejects.toThrow(
@@ -230,8 +235,8 @@ describe('buildManifest', () => {
     const config: OpysConfig = {
       plugins: [],
       manifest: {
-        command: () => 'java',
-        args: () => ['${game_dir}'],
+        command: 'java',
+        args: ['${game_dir}'],
         vars: { game_dir: [{ value: '/home/user/.minecraft', rules: [] }] },
       },
     };
@@ -251,12 +256,58 @@ describe('buildManifest', () => {
         }),
       ],
       manifest: {
-        command: () => 'java',
-        args: ({ p }) => ['${root}', p!.extra!],
+        command: 'java',
+        args: ['${root}', '@p.extra'],
       },
     };
     const { manifest: m } = await buildManifest(config, ctx);
     expect(m.vars).toEqual({ root: '/data' });
     expect(m.launch?.args).toEqual(['${root}', '--flag']);
+  });
+
+  it('refuses a reference to something no plugin exposes, saying what there is', async () => {
+    const config: OpysConfig = {
+      plugins: [
+        fakePlugin('forge', { launch: { jvmArgs: [], mainClass: 'M' } }),
+      ],
+      manifest: { command: 'java', args: ['@forge.jvmArg'] },
+    };
+    await expect(buildManifest(config, ctx)).rejects.toThrow(
+      "'forge' exposes no 'jvmArg' (it has: jvmArgs, mainClass)",
+    );
+  });
+
+  it('takes "\\@" as a literal at sign', async () => {
+    const config: OpysConfig = {
+      plugins: [],
+      manifest: { command: 'java', args: ['\\@jvm.args'] },
+    };
+    const { manifest: m } = await buildManifest(config, ctx);
+    expect(m.launch?.args).toEqual(['@jvm.args']);
+  });
+
+  it('refuses two plugins of one name, and takes them once one is renamed', async () => {
+    const twice = (second: OpysPlugin): OpysConfig => ({
+      plugins: [fakePlugin('files', { launch: { a: '1' } }), second],
+      manifest: { command: 'java', args: ['@files.a'] },
+    });
+    await expect(
+      buildManifest(twice(fakePlugin('files', {})), ctx),
+    ).rejects.toThrow("two plugins are named 'files'");
+
+    const renamed = definePlugin({ name: 'files', build: () => ({}) }).as(
+      'extra',
+    );
+    expect(renamed.name).toBe('extra');
+    const { manifest: m } = await buildManifest(twice(renamed), ctx);
+    expect(m.launch?.args).toEqual(['1']);
+  });
+
+  it('refuses a launch line still written as a function, by name', async () => {
+    const manifest = { command: 'java', args: () => [] };
+    await expect(
+      // What a plain `.mjs` config written for the old API hands over.
+      buildManifest({ plugins: [], manifest } as never, ctx),
+    ).rejects.toThrow(/manifest\.args.*no longer a function/);
   });
 });

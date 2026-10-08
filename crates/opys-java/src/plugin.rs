@@ -21,7 +21,7 @@ pub struct JavaBuild {
 
 /// Provision a JDK runtime. Solely owns the `java_home` / `java_bin` /
 /// `java_runtime_dir` vars and exposes `bin` as a launch group, so a config
-/// wires the launch command with `command: ({ java }) => java.bin`.
+/// wires the launch command with `command: '@java.bin'`.
 pub fn build_java(options: &JavaOptions) -> Result<JavaBuild, JavaError> {
     let template = resolve_java(options)?;
 

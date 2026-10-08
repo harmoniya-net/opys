@@ -120,18 +120,20 @@ export async function resolveDgpuj(
  * ```js
  * import { dgpuj } from '@opys/dgpuj';
  * // plugins: [forge('1.20.1-best'), java('17'), dgpuj()]
- * command: ({ dgpuj }) => dgpuj.bin,
- * args: ({ dgpuj, forge }) => [
- *   dgpuj.home, forge.jvmArgs, forge.mainClass, forge.gameArgs,
+ * command: '@dgpuj.bin',
+ * args: [
+ *   '@dgpuj.home', '@forge.jvmArgs', '@forge.mainClass', '@forge.gameArgs',
  * ],
  * ```
  */
-export function dgpuj(options: DgpujOptions = {}): ChainablePlugin {
+export function dgpuj(
+  options: DgpujOptions = {},
+): ChainablePlugin<'dgpuj', 'bin' | 'home'> {
   return definePlugin({
     name: 'dgpuj',
     async build(ctx) {
       const built = (await napi.buildDgpuj(options)) as {
-        output: { contribution: Contribution };
+        output: { contribution: Contribution<'bin' | 'home'> };
         release: DgpujRelease;
       };
       const { contribution } = built.output;

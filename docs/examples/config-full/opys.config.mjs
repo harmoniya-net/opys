@@ -8,17 +8,13 @@ export default defineConfig(({ mode }) => ({
     vars: {
       motd: mode === 'release' ? 'Welcome' : 'Development build',
     },
-    command: ({ java }) => java.bin,
-    args: ({ minecraft }) => [
-      minecraft.jvmArgs,
-      minecraft.mainClass,
-      minecraft.gameArgs,
-    ],
+    command: '@java.bin',
+    args: ['@minecraft.jvmArgs', '@minecraft.mainClass', '@minecraft.gameArgs'],
     workdir: '${game_directory}',
     envs: { PACK_NAME: 'config-full' },
     cleanup: [{ includes: ['${game_directory}/mods/*.jar'] }],
   },
-  runClient: (manifest) => ({
+  run: (manifest) => ({
     vars: {
       ...manifest.vars,
       root: userDataDir('config-full'),

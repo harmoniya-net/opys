@@ -1,13 +1,18 @@
-//! Ported from `packages/dev/tests/unit/engine.test.ts`.
-//!
-//! The two JS cases that fed `workdir` / `envs` through accessor *functions*
-//! have no counterpart here: the engine receives those already applied, so
-//! what they covered is the caller's plumbing, not the merge.
+//! The merge, and the launch line's references. Ported at first from
+//! `packages/dev/tests/unit/engine.test.ts`; the references were added here,
+//! since resolving them is this crate's.
 
 use opys_core::{
     blob_id, Artifact, BlobSource, Blobs, CleanupRule, ConditionalVal, Source, Val, ValDef, ValDefs,
 };
-use opys_dev::{assemble, Contribution, LaunchFragment, ManifestConfig, PluginOutput};
+use opys_dev::{
+    assemble as try_assemble, AssembleError, Assembled, Contribution, LaunchFragment,
+    ManifestConfig, PluginOutput,
+};
+
+fn assemble(outputs: &[PluginOutput], config: &ManifestConfig) -> Assembled {
+    try_assemble(outputs, config).expect("the config assembles")
+}
 
 fn artifact(path: &str, url: &str) -> Artifact {
     Artifact {
@@ -450,5 +455,204 @@ fn a_contribution_reads_its_blobs_off_the_wire() {
     assert_eq!(
         output.contribution.blobs,
         Blobs::from([(id, BlobSource::File("/srv/build/a.txt".into()))])
+    );
+}
+
+/// A loader and a JDK, as the launch line sees them.
+fn launchers() -> Vec<PluginOutput> {
+    let groups = |pairs: Vec<(&str, LaunchFragment)>| Contribution {
+        launch: pairs.into_iter().map(|(k, v)| (k.to_owned(), v)).collect(),
+        ..Default::default()
+    };
+    vec![
+        plugin(
+            "forge",
+            groups(vec![
+                (
+                    "jvmArgs",
+                    LaunchFragment::Many(vec![val("-Xss1M"), val("-cp")]),
+                ),
+                ("mainClass", LaunchFragment::One(val("Main"))),
+                ("dir", LaunchFragment::Text("${game_directory}".to_owned())),
+            ]),
+        ),
+        plugin(
+            "java",
+            groups(vec![(
+                "bin",
+                LaunchFragment::Text("${java_bin}".to_owned()),
+            )]),
+        ),
+    ]
+}
+
+fn text(s: &str) -> LaunchFragment {
+    LaunchFragment::Text(s.to_owned())
+}
+
+fn args_of(out: &Assembled) -> Vec<String> {
+    out.manifest
+        .launch
+        .as_ref()
+        .expect("a launch")
+        .args
+        .iter()
+        .flat_map(|v| v.value.clone())
+        .collect()
+}
+
+#[test]
+fn a_reference_is_replaced_by_the_group_it_names_in_the_order_written() {
+    let out = assemble(
+        &launchers(),
+        &ManifestConfig {
+            command: "@java.bin".to_owned(),
+            workdir: Some("@forge.dir".to_owned()),
+            args: vec![
+                text("@forge.jvmArgs"),
+                text("-Xmx4G"),
+                text("@forge.mainClass"),
+            ],
+            ..Default::default()
+        },
+    );
+    let launch = out.manifest.launch.as_ref().expect("a launch");
+    assert_eq!(launch.command, "${java_bin}");
+    assert_eq!(launch.workdir, "${game_directory}");
+    assert_eq!(args_of(&out), ["-Xss1M", "-cp", "-Xmx4G", "Main"]);
+}
+
+#[test]
+fn a_backslash_makes_an_at_sign_literal_and_is_dropped() {
+    let out = assemble(
+        &launchers(),
+        &ManifestConfig {
+            command: "java".to_owned(),
+            args: vec![text("\\@jvm.args"), text("\\n"), text("a@b.c")],
+            ..Default::default()
+        },
+    );
+    // Only `\@` at the start is an escape; nothing else about a string is read.
+    assert_eq!(args_of(&out), ["@jvm.args", "\\n", "a@b.c"]);
+}
+
+#[test]
+fn a_value_written_out_in_full_is_never_read_for_a_reference() {
+    let out = assemble(
+        &launchers(),
+        &ManifestConfig {
+            command: "java".to_owned(),
+            args: vec![LaunchFragment::One(val("@forge.jvmArgs"))],
+            ..Default::default()
+        },
+    );
+    assert_eq!(args_of(&out), ["@forge.jvmArgs"]);
+}
+
+fn refused(config: ManifestConfig) -> AssembleError {
+    try_assemble(&launchers(), &config).expect_err("the config is refused")
+}
+
+#[test]
+fn a_reference_to_a_plugin_that_is_not_there_lists_the_ones_that_are() {
+    let error = refused(ManifestConfig {
+        command: "java".to_owned(),
+        args: vec![text("@fabric.jvmArgs")],
+        ..Default::default()
+    });
+    assert_eq!(
+        error.to_string(),
+        "'@fabric.jvmArgs': there is no plugin named 'fabric' (there are: forge, java)"
+    );
+}
+
+#[test]
+fn a_reference_to_a_group_a_plugin_does_not_expose_lists_what_it_has() {
+    let error = refused(ManifestConfig {
+        command: "java".to_owned(),
+        args: vec![text("@forge.jvmArg")],
+        ..Default::default()
+    });
+    assert_eq!(
+        error.to_string(),
+        "'@forge.jvmArg': 'forge' exposes no 'jvmArg' (it has: dir, jvmArgs, mainClass)"
+    );
+}
+
+#[test]
+fn a_reference_with_no_group_is_not_one() {
+    for bad in ["@forge", "@forge.", "@.bin", "@"] {
+        let error = refused(ManifestConfig {
+            command: bad.to_owned(),
+            ..Default::default()
+        });
+        assert_eq!(
+            error,
+            AssembleError::BadReference {
+                reference: bad.to_owned()
+            }
+        );
+    }
+}
+
+#[test]
+fn a_command_cannot_be_a_list() {
+    let error = refused(ManifestConfig {
+        command: "@forge.jvmArgs".to_owned(),
+        ..Default::default()
+    });
+    assert_eq!(
+        error,
+        AssembleError::NotOneString {
+            field: "command",
+            reference: "@forge.jvmArgs".to_owned()
+        }
+    );
+    // One value with no rules is one string, whichever way it was exposed.
+    let out = assemble(
+        &launchers(),
+        &ManifestConfig {
+            command: "@forge.mainClass".to_owned(),
+            ..Default::default()
+        },
+    );
+    assert_eq!(out.manifest.launch.expect("a launch").command, "Main");
+}
+
+#[test]
+fn two_plugins_of_one_name_are_refused_whether_or_not_anything_names_them() {
+    let outputs = vec![
+        plugin("files", Contribution::default()),
+        plugin("files", Contribution::default()),
+    ];
+    assert_eq!(
+        try_assemble(&outputs, &config()).expect_err("refused"),
+        AssembleError::DuplicatePlugin {
+            name: "files".to_owned()
+        }
+    );
+}
+
+#[test]
+fn a_plugin_name_with_a_dot_in_it_can_still_be_named() {
+    let outputs = vec![plugin(
+        "my.java",
+        Contribution {
+            launch: [("bin".to_owned(), text("/usr/bin/java"))]
+                .into_iter()
+                .collect(),
+            ..Default::default()
+        },
+    )];
+    let out = assemble(
+        &outputs,
+        &ManifestConfig {
+            command: "@my.java.bin".to_owned(),
+            ..Default::default()
+        },
+    );
+    assert_eq!(
+        out.manifest.launch.expect("a launch").command,
+        "/usr/bin/java"
     );
 }

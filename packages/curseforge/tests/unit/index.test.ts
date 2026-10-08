@@ -261,7 +261,12 @@ describe('curseforgeModpack()', () => {
               },
             ],
             vars: { classpath: 'cp' },
-            launch: { mainClass: 'net.harmoniya.horno.Main' },
+            launch: {
+              command: 'java',
+              jvmArgs: [],
+              mainClass: 'net.harmoniya.horno.Main',
+              gameArgs: [],
+            },
             envs: { JAVA_HOME: '/jdk' },
           }),
         });
@@ -281,7 +286,10 @@ describe('curseforgeModpack()', () => {
     ]);
     expect(contribution.vars).toEqual({ classpath: 'cp' });
     expect(contribution.launch).toEqual({
+      command: 'java',
+      jvmArgs: [],
       mainClass: 'net.harmoniya.horno.Main',
+      gameArgs: [],
     });
     expect(contribution.envs).toEqual({ JAVA_HOME: '/jdk' });
     expect(logs).toEqual([

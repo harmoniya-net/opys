@@ -99,7 +99,7 @@ function applyTemplate(template: FileTemplate, file: LocalFile): string {
  * Post-process the result with the fluent {@link ChainablePlugin} methods,
  * e.g. `files({…}).exclude('**\/*.tmp')`.
  */
-export function files(options: FilesOptions): ChainablePlugin {
+export function files(options: FilesOptions): ChainablePlugin<'files', never> {
   return definePlugin({
     name: 'files',
     async build(ctx) {
@@ -116,7 +116,10 @@ export function files(options: FilesOptions): ChainablePlugin {
         path: options.to ? applyTemplate(options.to, file) : file.rel,
         ...(url === undefined ? {} : { url: applyTemplate(url, file) }),
       }));
-      return (await napi.scannedFiles(placed, options.hash)) as Contribution;
+      return (await napi.scannedFiles(
+        placed,
+        options.hash,
+      )) as Contribution<never>;
     },
   });
 }

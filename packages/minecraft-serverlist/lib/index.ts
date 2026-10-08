@@ -39,12 +39,12 @@ export const DEFAULT_PATH: string = napi.defaultServerlistPath();
 export function serverlist(
   servers: ServerEntry[],
   options: ServerlistOptions = {},
-): ChainablePlugin {
+): ChainablePlugin<'serverlist', never> {
   return definePlugin({
     name: 'serverlist',
     build() {
       const output = napi.buildServerlist(servers, options) as {
-        contribution: Contribution;
+        contribution: Contribution<never>;
       };
       return output.contribution;
     },

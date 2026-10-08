@@ -1,6 +1,6 @@
 import type { Blobs, Manifest } from '@opys/core';
 import * as napi from '@opys/dev-binding';
-import type { OpysConfig, PluginMap } from './config';
+import type { OpysConfig } from './config';
 import type { BuildContext } from './plugin';
 
 /** What the binding hands back — see `opys-dev`'s `Assembled`. */
@@ -24,10 +24,10 @@ export interface Built {
  * merge the contributions into the final `Manifest`.
  *
  * The split is deliberate. Driving the plugins is host-shaped — these are JS
- * closures, as are the author's `command` / `args` / `workdir` / `envs`
- * accessors — so that half stays here. Folding the results is the same
- * operation whoever produced them, so it lives in Rust and a native builder
- * gets the identical merge without a second implementation.
+ * closures — so that half stays here. Folding the results, and putting the
+ * launch line together from what the plugins expose, is the same operation
+ * whoever produced them, so it lives in Rust and a native builder gets the
+ * identical merge without a second implementation.
  */
 export async function buildManifest(
   config: OpysConfig,
@@ -41,11 +41,6 @@ export async function buildManifest(
     })),
   );
 
-  // Launch groups never cross the boundary: they exist only to feed the
-  // author's accessors, which are closures. Only their results go over.
-  const pluginMap: PluginMap = Object.fromEntries(
-    results.map((r) => [r.name, r.contribution.launch ?? {}]),
-  );
   const m = config.manifest;
   // A config is plain JavaScript as often as not, and an unknown key there is
   // silently dropped — which for this one would mean a pack that stops
@@ -55,30 +50,36 @@ export async function buildManifest(
       "`manifest.restrict` is now `manifest.cleanup`: write `cleanup: [{ includes: ['…'] }]`",
     );
 
+  // The same for the launch line: it was a function over the plugins, and one
+  // left in place would reach the crate as nothing at all.
+  for (const field of ['command', 'args', 'workdir', 'envs'] as const)
+    if (typeof m[field] === 'function')
+      throw new Error(
+        `\`manifest.${field}\` is no longer a function: write it as data, naming what a plugin exposes as '@plugin.group' — args: ['@forge.jvmArgs', '@forge.mainClass', '@forge.gameArgs']`,
+      );
+
   const outputs = results.map((r) => ({
     name: r.name,
     contribution: {
       artifacts: r.contribution.artifacts ?? [],
       blobs: r.contribution.blobs ?? {},
       vars: r.contribution.vars ?? {},
+      launch: r.contribution.launch ?? {},
       envs: r.contribution.envs ?? {},
     },
   }));
 
+  // References are the crate's to resolve, and to refuse: one merge, and one
+  // place a launch line is checked, whoever drives the plugins.
   const { manifest, blobs, warnings } = napi.assemble(outputs, {
     artifacts: m.artifacts ?? [],
     vars: m.vars ?? {},
-    command: m.command(pluginMap),
+    command: m.command,
     // Omitted rather than passed as undefined — the manifest default (`.`)
     // is the crate's to apply, so both callers agree on one spelling.
-    ...(m.workdir === undefined
-      ? {}
-      : {
-          workdir:
-            typeof m.workdir === 'function' ? m.workdir(pluginMap) : m.workdir,
-        }),
-    args: m.args(pluginMap),
-    envs: typeof m.envs === 'function' ? m.envs(pluginMap) : (m.envs ?? {}),
+    ...(m.workdir === undefined ? {} : { workdir: m.workdir }),
+    args: m.args,
+    envs: m.envs ?? {},
     cleanup: m.cleanup ?? [],
   }) as Assembled;
 

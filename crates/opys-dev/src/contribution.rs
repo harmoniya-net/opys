@@ -6,8 +6,8 @@ use opys_core::{Artifact, Blobs, Val, ValDefs, Valset};
 use serde::{Deserialize, Serialize};
 
 /// One named launch fragment a plugin exposes — `jvmArgs` (a `Valset`),
-/// `mainClass` (a `Val`), `bin` (a bare string). The config's `command` /
-/// `args` accessors pick these out by name and order them.
+/// `mainClass` (a `Val`), `bin` (a bare string). A config names one on its
+/// launch line as `@plugin.group`, and [`crate::assemble`] puts it there.
 ///
 /// Untagged on the wire, and the order matters: a bare string is matched
 /// before `One`, whose own bare-string form would otherwise swallow it.
@@ -37,7 +37,7 @@ pub struct Contribution {
     pub blobs: Blobs,
     /// Manifest vars this plugin owns.
     pub vars: ValDefs,
-    /// Named launch fragments, exposed to the config's accessor functions.
+    /// Named launch fragments, which a config references by name.
     pub launch: LaunchGroups,
     /// Launch environment variables this plugin sets by default.
     pub envs: ValDefs,

@@ -28,7 +28,7 @@ pub fn assemble(outputs: Json, config: Json) -> Result<Json> {
     let outputs: Vec<PluginOutput> = serde_json::from_value(outputs).map_err(map_err)?;
     let config: ManifestConfig = serde_json::from_value(config).map_err(map_err)?;
 
-    let assembled = opys_dev::assemble(&outputs, &config);
+    let assembled = opys_dev::assemble(&outputs, &config).map_err(map_err)?;
 
     Ok(serde_json::json!({
         "manifest": serde_json::to_value(&assembled.manifest).map_err(map_err)?,

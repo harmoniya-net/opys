@@ -1,6 +1,6 @@
 //! napi-rs bindings for `opys-bifrost`.
 //!
-//! One synchronous call. A token is minted inside `runClient`, which is a
+//! One synchronous call. A token is minted inside `run`, which is a
 //! plain function the launch calls on its way through, and signing is
 //! microseconds — there is nothing to wait for.
 

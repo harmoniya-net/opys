@@ -141,7 +141,7 @@ export async function resolveAuthLibertyVersion(
 export function authliberty(
   version: string,
   opts: Omit<AuthLibertyOptions, 'version'> = {},
-): ChainablePlugin {
+): ChainablePlugin<'authliberty', 'jvmArgs'> {
   return definePlugin({
     name: 'authliberty',
     async build(ctx) {

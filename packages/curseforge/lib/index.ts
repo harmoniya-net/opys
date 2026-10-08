@@ -22,7 +22,12 @@
  */
 
 import * as napi from '@opys/curseforge-binding';
-import { definePlugin, type ChainablePlugin } from '@opys/dev';
+import {
+  definePlugin,
+  type ChainablePlugin,
+  type LoaderGroups,
+  type OpysPlugin,
+} from '@opys/dev';
 import type { Artifact } from '@opys/core';
 import { minecraft } from '@opys/minecraft-vanilla';
 import { fabric } from '@opys/fabric';
@@ -194,7 +199,9 @@ export interface CurseforgePluginOptions extends CurseForgeOptions {
 }
 
 /** Mod files resolved from the CurseForge API. */
-export function curseforge(options: CurseforgePluginOptions): ChainablePlugin {
+export function curseforge(
+  options: CurseforgePluginOptions,
+): ChainablePlugin<'curseforge', never> {
   return definePlugin({
     name: 'curseforge',
     async build(ctx) {
@@ -237,7 +244,7 @@ export async function resolveCurseforgeModpack(
 }
 
 /** The opys loader plugin a {@link LoaderSpec} stands for, with its defaults. */
-function loaderPlugin(spec: LoaderSpec): ChainablePlugin {
+function loaderPlugin(spec: LoaderSpec): OpysPlugin<string, LoaderGroups> {
   switch (spec.loader) {
     case 'fabric':
       return fabric(spec.minecraft, { loader: spec.fabricLoader });
@@ -258,7 +265,7 @@ export interface CurseforgeModpackOptions extends CurseForgeApiOptions {
    * How to stand up the pack's loader. Defaults to the matching opys plugin
    * with its own defaults; pass this to give it options of your own.
    */
-  loader?: (spec: LoaderSpec) => ChainablePlugin;
+  loader?: (spec: LoaderSpec) => OpysPlugin<string, LoaderGroups>;
 }
 
 /**
@@ -272,11 +279,11 @@ export interface CurseforgeModpackOptions extends CurseForgeApiOptions {
  * ```js
  * plugins: [curseforgeModpack({ token, file: 1040985 }), java('17')],
  * manifest: {
- *   command: ({ curseforgeModpack }) => curseforgeModpack.command,
- *   args: ({ curseforgeModpack }) => [
- *     curseforgeModpack.jvmArgs,
- *     curseforgeModpack.mainClass,
- *     curseforgeModpack.gameArgs,
+ *   command: '@curseforgeModpack.command',
+ *   args: [
+ *     '@curseforgeModpack.jvmArgs',
+ *     '@curseforgeModpack.mainClass',
+ *     '@curseforgeModpack.gameArgs',
  *   ],
  *   workdir: '${game_directory}',
  * },
@@ -287,7 +294,7 @@ export interface CurseforgeModpackOptions extends CurseForgeApiOptions {
  */
 export function curseforgeModpack(
   options: CurseforgeModpackOptions,
-): ChainablePlugin {
+): ChainablePlugin<'curseforgeModpack', LoaderGroups> {
   return definePlugin({
     name: 'curseforgeModpack',
     async build(ctx) {

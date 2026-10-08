@@ -5,15 +5,11 @@ export default defineConfig({
   output: 'game.opys',
   plugins: [neoforge('1.21.1'), java('21')],
   manifest: {
-    command: ({ java }) => java.bin,
-    args: ({ neoforge }) => [
-      neoforge.jvmArgs,
-      neoforge.mainClass,
-      neoforge.gameArgs,
-    ],
+    command: '@java.bin',
+    args: ['@neoforge.jvmArgs', '@neoforge.mainClass', '@neoforge.gameArgs'],
     workdir: '${game_directory}',
   },
-  runClient: (manifest) => ({
+  run: (manifest) => ({
     vars: {
       ...manifest.vars,
       root: userDataDir('my-pack'),

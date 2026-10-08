@@ -5,11 +5,11 @@ export default defineConfig({
   output: 'game.opys',
   plugins: [fabric('1.21.4'), java('21')],
   manifest: {
-    command: ({ java }) => java.bin,
-    args: ({ fabric }) => [fabric.jvmArgs, fabric.mainClass, fabric.gameArgs],
+    command: '@java.bin',
+    args: ['@fabric.jvmArgs', '@fabric.mainClass', '@fabric.gameArgs'],
     workdir: '${game_directory}',
   },
-  runClient: (manifest) => ({
+  run: (manifest) => ({
     vars: {
       ...manifest.vars,
       root: userDataDir('my-pack'),

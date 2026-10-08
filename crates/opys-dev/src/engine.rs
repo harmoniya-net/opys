@@ -13,10 +13,15 @@ use serde::Deserialize;
 
 use crate::contribution::{Contribution, LaunchFragment, PluginOutput};
 
-/// The author-supplied half of the manifest, with every function-valued field
-/// (`command` / `args` / `workdir` / `envs`) already applied to the plugin map.
-/// Evaluating those is the caller's job; they are closures in JS and would not
-/// survive the trip into Rust.
+/// The author-supplied half of the manifest.
+///
+/// The launch line is written as data. A bare string that begins with `@` —
+/// `@forge.jvmArgs` — names a launch group a plugin exposes, and is replaced
+/// by it here; `\@file` is the literal `@file`, which `java` reads as an
+/// argument file. `command` and `workdir` take the same spelling, and there a
+/// reference has to come to exactly one string. These were functions over a
+/// plugin map once, which made a config code where it could be data and left
+/// a misspelt group to be found at launch.
 ///
 /// Every field but `command` defaults: the author writes what they mean and
 /// omits the rest. `command` is the one thing a launch cannot do without, so
@@ -30,8 +35,10 @@ pub struct ManifestConfig {
     /// silent override, so no collision warning is raised for it.
     #[serde(default)]
     pub vars: ValDefs,
+    /// A literal, or a reference to a group that is one string.
     pub command: String,
-    /// `None` means the manifest default, `"."`.
+    /// A literal or a reference, as `command`. `None` means the manifest
+    /// default, `"."`.
     #[serde(default)]
     pub workdir: Option<String>,
     #[serde(default)]
@@ -57,20 +64,146 @@ pub struct Assembled {
     pub warnings: Vec<String>,
 }
 
-/// Flatten author-ordered launch fragments into a single `Valset`.
-fn flatten_args(items: &[LaunchFragment]) -> Valset {
-    let mut out: Valset = Vec::new();
-    for item in items {
-        match item {
-            LaunchFragment::Text(s) => out.push(Val {
-                rules: Vec::new(),
-                value: vec![s.clone()],
-            }),
-            LaunchFragment::Many(vs) => out.extend(vs.iter().cloned()),
-            LaunchFragment::One(v) => out.push(v.clone()),
+/// Why a set of contributions and a config could not be made into a manifest.
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+pub enum AssembleError {
+    /// A reference goes by plugin name, so a name has to mean one plugin.
+    #[error("two plugins are named '{name}': rename one with `.as('…')`")]
+    DuplicatePlugin { name: String },
+    #[error("'{reference}' is not a reference: one is written `@plugin.group`")]
+    BadReference { reference: String },
+    #[error("'{reference}': there is no plugin named '{plugin}' (there are: {})", .plugins.join(", "))]
+    UnknownPlugin {
+        reference: String,
+        plugin: String,
+        plugins: Vec<String>,
+    },
+    #[error("'{reference}': '{plugin}' exposes no '{group}' (it has: {})", .groups.join(", "))]
+    UnknownGroup {
+        reference: String,
+        plugin: String,
+        group: String,
+        groups: Vec<String>,
+    },
+    #[error("`{field}` is one string, and '{reference}' is not: it is a list, or carries rules")]
+    NotOneString {
+        field: &'static str,
+        reference: String,
+    },
+}
+
+/// What a bare string in the launch line says.
+enum Written<'a> {
+    Literal(&'a str),
+    Reference { plugin: &'a str, group: &'a str },
+}
+
+/// Split at the last dot, so a plugin whose name has one can still be named.
+fn written(text: &str) -> Result<Written<'_>, AssembleError> {
+    if let Some(escaped) = text.strip_prefix('\\') {
+        if escaped.starts_with('@') {
+            return Ok(Written::Literal(escaped));
         }
     }
-    out
+    let Some(path) = text.strip_prefix('@') else {
+        return Ok(Written::Literal(text));
+    };
+    match path.rsplit_once('.') {
+        Some((plugin, group)) if !plugin.is_empty() && !group.is_empty() => {
+            Ok(Written::Reference { plugin, group })
+        }
+        _ => Err(AssembleError::BadReference {
+            reference: text.to_owned(),
+        }),
+    }
+}
+
+fn sorted(names: impl Iterator<Item = impl AsRef<str>>) -> Vec<String> {
+    let mut names: Vec<String> = names.map(|n| n.as_ref().to_owned()).collect();
+    names.sort_unstable();
+    names
+}
+
+/// The launch group `@plugin.group` names.
+fn lookup<'a>(
+    outputs: &'a [PluginOutput],
+    reference: &str,
+    plugin: &str,
+    group: &str,
+) -> Result<&'a LaunchFragment, AssembleError> {
+    let Some(output) = outputs.iter().find(|o| o.name == plugin) else {
+        return Err(AssembleError::UnknownPlugin {
+            reference: reference.to_owned(),
+            plugin: plugin.to_owned(),
+            plugins: sorted(outputs.iter().map(|o| &o.name)),
+        });
+    };
+    output
+        .contribution
+        .launch
+        .get(group)
+        .ok_or_else(|| AssembleError::UnknownGroup {
+            reference: reference.to_owned(),
+            plugin: plugin.to_owned(),
+            group: group.to_owned(),
+            groups: sorted(output.contribution.launch.keys()),
+        })
+}
+
+fn text_val(text: &str) -> Val {
+    Val {
+        rules: Vec::new(),
+        value: vec![text.to_owned()],
+    }
+}
+
+/// Flatten author-ordered launch fragments into a single `Valset`, each
+/// reference replaced by the group it names.
+fn flatten_args(
+    outputs: &[PluginOutput],
+    items: &[LaunchFragment],
+) -> Result<Valset, AssembleError> {
+    let mut out: Valset = Vec::new();
+    let mut push = |fragment: &LaunchFragment| match fragment {
+        LaunchFragment::Text(s) => out.push(text_val(s)),
+        LaunchFragment::Many(vs) => out.extend(vs.iter().cloned()),
+        LaunchFragment::One(v) => out.push(v.clone()),
+    };
+    for item in items {
+        match item {
+            LaunchFragment::Text(text) => match written(text)? {
+                Written::Literal(literal) => push(&LaunchFragment::Text(literal.to_owned())),
+                Written::Reference { plugin, group } => push(lookup(outputs, text, plugin, group)?),
+            },
+            // Only a bare string is read for a reference. A value written
+            // out in full is taken as it is, what it holds included.
+            other => push(other),
+        }
+    }
+    Ok(out)
+}
+
+/// A field that is one string on every machine: a literal, or a reference to
+/// a group that is exactly that.
+fn one_string(
+    outputs: &[PluginOutput],
+    field: &'static str,
+    text: &str,
+) -> Result<String, AssembleError> {
+    let (plugin, group) = match written(text)? {
+        Written::Literal(literal) => return Ok(literal.to_owned()),
+        Written::Reference { plugin, group } => (plugin, group),
+    };
+    match lookup(outputs, text, plugin, group)? {
+        LaunchFragment::Text(s) => Ok(s.clone()),
+        LaunchFragment::One(Val { rules, value }) if rules.is_empty() && value.len() == 1 => {
+            Ok(value[0].clone())
+        }
+        _ => Err(AssembleError::NotOneString {
+            field,
+            reference: text.to_owned(),
+        }),
+    }
 }
 
 /// Merge one `ValDefs` field across plugins in list order, last wins.
@@ -104,8 +237,18 @@ fn merge_owned(
 
 /// Fold plugin contributions and the author's manifest config into the final
 /// `Manifest`.
-pub fn assemble(outputs: &[PluginOutput], config: &ManifestConfig) -> Assembled {
+pub fn assemble(
+    outputs: &[PluginOutput],
+    config: &ManifestConfig,
+) -> Result<Assembled, AssembleError> {
     let mut warnings = Vec::new();
+
+    let mut names = std::collections::BTreeSet::new();
+    if let Some(twice) = outputs.iter().find(|o| !names.insert(o.name.as_str())) {
+        return Err(AssembleError::DuplicatePlugin {
+            name: twice.name.clone(),
+        });
+    }
 
     // Artifacts: plugin output in list order, then the literal artifacts.
     let mut artifacts: Vec<Artifact> = Vec::new();
@@ -137,13 +280,16 @@ pub fn assemble(outputs: &[PluginOutput], config: &ManifestConfig) -> Assembled 
         .collect();
 
     let launch = Launch {
-        command: config.command.clone(),
-        workdir: config.workdir.clone().unwrap_or_else(|| ".".to_owned()),
-        args: flatten_args(&config.args),
+        command: one_string(outputs, "command", &config.command)?,
+        workdir: match &config.workdir {
+            Some(workdir) => one_string(outputs, "workdir", workdir)?,
+            None => ".".to_owned(),
+        },
+        args: flatten_args(outputs, &config.args)?,
         envs,
     };
 
-    Assembled {
+    Ok(Assembled {
         manifest: Manifest {
             vars,
             launch: Some(launch),
@@ -152,5 +298,5 @@ pub fn assemble(outputs: &[PluginOutput], config: &ManifestConfig) -> Assembled 
         },
         blobs,
         warnings,
-    }
+    })
 }
