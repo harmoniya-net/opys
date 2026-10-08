@@ -22,9 +22,6 @@
     "@opys/core": "^0.2.0",
     "@opys/dev-binding": "^0.2.0"
   },
-  "peerDependencies": {
-    "zod": "^4.0.0"
-  },
   "devDependencies": {
     "vitest": "*"
   },

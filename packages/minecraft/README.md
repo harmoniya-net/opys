@@ -1,64 +1,53 @@
 # @opys/minecraft
 
-Bridge layer that converts Mojang version JSON into Manifest artifacts and launch config. Owns the Minecraft template and config helpers.
-
-## Install
+Everything Minecraft in one import. This package has no code of its own: it
+re-exports the loader, provider and helper packages, each of which is also
+published separately and documented in its own README.
 
 ```sh
-npm install @opys/minecraft @opys/core @opys/rules zod
+npm install -D @opys/dev @opys/minecraft
 ```
 
-## API
+```js
+import { defineConfig } from '@opys/dev';
+import { forge, java, links } from '@opys/minecraft';
 
-### `resolveMinecraft(options?)`
-
-Fetches the Mojang version manifest and a specific version (or latest), then returns a `MinecraftTemplate` ready to be merged into a Manifest config.
-
-```ts
-import { resolveMinecraft } from '@opys/minecraft';
-
-const template = await resolveMinecraft({ version: '1.20.1' });
-// or omit version for latest release
-const template = await resolveMinecraft();
-
-template.artifacts; // Artifact[] — client jar, libraries, asset index, asset objects
-template.vars; // ValDefs — all interpolation variables
-template.launch; // Launch — assembled (main class + args), drop into manifest.launch
-template.jvmArgs; // Valset — JVM args alone, for composition
-template.mainClass; // Val — main class wrapped (raw at .value[0])
-template.gameArgs; // Valset — game args alone, for composition
+export default defineConfig({
+  output: 'game.opys',
+  plugins: [
+    forge('1.20.1'),
+    java('17'),
+    links({
+      links: ['https://modrinth.com/mod/sodium/version/JjCVwmVA'],
+      path: (file) => '${game_directory}/mods/' + file.filename,
+    }),
+  ],
+  manifest: {
+    command: ({ java }) => java.bin,
+    args: ({ forge }) => [forge.jvmArgs, forge.mainClass, forge.gameArgs],
+    workdir: '${game_directory}',
+  },
+});
 ```
 
-### `clientToTemplate(client)`
+## What it re-exports
 
-Low-level mapper if you already have a parsed `Client` from `@opys/mojang`.
+| From                                                                 | Plugins and helpers                                              |
+| -------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| [`@opys/minecraft-vanilla`](../minecraft-vanilla)                    | `minecraft`, `resolveMinecraft`, the shared mappers              |
+| [`@opys/forge`](../forge)                                            | `forge`, `resolveForge`                                          |
+| [`@opys/neoforge`](../neoforge)                                      | `neoforge`, `resolveNeoForge`                                    |
+| [`@opys/fabric`](../fabric)                                          | `fabric`                                                         |
+| [`@opys/cleanroom`](../cleanroom), [`@opys/lwjgl3ify`](../lwjgl3ify) | `cleanroom`, `lwjgl3ify`                                         |
+| [`@opys/modrinth`](../modrinth), [`@opys/curseforge`](../curseforge) | `modrinth`, `modrinthModpack`, `curseforge`, `curseforgeModpack` |
+| [`@opys/link`](../link)                                              | `links` — a pasted link to a pinned file                         |
+| [`@opys/java`](../java)                                              | `java` — a JDK for the launching machine                         |
+| [`@opys/dgpuj`](../dgpuj)                                            | `dgpuj` — the discrete-GPU launcher shim                         |
+| [`@opys/authliberty`](../authliberty), [`@opys/bifrost`](../bifrost) | `authliberty`, `bifrost`                                         |
+| [`@opys/minecraft-serverlist`](../minecraft-serverlist)              | `serverlist`                                                     |
 
-```ts
-import { fetchClient, clientToTemplate } from '@opys/minecraft';
-
-const { client } = await fetchClient('1.20.1');
-const template = await clientToTemplate(client);
-```
-
-### Local files
-
-Local mod JARs, configs and other files come from `files`, which lives in
-[`@opys/dev`](https://www.npmjs.com/package/@opys/dev):
-
-```ts
-import { files } from '@opys/dev';
-
-// Every file under mods/, carried in the bundle.
-files({ from: 'mods', to: '${game_directory}/mods/${rel}' });
-```
-
-### Config helpers
-
-Re-exported from `@opys/core` for convenience:
-
-```ts
-import { defineConfig, resolveConfig } from '@opys/minecraft';
-```
+Local files come from `files`, and `defineConfig` itself, from
+[`@opys/dev`](../dev).
 
 ## Variable reference
 
