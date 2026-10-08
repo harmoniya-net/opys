@@ -3,8 +3,12 @@ import {
   ExtractionError,
   IntegrityError,
   NetworkError,
+  RuntimeError,
   translateError,
 } from '../../lib';
+
+/** What the binding throws: an Error whose message is the crate's report. */
+const thrown = (report: object) => new Error(JSON.stringify(report));
 
 describe('translateError', () => {
   test('non-Error inputs pass through untouched', () => {
@@ -13,42 +17,81 @@ describe('translateError', () => {
     expect(translateError(null)).toBe(null);
   });
 
-  test('"HTTP N downloading URL" → NetworkError', () => {
-    const err = new Error('HTTP 404 downloading https://example.test/x.jar');
-    const out = translateError(err);
+  test('a network report becomes a NetworkError', () => {
+    const out = translateError(
+      thrown({
+        code: 'network',
+        message: 'HTTP 404 downloading https://example.test/x.jar — gone',
+        url: 'https://example.test/x.jar',
+        status: 404,
+        body: 'gone',
+      }),
+    );
     expect(out).toBeInstanceOf(NetworkError);
+    expect(out).toBeInstanceOf(RuntimeError);
     const n = out as NetworkError;
+    expect(n.code).toBe('network');
     expect(n.status).toBe(404);
     expect(n.url).toBe('https://example.test/x.jar');
-    expect(n.message).toBe('HTTP 404 downloading https://example.test/x.jar');
-    expect(n.kind).toBe('network');
+    expect(n.body).toBe('gone');
+    expect(n.message).toBe(
+      'HTTP 404 downloading https://example.test/x.jar — gone',
+    );
   });
 
-  test('"Integrity check failed: …" → IntegrityError with split paths', () => {
-    const err = new Error('Integrity check failed: a.jar, b.jar, c.jar');
-    const out = translateError(err);
+  // The message joins paths with ", ". Reading them back out of it split a
+  // file name that had a comma of its own.
+  test('an integrity report keeps each path whole', () => {
+    const out = translateError(
+      thrown({
+        code: 'integrity',
+        message: 'Integrity check failed: mods/a, b.jar, mods/c.jar',
+        paths: ['mods/a, b.jar', 'mods/c.jar'],
+      }),
+    );
     expect(out).toBeInstanceOf(IntegrityError);
-    expect((out as IntegrityError).paths).toEqual(['a.jar', 'b.jar', 'c.jar']);
-    expect((out as IntegrityError).kind).toBe('integrity');
+    expect((out as IntegrityError).paths).toEqual([
+      'mods/a, b.jar',
+      'mods/c.jar',
+    ]);
+    expect((out as IntegrityError).code).toBe('integrity');
   });
 
-  test('"Integrity check failed: single" → IntegrityError with one path', () => {
-    const out = translateError(new Error('Integrity check failed: only.jar'));
-    expect((out as IntegrityError).paths).toEqual(['only.jar']);
-  });
-
-  test('"Failed to extract …" → ExtractionError preserving cause', () => {
-    const root = new Error('Failed to extract mods/foo.jar: bad header');
-    const out = translateError(root);
+  test('an extraction report carries the path and the cause', () => {
+    const out = translateError(
+      thrown({
+        code: 'extraction',
+        message: 'Failed to extract mods/foo bar.jar: bad header',
+        artifactPath: 'mods/foo bar.jar',
+        cause: 'bad header',
+      }),
+    );
     expect(out).toBeInstanceOf(ExtractionError);
     const e = out as ExtractionError;
-    expect(e.artifactPath).toBe('mods/foo.jar');
-    expect(e.kind).toBe('extraction');
-    expect(e.cause).toBe(root);
+    expect(e.code).toBe('extraction');
+    expect(e.artifactPath).toBe('mods/foo bar.jar');
+    expect((e.cause as Error).message).toBe('bad header');
   });
 
-  test('unrecognized Error messages pass through unchanged', () => {
-    const err = new Error('something else entirely');
-    expect(translateError(err)).toBe(err);
+  test.each(['manifest', 'io', 'cancelled', 'other'] as const)(
+    'a %s report becomes a RuntimeError with that code',
+    (code) => {
+      const out = translateError(thrown({ code, message: 'what happened' }));
+      expect(out).toBeInstanceOf(RuntimeError);
+      expect((out as RuntimeError).code).toBe(code);
+      expect((out as RuntimeError).message).toBe('what happened');
+    },
+  );
+
+  test('an error that is not a report comes back as it was', () => {
+    for (const err of [
+      new Error('something else entirely'),
+      new Error('{ not json'),
+      new Error('{"message":"no code"}'),
+      // The wording the classes used to be recognised by.
+      new Error('HTTP 404 downloading https://example.test/x.jar'),
+    ]) {
+      expect(translateError(err)).toBe(err);
+    }
   });
 });

@@ -214,7 +214,9 @@ Install pipeline: `resolveManifest` → `scan` → `fetchAll` (parallel; streams
 → `verifyAll` (sha1/sha256/md5; mismatch throws `IntegrityError`) → `extractAll`
 → `sweep` (applies `restrict`).
 
-Errors: `NetworkError`, `IntegrityError`, `ExtractionError`. `runtime` depends
+Errors: a `RuntimeError` with a `code` (`network`, `integrity`, `extraction`,
+`manifest`, `io`, `cancelled`, `other`); `NetworkError`, `IntegrityError` and
+`ExtractionError` are the three with fields of their own. `runtime` depends
 on `@opys/core` alone.
 
 ## CLI — `@opys/cli`

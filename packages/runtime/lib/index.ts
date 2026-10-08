@@ -34,8 +34,21 @@ export type ManifestSource =
  */
 export type InstallProgress =
   | { phase: 'resolve' }
-  | { phase: 'download'; fetched: number; total: number; skipped: number }
-  | { phase: 'download:start'; path: string; total: number }
+  /**
+   * Where the download stands. `bytes` counts finished files; `totalBytes` is
+   * the sum of the sizes the manifest declares, so it is short by whatever is
+   * listed without one.
+   */
+  | {
+      phase: 'download';
+      fetched: number;
+      total: number;
+      skipped: number;
+      bytes: number;
+      totalBytes: number;
+    }
+  /** `totalBytes` is 0 for a file the manifest gives no size. */
+  | { phase: 'download:start'; path: string; totalBytes: number }
   | { phase: 'download:bytes'; path: string; bytes: number }
   | { phase: 'download:done'; path: string }
   | { phase: 'verify' }
@@ -59,61 +72,120 @@ export interface LaunchOptions {
   install?: InstallOptions | false;
 }
 
+/** What went wrong, as the runtime names it. */
+export type RuntimeErrorCode =
+  | 'network'
+  | 'integrity'
+  | 'extraction'
+  | 'manifest'
+  | 'io'
+  | 'cancelled'
+  | 'other';
+
 /**
- * Compat error classes. The Rust bridge currently throws
- * `napi::Error::from_reason(msg)` with the discriminant baked into the
- * message ("HTTP …", "Integrity check failed: …", "Failed to extract …");
- * `translateError` re-wraps those into these classes so consumers using
- * `instanceof` keep working. Q10's `code`-discriminant model is the
- * follow-up — when the Rust side emits structured errors, these classes
- * either gain a `code` field or get replaced wholesale.
+ * A failure of the runtime, told apart by `code`. The three with particulars
+ * worth reading have classes of their own below; the rest are this one.
  */
-export class NetworkError extends Error {
-  readonly kind = 'network' as const;
+export class RuntimeError extends Error {
+  constructor(
+    readonly code: RuntimeErrorCode,
+    message: string,
+    options?: ErrorOptions,
+  ) {
+    super(message, options);
+    this.name = 'RuntimeError';
+  }
+}
+export class NetworkError extends RuntimeError {
+  declare readonly code: 'network';
   constructor(
     readonly url: string,
     readonly status: number,
     message: string,
+    /** What the server said, when it said anything. */
+    readonly body = '',
   ) {
-    super(message);
+    super('network', message);
     this.name = 'NetworkError';
   }
 }
-export class IntegrityError extends Error {
-  readonly kind = 'integrity' as const;
-  constructor(readonly paths: string[]) {
-    super(`Integrity check failed: ${paths.join(', ')}`);
+export class IntegrityError extends RuntimeError {
+  declare readonly code: 'integrity';
+  constructor(
+    readonly paths: string[],
+    message = `Integrity check failed: ${paths.join(', ')}`,
+  ) {
+    super('integrity', message);
     this.name = 'IntegrityError';
   }
 }
-export class ExtractionError extends Error {
-  readonly kind = 'extraction' as const;
+export class ExtractionError extends RuntimeError {
+  declare readonly code: 'extraction';
   constructor(
     readonly artifactPath: string,
+    message = `Failed to extract ${artifactPath}`,
     options?: ErrorOptions,
   ) {
-    super(`Failed to extract ${artifactPath}`, options);
+    super('extraction', message, options);
     this.name = 'ExtractionError';
   }
 }
 export type InstallError = NetworkError | IntegrityError | ExtractionError;
 
+/**
+ * The report the binding throws, as the `opys-runtime` crate serialises it.
+ * It is the message of the error that crosses napi and nothing else reads it.
+ */
+type ErrorReport =
+  | {
+      code: 'network';
+      message: string;
+      url: string;
+      status: number;
+      body: string;
+    }
+  | { code: 'integrity'; message: string; paths: string[] }
+  | { code: 'extraction'; message: string; artifactPath: string; cause: string }
+  | { code: 'manifest' | 'io' | 'cancelled' | 'other'; message: string };
+
+function readReport(message: string): ErrorReport | undefined {
+  if (!message.startsWith('{')) return undefined;
+  try {
+    const report = JSON.parse(message) as Partial<ErrorReport>;
+    return typeof report.code === 'string' && typeof report.message === 'string'
+      ? (report as ErrorReport)
+      : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * The typed error behind what the binding threw. Anything that is not a
+ * report — a bad argument refused before the runtime ran — comes back as it
+ * was.
+ */
 export function translateError(err: unknown): unknown {
   if (!(err instanceof Error)) return err;
-  const msg = err.message;
-  let m = /^HTTP (\d+) downloading (\S+)/.exec(msg);
-  if (m) return new NetworkError(m[2]!, Number(m[1]!), msg);
-  m = /^Integrity check failed:\s*(.+)$/.exec(msg);
-  if (m) {
-    const paths = m[1]!
-      .split(',')
-      .map((s) => s.trim())
-      .filter(Boolean);
-    return new IntegrityError(paths);
+  const report = readReport(err.message);
+  if (!report) return err;
+  switch (report.code) {
+    case 'network':
+      return new NetworkError(
+        report.url,
+        report.status,
+        report.message,
+        report.body,
+      );
+    case 'integrity':
+      return new IntegrityError(report.paths, report.message);
+    case 'extraction':
+      return new ExtractionError(report.artifactPath, report.message, {
+        cause: new Error(report.cause),
+      });
+    default:
+      return new RuntimeError(report.code, report.message);
   }
-  m = /^Failed to extract (\S+):/.exec(msg);
-  if (m) return new ExtractionError(m[1]!, { cause: err });
-  return err;
 }
 
 /** Adapt the caller's typed callback to the untyped one the binding takes. */

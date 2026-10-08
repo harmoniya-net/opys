@@ -92,10 +92,11 @@ export default defineConfig({
 
 ## Exit codes
 
-| Code | Meaning                         |
-| ---- | ------------------------------- |
-| 0    | Success                         |
-| 1    | Usage error (bad args / config) |
-| 2    | Network error                   |
-| 3    | Integrity check failed          |
-| 4    | Extraction failure              |
+| Code | Meaning                          |
+| ---- | -------------------------------- |
+| 0    | Success                          |
+| 1    | Usage error (bad args / config)  |
+| 2    | Network error                    |
+| 3    | Integrity check failed           |
+| 4    | Extraction failure               |
+| 5    | The game started and then failed |

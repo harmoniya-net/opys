@@ -90,10 +90,26 @@ the artifact list.
 
 Returns the `OsOptions` for the current host.
 
-## Error types
+## Errors
 
-| Class             | When                               |
-| ----------------- | ---------------------------------- |
-| `NetworkError`    | HTTP download failure              |
-| `IntegrityError`  | Hash mismatch on an installed file |
-| `ExtractionError` | Archive extraction failure         |
+Every failure the runtime names is a `RuntimeError` with a `code`. Branch on
+the code, not on the message — the wording is free to change.
+
+| `code`       | Class             | When                                            | Also carries            |
+| ------------ | ----------------- | ----------------------------------------------- | ----------------------- |
+| `network`    | `NetworkError`    | A download was refused                          | `url`, `status`, `body` |
+| `integrity`  | `IntegrityError`  | A file on disk is not the one the manifest pins | `paths`                 |
+| `extraction` | `ExtractionError` | An archive could not be unpacked                | `artifactPath`, `cause` |
+| `manifest`   | `RuntimeError`    | The manifest or its bundle is not readable      |                         |
+| `io`         | `RuntimeError`    | The file system refused something               |                         |
+| `cancelled`  | `RuntimeError`    | The install was cancelled                       |                         |
+| `other`      | `RuntimeError`    | Anything else                                   |                         |
+
+```ts
+try {
+  await install(source);
+} catch (err) {
+  if (err instanceof RuntimeError && err.code === 'network') retryLater();
+  else throw err;
+}
+```

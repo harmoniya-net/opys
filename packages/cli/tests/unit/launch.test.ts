@@ -247,7 +247,7 @@ describe('cmdLaunch — error handling', () => {
     });
     const cfg = await fixture();
     await expect(cmdLaunch(['-i', cfg], logger, 'launch')).rejects.toThrow(
-      /exit 3/,
+      /exited with code 3/,
     );
   });
 

@@ -47,10 +47,12 @@ export async function installWithProgress(
         case 'download':
           state.total = p.total;
           state.fetched = p.fetched;
+          state.bytes = p.bytes;
+          state.totalBytes = p.totalBytes;
           render(true);
           break;
         case 'download:start':
-          active.set(p.path, { name: p.path, bytes: 0, total: p.total });
+          active.set(p.path, { name: p.path, bytes: 0, total: p.totalBytes });
           render();
           break;
         case 'download:bytes': {

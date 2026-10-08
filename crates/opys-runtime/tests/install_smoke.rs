@@ -46,6 +46,7 @@ async fn installs_blob_source_to_interpolated_path() {
                     fetched,
                     total,
                     skipped,
+                    ..
                 } => {
                     format!("download {fetched}/{total} skipped={skipped}")
                 }

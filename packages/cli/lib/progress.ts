@@ -36,7 +36,7 @@ export function elapsed(t0: number): string {
 function formatBytes(bytes: number): string {
   if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   if (bytes >= 1024) return `${(bytes / 1024).toFixed(0)} KB`;
-  return `${bytes} B`;
+  return `${Math.round(bytes)} B`;
 }
 
 export function basename(path: string): string {
@@ -46,27 +46,59 @@ export function basename(path: string): string {
 export interface ProgressState {
   fetched: number;
   total: number;
+  /** Bytes of the files that have finished. */
+  bytes: number;
+  /** Bytes of every file the manifest gives a size; 0 when it gives none. */
+  totalBytes: number;
   t0: number;
   active: ReadonlyArray<{ name: string; bytes: number; total: number }>;
 }
 
 export function initialProgress(total: number, t0: number): ProgressState {
-  return { fetched: 0, total, t0, active: [] };
+  return { fetched: 0, total, bytes: 0, totalBytes: 0, t0, active: [] };
+}
+
+/**
+ * How far along, how fast, and how long is left.
+ *
+ * Measured in bytes wherever the manifest gives sizes. Counting files said
+ * "0% — eta 60 hours" for the first quarter-hour of an installation, because
+ * the largest files go first: one JDK archive is a third of the bytes and one
+ * four-thousandth of the files.
+ */
+function overallProgress(state: ProgressState): {
+  pct: number;
+  speed: string;
+  eta: string;
+} {
+  const { fetched, total, bytes, totalBytes, t0, active } = state;
+  const seconds = Math.max(Date.now() - t0, 1) / 1000;
+  if (totalBytes > 0) {
+    const inFlight = active.reduce((sum, f) => sum + f.bytes, 0);
+    const done = Math.min(bytes + inFlight, totalBytes);
+    const rate = done / seconds;
+    return {
+      pct: done / totalBytes,
+      speed: rate > 0 ? ` @ ${formatBytes(rate)}/s` : '',
+      eta: fetched < total ? formatEta(totalBytes - done, rate) : '',
+    };
+  }
+  const rate = fetched / seconds;
+  return {
+    pct: total === 0 ? 1 : fetched / total,
+    speed: rate > 0.1 ? ` @ ${formatSpeed(rate)}` : '',
+    eta: fetched < total ? formatEta(total - fetched, rate) : '',
+  };
 }
 
 export function renderProgress(state: ProgressState): string[] {
-  const { fetched, total, t0, active } = state;
-  const pct = total === 0 ? 1 : fetched / total;
-  const elapsedMs = Math.max(Date.now() - t0, 1);
-  const rate = fetched / (elapsedMs / 1000);
+  const { fetched, total, active } = state;
+  const { pct, speed, eta } = overallProgress(state);
   const bar = progressBar(pct);
   const pctStr = `${Math.round(pct * 100)
     .toString()
     .padStart(3)}%`;
-  const countStr = `${fetched}/${total}`;
-  const speedStr = rate > 0.1 ? ` @ ${formatSpeed(rate)}` : '';
-  const etaStr = fetched < total ? formatEta(total - fetched, rate) : '';
-  const overall = ` [${bar}] ${pctStr} ${countStr}${speedStr}${etaStr}`;
+  const overall = ` [${bar}] ${pctStr} ${fetched}/${total}${speed}${eta}`;
 
   const cols = process.stderr.columns ?? 80;
   const fileLines = active.map((f, i) => {

@@ -466,8 +466,12 @@ export default defineConfig(({ mode }) => ({
 - The runtime install pipeline is phased: resolve → scan → fetch → verify →
   extract → sweep. A manifest comes from one of three sources — a bundle on
   disk, a URL to one (downloaded whole first), or memory — and `prepare`
-  resolves it once for both the install and the launch spec. Failure is a discriminated union —
-  `NetworkError` / `IntegrityError` / `ExtractionError`.
+  resolves it once for both the install and the launch spec. A failure is
+  told apart by its `code` — `network`, `integrity`, `extraction`, `manifest`,
+  `io`, `cancelled`, `other` — which the crate reports as data
+  (`ErrorReport`) and `@opys/runtime` rebuilds as a `RuntimeError`, with
+  `NetworkError` / `IntegrityError` / `ExtractionError` carrying the
+  particulars. Nothing reads the wording of a message.
 
 ## Working in the repo
 

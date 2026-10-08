@@ -23,6 +23,17 @@ fn map_err<E: std::fmt::Display>(e: E) -> napi::Error {
     napi::Error::from_reason(e.to_string())
 }
 
+/// A failed install, thrown as the JSON of its [`opys_runtime::ErrorReport`].
+/// An error crosses napi as a message and nothing else, so the message is
+/// where the structure goes; `@opys/runtime` turns it back into a typed error
+/// and no caller ever sees the JSON.
+fn install_err(e: opys_runtime::InstallError) -> napi::Error {
+    match serde_json::to_string(&e.report()) {
+        Ok(report) => napi::Error::from_reason(report),
+        Err(_) => map_err(e),
+    }
+}
+
 #[napi(object, js_name = "OsOptions")]
 pub struct OsOptionsJs {
     pub name: String,
@@ -60,6 +71,7 @@ pub struct ProgressEventJs {
     pub removed: Option<u32>,
     pub path: Option<String>,
     pub bytes: Option<i64>,
+    pub total_bytes: Option<i64>,
 }
 
 fn progress_to_event(p: InstallProgress) -> ProgressEventJs {
@@ -72,17 +84,21 @@ fn progress_to_event(p: InstallProgress) -> ProgressEventJs {
             fetched,
             total,
             skipped,
+            bytes,
+            total_bytes,
         } => ProgressEventJs {
             phase: "download".into(),
             fetched: Some(fetched),
             total: Some(total),
             skipped: Some(skipped),
+            bytes: Some(bytes as i64),
+            total_bytes: Some(total_bytes as i64),
             ..Default::default()
         },
         InstallProgress::DownloadStart { path, total } => ProgressEventJs {
             phase: "download:start".into(),
             path: Some(path),
-            bytes: Some(total as i64),
+            total_bytes: Some(total as i64),
             ..Default::default()
         },
         InstallProgress::DownloadBytes { path, bytes } => ProgressEventJs {
@@ -192,7 +208,7 @@ fn block_on<T>(
         .build()
         .map_err(map_err)?
         .block_on(future)
-        .map_err(map_err)
+        .map_err(install_err)
 }
 
 fn spec_to_js(spec: opys_runtime::LaunchSpec) -> LaunchSpecJs {
@@ -266,7 +282,7 @@ pub async fn build_launch_js(
     rt_build_launch(source, &launch_options(options))
         .await
         .map(spec_to_js)
-        .map_err(map_err)
+        .map_err(install_err)
 }
 
 /// Install, then say what to spawn — from one reading of the source, so a

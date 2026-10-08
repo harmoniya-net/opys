@@ -23,7 +23,7 @@ mod phases {
 }
 
 pub use constants::DEFAULT_CONCURRENCY;
-pub use errors::InstallError;
+pub use errors::{ErrorReport, InstallError};
 pub use install::{install, InstallOptions, InstallProgress};
 pub use launch::{build_launch, launch, prepare, LaunchOptions, LaunchSpec};
 pub use phases::resolve::{resolve_manifest, ManifestSource};

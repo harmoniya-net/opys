@@ -2,8 +2,13 @@
 import { cmdBuild } from '../lib/commands/build';
 import { cmdInstall } from '../lib/commands/install';
 import { cmdLaunch } from '../lib/commands/launch';
-import { NetworkError, IntegrityError, ExtractionError } from '@opys/runtime';
-import { UsageError } from '../lib/errors';
+import {
+  NetworkError,
+  IntegrityError,
+  ExtractionError,
+  RuntimeError,
+} from '@opys/runtime';
+import { ChildExitError, UsageError } from '../lib/errors';
 import { Logger, parseLogLevel, type LogLevel } from '../lib/logger';
 
 const USAGE = `\
@@ -33,6 +38,7 @@ EXIT CODES
   2  Network error
   3  Integrity check failure
   4  Extraction failure
+  5  The game, once started, exited with a failure of its own
 `;
 
 type CommandHandler = (
@@ -116,6 +122,19 @@ main().catch((err) => {
     if (err.cause instanceof Error)
       process.stderr.write(`  caused by: ${err.cause.message}\n`);
     process.exit(4);
+  }
+  // Any other failure the runtime names — a bundle it does not read, a file it
+  // could not write. It says what is wrong; a stack trace would say where in
+  // opys, which is not where the fault is.
+  if (err instanceof RuntimeError) {
+    process.stderr.write(`Error: ${err.message}\n`);
+    process.exit(1);
+  }
+  // The install succeeded and what it started did not. Its own output is
+  // already on the terminal above this line and is the thing to read.
+  if (err instanceof ChildExitError) {
+    process.stderr.write(`The game ${err.message}\n`);
+    process.exit(5);
   }
   // Fallback — unexpected internal error. Include the full stack so we
   // can pinpoint opys bugs vs config issues without needing to re-run

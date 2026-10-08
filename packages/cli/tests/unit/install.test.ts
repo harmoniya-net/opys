@@ -120,7 +120,7 @@ describe('cmdInstall', () => {
     });
     const cfg = await fixture(HORNO);
     await expect(cmdInstall(['-i', cfg], logger, 'install')).rejects.toThrow(
-      /exit 1/,
+      /exited with code 1/,
     );
   });
 });

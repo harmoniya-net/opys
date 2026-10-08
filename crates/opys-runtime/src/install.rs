@@ -16,10 +16,16 @@ use crate::platform::current_platform;
 #[derive(Debug, Clone)]
 pub enum InstallProgress {
     Resolve,
+    /// Where the download stands. `bytes` counts finished files only — a file
+    /// in flight reports through [`InstallProgress::DownloadBytes`] — and
+    /// `total_bytes` is the sum of the sizes the manifest declares, so it is
+    /// short by whatever is listed without one.
     Download {
         fetched: u32,
         total: u32,
         skipped: u32,
+        bytes: u64,
+        total_bytes: u64,
     },
     DownloadStart {
         path: String,
@@ -131,16 +137,21 @@ pub(crate) async fn install_resolved(
         .collect();
 
     let fetched = Arc::new(std::sync::atomic::AtomicU32::new(0));
+    let fetched_bytes = Arc::new(std::sync::atomic::AtomicU64::new(0));
+    let total_bytes: u64 = fetch_tasks.iter().filter_map(|t| t.artifact.size).sum();
 
     report(InstallProgress::Download {
         fetched: 0,
         total: total_fetch,
         skipped: scanned.skipped,
+        bytes: 0,
+        total_bytes,
     });
 
     let hooks = {
         let progress = progress.clone();
         let fetched = Arc::clone(&fetched);
+        let fetched_bytes = Arc::clone(&fetched_bytes);
         FetchHooks {
             on_start: progress.as_ref().map(|cb| {
                 let cb = cb.clone();
@@ -164,6 +175,9 @@ pub(crate) async fn install_resolved(
                 let cb = progress.clone();
                 Arc::new(move |t: &FetchTask| {
                     let n = fetched.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
+                    let size = t.artifact.size.unwrap_or(0);
+                    let bytes =
+                        fetched_bytes.fetch_add(size, std::sync::atomic::Ordering::SeqCst) + size;
                     if let Some(cb) = &cb {
                         cb(InstallProgress::DownloadDone {
                             path: t.artifact.path.clone(),
@@ -172,6 +186,8 @@ pub(crate) async fn install_resolved(
                             fetched: n,
                             total: total_fetch,
                             skipped: scanned.skipped,
+                            bytes,
+                            total_bytes,
                         });
                     }
                 }) as Arc<dyn Fn(&FetchTask) + Send + Sync>

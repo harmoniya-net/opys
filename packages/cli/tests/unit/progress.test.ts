@@ -52,7 +52,14 @@ describe('elapsed', () => {
 describe('initialProgress', () => {
   it('builds a zeroed progress state', () => {
     const state = initialProgress(10, 123);
-    expect(state).toEqual({ fetched: 0, total: 10, t0: 123, active: [] });
+    expect(state).toEqual({
+      fetched: 0,
+      total: 10,
+      bytes: 0,
+      totalBytes: 0,
+      t0: 123,
+      active: [],
+    });
   });
 });
 
@@ -71,6 +78,8 @@ describe('renderProgress', () => {
     const state: ProgressState = {
       fetched: 5,
       total: 10,
+      bytes: 0,
+      totalBytes: 0,
       t0: 0,
       active: [],
     };
@@ -82,7 +91,14 @@ describe('renderProgress', () => {
 
   it('includes a speed readout when the rate is meaningful', () => {
     vi.spyOn(Date, 'now').mockReturnValue(2_000);
-    const state: ProgressState = { fetched: 4, total: 10, t0: 0, active: [] };
+    const state: ProgressState = {
+      fetched: 4,
+      total: 10,
+      bytes: 0,
+      totalBytes: 0,
+      t0: 0,
+      active: [],
+    };
     expect(renderProgress(state)[0]).toMatch(/@ \d/);
   });
 
@@ -91,6 +107,8 @@ describe('renderProgress', () => {
     const state: ProgressState = {
       fetched: 5_000,
       total: 10_000,
+      bytes: 0,
+      totalBytes: 0,
       t0: 0,
       active: [],
     };
@@ -99,7 +117,14 @@ describe('renderProgress', () => {
 
   it('shows an eta in seconds while files remain', () => {
     vi.spyOn(Date, 'now').mockReturnValue(1_000);
-    const state: ProgressState = { fetched: 2, total: 10, t0: 0, active: [] };
+    const state: ProgressState = {
+      fetched: 2,
+      total: 10,
+      bytes: 0,
+      totalBytes: 0,
+      t0: 0,
+      active: [],
+    };
     expect(renderProgress(state)[0]).toMatch(/eta \d+s/);
   });
 
@@ -108,6 +133,8 @@ describe('renderProgress', () => {
     const state: ProgressState = {
       fetched: 1,
       total: 1_000,
+      bytes: 0,
+      totalBytes: 0,
       t0: 0,
       active: [],
     };
@@ -116,8 +143,48 @@ describe('renderProgress', () => {
 
   it('omits the eta once fetched reaches total', () => {
     vi.spyOn(Date, 'now').mockReturnValue(1_000);
-    const state: ProgressState = { fetched: 10, total: 10, t0: 0, active: [] };
+    const state: ProgressState = {
+      fetched: 10,
+      total: 10,
+      bytes: 0,
+      totalBytes: 0,
+      t0: 0,
+      active: [],
+    };
     expect(renderProgress(state)[0]).not.toContain('eta');
+  });
+
+  // One JDK archive is a third of an installation's bytes and one
+  // four-thousandth of its files; by count this is "0%, 60 hours left".
+  it('measures in bytes when the manifest gives sizes', () => {
+    vi.spyOn(Date, 'now').mockReturnValue(10_000);
+    const MB = 1024 * 1024;
+    const state: ProgressState = {
+      fetched: 1,
+      total: 4_000,
+      bytes: 200 * MB,
+      totalBytes: 600 * MB,
+      t0: 0,
+      active: [{ name: 'client.jar', bytes: 100 * MB, total: 200 * MB }],
+    };
+    const line = renderProgress(state)[0]!;
+    expect(line).toContain(' 50%');
+    expect(line).toContain('1/4000');
+    expect(line).toContain('@ 30.0 MB/s');
+    expect(line).toContain('eta 10s');
+  });
+
+  it('never passes 100% on a file larger than the manifest said', () => {
+    vi.spyOn(Date, 'now').mockReturnValue(1_000);
+    const state: ProgressState = {
+      fetched: 0,
+      total: 1,
+      bytes: 0,
+      totalBytes: 10,
+      t0: 0,
+      active: [{ name: 'a', bytes: 50, total: 10 }],
+    };
+    expect(renderProgress(state)[0]).toContain('100%');
   });
 
   it('renders an active file line with byte counts', () => {
@@ -125,6 +192,8 @@ describe('renderProgress', () => {
     const state: ProgressState = {
       fetched: 0,
       total: 1,
+      bytes: 0,
+      totalBytes: 0,
       t0: 0,
       active: [{ name: 'mods/jei.jar', bytes: 512 * 1024, total: 1024 * 1024 }],
     };
@@ -141,6 +210,8 @@ describe('renderProgress', () => {
     const state: ProgressState = {
       fetched: 0,
       total: 2,
+      bytes: 0,
+      totalBytes: 0,
       t0: 0,
       active: [
         { name: 'a.jar', bytes: 0, total: 0 },
@@ -157,6 +228,8 @@ describe('renderProgress', () => {
     const state: ProgressState = {
       fetched: 0,
       total: 1,
+      bytes: 0,
+      totalBytes: 0,
       t0: 0,
       active: [{ name: 'a.jar', bytes: 2048, total: 0 }],
     };
@@ -168,6 +241,8 @@ describe('renderProgress', () => {
     const state: ProgressState = {
       fetched: 0,
       total: 1,
+      bytes: 0,
+      totalBytes: 0,
       t0: 0,
       active: [{ name: 'a.jar', bytes: 0, total: 4096 }],
     };
@@ -179,6 +254,8 @@ describe('renderProgress', () => {
     const state: ProgressState = {
       fetched: 0,
       total: 1,
+      bytes: 0,
+      totalBytes: 0,
       t0: 0,
       active: [{ name: 'a.jar', bytes: 0, total: 100 }],
     };
@@ -196,6 +273,8 @@ describe('renderProgress', () => {
       const state: ProgressState = {
         fetched: 0,
         total: 1,
+        bytes: 0,
+        totalBytes: 0,
         t0: 0,
         active: [{ name: 'very-long-file-name.jar', bytes: 0, total: 0 }],
       };
