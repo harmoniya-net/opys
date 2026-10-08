@@ -21,10 +21,12 @@ import {
   definePlugin,
   pluginOptions,
   launchGroups,
+  withLibraryFiles,
+  type ExtraLibrary,
   type ChainablePlugin,
   type LoaderGroups,
 } from '@opys/dev';
-import type { Artifact, ConditionalVal, ValDefs } from '@opys/core';
+import type { Artifact, ConditionalVal, ValDefs, Blobs } from '@opys/core';
 import type { LaunchParts } from '@opys/minecraft-vanilla';
 
 /** The canonical document index base URL. */
@@ -44,6 +46,10 @@ export interface UnimixinsOptions {
 
 /** What to resolve. */
 export interface Lwjgl3ifyOptions {
+  /**
+   * Libraries to run with beside the version's own; see {@link ExtraLibrary}.
+   */
+  readonly libraries?: readonly ExtraLibrary[];
   /**
    * Accepts:
    *   - a Minecraft version: `1.7.10` (its `best` release)
@@ -81,6 +87,8 @@ export interface Lwjgl3ifyRelease {
 export interface Lwjgl3ifyTemplate extends LaunchParts {
   /** The client jar, the assets, every library, then the jars for `mods/`. */
   readonly artifacts: Artifact[];
+  /** Where the blobs among `artifacts` are kept; set only by a local library. */
+  readonly blobs?: Blobs;
   readonly vars: ValDefs;
   /**
    * Per-OS classpath arms (also baked into `vars.classpath`), exposed so a
@@ -129,9 +137,16 @@ export function lwjgl3ify(
   return definePlugin({
     name: 'lwjgl3ify',
     async build(ctx) {
-      const t = await resolveLwjgl3ify(options);
+      const t = await resolveLwjgl3ify(
+        withLibraryFiles(options, ctx.configDir),
+      );
       ctx.log('lwjgl3ify', `resolved ${version}`);
-      return { artifacts: t.artifacts, vars: t.vars, launch: launchGroups(t) };
+      return {
+        artifacts: t.artifacts,
+        blobs: t.blobs,
+        vars: t.vars,
+        launch: launchGroups(t),
+      };
     },
   });
 }

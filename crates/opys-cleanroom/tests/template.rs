@@ -85,6 +85,7 @@ fn options(server: &TestServer, version: &str) -> CleanroomOptions {
     CleanroomOptions {
         version: version.to_owned(),
         source: Some(server.base.clone()),
+        libraries: Vec::new(),
     }
 }
 

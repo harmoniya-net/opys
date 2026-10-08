@@ -174,6 +174,7 @@ fn the_plugin_contributes_the_template_as_named_launch_groups() {
     let out = opys_minecraft_vanilla::build_minecraft(&opys_minecraft_vanilla::MinecraftOptions {
         version: Some("1.20.1".to_owned()),
         manifest_base: Some(format!("{}/manifest.json", server.base)),
+        libraries: Vec::new(),
     })
     .unwrap();
 

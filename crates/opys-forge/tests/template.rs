@@ -173,6 +173,7 @@ fn options(server: &TestServer, version: &str) -> ForgeOptions {
         version: version.to_owned(),
         source: Some(server.base.clone()),
         manifest_base: Some(format!("{}/version_manifest_v2.json", server.base)),
+        libraries: Vec::new(),
     }
 }
 

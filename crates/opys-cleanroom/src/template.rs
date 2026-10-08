@@ -1,9 +1,9 @@
 //! The `cleanroom` plugin: a published Cleanroom version document, mapped.
 
-use opys_core::{Artifact, ConditionalVal, Launch, Val, ValDefs};
+use opys_core::{Artifact, Blobs, ConditionalVal, Launch, Val, ValDefs};
 use opys_dev::http::get_json;
 use opys_dev::{Contribution, LaunchFragment, PluginOutput};
-use opys_minecraft_vanilla::resolve_client_template;
+use opys_minecraft_vanilla::{add_libraries, resolve_client_template, ExtraLibrary};
 use opys_mojang::Client;
 use serde::{Deserialize, Serialize};
 
@@ -22,6 +22,10 @@ pub struct CleanroomOptions {
     pub version: String,
     /// Document index base URL. `None` is [`DEFAULT_CLEANROOM_INDEX`].
     pub source: Option<String>,
+    /// Libraries to run with beside the version's own, written the way a
+    /// version JSON writes one; they go ahead of everything on the classpath.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub libraries: Vec<ExtraLibrary>,
 }
 
 /// Everything a Cleanroom release contributes to a manifest — the game
@@ -35,6 +39,10 @@ pub struct CleanroomTemplate {
     /// Per-OS classpath arms (also baked into `vars.classpath`), exposed so a
     /// plugin stacked on top of Cleanroom can rebuild it with its own libraries.
     pub classpath: Vec<ConditionalVal>,
+    /// Where the blobs among `artifacts` are kept: empty unless the config
+    /// added a library from its own disk.
+    #[serde(default, skip_serializing_if = "Blobs::is_empty")]
+    pub blobs: Blobs,
     /// Assembled launch — drop straight into `manifest.launch`.
     pub launch: Launch,
     /// JVM args alone, for composition (e.g. interleaving an auth `-javaagent`).
@@ -66,12 +74,13 @@ pub fn resolve_cleanroom(options: &CleanroomOptions) -> Result<CleanroomTemplate
     let source = options.source.as_deref().unwrap_or(DEFAULT_CLEANROOM_INDEX);
     let release = resolve_cleanroom_version(&options.version, source)?;
     let client = fetch_document(&release.document_url)?;
-    let template = resolve_client_template(&client)?;
+    let template = add_libraries(resolve_client_template(&client)?, &options.libraries)?;
 
     Ok(CleanroomTemplate {
         artifacts: template.artifacts,
         vars: template.vars,
         classpath: template.classpath,
+        blobs: template.blobs,
         launch: template.launch,
         jvm_args: template.jvm_args,
         main_class: template.main_class,
@@ -86,8 +95,8 @@ pub fn build_cleanroom(options: &CleanroomOptions) -> Result<PluginOutput, Clean
         name: PLUGIN_NAME.to_owned(),
         contribution: Contribution {
             artifacts: template.artifacts,
-            // Every artifact here is a download; none travels with the manifest.
-            blobs: Default::default(),
+            // Empty unless the config added a library from its own disk.
+            blobs: template.blobs,
             vars: template.vars,
             launch: [
                 (

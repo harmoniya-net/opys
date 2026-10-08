@@ -23,10 +23,12 @@ import {
   definePlugin,
   pluginOptions,
   launchGroups,
+  withLibraryFiles,
+  type ExtraLibrary,
   type ChainablePlugin,
   type LoaderGroups,
 } from '@opys/dev';
-import type { Artifact, ConditionalVal, ValDefs } from '@opys/core';
+import type { Artifact, ConditionalVal, ValDefs, Blobs } from '@opys/core';
 import type { LaunchParts } from '@opys/minecraft-vanilla';
 
 /** The canonical document index base URL. */
@@ -38,6 +40,10 @@ export const DEFAULT_CLEANROOM_INDEX = napi.defaultCleanroomIndex();
 
 /** What to resolve. */
 export interface CleanroomOptions {
+  /**
+   * Libraries to run with beside the version's own; see {@link ExtraLibrary}.
+   */
+  readonly libraries?: readonly ExtraLibrary[];
   /**
    * Accepts:
    *   - a Minecraft version: `1.12.2` (its `best` release)
@@ -63,6 +69,8 @@ export interface CleanroomRelease {
 export interface CleanroomTemplate extends LaunchParts {
   /** The client jar, the assets, and every library the document lists. */
   readonly artifacts: Artifact[];
+  /** Where the blobs among `artifacts` are kept; set only by a local library. */
+  readonly blobs?: Blobs;
   readonly vars: ValDefs;
   /**
    * Per-OS classpath arms (also baked into `vars.classpath`), exposed so a
@@ -108,9 +116,16 @@ export function cleanroom(
   return definePlugin({
     name: 'cleanroom',
     async build(ctx) {
-      const t = await resolveCleanroom(options);
+      const t = await resolveCleanroom(
+        withLibraryFiles(options, ctx.configDir),
+      );
       ctx.log('cleanroom', `resolved ${version}`);
-      return { artifacts: t.artifacts, vars: t.vars, launch: launchGroups(t) };
+      return {
+        artifacts: t.artifacts,
+        blobs: t.blobs,
+        vars: t.vars,
+        launch: launchGroups(t),
+      };
     },
   });
 }

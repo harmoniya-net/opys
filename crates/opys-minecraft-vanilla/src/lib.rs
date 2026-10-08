@@ -15,18 +15,24 @@
 //! GET, which the runtime never links.
 
 mod error;
+mod extra;
 mod fetch;
 mod mappers;
 mod vanilla;
 
 pub use error::MinecraftError;
+pub use extra::{
+    resolve_libraries, with_libraries, ExtraLibrary, ExtraLibraryError, ExtraSource,
+    ResolvedLibraries,
+};
 pub use fetch::{fetch_asset_manifest, fetch_client, fetch_version_manifest};
 pub use mappers::{
-    asset_directory, build_classpath, build_launch, inherited_classpath, library_to_artifact,
-    map_asset_index, map_asset_objects, map_client_jar, map_libraries, superseded, ClasspathEntry,
+    asset_directory, build_classpath, build_launch, classpath_entries, classpath_of,
+    inherited_classpath, inherited_entries, library_to_artifact, map_asset_index,
+    map_asset_objects, map_client_jar, map_libraries, native_extract, superseded, ClasspathEntry,
     LaunchParts, CLIENT_MODULE,
 };
 pub use vanilla::{
-    build_minecraft, client_to_template, patch_to_template, resolve_client_template,
+    add_libraries, build_minecraft, client_to_template, patch_to_template, resolve_client_template,
     resolve_minecraft, MinecraftOptions, MinecraftTemplate, PLUGIN_NAME,
 };

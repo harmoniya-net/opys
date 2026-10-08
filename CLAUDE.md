@@ -211,6 +211,24 @@ them, and the list below names the layers rather than every one:
   keeps the store and copies out of it — and each carries the sha1 that
   names it: the belief that a content-addressed path verifies itself left
   most of an installation unchecked.
+- **A config's own libraries are folded like a patch's.** A loader takes
+  `libraries`, each `{ name, artifact }`, as a version JSON pairs them. The
+  artifact is a manifest's own — the type a config already writes under
+  `manifest.artifacts`, with its `rules`, `integrity` and `extract`, read by
+  the manifest's own reader — and differs in two places: its `path` is
+  relative to the library directory, as a version JSON's is, and its `source`
+  may be a `file`, a jar on the author's disk, which a manifest cannot name
+  and which therefore travels as a blob. A link with no `integrity` is
+  downloaded once at build time to be pinned, so a manifest stays fully
+  resolved whatever the author wrote. Libraries go ahead of everything on the
+  classpath and take the place of the version's library of the same
+  `group:artifact`, which is what `inheritsFrom` means for a patch's and is
+  the same code path. One rule is this option's own: a library with `rules`
+  replaces nothing, since wherever its rules do not hold it is absent, and
+  dropping the version's copy there would leave that machine with neither.
+  It all happens in `opys-minecraft-vanilla`'s `add_libraries`, which every
+  loader ends in; a template keeps its classpath as entries for this, since
+  what a library supersedes can only be told from an entry's module.
 - **The client jar goes last on the classpath.** After every library, which is
   where HMCL (`DefaultLauncher`: libraries into a `LinkedHashSet`, then the
   jar) and `minecraft-launcher-lib` (`get_libraries`: the loop, then the jar)

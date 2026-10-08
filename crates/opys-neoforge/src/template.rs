@@ -1,10 +1,12 @@
 //! The `neoforge` plugin: a published NeoForge version document, folded onto
 //! vanilla.
 
-use opys_core::{Artifact, ConditionalVal, Launch, Val, ValDefs};
+use opys_core::{Artifact, Blobs, ConditionalVal, Launch, Val, ValDefs};
 use opys_dev::http::get_json;
 use opys_dev::{Contribution, LaunchFragment, PluginOutput};
-use opys_minecraft_vanilla::{fetch_client, patch_to_template, resolve_client_template};
+use opys_minecraft_vanilla::{
+    add_libraries, fetch_client, patch_to_template, resolve_client_template, ExtraLibrary,
+};
 use opys_mojang::VersionPatch;
 use serde::{Deserialize, Serialize};
 
@@ -26,6 +28,10 @@ pub struct NeoForgeOptions {
     /// Overrides the canonical Mojang version-manifest URL — a mirror, or the
     /// seam the tests point at a loopback server.
     pub manifest_base: Option<String>,
+    /// Libraries to run with beside the version's own, written the way a
+    /// version JSON writes one; they go ahead of everything on the classpath.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub libraries: Vec<ExtraLibrary>,
 }
 
 /// Everything a NeoForge build plus its vanilla base contributes to a manifest.
@@ -38,6 +44,10 @@ pub struct NeoForgeTemplate {
     /// Per-OS classpath arms (also baked into `vars.classpath`), exposed so a
     /// plugin stacked on top of NeoForge can rebuild it with its own libraries.
     pub classpath: Vec<ConditionalVal>,
+    /// Where the blobs among `artifacts` are kept: empty unless the config
+    /// added a library from its own disk.
+    #[serde(default, skip_serializing_if = "Blobs::is_empty")]
+    pub blobs: Blobs,
     /// Assembled launch — drop straight into `manifest.launch`.
     pub launch: Launch,
     /// JVM args alone, for composition (e.g. interleaving an auth `-javaagent`).
@@ -68,12 +78,16 @@ pub fn resolve_neoforge(options: &NeoForgeOptions) -> Result<NeoForgeTemplate, N
 
     let (_, client) = fetch_client(Some(&patch.inherits_from), options.manifest_base.as_deref())?;
     let vanilla = resolve_client_template(&client)?;
-    let folded = patch_to_template(&patch, &client, &vanilla)?;
+    let folded = add_libraries(
+        patch_to_template(&patch, &client, &vanilla)?,
+        &options.libraries,
+    )?;
 
     Ok(NeoForgeTemplate {
         artifacts: folded.artifacts,
         vars: folded.vars,
         classpath: folded.classpath,
+        blobs: folded.blobs,
         launch: folded.launch,
         jvm_args: folded.jvm_args,
         main_class: folded.main_class,
@@ -88,8 +102,8 @@ pub fn build_neoforge(options: &NeoForgeOptions) -> Result<PluginOutput, NeoForg
         name: PLUGIN_NAME.to_owned(),
         contribution: Contribution {
             artifacts: template.artifacts,
-            // Every artifact here is a download; none travels with the manifest.
-            blobs: Default::default(),
+            // Empty unless the config added a library from its own disk.
+            blobs: template.blobs,
             vars: template.vars,
             launch: [
                 (

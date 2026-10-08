@@ -1249,6 +1249,7 @@ dependencies = [
  "opys-mojang-rules",
  "serde",
  "serde_json",
+ "tempfile",
  "thiserror",
 ]
 

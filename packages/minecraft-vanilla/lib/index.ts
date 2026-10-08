@@ -21,6 +21,8 @@ import {
   definePlugin,
   pluginOptions,
   launchGroups,
+  withLibraryFiles,
+  type ExtraLibrary,
   type ChainablePlugin,
   type LoaderGroups,
 } from '@opys/dev';
@@ -32,6 +34,7 @@ import type {
   Val,
   ValDefs,
   Valset,
+  Blobs,
 } from '@opys/core';
 import type {
   AssetIndex,
@@ -51,6 +54,10 @@ export { VERSION_MANIFEST_URL } from '@opys/mojang';
 
 /** What to resolve. `version` omitted takes the manifest's current release. */
 export interface MinecraftOptions {
+  /**
+   * Libraries to run with beside the version's own; see {@link ExtraLibrary}.
+   */
+  readonly libraries?: readonly ExtraLibrary[];
   readonly version?: string;
   /**
    * URL of the version manifest, when it is not Mojang's own — a mirror, or a
@@ -86,6 +93,8 @@ export interface LaunchParts {
 /** Everything a vanilla version JSON contributes to a manifest. */
 export interface MinecraftTemplate extends LaunchParts {
   readonly artifacts: Artifact[];
+  /** Where the blobs among `artifacts` are kept; set only by a local library. */
+  readonly blobs?: Blobs;
   readonly vars: ValDefs;
   /**
    * Per-OS classpath arms (also baked into `vars.classpath`), exposed so a
@@ -217,9 +226,16 @@ export function minecraft(
   return definePlugin({
     name: 'minecraft',
     async build(ctx) {
-      const t = await resolveMinecraft(options);
+      const t = await resolveMinecraft(
+        withLibraryFiles(options, ctx.configDir),
+      );
       ctx.log('minecraft', `vanilla ${version ?? 'latest'}`);
-      return { artifacts: t.artifacts, vars: t.vars, launch: launchGroups(t) };
+      return {
+        artifacts: t.artifacts,
+        blobs: t.blobs,
+        vars: t.vars,
+        launch: launchGroups(t),
+      };
     },
   });
 }

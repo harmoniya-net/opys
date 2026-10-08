@@ -1,15 +1,20 @@
 use opys_core::{Artifact, ExtractDump, ExtractRule, HashEntry, Integrity, Source};
 use opys_mojang::Library;
 
-pub fn library_to_artifact(lib: &Library) -> Artifact {
-    let extract = lib.native.then(|| {
+/// How a natives bundle is unpacked, for a library that is one.
+pub fn native_extract(native: bool) -> Option<Vec<ExtractRule>> {
+    native.then(|| {
         vec![ExtractRule::Dump(ExtractDump {
             into: "${natives_directory}".to_owned(),
             clean: Some(true),
             includes: None,
             excludes: Some(vec!["META-INF/".to_owned()]),
         })]
-    });
+    })
+}
+
+pub fn library_to_artifact(lib: &Library) -> Artifact {
+    let extract = native_extract(lib.native);
 
     // Upstream version manifests occasionally ship a real `url` alongside a
     // placeholder `sha1: ""` / `size: 0` — e.g. lwjgl3ify 3.0.25's

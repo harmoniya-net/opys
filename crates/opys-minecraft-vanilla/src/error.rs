@@ -15,4 +15,6 @@ pub enum MinecraftError {
     Rule(#[from] opys_mojang_rules::RuleError),
     #[error(transparent)]
     Json(#[from] serde_json::Error),
+    #[error(transparent)]
+    Library(#[from] crate::extra::ExtraLibraryError),
 }

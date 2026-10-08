@@ -3,16 +3,17 @@
 use std::collections::HashSet;
 
 use indexmap::IndexMap;
-use opys_core::{allow_os_ruleset, Artifact, ConditionalVal, Launch, Val, ValDef, ValDefs};
+use opys_core::{allow_os_ruleset, Artifact, Blobs, ConditionalVal, Launch, Val, ValDef, ValDefs};
 use opys_dev::{Contribution, LaunchFragment, PluginOutput};
 use opys_mojang::{AssetManifest, Client, VersionPatch};
 use opys_mojang_rules::OsName;
 
 use crate::error::MinecraftError;
+use crate::extra::{resolve_libraries, with_libraries, ExtraLibrary};
 use crate::fetch::{fetch_asset_manifest, fetch_client};
 use crate::mappers::{
-    asset_directory, build_classpath, build_launch, inherited_classpath, map_asset_index,
-    map_asset_objects, map_client_jar, map_libraries, superseded, ClasspathEntry,
+    asset_directory, build_launch, classpath_entries, classpath_of, inherited_entries,
+    map_asset_index, map_asset_objects, map_client_jar, map_libraries, superseded, ClasspathEntry,
 };
 
 /// The name this plugin claims in the plugin map.
@@ -27,6 +28,9 @@ pub struct MinecraftOptions {
     /// Overrides the canonical version-manifest URL — the seam the tests
     /// point at a loopback server.
     pub manifest_base: Option<String>,
+    /// Libraries to run with beside the version's own; see [`ExtraLibrary`].
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub libraries: Vec<ExtraLibrary>,
 }
 
 /// Everything a vanilla version JSON contributes to a manifest.
@@ -38,6 +42,14 @@ pub struct MinecraftTemplate {
     /// Per-OS classpath arms (also baked into `vars.classpath`), exposed so a
     /// loader can rebuild the classpath with its own libraries prepended.
     pub classpath: Vec<ConditionalVal>,
+    /// The classpath as the list it was joined from, in order. What lets a
+    /// config's own libraries go ahead of it and supersede what they replace.
+    #[serde(default)]
+    pub entries: Vec<ClasspathEntry>,
+    /// Where the blobs among `artifacts` are kept. Empty unless a config
+    /// added a library from its own disk: a version's files are downloads.
+    #[serde(default, skip_serializing_if = "Blobs::is_empty")]
+    pub blobs: Blobs,
     /// Assembled launch — drop straight into `manifest.launch`.
     pub launch: Launch,
     /// JVM args alone, for composition (e.g. interleaving an auth `-javaagent`).
@@ -51,7 +63,20 @@ pub struct MinecraftTemplate {
 /// Resolve vanilla Minecraft.
 pub fn resolve_minecraft(options: &MinecraftOptions) -> Result<MinecraftTemplate, MinecraftError> {
     let (_, client) = fetch_client(options.version.as_deref(), options.manifest_base.as_deref())?;
-    resolve_client_template(&client)
+    add_libraries(resolve_client_template(&client)?, &options.libraries)
+}
+
+/// Put a config's own libraries on a resolved template. Every loader ends
+/// here, so "an additional library" means one thing across the family. With
+/// none to add it does nothing, and reaches for nothing.
+pub fn add_libraries(
+    template: MinecraftTemplate,
+    libraries: &[ExtraLibrary],
+) -> Result<MinecraftTemplate, MinecraftError> {
+    if libraries.is_empty() {
+        return Ok(template);
+    }
+    Ok(with_libraries(template, resolve_libraries(libraries)?)?)
 }
 
 /// Fetch what a version JSON points at, then map it. The loaders' entry
@@ -76,8 +101,9 @@ pub fn client_to_template(
     artifacts.push(map_asset_index(&client.asset_index));
     artifacts.extend(map_asset_objects(assets, &client.asset_index.id));
 
-    let entries: Vec<ClasspathEntry> = client.libraries.iter().map(ClasspathEntry::of).collect();
-    let classpath = build_classpath(&entries, "${version_dir}/client.jar")?;
+    let libraries: Vec<ClasspathEntry> = client.libraries.iter().map(ClasspathEntry::of).collect();
+    let entries = classpath_entries(&libraries, "${version_dir}/client.jar");
+    let classpath = classpath_of(&entries)?;
 
     let mut vars: ValDefs = IndexMap::new();
     let mut flat = |key: &str, value: &str| {
@@ -128,6 +154,8 @@ pub fn client_to_template(
         artifacts,
         vars,
         classpath,
+        entries,
+        blobs: Blobs::new(),
         launch: parts.launch,
         jvm_args: parts.jvm_args,
         main_class: parts.main_class,
@@ -156,8 +184,8 @@ pub fn patch_to_template(
         patch.libraries.iter().map(ClasspathEntry::of).collect();
     let base_entries: Vec<ClasspathEntry> =
         client.libraries.iter().map(ClasspathEntry::of).collect();
-    let classpath =
-        inherited_classpath(&patch_entries, &base_entries, "${version_dir}/client.jar")?;
+    let entries = inherited_entries(&patch_entries, &base_entries, "${version_dir}/client.jar");
+    let classpath = classpath_of(&entries)?;
 
     let mut vars = vanilla.vars.clone();
     vars.insert("classpath".to_owned(), ValDef::Arms(classpath.clone()));
@@ -184,6 +212,8 @@ pub fn patch_to_template(
         artifacts,
         vars,
         classpath,
+        entries,
+        blobs: vanilla.blobs.clone(),
         launch: parts.launch,
         jvm_args: parts.jvm_args,
         main_class: parts.main_class,
@@ -198,8 +228,8 @@ pub fn build_minecraft(options: &MinecraftOptions) -> Result<PluginOutput, Minec
         name: PLUGIN_NAME.to_owned(),
         contribution: Contribution {
             artifacts: template.artifacts,
-            // Every artifact here is a download; none travels with the manifest.
-            blobs: Default::default(),
+            // Empty unless the config added a library from its own disk.
+            blobs: template.blobs,
             vars: template.vars,
             launch: [
                 (

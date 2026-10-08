@@ -2,11 +2,11 @@
 
 use std::collections::HashSet;
 
-use opys_core::{Artifact, ConditionalVal, Launch, Val, ValDef, ValDefs};
+use opys_core::{Artifact, Blobs, ConditionalVal, Launch, Val, ValDef, ValDefs};
 use opys_dev::{Contribution, LaunchFragment, PluginOutput};
 use opys_minecraft_vanilla::{
-    build_launch, fetch_client, inherited_classpath, resolve_client_template, superseded,
-    ClasspathEntry, MinecraftTemplate,
+    add_libraries, build_launch, classpath_of, fetch_client, inherited_entries,
+    resolve_client_template, superseded, ClasspathEntry, ExtraLibrary, MinecraftTemplate,
 };
 use opys_mojang::Client;
 use serde::{Deserialize, Serialize};
@@ -32,6 +32,10 @@ pub struct FabricOptions {
     /// Overrides the canonical Mojang version-manifest URL — a mirror, or the
     /// seam the tests point at a loopback server.
     pub manifest_base: Option<String>,
+    /// Libraries to run with beside the version's own, written the way a
+    /// version JSON writes one; they go ahead of everything on the classpath.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub libraries: Vec<ExtraLibrary>,
 }
 
 /// Everything a Fabric profile plus its vanilla base contributes to a manifest.
@@ -44,6 +48,10 @@ pub struct FabricTemplate {
     /// Per-OS classpath arms (also baked into `vars.classpath`), exposed so a
     /// plugin stacked on top of Fabric can rebuild it with its own libraries.
     pub classpath: Vec<ConditionalVal>,
+    /// Where the blobs among `artifacts` are kept: empty unless the config
+    /// added a library from its own disk.
+    #[serde(default, skip_serializing_if = "Blobs::is_empty")]
+    pub blobs: Blobs,
     /// Assembled launch — drop straight into `manifest.launch`.
     pub launch: Launch,
     /// JVM args alone, for composition (e.g. interleaving an auth `-javaagent`).
@@ -67,7 +75,8 @@ pub fn resolve_fabric(options: &FabricOptions) -> Result<FabricTemplate, FabricE
     )?;
     let vanilla = resolve_client_template(&client)?;
 
-    profile_to_template(&profile, &client, &vanilla)
+    let folded = fold_profile(&profile, &client, &vanilla)?;
+    Ok(add_libraries(folded, &options.libraries)?.into())
 }
 
 /// The pure half: a profile, the vanilla version JSON it inherits from, and
@@ -82,6 +91,31 @@ pub fn profile_to_template(
     client: &Client,
     vanilla: &MinecraftTemplate,
 ) -> Result<FabricTemplate, FabricError> {
+    Ok(fold_profile(profile, client, vanilla)?.into())
+}
+
+/// A folded template, in the shape the rest of the family folds to. Fabric's
+/// own carries the same fields; this one is what `add_libraries` takes.
+impl From<MinecraftTemplate> for FabricTemplate {
+    fn from(folded: MinecraftTemplate) -> Self {
+        FabricTemplate {
+            artifacts: folded.artifacts,
+            vars: folded.vars,
+            classpath: folded.classpath,
+            blobs: folded.blobs,
+            launch: folded.launch,
+            jvm_args: folded.jvm_args,
+            main_class: folded.main_class,
+            game_args: folded.game_args,
+        }
+    }
+}
+
+fn fold_profile(
+    profile: &FabricProfile,
+    client: &Client,
+    vanilla: &MinecraftTemplate,
+) -> Result<MinecraftTemplate, FabricError> {
     let libs: Vec<(Artifact, ClasspathEntry)> = profile
         .libraries
         .iter()
@@ -93,7 +127,8 @@ pub fn profile_to_template(
     // Fabric ships its own ASM build and means it to be the only one.
     let patch: Vec<ClasspathEntry> = libs.iter().map(|(_, entry)| entry.clone()).collect();
     let base: Vec<ClasspathEntry> = client.libraries.iter().map(ClasspathEntry::of).collect();
-    let classpath = inherited_classpath(&patch, &base, "${version_dir}/client.jar")?;
+    let entries = inherited_entries(&patch, &base, "${version_dir}/client.jar");
+    let classpath = classpath_of(&entries)?;
 
     let merged = client.args.merge(&profile.arguments);
     let parts = build_launch(&profile.main_class, &merged.game, &merged.jvm);
@@ -115,10 +150,12 @@ pub fn profile_to_template(
         .collect();
     artifacts.extend(libs.into_iter().map(|(artifact, _)| artifact));
 
-    Ok(FabricTemplate {
+    Ok(MinecraftTemplate {
         artifacts,
         vars,
         classpath,
+        entries,
+        blobs: vanilla.blobs.clone(),
         launch: parts.launch,
         jvm_args: parts.jvm_args,
         main_class: parts.main_class,
@@ -133,8 +170,8 @@ pub fn build_fabric(options: &FabricOptions) -> Result<PluginOutput, FabricError
         name: PLUGIN_NAME.to_owned(),
         contribution: Contribution {
             artifacts: template.artifacts,
-            // Every artifact here is a download; none travels with the manifest.
-            blobs: Default::default(),
+            // Empty unless the config added a library from its own disk.
+            blobs: template.blobs,
             vars: template.vars,
             launch: [
                 (

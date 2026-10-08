@@ -13,7 +13,7 @@ mod libraries;
 pub use assets::{asset_directory, map_asset_index, map_asset_objects};
 pub use client::map_client_jar;
 pub use launch::{
-    build_classpath, build_launch, inherited_classpath, superseded, ClasspathEntry, LaunchParts,
-    CLIENT_MODULE,
+    build_classpath, build_launch, classpath_entries, classpath_of, inherited_classpath,
+    inherited_entries, superseded, ClasspathEntry, LaunchParts, CLIENT_MODULE,
 };
-pub use libraries::{library_to_artifact, map_libraries};
+pub use libraries::{library_to_artifact, map_libraries, native_extract};

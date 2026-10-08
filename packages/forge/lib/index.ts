@@ -21,10 +21,12 @@ import {
   definePlugin,
   pluginOptions,
   launchGroups,
+  withLibraryFiles,
+  type ExtraLibrary,
   type ChainablePlugin,
   type LoaderGroups,
 } from '@opys/dev';
-import type { Artifact, ConditionalVal, ValDefs } from '@opys/core';
+import type { Artifact, ConditionalVal, ValDefs, Blobs } from '@opys/core';
 import type { LaunchParts } from '@opys/minecraft-vanilla';
 
 /** The canonical document index base URL. */
@@ -36,6 +38,10 @@ export const DEFAULT_FORGE_INDEX = napi.defaultForgeIndex();
 
 /** What to resolve. */
 export interface ForgeOptions {
+  /**
+   * Libraries to run with beside the version's own; see {@link ExtraLibrary}.
+   */
+  readonly libraries?: readonly ExtraLibrary[];
   /**
    * Accepts:
    *   - a Minecraft version: `1.20.1` (its `best` build)
@@ -66,6 +72,8 @@ export interface ForgeRelease {
 export interface ForgeTemplate extends LaunchParts {
   /** Vanilla artifacts followed by Forge's own libraries. */
   readonly artifacts: Artifact[];
+  /** Where the blobs among `artifacts` are kept; set only by a local library. */
+  readonly blobs?: Blobs;
   readonly vars: ValDefs;
   /**
    * Per-OS classpath arms (also baked into `vars.classpath`), exposed so a
@@ -108,9 +116,14 @@ export function forge(
   return definePlugin({
     name: 'forge',
     async build(ctx) {
-      const t = await resolveForge(options);
+      const t = await resolveForge(withLibraryFiles(options, ctx.configDir));
       ctx.log('forge', `resolved ${version}`);
-      return { artifacts: t.artifacts, vars: t.vars, launch: launchGroups(t) };
+      return {
+        artifacts: t.artifacts,
+        blobs: t.blobs,
+        vars: t.vars,
+        launch: launchGroups(t),
+      };
     },
   });
 }

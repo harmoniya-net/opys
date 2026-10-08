@@ -286,6 +286,7 @@ fn options(server: &TestServer, loader: Option<&str>) -> FabricOptions {
         loader: loader.map(str::to_owned),
         source: Some(server.base.clone()),
         manifest_base: Some(format!("{}/version_manifest_v2.json", server.base)),
+        libraries: Vec::new(),
     }
 }
 

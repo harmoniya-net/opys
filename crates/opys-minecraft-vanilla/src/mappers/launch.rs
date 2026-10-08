@@ -108,16 +108,23 @@ pub fn build_classpath(
     libs: &[ClasspathEntry],
     client_jar_path: &str,
 ) -> Result<Vec<ConditionalVal>, RuleError> {
-    let entries: Vec<ClasspathEntry> = libs
-        .iter()
+    classpath_of(&classpath_entries(libs, client_jar_path))
+}
+
+/// A version's classpath as a list: its libraries, then the client jar.
+///
+/// Kept as entries, and not only as the joined string a JVM reads, because
+/// something may still be put ahead of it — a config's own libraries — and
+/// what that supersedes can only be told from an entry's module.
+pub fn classpath_entries(libs: &[ClasspathEntry], client_jar_path: &str) -> Vec<ClasspathEntry> {
+    libs.iter()
         .cloned()
         .chain(std::iter::once(ClasspathEntry::client_jar(client_jar_path)))
-        .collect();
-    arms(&entries)
+        .collect()
 }
 
 /// One arm per OS, each keeping the entries that OS's rules allow.
-fn arms(entries: &[ClasspathEntry]) -> Result<Vec<ConditionalVal>, RuleError> {
+pub fn classpath_of(entries: &[ClasspathEntry]) -> Result<Vec<ConditionalVal>, RuleError> {
     OSES.iter()
         .map(|&name| {
             let os = OsOptions {
@@ -192,16 +199,24 @@ pub fn inherited_classpath(
     base: &[ClasspathEntry],
     client_jar_path: &str,
 ) -> Result<Vec<ConditionalVal>, RuleError> {
+    classpath_of(&inherited_entries(patch, base, client_jar_path))
+}
+
+/// [`inherited_classpath`], as the list it is joined from.
+pub fn inherited_entries(
+    patch: &[ClasspathEntry],
+    base: &[ClasspathEntry],
+    client_jar_path: &str,
+) -> Vec<ClasspathEntry> {
     let replaced: HashSet<&str> = patch.iter().filter_map(|e| e.module.as_deref()).collect();
     let kept = |e: &&ClasspathEntry| !e.module.as_deref().is_some_and(|m| replaced.contains(m));
     let client = ClasspathEntry::client_jar(client_jar_path);
-    let entries: Vec<ClasspathEntry> = patch
+    patch
         .iter()
         .chain(base.iter().filter(kept))
         .chain(std::iter::once(&client).filter(kept))
         .cloned()
-        .collect();
-    arms(&entries)
+        .collect()
 }
 
 /// A Mojang argument as a manifest [`Val`].

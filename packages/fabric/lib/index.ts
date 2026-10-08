@@ -16,10 +16,12 @@ import {
   definePlugin,
   pluginOptions,
   launchGroups,
+  withLibraryFiles,
+  type ExtraLibrary,
   type ChainablePlugin,
   type LoaderGroups,
 } from '@opys/dev';
-import type { Artifact, ConditionalVal, ValDefs } from '@opys/core';
+import type { Artifact, ConditionalVal, ValDefs, Blobs } from '@opys/core';
 import type { LaunchParts } from '@opys/minecraft-vanilla';
 
 /** The canonical Fabric Meta base URL. */
@@ -31,6 +33,10 @@ export const DEFAULT_FABRIC_META = napi.defaultFabricMeta();
 
 /** What to resolve. */
 export interface FabricOptions {
+  /**
+   * Libraries to run with beside the version's own; see {@link ExtraLibrary}.
+   */
+  readonly libraries?: readonly ExtraLibrary[];
   /** Minecraft (game) version, e.g. `1.21.4`. */
   readonly version: string;
   /**
@@ -61,6 +67,8 @@ export interface FabricRelease {
 export interface FabricTemplate extends LaunchParts {
   /** Vanilla artifacts followed by the loader's own libraries. */
   readonly artifacts: Artifact[];
+  /** Where the blobs among `artifacts` are kept; set only by a local library. */
+  readonly blobs?: Blobs;
   readonly vars: ValDefs;
   /**
    * Per-OS classpath arms (also baked into `vars.classpath`), exposed so a
@@ -110,9 +118,14 @@ export function fabric(
   return definePlugin({
     name: 'fabric',
     async build(ctx) {
-      const t = await resolveFabric(options);
+      const t = await resolveFabric(withLibraryFiles(options, ctx.configDir));
       ctx.log('fabric', `resolved ${version}`);
-      return { artifacts: t.artifacts, vars: t.vars, launch: launchGroups(t) };
+      return {
+        artifacts: t.artifacts,
+        blobs: t.blobs,
+        vars: t.vars,
+        launch: launchGroups(t),
+      };
     },
   });
 }
