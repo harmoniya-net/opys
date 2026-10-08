@@ -22,9 +22,9 @@ mod vanilla;
 pub use error::MinecraftError;
 pub use fetch::{fetch_asset_manifest, fetch_client, fetch_version_manifest};
 pub use mappers::{
-    build_classpath, build_launch, inherited_classpath, library_to_artifact, map_asset_index,
-    map_asset_objects, map_client_jar, map_libraries, superseded, ClasspathEntry, LaunchParts,
-    CLIENT_MODULE,
+    asset_directory, build_classpath, build_launch, inherited_classpath, library_to_artifact,
+    map_asset_index, map_asset_objects, map_client_jar, map_libraries, superseded, ClasspathEntry,
+    LaunchParts, CLIENT_MODULE,
 };
 pub use vanilla::{
     build_minecraft, client_to_template, patch_to_template, resolve_client_template,

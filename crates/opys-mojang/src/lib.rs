@@ -24,7 +24,7 @@ mod patch;
 mod version;
 
 pub use arguments::{ArgValue, Arguments, MojangArgValue};
-pub use assets::{asset_path, asset_url, AssetIndex, AssetManifest, AssetObject};
+pub use assets::{asset_path, asset_url, AssetIndex, AssetLayout, AssetManifest, AssetObject};
 pub use client::{Client, ClientMetadata};
 pub use downloads::{Downloads, DownloadsFile};
 pub use error::MojangError;

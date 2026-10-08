@@ -11,8 +11,8 @@ use opys_mojang_rules::OsName;
 use crate::error::MinecraftError;
 use crate::fetch::{fetch_asset_manifest, fetch_client};
 use crate::mappers::{
-    build_classpath, build_launch, inherited_classpath, map_asset_index, map_asset_objects,
-    map_client_jar, map_libraries, superseded, ClasspathEntry,
+    asset_directory, build_classpath, build_launch, inherited_classpath, map_asset_index,
+    map_asset_objects, map_client_jar, map_libraries, superseded, ClasspathEntry,
 };
 
 /// The name this plugin claims in the plugin map.
@@ -74,7 +74,7 @@ pub fn client_to_template(
     let mut artifacts = vec![map_client_jar(client)];
     artifacts.extend(map_libraries(&client.libraries));
     artifacts.push(map_asset_index(&client.asset_index));
-    artifacts.extend(map_asset_objects(assets));
+    artifacts.extend(map_asset_objects(assets, &client.asset_index.id));
 
     let entries: Vec<ClasspathEntry> = client.libraries.iter().map(ClasspathEntry::of).collect();
     let classpath = build_classpath(&entries, "${version_dir}/client.jar")?;
@@ -92,7 +92,10 @@ pub fn client_to_template(
     flat("version_name", &client.id);
     flat("game_directory", "${root}/");
     flat("assets_root", "${root}/assets");
-    flat("game_assets", "${assets_root}");
+    flat(
+        "game_assets",
+        &asset_directory(assets, &client.asset_index.id),
+    );
     flat("assets_index_name", &client.asset_index.id);
     flat("version_dir", "${root}/versions/${version_name}");
     flat("library_directory", "${root}/libraries");

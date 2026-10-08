@@ -7,7 +7,7 @@ use opys_core::{
 };
 use opys_minecraft_vanilla::{
     build_classpath, build_launch, inherited_classpath, library_to_artifact, map_asset_index,
-    map_asset_objects, map_client_jar, map_libraries, superseded, ClasspathEntry, CLIENT_MODULE,
+    asset_directory, map_asset_objects, map_client_jar, map_libraries, superseded, ClasspathEntry, CLIENT_MODULE,
 };
 use opys_mojang::{AssetIndex, AssetManifest, Client, Libraries, Library};
 use serde_json::json;
@@ -117,7 +117,7 @@ fn asset_objects_are_content_addressed_and_name_tagged() {
         }
     }))
     .unwrap();
-    let arts = map_asset_objects(&manifest);
+    let arts = map_asset_objects(&manifest, "5");
     assert_eq!(arts.len(), 1);
     assert_eq!(arts[0].path, "${assets_root}/objects/ab/abcdef0123456789");
     assert_eq!(
@@ -141,6 +141,60 @@ fn asset_objects_are_content_addressed_and_name_tagged() {
     );
 }
 
+/// 1.6-1.7.2. The game is handed a directory and looks files up by name, so
+/// a hashed store leaves it running with no sound.
+#[test]
+fn a_virtual_index_lays_its_objects_out_by_name() {
+    let manifest: AssetManifest = serde_json::from_value(json!({
+        "virtual": true,
+        "objects": { "sounds/step/grass1.ogg": { "hash": "abcdef0123456789", "size": 7 } }
+    }))
+    .unwrap();
+    assert_eq!(
+        asset_directory(&manifest, "legacy"),
+        "${assets_root}/virtual/legacy"
+    );
+    let arts = map_asset_objects(&manifest, "legacy");
+    assert_eq!(
+        arts[0].path,
+        "${assets_root}/virtual/legacy/sounds/step/grass1.ogg"
+    );
+    // Where it lands changed; where it comes from and what it must hash to did not.
+    assert_eq!(
+        arts[0].source,
+        Source::Url {
+            url: "https://resources.download.minecraft.net/ab/abcdef0123456789".to_owned()
+        }
+    );
+    assert!(arts[0].integrity.is_some());
+}
+
+/// Before 1.6 the game reads `resources/` in its own directory, and after
+/// failing to refresh it from a bucket that no longer exists, uses what is
+/// there.
+#[test]
+fn a_pre_1_6_index_lays_its_objects_out_under_resources() {
+    let manifest: AssetManifest = serde_json::from_value(json!({
+        "map_to_resources": true,
+        "objects": { "newsound/step/grass1.ogg": { "hash": "abcdef0123456789", "size": 7 } }
+    }))
+    .unwrap();
+    assert_eq!(
+        asset_directory(&manifest, "pre-1.6"),
+        "${game_directory}/resources"
+    );
+    assert_eq!(
+        map_asset_objects(&manifest, "pre-1.6")[0].path,
+        "${game_directory}/resources/newsound/step/grass1.ogg"
+    );
+}
+
+#[test]
+fn a_modern_index_is_handed_the_assets_root() {
+    let manifest: AssetManifest = serde_json::from_value(json!({ "objects": {} })).unwrap();
+    assert_eq!(asset_directory(&manifest, "5"), "${assets_root}");
+}
+
 #[test]
 fn asset_objects_come_out_in_a_stable_order() {
     let manifest: AssetManifest = serde_json::from_value(json!({
@@ -151,7 +205,7 @@ fn asset_objects_come_out_in_a_stable_order() {
         }
     }))
     .unwrap();
-    let names: Vec<String> = map_asset_objects(&manifest)
+    let names: Vec<String> = map_asset_objects(&manifest, "5")
         .iter()
         .map(|a| {
             a.metadata.as_ref().unwrap()["name"]

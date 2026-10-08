@@ -86,6 +86,10 @@ export interface AssetObject {
 
 export interface AssetManifest {
   readonly objects: Record<string, AssetObject>;
+  /** The `legacy` index, 1.6-1.7.2: the game reads these by name from a directory it is handed. */
+  readonly virtual?: boolean;
+  /** The `pre-1.6` index: the game reads these by name from `resources/` in its own directory. */
+  readonly map_to_resources?: boolean;
 }
 
 export interface AssetIndex {

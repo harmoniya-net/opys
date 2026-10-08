@@ -184,10 +184,11 @@ pub fn map_asset_index(index: Json) -> Result<Json> {
 }
 
 #[napi(js_name = "mapAssetObjects")]
-pub fn map_asset_objects(manifest: Json) -> Result<Json> {
-    to_json(&opys_minecraft_vanilla::map_asset_objects(&from_json::<
-        AssetManifest,
-    >(manifest)?))
+pub fn map_asset_objects(manifest: Json, index_id: String) -> Result<Json> {
+    to_json(&opys_minecraft_vanilla::map_asset_objects(
+        &from_json::<AssetManifest>(manifest)?,
+        &index_id,
+    ))
 }
 
 /// The `${classpath}` arms — one per OS, each led by the client jar.

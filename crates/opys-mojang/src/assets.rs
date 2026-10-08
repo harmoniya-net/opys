@@ -28,6 +28,44 @@ pub struct AssetObject {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AssetManifest {
     pub objects: BTreeMap<String, AssetObject>,
+    /// Set by the `legacy` index — 1.6 through 1.7.2. See [`AssetLayout`].
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub r#virtual: bool,
+    /// Set by the `pre-1.6` index. See [`AssetLayout`].
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub map_to_resources: bool,
+}
+
+/// Where a game expects to find its assets, which the index says and the
+/// version does not.
+///
+/// The hashed store is what every release since 1.7.3 reads, through an index
+/// it is told the name of. The two before it read files by their own names,
+/// and say so with a flag on the index — a game given a hashed store instead
+/// starts and runs with no sound.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AssetLayout {
+    /// `objects/<ab>/<hash>`, looked up through the index.
+    Objects,
+    /// 1.6-1.7.2: the same files under their names, in a directory the game is
+    /// handed as `--assetsDir`.
+    Virtual,
+    /// Before 1.6: under their names in `resources/` of the game directory,
+    /// where the game also looks unasked. It then tries to refresh them from a
+    /// bucket Mojang retired, fails, and falls back to what is on disk.
+    Resources,
+}
+
+impl AssetManifest {
+    pub fn layout(&self) -> AssetLayout {
+        if self.map_to_resources {
+            AssetLayout::Resources
+        } else if self.r#virtual {
+            AssetLayout::Virtual
+        } else {
+            AssetLayout::Objects
+        }
+    }
 }
 
 /// First two characters of a hash — the shard directory. Total: a hash

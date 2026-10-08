@@ -49,6 +49,10 @@ live process, which a loader's error screen also satisfies.
   Several runners can share a `work/` as long as their lists do not overlap;
   give each its own `MATRIX_DISPLAY_BASE`.
 
+On a desktop the games are audible. `ALSOFT_DRIVERS=null node run.mjs` gives
+OpenAL a backend that plays nothing; the game's sound engine starts all the
+same.
+
 ## The pool
 
 Downloads are slow on a slow link and identical between cases, so a file one

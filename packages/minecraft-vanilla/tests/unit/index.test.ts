@@ -228,9 +228,12 @@ describe('mappers', () => {
     expect(mapAssetIndex(client.assetIndex).path).toBe(
       '${assets_root}/indexes/5.json',
     );
-    expect(mapAssetObjects(ASSET_MANIFEST).map((a) => a.path)).toEqual([
+    expect(mapAssetObjects(ASSET_MANIFEST, '5').map((a) => a.path)).toEqual([
       '${assets_root}/objects/0f/0f00',
     ]);
+    expect(
+      mapAssetObjects({ ...ASSET_MANIFEST, virtual: true }, 'legacy')[0]!.path,
+    ).toMatch(/^\$\{assets_root\}\/virtual\/legacy\//);
   });
 
   it('buildClasspath takes entries a loader assembled itself', () => {

@@ -182,6 +182,18 @@ them, and the list below names the layers rather than every one:
   through the same `inherited_classpath` / `superseded` pair, never by a rule
   of its own.
 
+- **An asset goes where its index's game will look, and is pinned wherever
+  that is.** Three layouts, and the asset index says which: the hashed store
+  (`objects/<ab>/<hash>`) for everything since 1.7.3; for the `legacy` index
+  (1.6-1.7.2, `virtual`) the same files under their names in a directory the
+  game is handed as `${game_assets}`; and for `pre-1.6`
+  (`map_to_resources`) under their names in the game directory's
+  `resources/`. A game on an old layout given a hashed store starts and runs
+  silent, which is what every one of them did until a launch matrix made
+  somebody look. A file goes to one place, not two — the official launcher
+  keeps the store and copies out of it — and each carries the sha1 that
+  names it: the belief that a content-addressed path verifies itself left
+  most of an installation unchecked.
 - **The client jar goes last on the classpath.** After every library, which is
   where HMCL (`DefaultLauncher`: libraries into a `LinkedHashSet`, then the
   jar) and `minecraft-launcher-lib` (`get_libraries`: the loop, then the jar)

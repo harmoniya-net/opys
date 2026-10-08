@@ -166,8 +166,17 @@ export function mapAssetIndex(index: AssetIndex): Artifact {
   return napi.mapAssetIndex(index) as Artifact;
 }
 
-export function mapAssetObjects(manifest: AssetManifest): Artifact[] {
-  return napi.mapAssetObjects(manifest) as Artifact[];
+/**
+ * One artifact per asset object, where the game that reads this index looks
+ * for it: the hashed store, or — for the two layouts before 1.7.3 — a
+ * directory of files under their own names. `indexId` names that directory
+ * for the `legacy` index.
+ */
+export function mapAssetObjects(
+  manifest: AssetManifest,
+  indexId: string,
+): Artifact[] {
+  return napi.mapAssetObjects(manifest, indexId) as Artifact[];
 }
 
 /** The `${classpath}` arms — one per OS, each led by the client jar. */

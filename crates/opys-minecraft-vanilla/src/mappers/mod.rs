@@ -10,7 +10,7 @@ mod client;
 mod launch;
 mod libraries;
 
-pub use assets::{map_asset_index, map_asset_objects};
+pub use assets::{asset_directory, map_asset_index, map_asset_objects};
 pub use client::map_client_jar;
 pub use launch::{
     build_classpath, build_launch, inherited_classpath, superseded, ClasspathEntry, LaunchParts,
