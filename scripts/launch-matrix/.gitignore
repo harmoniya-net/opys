@@ -1,5 +1,5 @@
-work/
-pool/
+work
+pool
 *.log
 cases.full.json
 cases.json
