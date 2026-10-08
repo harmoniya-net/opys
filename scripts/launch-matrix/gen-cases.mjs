@@ -108,6 +108,10 @@ const slice = [
     '1.21.1',
     await newest('forge'),
   ].map((v) => c('forge', v)),
+  // Two builds that each lean on a JDK internal no other does (horno's
+  // README, "JDK internals"): they are the first to break on a new Java.
+  c('forge', '1.20.2'),
+  c('forge', '26.1'),
   c('neoforge', '1.21.1'),
   c('neoforge', await newest('neoforge')),
   c('fabric', fabricNewest),
