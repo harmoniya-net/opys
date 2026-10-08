@@ -1166,7 +1166,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "opys-link"
+name = "opys-links"
 version = "0.2.0"
 dependencies = [
  "opys-core",
@@ -1179,13 +1179,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "opys-link-napi"
+name = "opys-links-napi"
 version = "0.2.0"
 dependencies = [
  "napi",
  "napi-build",
  "napi-derive",
- "opys-link",
+ "opys-links",
  "serde",
  "serde_json",
 ]

@@ -231,14 +231,14 @@ describe('resolveLwjgl3ify', () => {
 
 describe('lwjgl3ify()', () => {
   it('is pure to construct', () => {
-    const plugin = lwjgl3ify(MC);
+    const plugin = lwjgl3ify({ version: MC });
     expect(plugin.name).toBe('lwjgl3ify');
     expect(targets).toEqual([]);
   });
 
   it('logs the version and contributes artifacts, vars and launch groups', async () => {
     const { ctx, logs } = makeCtx();
-    const contribution = await lwjgl3ify(MC, options()).build(ctx);
+    const contribution = await lwjgl3ify(options()).build(ctx);
 
     expect(logs).toEqual([{ scope: 'lwjgl3ify', message: `resolved ${MC}` }]);
     expect(contribution.artifacts!.length).toBeGreaterThan(0);

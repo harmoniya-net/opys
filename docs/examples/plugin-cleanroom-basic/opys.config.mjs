@@ -3,9 +3,9 @@ import { cleanroom, java } from '@opys/minecraft';
 
 export default defineConfig({
   output: 'game.opys',
-  plugins: [cleanroom('1.12.2'), java('25')],
+  plugins: [cleanroom({ version: '1.12.2' }), java({ version: '25' })],
   manifest: {
-    command: '@java.bin',
+    command: '@cleanroom.command',
     args: ['@cleanroom.jvmArgs', '@cleanroom.mainClass', '@cleanroom.gameArgs'],
     workdir: '${game_directory}',
   },

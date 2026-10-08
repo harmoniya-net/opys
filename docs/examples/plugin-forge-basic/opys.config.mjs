@@ -3,9 +3,9 @@ import { forge, java } from '@opys/minecraft';
 
 export default defineConfig({
   output: 'game.opys',
-  plugins: [forge('1.20.1'), java('17')],
+  plugins: [forge({ version: '1.20.1' }), java({ version: '17' })],
   manifest: {
-    command: '@java.bin',
+    command: '@forge.command',
     args: ['@forge.jvmArgs', '@forge.mainClass', '@forge.gameArgs'],
     workdir: '${game_directory}',
   },

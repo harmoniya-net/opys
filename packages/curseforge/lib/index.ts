@@ -8,7 +8,7 @@
  *
  * Two things stay here because they are the host's by nature:
  *
- *  - `path` is the config author's function. The crate resolves the files,
+ *  - `to` is the config author's function. The crate resolves the files,
  *    this side asks the author where each goes, and the crate builds the
  *    artifacts from the answers.
  *  - A modpack names a loader, and a loader is another plugin. The crate
@@ -41,7 +41,7 @@ export const CURSEFORGE_API = napi.defaultCurseforgeApi();
 // Types — mirror the `opys-curseforge` structs one-to-one.
 // ──────────────────────────────────────────────────────────────────────────
 
-/** Info passed to the `path` callback. */
+/** What the `to` callback is told about a file. */
 export interface CurseForgeFileInfo {
   /** Original filename as published on CurseForge, e.g. `jei-1.20.1-forge-15.21.1.5.jar`. */
   readonly filename: string;
@@ -83,11 +83,11 @@ export interface CurseForgeApiOptions {
 
 export interface CurseForgeOptions extends CurseForgeApiOptions {
   /**
-   * Install path callback, invoked once per file. May return a string
+   * Where each file is installed, asked once per file. May return a string
    * containing opys install-time vars like `${root}` or
    * `${game_directory}` — they get interpolated at install time.
    */
-  path: CurseForgePath;
+  to: CurseForgePath;
 }
 
 /** A mod loader entry in a CurseForge modpack `manifest.json`. */
@@ -163,13 +163,13 @@ export async function fetchCurseforgeFiles(
 
 /**
  * Resolve CurseForge file refs into opys `Artifact`s, each placed where
- * `options.path` says. Call it once per destination (mods, resourcepacks,
+ * `options.to` says. Call it once per destination (mods, resourcepacks,
  * shaderpacks, …).
  *
  * ```ts
  * const mods = await resolveCurseforge(
  *   {
- *     path: (info) => '${game_directory}/mods/' + info.filename,
+ *     to: (file) => '${game_directory}/mods/' + file.filename,
  *     token: process.env.CURSEFORGE_API_KEY,
  *   },
  *   [6307712, 'https://www.curseforge.com/minecraft/mc-mods/botania/files/2283837'],
@@ -187,7 +187,7 @@ export async function resolveCurseforge(
   )) as CurseForgeFileMeta[];
   // The one step that has to happen here: the author's function, per file.
   const paths = metas.map(({ filename, fileId, projectId, size }) =>
-    options.path({ filename, fileId, projectId, size }),
+    options.to({ filename, fileId, projectId, size }),
   );
   return napi.curseforgeFileArtifacts(metas, paths) as Artifact[];
 }
@@ -247,13 +247,13 @@ export async function resolveCurseforgeModpack(
 function loaderPlugin(spec: LoaderSpec): OpysPlugin<string, LoaderGroups> {
   switch (spec.loader) {
     case 'fabric':
-      return fabric(spec.minecraft, { loader: spec.fabricLoader });
+      return fabric({ version: spec.minecraft, loader: spec.fabricLoader });
     case 'forge':
-      return forge(spec.version);
+      return forge({ version: spec.version });
     case 'neoforge':
-      return neoforge(spec.version);
+      return neoforge({ version: spec.version });
     case 'vanilla':
-      return minecraft(spec.minecraft);
+      return minecraft({ version: spec.minecraft });
   }
 }
 

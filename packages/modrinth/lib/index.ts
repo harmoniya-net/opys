@@ -8,7 +8,7 @@
  *
  * Two things stay here because they are the host's by nature:
  *
- *  - `path` is the config author's function. The crate resolves the files,
+ *  - `to` is the config author's function. The crate resolves the files,
  *    this side asks the author where each goes, and the crate builds the
  *    artifacts from the answers.
  *  - A modpack names a loader, and a loader is another plugin. The crate
@@ -22,6 +22,7 @@
 import * as napi from '@opys/modrinth-binding';
 import {
   definePlugin,
+  pluginOptions,
   type ChainablePlugin,
   type LoaderGroups,
   type OpysPlugin,
@@ -39,7 +40,7 @@ export const MODRINTH_API = napi.defaultModrinthApi();
 // Types — mirror the `opys-modrinth` structs one-to-one.
 // ──────────────────────────────────────────────────────────────────────────
 
-/** Info passed to the `path` callback. */
+/** What the `to` callback is told about a file. */
 export interface ModrinthFileInfo {
   /** Original filename as published on Modrinth, e.g. `sodium-fabric-0.5.8.jar`. */
   readonly filename: string;
@@ -65,11 +66,11 @@ export type ModrinthVersionRef = string;
 
 export interface ModrinthOptions {
   /**
-   * Install path callback, invoked once per file. May return a string
+   * Where each file is installed, asked once per file. May return a string
    * containing opys install-time vars like `${root}` or
    * `${game_directory}` — they get interpolated at install time.
    */
-  path: ModrinthPath;
+  to: ModrinthPath;
   /** Modrinth API base, when it is not the public one. */
   apiBase?: string;
 }
@@ -138,12 +139,12 @@ export interface ResolvedModpack {
 
 /**
  * Resolve Modrinth version refs into opys `Artifact`s. Each version
- * contributes its primary file, placed where `options.path` says. Call it
+ * contributes its primary file, placed where `options.to` says. Call it
  * once per destination (mods, resourcepacks, shaderpacks, …).
  *
  * ```ts
  * const mods = await resolveModrinth(
- *   { path: (info) => '${game_directory}/mods/' + info.filename },
+ *   { to: (file) => '${game_directory}/mods/' + file.filename },
  *   ['JjCVwmVA', 'https://modrinth.com/mod/sodium/version/JjCVwmVA'],
  * );
  * ```
@@ -157,7 +158,7 @@ export async function resolveModrinth(
     options.apiBase ?? MODRINTH_API,
   )) as ModrinthFileInfo[];
   // The one step that has to happen here: the author's function, per file.
-  const paths = files.map((file) => options.path(file));
+  const paths = files.map((file) => options.to(file));
   return napi.modrinthFileArtifacts(files, paths) as Artifact[];
 }
 
@@ -216,18 +217,20 @@ export async function resolveModrinthModpack(
 function loaderPlugin(spec: LoaderSpec): OpysPlugin<string, LoaderGroups> {
   switch (spec.loader) {
     case 'fabric':
-      return fabric(spec.minecraft, { loader: spec.fabricLoader });
+      return fabric({ version: spec.minecraft, loader: spec.fabricLoader });
     case 'forge':
-      return forge(spec.version);
+      return forge({ version: spec.version });
     case 'neoforge':
-      return neoforge(spec.version);
+      return neoforge({ version: spec.version });
     case 'vanilla':
-      return minecraft(spec.minecraft);
+      return minecraft({ version: spec.minecraft });
   }
 }
 
 /** Options for the {@link modrinthModpack} plugin. */
 export interface ModrinthModpackOptions {
+  /** Which pack: a version ID, its Modrinth URL, or a direct `.mrpack` URL. */
+  pack: ModrinthModpackRef;
   /** Modrinth API base, when it is not the public one. */
   apiBase?: string;
   /**
@@ -247,7 +250,7 @@ export interface ModrinthModpackOptions {
  * a config wires it identically regardless of which loader the pack uses:
  *
  * ```js
- * plugins: [modrinthModpack('xVcA1pSL'), java('17')],
+ * plugins: [modrinthModpack({ pack: 'xVcA1pSL' }), java({ version: '17' })],
  * manifest: {
  *   command: '@modrinthModpack.command',
  *   args: [
@@ -263,9 +266,12 @@ export interface ModrinthModpackOptions {
  * format does not pin a JDK).
  */
 export function modrinthModpack(
-  ref: ModrinthModpackRef,
-  options: ModrinthModpackOptions = {},
+  options: ModrinthModpackOptions,
 ): ChainablePlugin<'modrinthModpack', LoaderGroups> {
+  const { pack: ref } = pluginOptions(
+    "modrinthModpack({ pack: 'xVcA1pSL' })",
+    options,
+  );
   return definePlugin({
     name: 'modrinthModpack',
     async build(ctx) {

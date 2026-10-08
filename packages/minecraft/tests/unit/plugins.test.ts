@@ -50,7 +50,10 @@ describe('minecraft plugin', () => {
   it('builds vanilla artifacts + launch groups', async () => {
     reset();
     routedFetch([]);
-    const plugin = minecraft('1.20.1', { manifestBase: mojang.manifestBase });
+    const plugin = minecraft({
+      version: '1.20.1',
+      manifestBase: mojang.manifestBase,
+    });
     expect(plugin.name).toBe('minecraft');
     const c = await plugin.build(ctx);
     expect(c.artifacts!.length).toBeGreaterThan(0);
@@ -64,9 +67,10 @@ describe('minecraft plugin', () => {
   it('logs "latest" when no version is supplied', async () => {
     reset();
     routedFetch([]);
-    await minecraft(undefined, { manifestBase: mojang.manifestBase }).build(
-      ctx,
-    );
+    await minecraft({
+      version: undefined,
+      manifestBase: mojang.manifestBase,
+    }).build(ctx);
     expect(logs.some((l) => l.includes('vanilla latest'))).toBe(true);
   });
 });
@@ -98,7 +102,8 @@ describe('forge plugin', () => {
       },
     });
 
-    const plugin = forge(F, {
+    const plugin = forge({
+      version: F,
       source: site.source,
       manifestBase: mojang.manifestBase,
     });
@@ -138,7 +143,8 @@ describe('neoforge plugin', () => {
       },
     });
 
-    const plugin = neoforge(NF, {
+    const plugin = neoforge({
+      version: NF,
       source: site.source,
       manifestBase: mojang.manifestBase,
     });
@@ -184,7 +190,8 @@ describe('fabric plugin', () => {
     await new Promise<void>((resolve) => meta.listen(0, '127.0.0.1', resolve));
     const source = `http://127.0.0.1:${(meta.address() as AddressInfo).port}`;
 
-    const plugin = fabric('1.20.1', {
+    const plugin = fabric({
+      version: '1.20.1',
       loader: LOADER,
       source,
       manifestBase: mojang.manifestBase,
@@ -227,7 +234,7 @@ describe('cleanroom plugin', () => {
       },
     });
 
-    const plugin = cleanroom(TAG, { source: site.source });
+    const plugin = cleanroom({ version: TAG, source: site.source });
     expect(plugin.name).toBe('cleanroom');
     const c = await plugin.build(ctx);
     expect(c.artifacts!.length).toBeGreaterThan(0);
@@ -273,7 +280,8 @@ describe('lwjgl3ify plugin', () => {
       },
     });
 
-    const plugin = lwjgl3ify(TAG, {
+    const plugin = lwjgl3ify({
+      version: TAG,
       source: site.source,
       apiBase: site.source,
       unimixins: false,
@@ -325,7 +333,7 @@ describe('authliberty plugin', () => {
     );
     const base = `http://127.0.0.1:${(gitlab.address() as AddressInfo).port}`;
 
-    const plugin = authliberty('0.3', { gitlab: base });
+    const plugin = authliberty({ version: '0.3', gitlab: base });
     expect(plugin.name).toBe('authliberty');
     const c = await plugin.build(ctx);
     expect(c.artifacts).toHaveLength(1);
@@ -365,7 +373,7 @@ describe('curseforge plugin', () => {
     const plugin = curseforge({
       token: 't',
       apiBase,
-      path: (i) => `mods/${i.filename}`,
+      to: (i) => `mods/${i.filename}`,
       files: [555],
     });
     expect(plugin.name).toBe('curseforge');
@@ -408,7 +416,7 @@ describe('modrinth plugin', () => {
 
     const plugin = modrinth({
       apiBase,
-      path: (i) => `mods/${i.filename}`,
+      to: (i) => `mods/${i.filename}`,
       versions: ['abc'],
     });
     expect(plugin.name).toBe('modrinth');

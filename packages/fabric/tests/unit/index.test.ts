@@ -228,14 +228,14 @@ describe('resolveFabric', () => {
 
 describe('fabric()', () => {
   it('is pure to construct', () => {
-    const plugin = fabric(MC);
+    const plugin = fabric({ version: MC });
     expect(plugin.name).toBe('fabric');
     expect(targets).toEqual([]);
   });
 
   it('logs the version and contributes artifacts, vars and launch groups', async () => {
     const { ctx, logs } = makeCtx();
-    const contribution = await fabric(MC, options(LOADER)).build(ctx);
+    const contribution = await fabric(options(LOADER)).build(ctx);
 
     expect(logs).toEqual([{ scope: 'fabric', message: `resolved ${MC}` }]);
     expect(contribution.vars!.version_name).toBe(MC);

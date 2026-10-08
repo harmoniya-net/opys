@@ -3,9 +3,9 @@ import { java, minecraft, resolveBifrost } from '@opys/minecraft';
 
 export default defineConfig({
   output: 'game.opys',
-  plugins: [minecraft('1.21.1'), java('21')],
+  plugins: [minecraft({ version: '1.21.1' }), java({ version: '21' })],
   manifest: {
-    command: '@java.bin',
+    command: '@minecraft.command',
     args: ['@minecraft.jvmArgs', '@minecraft.mainClass', '@minecraft.gameArgs'],
     workdir: '${game_directory}',
   },

@@ -248,14 +248,14 @@ describe('resolveNeoForge', () => {
 
 describe('neoforge()', () => {
   it('is pure to construct', () => {
-    const plugin = neoforge(MC);
+    const plugin = neoforge({ version: MC });
     expect(plugin.name).toBe('neoforge');
     expect(targets).toEqual([]);
   });
 
   it('logs the version and contributes artifacts, vars and launch groups', async () => {
     const { ctx, logs } = makeCtx();
-    const contribution = await neoforge(MC, options()).build(ctx);
+    const contribution = await neoforge(options()).build(ctx);
 
     expect(logs).toEqual([{ scope: 'neoforge', message: `resolved ${MC}` }]);
     expect(contribution.artifacts!.length).toBeGreaterThan(0);

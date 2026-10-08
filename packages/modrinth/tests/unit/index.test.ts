@@ -135,7 +135,7 @@ describe('resolveModrinth', () => {
     const artifacts = await resolveModrinth(
       {
         apiBase: base,
-        path: (info) => {
+        to: (info) => {
           seen.push(info);
           return `\${game_directory}/mods/${info.filename}`;
         },
@@ -159,7 +159,7 @@ describe('resolveModrinth', () => {
 
   it('hands back artifacts the manifest types can read directly', async () => {
     const [sodium, pack] = await resolveModrinth(
-      { apiBase: base, path: (i) => i.filename },
+      { apiBase: base, to: (i) => i.filename },
       ['AAA', 'BBB'],
     );
     expect(sodium).toEqual({
@@ -175,7 +175,7 @@ describe('resolveModrinth', () => {
     const artifacts = await resolveModrinth(
       {
         apiBase: base,
-        path: () => {
+        to: () => {
           throw new Error('called for no file');
         },
       },
@@ -187,7 +187,7 @@ describe('resolveModrinth', () => {
 
   it('rejects with the crate’s error for an unknown version', async () => {
     await expect(
-      resolveModrinth({ apiBase: base, path: (i) => i.filename }, ['GONE']),
+      resolveModrinth({ apiBase: base, to: (i) => i.filename }, ['GONE']),
     ).rejects.toThrow(/did not return metadata for version GONE/);
   });
 });
@@ -196,7 +196,7 @@ describe('modrinth()', () => {
   it('is pure to construct, then logs a count and contributes artifacts', async () => {
     const plugin = modrinth({
       apiBase: base,
-      path: (i) => `mods/${i.filename}`,
+      to: (i) => `mods/${i.filename}`,
       versions: ['AAA', 'BBB'],
     });
     expect(plugin.name).toBe('modrinth');
@@ -266,7 +266,8 @@ describe('modrinthModpack()', () => {
 
   it('builds the loader the pack asks for and layers the pack over it', async () => {
     const specs: LoaderSpec[] = [];
-    const plugin = modrinthModpack('PACK', {
+    const plugin = modrinthModpack({
+      pack: 'PACK',
       apiBase: base,
       loader: (spec) => {
         specs.push(spec);

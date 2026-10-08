@@ -10,6 +10,7 @@
  */
 import {
   definePlugin,
+  pluginOptions,
   type ChainablePlugin,
   type Contribution,
   type RulesetInput,
@@ -24,11 +25,13 @@ export interface ServerEntry {
 }
 
 export interface ServerlistOptions {
+  /** The entries, in the order the game lists them. */
+  servers: ServerEntry[];
   /** Where the generated `servers.dat` lands. Defaults to {@link DEFAULT_PATH}. */
-  path?: string;
+  to?: string;
 }
 
-/** Where the list goes unless `path` says otherwise. */
+/** Where the list goes unless `to` says otherwise. */
 export const DEFAULT_PATH: string = napi.defaultServerlistPath();
 
 /**
@@ -37,13 +40,20 @@ export const DEFAULT_PATH: string = napi.defaultServerlistPath();
  * where those rules hold. No entries at all is still a file — an empty list.
  */
 export function serverlist(
-  servers: ServerEntry[],
-  options: ServerlistOptions = {},
+  options: ServerlistOptions,
 ): ChainablePlugin<'serverlist', never> {
+  const { servers, to } = pluginOptions(
+    "serverlist({ servers: [{ name: 'Mine', ip: 'play.example.com' }] })",
+    options,
+  );
   return definePlugin({
     name: 'serverlist',
     build() {
-      const output = napi.buildServerlist(servers, options) as {
+      const output = napi.buildServerlist(
+        servers,
+        // The crate's name for it; `to` is what every plugin calls a place.
+        to === undefined ? {} : { path: to },
+      ) as {
         contribution: Contribution<never>;
       };
       return output.contribution;

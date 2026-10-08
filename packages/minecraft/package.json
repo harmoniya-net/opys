@@ -24,7 +24,7 @@
     "@opys/fabric": "^0.2.0",
     "@opys/forge": "^0.2.0",
     "@opys/java": "^0.2.0",
-    "@opys/link": "^0.2.0",
+    "@opys/links": "^0.2.0",
     "@opys/lwjgl3ify": "^0.2.0",
     "@opys/minecraft-serverlist": "^0.2.0",
     "@opys/minecraft-vanilla": "^0.2.0",

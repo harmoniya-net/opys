@@ -25,7 +25,9 @@ function bytesOf(contribution: Contribution, artifact: Artifact): Buffer {
 
 describe('serverlist', () => {
   it('is named "serverlist" and does nothing until it is built', () => {
-    expect(serverlist([{ name: 'A', ip: 'a' }]).name).toBe('serverlist');
+    expect(serverlist({ servers: [{ name: 'A', ip: 'a' }] }).name).toBe(
+      'serverlist',
+    );
   });
 
   it('takes its default path from the crate', () => {
@@ -33,9 +35,9 @@ describe('serverlist', () => {
   });
 
   it('builds one blob artifact whose name is the hash of its bytes', async () => {
-    const contribution = await serverlist([
-      { name: 'Home', ip: 'play.example' },
-    ]).build(ctx);
+    const contribution = await serverlist({
+      servers: [{ name: 'Home', ip: 'play.example' }],
+    }).build(ctx);
     expect(contribution.artifacts).toHaveLength(1);
     const [artifact] = contribution.artifacts!;
     const bytes = bytesOf(contribution, artifact!);
@@ -49,23 +51,26 @@ describe('serverlist', () => {
     expect(bytes.toString('utf8')).toContain('play.example');
   });
 
-  it('passes the path option through', async () => {
-    const { artifacts } = await serverlist([], {
-      path: 'custom/servers.dat',
+  it('puts the list where `to` says', async () => {
+    const { artifacts } = await serverlist({
+      servers: [],
+      to: 'custom/servers.dat',
     }).build(ctx);
     expect(artifacts![0]!.path).toBe('custom/servers.dat');
   });
 
   it('takes rules in either spelling and splits the list by them', async () => {
-    const contribution = await serverlist([
-      { name: 'Always', ip: 'always' },
-      { name: 'Linux', ip: 'linux', rules: 'allow.os.linux' },
-      {
-        name: 'Linux2',
-        ip: 'linux2',
-        rules: [{ action: 'allow', os: { name: 'linux' } }],
-      },
-    ]).build(ctx);
+    const contribution = await serverlist({
+      servers: [
+        { name: 'Always', ip: 'always' },
+        { name: 'Linux', ip: 'linux', rules: 'allow.os.linux' },
+        {
+          name: 'Linux2',
+          ip: 'linux2',
+          rules: [{ action: 'allow', os: { name: 'linux' } }],
+        },
+      ],
+    }).build(ctx);
     expect(contribution.artifacts!.map((a) => a.rules)).toEqual([
       undefined,
       'allow.os.linux',
@@ -76,7 +81,7 @@ describe('serverlist', () => {
   });
 
   it('chains: a rule added afterwards lands on the artifact, the blob stays', async () => {
-    const contribution = await serverlist([{ name: 'S', ip: 'x' }])
+    const contribution = await serverlist({ servers: [{ name: 'S', ip: 'x' }] })
       .addRule('**', 'allow.os.linux')
       .build(ctx);
     expect(contribution.artifacts![0]!.rules).toHaveLength(1);
@@ -84,9 +89,9 @@ describe('serverlist', () => {
   });
 
   it('surfaces a rule that does not parse as an error from build', async () => {
-    const plugin = serverlist([
-      { name: 'A', ip: 'a', rules: 'allow.nonsense' },
-    ]);
+    const plugin = serverlist({
+      servers: [{ name: 'A', ip: 'a', rules: 'allow.nonsense' }],
+    });
     await expect(plugin.build(ctx)).rejects.toThrow();
   });
 });

@@ -292,8 +292,8 @@ describe('cmdLaunch — progress reporting', () => {
       onP({ phase: 'verify' });
       onP({ phase: 'extract', count: 1 });
       onP({ phase: 'extract', count: 3 });
-      onP({ phase: 'cleanup', removed: 1 });
-      onP({ phase: 'cleanup', removed: 5 });
+      onP({ phase: 'cleanup', removed: 1, directories: 0 });
+      onP({ phase: 'cleanup', removed: 5, directories: 2 });
     });
     const cfg = await fixture();
     await expect(
@@ -312,5 +312,14 @@ describe('cmdLaunch — progress reporting', () => {
     await expect(
       cmdLaunch(['-i', cfg], logger, 'launch'),
     ).resolves.toBeUndefined();
+  });
+});
+
+describe('removedLine', () => {
+  it('counts files and directories apart, and leaves out what there is none of', async () => {
+    const { removedLine } = await import('../../lib/install-progress');
+    expect(removedLine(1, 0)).toBe('1 stale file');
+    expect(removedLine(3, 1)).toBe('3 stale files and 1 directory');
+    expect(removedLine(0, 2)).toBe('2 directories');
   });
 });

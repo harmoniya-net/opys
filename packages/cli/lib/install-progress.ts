@@ -16,6 +16,19 @@ import type { Logger } from './logger';
 const RENDER_THROTTLE_MS = 80;
 
 /** Run the install pipeline, drawing the progress both commands draw. */
+const counted = (n: number, one: string, many: string) =>
+  `${n} ${n === 1 ? one : many}`;
+
+/** `3 stale files and 1 directory`, leaving out whichever there are none of. */
+export function removedLine(files: number, directories: number): string {
+  return [
+    files > 0 ? counted(files, 'stale file', 'stale files') : '',
+    directories > 0 ? counted(directories, 'directory', 'directories') : '',
+  ]
+    .filter(Boolean)
+    .join(' and ');
+}
+
 export async function installWithProgress(
   source: ManifestSource,
   options: { features: string[]; vars: Record<string, string> },
@@ -77,9 +90,7 @@ export async function installWithProgress(
           );
           break;
         case 'cleanup':
-          pw.log(
-            ` Removed ${p.removed} stale file${p.removed === 1 ? '' : 's'}`,
-          );
+          pw.log(` Removed ${removedLine(p.removed, p.directories)}`);
           break;
       }
     },

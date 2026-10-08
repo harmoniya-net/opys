@@ -7,11 +7,11 @@ const { LOADER, VERSION, JAVA, JAVA_VENDOR } = process.env;
 
 export default defineConfig({
   plugins: [
-    mc[LOADER](VERSION),
-    mc.java(JAVA, { vendor: JAVA_VENDOR || 'temurin' }),
+    mc[LOADER]({ version: VERSION }),
+    mc.java({ version: JAVA, vendor: JAVA_VENDOR || 'temurin' }),
   ],
   manifest: {
-    command: '@java.bin',
+    command: `@${LOADER}.command`,
     args: [`@${LOADER}.jvmArgs`, `@${LOADER}.mainClass`, `@${LOADER}.gameArgs`],
     workdir: '${game_directory}',
   },

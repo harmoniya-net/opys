@@ -15,7 +15,7 @@ const ctx: BuildContext = {
 
 describe('java plugin (live, Temurin)', () => {
   it('resolves a JDK into a manifest contribution', async () => {
-    const c = await java('17').build(ctx);
+    const c = await java({ version: '17' }).build(ctx);
 
     expect(c.artifacts!.length).toBeGreaterThan(0);
     const archive = c.artifacts![0]!;

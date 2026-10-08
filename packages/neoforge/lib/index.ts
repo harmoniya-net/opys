@@ -19,6 +19,7 @@
 import * as napi from '@opys/neoforge-binding';
 import {
   definePlugin,
+  pluginOptions,
   launchGroups,
   type ChainablePlugin,
   type LoaderGroups,
@@ -101,13 +102,13 @@ export async function resolveNeoForgeVersion(
 
 /** NeoForge mod loader. */
 export function neoforge(
-  version: string,
-  opts: Omit<NeoForgeOptions, 'version'> = {},
+  options: NeoForgeOptions,
 ): ChainablePlugin<'neoforge', LoaderGroups> {
+  const { version } = pluginOptions("neoforge({ version: '1.21.1' })", options);
   return definePlugin({
     name: 'neoforge',
     async build(ctx) {
-      const t = await resolveNeoForge({ ...opts, version });
+      const t = await resolveNeoForge(options);
       ctx.log('neoforge', `resolved ${version}`);
       return { artifacts: t.artifacts, vars: t.vars, launch: launchGroups(t) };
     },

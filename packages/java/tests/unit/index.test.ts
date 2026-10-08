@@ -207,28 +207,29 @@ describe('per-vendor resolvers', () => {
 });
 
 describe('java', () => {
-  it('says how it is called when handed the options object first', () => {
+  it('says how it is called when handed a bare version, as it once was', () => {
     // @ts-expect-error — TypeScript refuses it too; a `.mjs` config has no TypeScript.
-    expect(() => java({ version: '17' })).toThrow(
-      /takes the version first, as a string/,
+    expect(() => java('17')).toThrow(
+      /takes one options object — java\(\{ version: '17' \}\)/,
     );
   });
 
   it('returns a plugin named "java"', () => {
-    const plugin = java('21');
+    const plugin = java({ version: '21' });
     expect(plugin.name).toBe('java');
     expect(typeof plugin.build).toBe('function');
   });
 
   it('does no I/O at construction time', () => {
     // No server needed: constructing must not touch the network.
-    expect(() => java('21')).not.toThrow();
+    expect(() => java({ version: '21' })).not.toThrow();
     expect(targets).toHaveLength(0);
   });
 
   it('builds artifacts, vars, a launch group and JAVA_HOME', async () => {
     const { ctx } = makeCtx();
-    const contribution = await java('21', {
+    const contribution = await java({
+      version: '21',
       platforms: [LINUX_X64],
       apiBase: base,
     }).build(ctx);
@@ -241,13 +242,16 @@ describe('java', () => {
 
   it('logs the resolved release label', async () => {
     const { ctx, logs } = makeCtx();
-    await java('21', { platforms: [LINUX_X64], apiBase: base }).build(ctx);
+    await java({ version: '21', platforms: [LINUX_X64], apiBase: base }).build(
+      ctx,
+    );
     expect(logs).toEqual([{ scope: 'java', message: 'Temurin 21.0.11+10' }]);
   });
 
   it('forwards options through to the resolver', async () => {
     const { ctx } = makeCtx();
-    await java('21', {
+    await java({
+      version: '21',
       vendor: 'zulu',
       platforms: [LINUX_X64],
       apiBase: base,
@@ -258,9 +262,11 @@ describe('java', () => {
   it('propagates a resolver failure out of build', async () => {
     const { ctx } = makeCtx();
     await expect(
-      java('21', { platforms: [LINUX_X64], apiBase: `${base}/nope` }).build(
-        ctx,
-      ),
+      java({
+        version: '21',
+        platforms: [LINUX_X64],
+        apiBase: `${base}/nope`,
+      }).build(ctx),
     ).rejects.toThrow(/No Temurin binaries found/);
   });
 });

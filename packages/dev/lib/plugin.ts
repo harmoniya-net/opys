@@ -188,3 +188,23 @@ export function definePlugin<const N extends string, G extends string = never>(
 ): ChainablePlugin<N, G> {
   return chainable(plugin, []);
 }
+
+/**
+ * The options a plugin was called with, once they are known to be an object.
+ *
+ * Every plugin takes one options object. A config is plain JavaScript as
+ * often as not, where nothing has checked the call, and `forge('1.20.1')` —
+ * how it was once written — would otherwise be spread into nothing and fail
+ * somewhere deep in the build. So it is refused here, with the spelling that
+ * works.
+ */
+export function pluginOptions<T extends object>(
+  example: string,
+  options: T,
+): T {
+  if (options === null || typeof options !== 'object' || Array.isArray(options))
+    throw new TypeError(
+      `a plugin takes one options object — ${example} — and was given ${JSON.stringify(options)}`,
+    );
+  return options;
+}

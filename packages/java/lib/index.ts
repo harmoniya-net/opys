@@ -14,6 +14,7 @@
 import * as napi from '@opys/java-binding';
 import {
   definePlugin,
+  pluginOptions,
   type ChainablePlugin,
   type Contribution,
 } from '@opys/dev';
@@ -189,22 +190,12 @@ interface JavaBuild {
  * to Temurin (Eclipse Adoptium); pass `vendor: 'zulu'` or `vendor: 'graalvm'`
  * for an alternate distribution.
  */
-export function java(
-  version: string,
-  opts: Omit<JavaOptions, 'version'> = {},
-): ChainablePlugin<'java', 'bin'> {
-  // A config is usually plain JavaScript, where nothing has checked this call.
-  // `java({ version: '17' })` reads naturally and used to fail deep in the
-  // build as "invalid type: map, expected a string".
-  if (typeof version !== 'string') {
-    throw new TypeError(
-      `java(version, options?) takes the version first, as a string — java('17') or java('17', { vendor: 'zulu' }) — and was given ${JSON.stringify(version)}`,
-    );
-  }
+export function java(options: JavaOptions): ChainablePlugin<'java', 'bin'> {
+  pluginOptions("java({ version: '17' })", options);
   return definePlugin({
     name: 'java',
     async build(ctx) {
-      const build = (await napi.buildJava({ version, ...opts })) as JavaBuild;
+      const build = (await napi.buildJava(options)) as JavaBuild;
       // e.g. `Temurin 21.0.13+11` / `Zulu 21.52.15 (JDK 21.0.12)` / `GraalVM CE 21.0.2`.
       ctx.log('java', build.release.label);
       // The crate's contribution, whose one launch group is `bin`.

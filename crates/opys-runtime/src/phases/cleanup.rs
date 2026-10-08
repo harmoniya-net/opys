@@ -122,11 +122,25 @@ impl Planned {
     }
 }
 
-/// Run the plan. `kept` is every path the manifest installed. Returns what
-/// was removed, files and then the directories that emptied.
-pub async fn cleanup(plan: &CleanupPlan, kept: &HashSet<String>) -> std::io::Result<Vec<String>> {
+/// What a cleanup removed. The two are told apart because they are not the
+/// same news: a file is something that was there and is gone, a directory is
+/// what was left standing empty once its files were.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Removed {
+    pub files: Vec<String>,
+    pub directories: Vec<String>,
+}
+
+impl Removed {
+    pub fn is_empty(&self) -> bool {
+        self.files.is_empty() && self.directories.is_empty()
+    }
+}
+
+/// Run the plan. `kept` is every path the manifest installed.
+pub async fn cleanup(plan: &CleanupPlan, kept: &HashSet<String>) -> std::io::Result<Removed> {
     let kept: HashSet<String> = kept.iter().map(|path| normalize(path)).collect();
-    let mut removed = Vec::new();
+    let mut removed = Removed::default();
     for rule in &plan.0 {
         for base in &rule.bases {
             let base = PathBuf::from(base);
@@ -146,7 +160,7 @@ async fn clean_tree(
     base: &Path,
     rule: &Planned,
     kept: &HashSet<String>,
-    removed: &mut Vec<String>,
+    removed: &mut Removed,
 ) -> std::io::Result<()> {
     let mut dirs: Vec<PathBuf> = Vec::new();
     let mut emptied: HashSet<PathBuf> = HashSet::new();
@@ -164,7 +178,7 @@ async fn clean_tree(
             } else if kind.is_file() {
                 let text = path.to_string_lossy();
                 if rule.removes(&normalize(&text), kept) && fs::remove_file(&path).await.is_ok() {
-                    removed.push(text.into_owned());
+                    removed.files.push(text.into_owned());
                     emptied.insert(dir.clone());
                 }
             }
@@ -182,7 +196,7 @@ async fn clean_tree(
         // `remove_dir` refuses a directory that is not empty, which is the
         // check: nothing here is asked first and removed second.
         if fs::remove_dir(&dir).await.is_ok() {
-            removed.push(text.into_owned());
+            removed.directories.push(text.into_owned());
             if let Some(parent) = dir.parent().filter(|_| dir != base) {
                 emptied.insert(parent.to_path_buf());
             }

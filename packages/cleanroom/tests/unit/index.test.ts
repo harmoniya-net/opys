@@ -200,14 +200,14 @@ describe('resolveCleanroom', () => {
 
 describe('cleanroom()', () => {
   it('is pure to construct', () => {
-    const plugin = cleanroom(MC);
+    const plugin = cleanroom({ version: MC });
     expect(plugin.name).toBe('cleanroom');
     expect(targets).toEqual([]);
   });
 
   it('logs the version and contributes artifacts, vars and launch groups', async () => {
     const { ctx, logs } = makeCtx();
-    const contribution = await cleanroom(MC, options()).build(ctx);
+    const contribution = await cleanroom(options()).build(ctx);
 
     expect(logs).toEqual([{ scope: 'cleanroom', message: `resolved ${MC}` }]);
     expect(contribution.artifacts!.length).toBeGreaterThan(0);

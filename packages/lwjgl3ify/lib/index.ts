@@ -19,6 +19,7 @@
 import * as napi from '@opys/lwjgl3ify-binding';
 import {
   definePlugin,
+  pluginOptions,
   launchGroups,
   type ChainablePlugin,
   type LoaderGroups,
@@ -119,13 +120,16 @@ export async function resolveLwjgl3ifyVersion(
 
 /** lwjgl3ify — Forge 1.7.10 on a modern LWJGL 3 runtime. */
 export function lwjgl3ify(
-  version: string,
-  opts: Omit<Lwjgl3ifyOptions, 'version'> = {},
+  options: Lwjgl3ifyOptions,
 ): ChainablePlugin<'lwjgl3ify', LoaderGroups> {
+  const { version } = pluginOptions(
+    "lwjgl3ify({ version: '1.7.10' })",
+    options,
+  );
   return definePlugin({
     name: 'lwjgl3ify',
     async build(ctx) {
-      const t = await resolveLwjgl3ify({ ...opts, version });
+      const t = await resolveLwjgl3ify(options);
       ctx.log('lwjgl3ify', `resolved ${version}`);
       return { artifacts: t.artifacts, vars: t.vars, launch: launchGroups(t) };
     },

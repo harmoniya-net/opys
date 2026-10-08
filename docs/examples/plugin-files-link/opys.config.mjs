@@ -4,10 +4,10 @@ import { fabric, java, links } from '@opys/minecraft';
 export default defineConfig({
   output: 'game.opys',
   plugins: [
-    fabric('1.21.1'),
-    java('21'),
+    fabric({ version: '1.21.1' }),
+    java({ version: '21' }),
     links({
-      path: (file) => '${game_directory}/mods/' + file.filename,
+      to: (file) => '${game_directory}/mods/' + file.filename,
       links: [
         'https://modrinth.com/mod/sodium/version/SMxNOGZ6',
         'https://maven.fabricmc.net/net/fabricmc/fabric-api/fabric-api/0.116.0+1.21.1/fabric-api-0.116.0+1.21.1.jar',
@@ -15,7 +15,7 @@ export default defineConfig({
     }),
   ],
   manifest: {
-    command: '@java.bin',
+    command: '@fabric.command',
     args: ['@fabric.jvmArgs', '@fabric.mainClass', '@fabric.gameArgs'],
     workdir: '${game_directory}',
   },

@@ -25,7 +25,7 @@ const ctx: BuildContext = {
 
 describe('minecraft vanilla plugin (live)', () => {
   it('resolves vanilla 1.20.1 into client + libraries + assets', async () => {
-    const c = await minecraft('1.20.1').build(ctx);
+    const c = await minecraft({ version: '1.20.1' }).build(ctx);
     // Client jar + libraries + asset index + asset objects.
     expect(c.artifacts!.length).toBeGreaterThan(100);
     expect(c.launch).toHaveProperty('mainClass');
@@ -53,7 +53,7 @@ describe('forge plugin (live)', () => {
     '1.20.1-best',
   ]) {
     it(`resolves ${version} into a manifest contribution`, async () => {
-      const c = await forge(version).build(ctx);
+      const c = await forge({ version }).build(ctx);
       expect(c.artifacts!.length).toBeGreaterThan(0);
       expect(c.launch).toHaveProperty('mainClass');
       expect(c.launch).toHaveProperty('jvmArgs');
@@ -77,7 +77,7 @@ describe.skipIf(!token)(
     it('resolves a known file id into a url artifact', async () => {
       const c = await curseforge({
         token: token!,
-        path: (info) => `mods/${info.filename}`,
+        to: (info) => `mods/${info.filename}`,
         // aiotbotania-1.20.1 — a stable, long-published CurseForge file id.
         files: [6717445],
       }).build(ctx);
@@ -125,7 +125,7 @@ describe.skipIf(!token)(
 describe('modrinth plugin (live)', () => {
   it('resolves a version id and a version URL into url artifacts', async () => {
     const c = await modrinth({
-      path: (info) => `mods/${info.filename}`,
+      to: (info) => `mods/${info.filename}`,
       versions: [
         // fabric-api 0.83.0+1.20.1 — a stable, long-published release.
         'rSrmGeeJ',
@@ -147,7 +147,7 @@ describe('modrinth plugin (live)', () => {
 describe('modrinth modpack plugin (live)', () => {
   it('resolves a fabric modpack into vanilla + loader + mods + overrides', async () => {
     // Fabulously Optimized 5.1.0 — a stable release: MC 1.20.1, fabric 0.14.21.
-    const c = await modrinthModpack('fDlgR3Ps').build(ctx);
+    const c = await modrinthModpack({ pack: 'fDlgR3Ps' }).build(ctx);
 
     // Loader-agnostic launch interface, re-exposed under the one plugin.
     expect(c.launch).toHaveProperty('command');

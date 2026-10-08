@@ -14,6 +14,7 @@
 import * as napi from '@opys/fabric-binding';
 import {
   definePlugin,
+  pluginOptions,
   launchGroups,
   type ChainablePlugin,
   type LoaderGroups,
@@ -103,13 +104,13 @@ export async function resolveFabricVersion(
  * resolved to the latest stable unless pinned via `opts.loader`.
  */
 export function fabric(
-  version: string,
-  opts: Omit<FabricOptions, 'version'> = {},
+  options: FabricOptions,
 ): ChainablePlugin<'fabric', LoaderGroups> {
+  const { version } = pluginOptions("fabric({ version: '1.21.4' })", options);
   return definePlugin({
     name: 'fabric',
     async build(ctx) {
-      const t = await resolveFabric({ ...opts, version });
+      const t = await resolveFabric(options);
       ctx.log('fabric', `resolved ${version}`);
       return { artifacts: t.artifacts, vars: t.vars, launch: launchGroups(t) };
     },

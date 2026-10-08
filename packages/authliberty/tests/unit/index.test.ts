@@ -151,14 +151,17 @@ describe('resolveAuthliberty', () => {
 
 describe('authliberty()', () => {
   it('is pure to construct', () => {
-    const plugin = authliberty('0.3');
+    const plugin = authliberty({ version: '0.3' });
     expect(plugin.name).toBe('authliberty');
     expect(requests).toEqual([]);
   });
 
   it('logs the version and contributes the jar and a single launch group', async () => {
     const { ctx, logs } = makeCtx();
-    const contribution = await authliberty('0.3', { gitlab: base }).build(ctx);
+    const contribution = await authliberty({
+      version: '0.3',
+      gitlab: base,
+    }).build(ctx);
 
     expect(logs).toEqual([{ scope: 'authliberty', message: 'resolved 0.3' }]);
     expect(contribution.artifacts).toHaveLength(1);

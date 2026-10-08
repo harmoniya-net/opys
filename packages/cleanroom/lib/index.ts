@@ -21,6 +21,7 @@
 import * as napi from '@opys/cleanroom-binding';
 import {
   definePlugin,
+  pluginOptions,
   launchGroups,
   type ChainablePlugin,
   type LoaderGroups,
@@ -98,13 +99,16 @@ export async function resolveCleanroomVersion(
 
 /** Cleanroom — a 1.12.2 Forge successor. */
 export function cleanroom(
-  version: string,
-  opts: Omit<CleanroomOptions, 'version'> = {},
+  options: CleanroomOptions,
 ): ChainablePlugin<'cleanroom', LoaderGroups> {
+  const { version } = pluginOptions(
+    "cleanroom({ version: '1.12.2' })",
+    options,
+  );
   return definePlugin({
     name: 'cleanroom',
     async build(ctx) {
-      const t = await resolveCleanroom({ ...opts, version });
+      const t = await resolveCleanroom(options);
       ctx.log('cleanroom', `resolved ${version}`);
       return { artifacts: t.artifacts, vars: t.vars, launch: launchGroups(t) };
     },

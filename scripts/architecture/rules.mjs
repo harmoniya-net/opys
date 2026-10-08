@@ -67,7 +67,7 @@ export const crates = {
     binding: true,
   },
   // Dispatches to the providers; holds no client of its own.
-  'opys-link': {
+  'opys-links': {
     deps: ['opys-core', 'opys-dev', 'opys-modrinth', 'opys-curseforge'],
     binding: true,
   },
@@ -116,7 +116,7 @@ export const packages = {
   '@opys/java': { deps: ['@opys/core', '@opys/dev'], binding: true },
   '@opys/authliberty': { deps: ['@opys/core', '@opys/dev'], binding: true },
   '@opys/dgpuj': { deps: ['@opys/core', '@opys/dev'], binding: true },
-  '@opys/link': { deps: ['@opys/core', '@opys/dev'], binding: true },
+  '@opys/links': { deps: ['@opys/core', '@opys/dev'], binding: true },
   // A modpack names its loader, and standing one up is running that loader's
   // plugin — composition that stays in JS, hence the loader packages here and
   // not in the crates.
@@ -150,7 +150,7 @@ export const packages = {
       '@opys/java',
       '@opys/authliberty',
       '@opys/dgpuj',
-      '@opys/link',
+      '@opys/links',
       '@opys/modrinth',
       '@opys/curseforge',
       '@opys/bifrost',
@@ -266,7 +266,7 @@ export const hashMaps = {
   'crates/opys-curseforge/src/files.rs': 'file id → file, looked up per ref',
   'crates/opys-curseforge/src/modpack.rs': 'file id → file, looked up per ref',
   'crates/opys-modrinth/src/files.rs': 'version id → version, looked up per id',
-  'crates/opys-link/src/resolve.rs': 'provider id → file, looked up per link',
+  'crates/opys-links/src/resolve.rs': 'provider id → file, looked up per link',
   'crates/opys-core-napi/src/lib.rs': 'the vars object as it crosses napi',
   // The install side reads a manifest and produces none.
   'crates/opys-runtime-napi/src/lib.rs': 'vars and envs as they cross napi',

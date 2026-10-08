@@ -41,7 +41,7 @@ const run = async (opts: Omit<PublishedFiles, 'from'>) => {
 describe('files', () => {
   it('scans files into url artifacts with a sha1 hash and size', async () => {
     await touch('a.txt', 'hello');
-    const arts = await run({ url: 'https://cdn/${rel}' });
+    const arts = await run({ url: (f) => `https://cdn/${f.rel}` });
     expect(arts).toHaveLength(1);
     const a = arts[0]!;
     expect(a.path).toBe('a.txt');
@@ -53,7 +53,10 @@ describe('files', () => {
 
   it('emits sha256 integrity when requested', async () => {
     await touch('a.txt', 'hello');
-    const arts = await run({ url: 'https://cdn/${rel}', hash: 'sha256' });
+    const arts = await run({
+      url: (f) => `https://cdn/${f.rel}`,
+      hash: 'sha256',
+    });
     const sha256 = createHash('sha256').update('hello').digest('hex');
     expect(arts[0]!.integrity).toEqual({ sha256 });
   });
@@ -63,7 +66,7 @@ describe('files', () => {
     await touch('sub/b.txt', 'world');
     const plugin = files({
       from: dir,
-      to: '${root}/${rel}',
+      to: (f) => `\${root}/${f.rel}`,
     });
     const { artifacts, blobs } = await plugin.build(ctx);
     const hello = createHash('sha256').update('hello').digest('hex');
@@ -94,22 +97,22 @@ describe('files', () => {
     await touch('a.txt', 'hello');
     const result = await files({
       from: dir,
-      url: 'https://cdn/${rel}',
+      url: (f) => `https://cdn/${f.rel}`,
     }).build(ctx);
     expect(result.blobs).toEqual({});
   });
 
   it('defaults the artifact path to the relative path', async () => {
     await touch('sub/a.txt', 'x');
-    const arts = await run({ url: 'https://cdn/${rel}' });
+    const arts = await run({ url: (f) => `https://cdn/${f.rel}` });
     expect(arts[0]!.path).toBe('sub/a.txt');
   });
 
   it('interpolates ${rel} ${dir} ${filename} in templates', async () => {
     await touch('mods/jei.jar', 'x');
     const arts = await run({
-      url: 'https://cdn/${dir}/${filename}',
-      to: 'install/${rel}',
+      url: (f) => `https://cdn/${f.dir}/${f.filename}`,
+      to: (f) => `install/${f.rel}`,
     });
     expect(arts[0]!.path).toBe('install/mods/jei.jar');
     expect(arts[0]!.source).toEqual({
@@ -119,7 +122,7 @@ describe('files', () => {
 
   it('leaves an empty ${dir} for a root-level file', async () => {
     await touch('root.txt', 'x');
-    const arts = await run({ url: 'https://cdn/${dir}x' });
+    const arts = await run({ url: (f) => `https://cdn/${f.dir}x` });
     expect(arts[0]!.source).toEqual({ url: 'https://cdn/x' });
   });
 
@@ -137,7 +140,7 @@ describe('files', () => {
     await touch('a.txt', '1');
     await touch('sub/b.txt', '2');
     await touch('sub/deep/c.txt', '3');
-    const arts = await run({ url: 'https://cdn/${rel}' });
+    const arts = await run({ url: (f) => `https://cdn/${f.rel}` });
     expect(arts.map((a) => a.path)).toEqual([
       'a.txt',
       'sub/b.txt',
@@ -150,7 +153,7 @@ describe('files', () => {
     await touch('drop.txt', '2');
     const plugin = files({
       from: dir,
-      url: 'https://cdn/${rel}',
+      url: (f) => `https://cdn/${f.rel}`,
     }).exclude('drop.txt');
     const result = await plugin.build(ctx);
     expect((result.artifacts ?? []).map((a) => a.path)).toEqual(['keep.txt']);
@@ -158,19 +161,19 @@ describe('files', () => {
 
   it('logs how many files it found', async () => {
     await touch('a.txt', '1');
-    await run({ url: 'https://cdn/${rel}' });
+    await run({ url: (f) => `https://cdn/${f.rel}` });
     expect(logs.some((l) => l.includes('found 1 file(s)'))).toBe(true);
     expect(logs.some((l) => l.includes('excluded'))).toBe(false);
   });
 
   it('produces no artifacts for an empty directory', async () => {
-    expect(await run({ url: 'https://cdn/${rel}' })).toEqual([]);
+    expect(await run({ url: (f) => `https://cdn/${f.rel}` })).toEqual([]);
   });
 
   it('ignores entries that are neither files nor directories', async () => {
     await touch('real.txt', 'x');
     await symlink(join(dir, 'nowhere'), join(dir, 'dangling'));
-    const arts = await run({ url: 'https://cdn/${rel}' });
+    const arts = await run({ url: (f) => `https://cdn/${f.rel}` });
     expect(arts.map((a) => a.path)).toEqual(['real.txt']);
   });
 
@@ -178,7 +181,7 @@ describe('files', () => {
     await touch('a.txt', 'hello');
     const plugin = files({
       from: basename(dir),
-      url: 'https://cdn/${rel}',
+      url: (f) => `https://cdn/${f.rel}`,
     });
     const result = await plugin.build({
       log: (_scope, msg) => logs.push(msg),
@@ -186,6 +189,18 @@ describe('files', () => {
       mode: '',
     });
     expect((result.artifacts ?? []).map((a) => a.path)).toEqual(['a.txt']);
+  });
+
+  it('refuses a template string, which `to` and `url` once took', () => {
+    expect(() =>
+      // @ts-expect-error — a `.mjs` config has nothing to refuse it but this.
+      files({ from: dir, to: '${root}/${rel}' }),
+    ).toThrow(/`to` is a function of the file now/);
+  });
+
+  it('refuses a bare directory in place of its options', () => {
+    // @ts-expect-error — as above.
+    expect(() => files(dir)).toThrow(/takes one options object/);
   });
 });
 

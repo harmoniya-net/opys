@@ -4,10 +4,10 @@ import { fabric, java, modrinth } from '@opys/minecraft';
 export default defineConfig({
   output: 'game.opys',
   plugins: [
-    fabric('1.21.1'),
-    java('21'),
+    fabric({ version: '1.21.1' }),
+    java({ version: '21' }),
     modrinth({
-      path: (file) => `\${game_directory}/mods/${file.filename}`,
+      to: (file) => `\${game_directory}/mods/${file.filename}`,
       versions: [
         'JjCVwmVA', // Sodium
         'N08Z8wog', // Lithium
@@ -15,7 +15,7 @@ export default defineConfig({
     }),
   ],
   manifest: {
-    command: '@java.bin',
+    command: '@fabric.command',
     args: ['@fabric.jvmArgs', '@fabric.mainClass', '@fabric.gameArgs'],
     workdir: '${game_directory}',
   },

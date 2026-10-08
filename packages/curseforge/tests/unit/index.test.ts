@@ -146,7 +146,7 @@ describe('resolveCurseforge', () => {
       {
         token: TOKEN,
         apiBase: base,
-        path: (info) => {
+        to: (info) => {
           seen.push(info);
           return `\${game_directory}/mods/${info.filename}`;
         },
@@ -176,7 +176,7 @@ describe('resolveCurseforge', () => {
   it('rejects with the crate’s error for a file the API does not know', async () => {
     await expect(
       resolveCurseforge(
-        { token: TOKEN, apiBase: base, path: (i) => i.filename },
+        { token: TOKEN, apiBase: base, to: (i) => i.filename },
         [999],
       ),
     ).rejects.toThrow(/did not return metadata for file 999/);
@@ -188,7 +188,7 @@ describe('curseforge()', () => {
     const plugin = curseforge({
       token: TOKEN,
       apiBase: base,
-      path: (i) => `mods/${i.filename}`,
+      to: (i) => `mods/${i.filename}`,
       files: [100],
     });
     expect(plugin.name).toBe('curseforge');

@@ -268,14 +268,15 @@ describe('mappers', () => {
 
 describe('minecraft()', () => {
   it('is pure to construct', () => {
-    const plugin = minecraft('1.20.1');
+    const plugin = minecraft({ version: '1.20.1' });
     expect(plugin.name).toBe('minecraft');
     expect(targets).toEqual([]);
   });
 
   it('logs the version and contributes artifacts, vars and launch groups', async () => {
     const { ctx, logs } = makeCtx();
-    const contribution = await minecraft('1.20.1', {
+    const contribution = await minecraft({
+      version: '1.20.1',
       manifestBase: manifestBase(),
     }).build(ctx);
 
@@ -292,7 +293,9 @@ describe('minecraft()', () => {
 
   it('says "latest" when no version is pinned', async () => {
     const { ctx, logs } = makeCtx();
-    await minecraft(undefined, { manifestBase: manifestBase() }).build(ctx);
+    await minecraft({ version: undefined, manifestBase: manifestBase() }).build(
+      ctx,
+    );
     expect(logs).toEqual([{ scope: 'minecraft', message: 'vanilla latest' }]);
   });
 });

@@ -39,7 +39,7 @@ export default defineConfig({
 
 - A plugin is `{ name, build }`. Constructing it does no I/O. `build` runs only while building and returns a `Contribution`: `artifacts`, `blobs`, `vars`, `launch` groups and `envs`.
 - `definePlugin` adds the chainable `exclude`, `addRule`, `removeIntegrity`, `updateFirst` and `updateMany`. Each returns a new plugin and changes `artifacts` only.
-- `files({ from, to })` carries a local directory in the bundle. With a `url` the files are pointed at and pinned by hash instead. For a file that is already published, use `links` from `@opys/link`.
+- `files({ from, to })` carries a local directory in the bundle. With a `url` the files are pointed at and pinned by hash instead. For a file that is already published, use `links` from `@opys/links`.
 - `userDataDir(name)` belongs in `runClient`, never in `manifest.vars`: there it would bake the build machine's path into every bundle.
 
 ## Documentation

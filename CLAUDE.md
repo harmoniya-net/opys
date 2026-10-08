@@ -78,9 +78,9 @@ them, and the list below names the layers rather than every one:
                      own `.node`.                           → dev, core, mojang
 @opys/java          JDK provisioning — Temurin / Zulu / GraalVM CE.
                      Thin wrapper over the `opys-java` crate.                → dev, core
-@opys/link          A pasted link → a pinned artifact: GitHub / GitLab / Modrinth /
+@opys/links         A pasted link → a pinned artifact: GitHub / GitLab / Modrinth /
                      CurseForge / a plain URL.
-                     Thin wrapper over the `opys-link` crate.                → dev, core
+                     Thin wrapper over the `opys-links` crate.                → dev, core
 @opys/dgpuj         The dgpuj GPU-selection shim, one archive per target.
                      Thin wrapper over the `opys-dgpuj` crate.               → dev, core
 @opys/cli           the `opys` binary.                 → core, dev, runtime, minecraft
@@ -333,7 +333,7 @@ them, and the list below names the layers rather than every one:
   callers that treat a status as data (a 404 for a platform a release doesn't
   ship).
 - **A link is resolved once, by whoever publishes its hash — or by reading the
-  file.** `opys-link` takes the URL a config author already has and turns it
+  file.** `opys-links` takes the URL a config author already has and turns it
   into a pinned file. `parse_link` is pure: it says which provider a URL
   belongs to and what it names there. `resolve_links` asks that provider —
   GitHub and GitLab through `opys-dev`'s clients, Modrinth and CurseForge
@@ -345,7 +345,7 @@ them, and the list below names the layers rather than every one:
   own.
 - **A GitHub asset is pinned one way.** `opys-dev`'s `pin_github_asset` takes
   the digest the release listing carries and, for a release old enough to have
-  none, downloads the asset and hashes it. `opys-link`, `opys-dgpuj` and
+  none, downloads the asset and hashes it. `opys-links`, `opys-dgpuj` and
   `opys-lwjgl3ify`'s mod jars all go through it, so none of them can ship an
   asset unverified — which is what lwjgl3ify's mod jar did while that choice
   was spelled per crate. `@opys/dev` once carried a TypeScript GitHub
@@ -353,15 +353,28 @@ them, and the list below names the layers rather than every one:
   caller left inside opys, and a second implementation beside the Rust one is
   what drifted before, so both were deleted. An author with a release asset
   uses `links`.
-- **A callback never crosses napi; its answers do.** `modrinth`, `curseforge`
-  and `links` take a `path` function from the config author, and `authliberty`
-  may take `hosts` as one. A closure cannot be handed to Rust,
+- **A callback never crosses napi; its answers do.** `modrinth`, `curseforge`,
+  `links` and `files` take a `to` function from the config author, and
+  `authliberty` may take `hosts` as one. A closure cannot be handed to Rust,
   so each is split in two on the crate side: resolve to plain data, then build
   from that data plus what the callback returned (`file_artifacts(files,
 paths)`). The wrapper's only job is the call in between. `files` is
   the same shape for a local directory: `scan_directory` says what is on
   disk, JS places each file with the author's `to` / `url`, and
   `scanned_files` hashes them and builds the artifacts.
+- **Where a file goes is a function of the file, and is called `to`
+  everywhere.** `to: (file) => '${game_directory}/mods/' + file.filename`.
+  It was `path` on three plugins and `to` on the fourth, which also took a
+  template string with placeholders of its own (`${rel}`). Those sat in one
+  string beside the install-time `${…}`, read alike and were filled in at
+  different times, and their names were a convention nothing checked. A
+  function has a typed argument, and leaves one kind of `${…}` in a config.
+- **A plugin takes one options object.** `forge({ version: '1.20.1' })`,
+  `modrinth({ versions, to })`, `serverlist({ servers })`. They used to
+  disagree — a version first here, a list first there, an object elsewhere —
+  and `java` carried a runtime check for whoever guessed wrong. A config is
+  plain JavaScript as often as not, so the old spellings are still refused at
+  the call, by `pluginOptions`, with the one that works.
 - **`files` and `links` are the two ways a file gets into a manifest by hand.**
   `links` takes what is already published and pins it; `files` takes what is
   on the author's disk. `files` carries by default — no `url` means a blob in
@@ -455,7 +468,7 @@ The name and the group names are part of a plugin's type —
 `OpysPlugin<'forge', 'command' | 'jvmArgs' | 'mainClass' | 'gameArgs'>` — and
 are inferred; see _Invariants_.
 
-- **Pure to construct.** `forge('1.20.1-best')` returns `{ name, build }` with
+- **Pure to construct.** `forge({ version: '1.20.1-best' })` returns `{ name, build }` with
   zero I/O; all network/fs work happens inside `build`.
 - **`build` is the only hook** — build-phase only; plugins never run at launch.
 - `definePlugin` returns the plugin with the post-processing methods
@@ -468,9 +481,9 @@ are inferred; see _Invariants_.
 ```js
 export default defineConfig(({ mode }) => ({
   output: 'game.opys',
-  plugins: [forge('1.20.1-best'), java('17')],
+  plugins: [forge({ version: '1.20.1-best' }), java({ version: '17' })],
   manifest: {
-    command: '@java.bin',
+    command: '@forge.command',
     args: ['@forge.jvmArgs', '@forge.mainClass', '@forge.gameArgs'],
     workdir: '${game_directory}',
   },
@@ -494,6 +507,10 @@ export default defineConfig(({ mode }) => ({
 - `command` / `args` / `workdir` are data: literals, and `'@plugin.group'`
   references to what a plugin exposes. The author owns arg order — there is
   no role-based default.
+- A config takes its `command` from the loader, `'@forge.command'`, and not
+  from `'@java.bin'`. Today the two are the same string. They are kept apart
+  so that a loader which one day has to start through something of its own —
+  a wrapper around `java` — can say so without any config changing.
 - **One var, one owner.** e.g. only the `java` plugin emits
   `java_home` / `java_bin` / `java_runtime_dir`.
 - `mode` is a build-time-only `ctx` value (`opys build --mode X`).

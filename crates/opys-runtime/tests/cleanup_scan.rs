@@ -36,9 +36,18 @@ async fn run(manifest_json: String) -> Vec<InstallProgress> {
     Arc::try_unwrap(events).unwrap().into_inner().unwrap()
 }
 
+/// How many files a cleanup removed.
 fn cleanup_removed(events: &[InstallProgress]) -> Option<u32> {
+    cleanup_counts(events).map(|(files, _)| files)
+}
+
+/// Files and directories, as the event counts them.
+fn cleanup_counts(events: &[InstallProgress]) -> Option<(u32, u32)> {
     events.iter().find_map(|e| match e {
-        InstallProgress::Cleanup { removed } => Some(*removed),
+        InstallProgress::Cleanup {
+            removed,
+            directories,
+        } => Some((*removed, *directories)),
         _ => None,
     })
 }
@@ -544,8 +553,8 @@ async fn a_directory_left_empty_is_removed() {
         dir.path().exists(),
         "its parent is not the rule's to remove"
     );
-    // Two files and two directories.
-    assert_eq!(cleanup_removed(&events), Some(4));
+    // Two files and two directories, counted apart.
+    assert_eq!(cleanup_counts(&events), Some((2, 2)));
 }
 
 /// A directory the last stray was removed from goes too, though the rule

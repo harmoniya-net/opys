@@ -8,10 +8,10 @@
  * back to be hashed.
  */
 import { isAbsolute, resolve } from 'node:path';
-import { interpolate } from '@opys/core';
 import * as napi from '@opys/dev-binding';
 import {
   definePlugin,
+  pluginOptions,
   type ChainablePlugin,
   type Contribution,
 } from './plugin';
@@ -31,18 +31,23 @@ export interface LocalFile {
 }
 
 /**
- * A `to` / `url` value: either a template string — interpolating the
- * per-file placeholders `${rel}` / `${dir}` / `${filename}`, with any other
- * `${var}` left for install — or a `(file) => string` function. Only the
- * function form receives the build-machine `abs` path.
+ * Where a file goes, or where it is fetched from: a function of the file.
+ * What it returns may hold install-time vars — `${game_directory}` — which
+ * are filled in on the installing machine.
+ *
+ * It was a template string too, once, with placeholders of its own
+ * (`${rel}`) beside the install-time ones in the same string. Two kinds of
+ * `${…}` read alike and were filled in at different times, and the
+ * placeholder names were a convention nothing checked; a function says the
+ * same thing with a typed argument.
  */
-export type FileTemplate = string | ((file: LocalFile) => string);
+export type FilePlace = (file: LocalFile) => string;
 
 interface FilesFrom {
   /** Directory to take files from, relative to the config file. */
   from: string;
   /** Where each file is installed. Defaults to the file's `rel`. */
-  to?: FileTemplate;
+  to?: FilePlace;
 }
 
 /**
@@ -62,7 +67,7 @@ export interface EmbeddedFiles extends FilesFrom {
  */
 export interface PublishedFiles extends FilesFrom {
   /** Where an installer fetches each file from. */
-  url: FileTemplate;
+  url: FilePlace;
   /**
    * What each file is pinned with. It is always hashed, so a content change
    * re-fetches it; clear integrity with `removeIntegrity` for deliberate
@@ -77,29 +82,32 @@ export interface PublishedFiles extends FilesFrom {
  */
 export type FilesOptions = EmbeddedFiles | PublishedFiles;
 
-function applyTemplate(template: FileTemplate, file: LocalFile): string {
-  if (typeof template === 'function') return template(file);
-  return interpolate(template, {
-    rel: file.rel,
-    dir: file.dir,
-    filename: file.filename,
-  });
-}
-
 /**
  * Every file under a local directory, as artifacts — a generic build-time
  * plugin, and the counterpart of `links`: that one takes what is already
  * published, this one takes what is on your disk.
  *
  * ```js
- * files({ from: 'server-files', to: '${root}/${rel}' }) // carried in the bundle
- * files({ from: 'mods', to: 'mods/${rel}', url: 'https://cdn/${rel}' }) // pointed at
+ * // carried in the bundle
+ * files({ from: 'server-files', to: (file) => '${root}/' + file.rel })
+ * // pointed at
+ * files({
+ *   from: 'mods',
+ *   to: (file) => '${game_directory}/mods/' + file.rel,
+ *   url: (file) => 'https://cdn.example.com/' + file.rel,
+ * })
  * ```
  *
  * Post-process the result with the fluent {@link ChainablePlugin} methods,
  * e.g. `files({…}).exclude('**\/*.tmp')`.
  */
 export function files(options: FilesOptions): ChainablePlugin<'files', never> {
+  const { to, url } = pluginOptions("files({ from: 'overrides' })", options);
+  for (const [name, place] of Object.entries({ to, url }))
+    if (place !== undefined && typeof place !== 'function')
+      throw new TypeError(
+        `files: \`${name}\` is a function of the file now — ${name}: (file) => '\${game_directory}/' + file.rel — and was given ${JSON.stringify(place)}`,
+      );
   return definePlugin({
     name: 'files',
     async build(ctx) {
@@ -110,11 +118,10 @@ export function files(options: FilesOptions): ChainablePlugin<'files', never> {
       const found = (await napi.scanDirectory(from)) as LocalFile[];
       ctx.log('files', `found ${found.length} file(s) in ${options.from}`);
 
-      const { url } = options;
       const placed = found.map((file) => ({
         abs: file.abs,
-        path: options.to ? applyTemplate(options.to, file) : file.rel,
-        ...(url === undefined ? {} : { url: applyTemplate(url, file) }),
+        path: to ? to(file) : file.rel,
+        ...(url === undefined ? {} : { url: url(file) }),
       }));
       return (await napi.scannedFiles(
         placed,

@@ -3,9 +3,9 @@ import { java, neoforge } from '@opys/minecraft';
 
 export default defineConfig({
   output: 'game.opys',
-  plugins: [neoforge('1.21.1'), java('21')],
+  plugins: [neoforge({ version: '1.21.1' }), java({ version: '21' })],
   manifest: {
-    command: '@java.bin',
+    command: '@neoforge.command',
     args: ['@neoforge.jvmArgs', '@neoforge.mainClass', '@neoforge.gameArgs'],
     workdir: '${game_directory}',
   },

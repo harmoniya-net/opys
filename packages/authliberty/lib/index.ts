@@ -14,7 +14,7 @@
  */
 
 import * as napi from '@opys/authliberty-binding';
-import { definePlugin, type ChainablePlugin } from '@opys/dev';
+import { definePlugin, pluginOptions, type ChainablePlugin } from '@opys/dev';
 import type { Artifact, Valset } from '@opys/core';
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -139,13 +139,16 @@ export async function resolveAuthLibertyVersion(
 
 /** AuthLiberty — an authlib-injector `-javaagent` auth redirector. */
 export function authliberty(
-  version: string,
-  opts: Omit<AuthLibertyOptions, 'version'> = {},
+  options: AuthLibertyOptions,
 ): ChainablePlugin<'authliberty', 'jvmArgs'> {
+  const { version } = pluginOptions(
+    "authliberty({ version: '1.2.0' })",
+    options,
+  );
   return definePlugin({
     name: 'authliberty',
     async build(ctx) {
-      const t = await resolveAuthliberty({ ...opts, version });
+      const t = await resolveAuthliberty(options);
       ctx.log('authliberty', `resolved ${version}`);
       return { artifacts: t.artifacts, launch: { jvmArgs: t.jvmArgs } };
     },

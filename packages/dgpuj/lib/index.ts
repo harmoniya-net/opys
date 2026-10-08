@@ -17,6 +17,7 @@
 import * as napi from '@opys/dgpuj-binding';
 import {
   definePlugin,
+  pluginOptions,
   type ChainablePlugin,
   type Contribution,
 } from '@opys/dev';
@@ -129,6 +130,7 @@ export async function resolveDgpuj(
 export function dgpuj(
   options: DgpujOptions = {},
 ): ChainablePlugin<'dgpuj', 'bin' | 'home'> {
+  pluginOptions('dgpuj({})', options);
   return definePlugin({
     name: 'dgpuj',
     async build(ctx) {

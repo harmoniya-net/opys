@@ -3,9 +3,9 @@ import { lwjgl3ify, java } from '@opys/minecraft';
 
 export default defineConfig({
   output: 'game.opys',
-  plugins: [lwjgl3ify('1.7.10'), java('25')],
+  plugins: [lwjgl3ify({ version: '1.7.10' }), java({ version: '25' })],
   manifest: {
-    command: '@java.bin',
+    command: '@lwjgl3ify.command',
     args: ['@lwjgl3ify.jvmArgs', '@lwjgl3ify.mainClass', '@lwjgl3ify.gameArgs'],
     workdir: '${game_directory}',
   },

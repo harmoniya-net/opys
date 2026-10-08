@@ -35,9 +35,13 @@ const welcome = (motd) =>
 
 export default defineConfig({
   output: 'game.opys',
-  plugins: [minecraft('1.21.1'), java('21'), welcome('Hello from opys')],
+  plugins: [
+    minecraft({ version: '1.21.1' }),
+    java({ version: '21' }),
+    welcome('Hello from opys'),
+  ],
   manifest: {
-    command: '@java.bin',
+    command: '@minecraft.command',
     args: [
       '@welcome.jvmArg',
       '@minecraft.jvmArgs',

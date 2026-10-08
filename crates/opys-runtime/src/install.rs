@@ -42,8 +42,11 @@ pub enum InstallProgress {
     Extract {
         count: u32,
     },
+    /// `removed` counts files. A directory that was left empty went with
+    /// them and is counted apart.
     Cleanup {
         removed: u32,
+        directories: u32,
     },
 }
 
@@ -262,7 +265,8 @@ pub(crate) async fn install_resolved(
             })?;
         if !removed.is_empty() {
             report(InstallProgress::Cleanup {
-                removed: removed.len() as u32,
+                removed: removed.files.len() as u32,
+                directories: removed.directories.len() as u32,
             });
         }
     }

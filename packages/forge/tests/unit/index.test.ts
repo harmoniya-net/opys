@@ -238,14 +238,14 @@ describe('resolveForge', () => {
 
 describe('forge()', () => {
   it('is pure to construct', () => {
-    const plugin = forge(MC);
+    const plugin = forge({ version: MC });
     expect(plugin.name).toBe('forge');
     expect(targets).toEqual([]);
   });
 
   it('logs the version and contributes artifacts, vars and launch groups', async () => {
     const { ctx, logs } = makeCtx();
-    const contribution = await forge(MC, options()).build(ctx);
+    const contribution = await forge(options()).build(ctx);
 
     expect(logs).toEqual([{ scope: 'forge', message: `resolved ${MC}` }]);
     expect(contribution.artifacts!.length).toBeGreaterThan(0);

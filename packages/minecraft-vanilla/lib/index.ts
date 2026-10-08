@@ -19,6 +19,7 @@
 import * as napi from '@opys/minecraft-vanilla-binding';
 import {
   definePlugin,
+  pluginOptions,
   launchGroups,
   type ChainablePlugin,
   type LoaderGroups,
@@ -207,13 +208,16 @@ export function buildLaunch(
 
 /** Vanilla Minecraft client + libraries + assets. */
 export function minecraft(
-  version?: string,
-  options: Omit<MinecraftOptions, 'version'> = {},
+  options: MinecraftOptions = {},
 ): ChainablePlugin<'minecraft', LoaderGroups> {
+  const { version } = pluginOptions(
+    "minecraft({ version: '1.21.1' })",
+    options,
+  );
   return definePlugin({
     name: 'minecraft',
     async build(ctx) {
-      const t = await resolveMinecraft({ ...options, version });
+      const t = await resolveMinecraft(options);
       ctx.log('minecraft', `vanilla ${version ?? 'latest'}`);
       return { artifacts: t.artifacts, vars: t.vars, launch: launchGroups(t) };
     },

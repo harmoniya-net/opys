@@ -3,12 +3,12 @@ import { java, minecraft } from '@opys/minecraft';
 
 export default defineConfig(({ mode }) => ({
   output: 'game.opys',
-  plugins: [minecraft('1.21.1'), java('21')],
+  plugins: [minecraft({ version: '1.21.1' }), java({ version: '21' })],
   manifest: {
     vars: {
       motd: mode === 'release' ? 'Welcome' : 'Development build',
     },
-    command: '@java.bin',
+    command: '@minecraft.command',
     args: ['@minecraft.jvmArgs', '@minecraft.mainClass', '@minecraft.gameArgs'],
     workdir: '${game_directory}',
     envs: { PACK_NAME: 'config-full' },

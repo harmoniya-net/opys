@@ -69,6 +69,7 @@ pub struct ProgressEventJs {
     pub skipped: Option<u32>,
     pub count: Option<u32>,
     pub removed: Option<u32>,
+    pub directories: Option<u32>,
     pub path: Option<String>,
     pub bytes: Option<i64>,
     pub total_bytes: Option<i64>,
@@ -121,9 +122,13 @@ fn progress_to_event(p: InstallProgress) -> ProgressEventJs {
             count: Some(count),
             ..Default::default()
         },
-        InstallProgress::Cleanup { removed } => ProgressEventJs {
+        InstallProgress::Cleanup {
+            removed,
+            directories,
+        } => ProgressEventJs {
             phase: "cleanup".into(),
             removed: Some(removed),
+            directories: Some(directories),
             ..Default::default()
         },
     }

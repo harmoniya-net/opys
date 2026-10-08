@@ -19,6 +19,7 @@
 import * as napi from '@opys/forge-binding';
 import {
   definePlugin,
+  pluginOptions,
   launchGroups,
   type ChainablePlugin,
   type LoaderGroups,
@@ -101,13 +102,13 @@ export async function resolveForgeVersion(
 
 /** Forge mod loader — every version, from 1.1 to current. */
 export function forge(
-  version: string,
-  opts: Omit<ForgeOptions, 'version'> = {},
+  options: ForgeOptions,
 ): ChainablePlugin<'forge', LoaderGroups> {
+  const { version } = pluginOptions("forge({ version: '1.20.1' })", options);
   return definePlugin({
     name: 'forge',
     async build(ctx) {
-      const t = await resolveForge({ ...opts, version });
+      const t = await resolveForge(options);
       ctx.log('forge', `resolved ${version}`);
       return { artifacts: t.artifacts, vars: t.vars, launch: launchGroups(t) };
     },

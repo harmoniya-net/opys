@@ -4,15 +4,17 @@ import { java, minecraft, serverlist } from '@opys/minecraft';
 export default defineConfig({
   output: 'game.opys',
   plugins: [
-    minecraft('1.21.1'),
-    java('21'),
-    serverlist([
-      { name: 'My SMP', ip: 'mc.example.com' },
-      { name: 'Friends', ip: 'friends.example.com:25566' },
-    ]),
+    minecraft({ version: '1.21.1' }),
+    java({ version: '21' }),
+    serverlist({
+      servers: [
+        { name: 'My SMP', ip: 'mc.example.com' },
+        { name: 'Friends', ip: 'friends.example.com:25566' },
+      ],
+    }),
   ],
   manifest: {
-    command: '@java.bin',
+    command: '@minecraft.command',
     args: ['@minecraft.jvmArgs', '@minecraft.mainClass', '@minecraft.gameArgs'],
     workdir: '${game_directory}',
   },
