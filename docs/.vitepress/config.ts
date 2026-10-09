@@ -1,9 +1,165 @@
 import { defineConfig, type DefaultTheme } from 'vitepress';
 
-// The site is written in English and translated into Ukrainian. A page lives
-// at the same path in both: `guide/java.md` and `uk/guide/java.md`. Only the
-// labels below differ between the two, so the navigation is built once from
-// a table of them and cannot list a page in one language and not the other.
+// The site is written in English and translated into Ukrainian.
+//
+// The English pages were rewritten into a much smaller set, and the
+// translation has not followed yet. Until it does, the two languages have
+// different pages and so different navigation: `english` below is the new
+// one, and `legacy` is the layout the Ukrainian pages still have. When the
+// translation catches up, `legacy` and its label tables go, and both
+// languages are built from `english` again.
+
+/** The English navigation: one sidebar, since the whole site fits in it. */
+function english(): DefaultTheme.Config {
+  const sidebar: DefaultTheme.SidebarItem[] = [
+    {
+      text: 'Basics',
+      items: [
+        { text: 'Introduction', link: '/basics/intro' },
+        { text: 'The config', link: '/basics/config' },
+        { text: 'The bundle', link: '/basics/bundle' },
+        { text: 'The CLI', link: '/basics/cli' },
+        { text: 'Launcher integration', link: '/basics/launcher' },
+      ],
+    },
+    {
+      text: 'The format',
+      items: [
+        { text: 'Overview', link: '/format/' },
+        { text: 'Variables', link: '/format/variables' },
+        { text: 'Rules', link: '/format/rules' },
+        { text: 'Artifacts', link: '/format/artifacts' },
+        { text: 'Launch', link: '/format/launch' },
+        { text: 'Cleanup', link: '/format/cleanup' },
+        { text: 'The bundle file', link: '/format/bundle' },
+      ],
+    },
+    {
+      text: 'Plugins',
+      items: [
+        { text: 'Overview', link: '/plugins/' },
+        { text: 'Local files', link: '/plugins/files' },
+        { text: 'Files by link', link: '/plugins/links' },
+        {
+          text: 'Minecraft',
+          collapsed: false,
+          items: [
+            { text: 'Vanilla Minecraft', link: '/plugins/minecraft' },
+            { text: 'Server list', link: '/plugins/serverlist' },
+            { text: 'Custom auth server', link: '/plugins/authliberty' },
+            { text: 'Bifrost', link: '/plugins/bifrost' },
+          ],
+        },
+        {
+          text: 'Minecraft mod loaders',
+          collapsed: false,
+          items: [
+            { text: 'Forge', link: '/plugins/forge' },
+            { text: 'NeoForge', link: '/plugins/neoforge' },
+            { text: 'Fabric', link: '/plugins/fabric' },
+            { text: 'Cleanroom', link: '/plugins/cleanroom' },
+            { text: 'lwjgl3ify', link: '/plugins/lwjgl3ify' },
+          ],
+        },
+        {
+          text: 'Minecraft mod resources',
+          collapsed: false,
+          items: [
+            { text: 'Modrinth', link: '/plugins/modrinth' },
+            { text: 'CurseForge', link: '/plugins/curseforge' },
+          ],
+        },
+        {
+          text: 'Java',
+          collapsed: false,
+          items: [
+            { text: 'Java runtime', link: '/plugins/java' },
+            { text: 'Discrete GPU', link: '/plugins/dgpuj' },
+          ],
+        },
+        { text: 'Writing a plugin', link: '/plugins/writing-a-plugin' },
+      ],
+    },
+    {
+      text: 'Reference',
+      items: [
+        { text: 'Troubleshooting', link: '/reference/troubleshooting' },
+        { text: 'How opys is built', link: '/reference/architecture' },
+      ],
+    },
+  ];
+  // A trial of another layout: each package's README as its page. Kept apart
+  // from the sidebar above until one of the two replaces the other.
+  const packages = [
+    { text: 'Packages', items: [{ text: 'Overview', link: '/packages/' }] },
+    {
+      text: 'The format',
+      items: [
+        { text: '@opys/core', link: '/packages/core' },
+        { text: '@opys/bundle', link: '/packages/bundle' },
+      ],
+    },
+    {
+      text: 'Any pack',
+      items: [{ text: '@opys/links', link: '/packages/links' }],
+    },
+    {
+      text: 'Minecraft',
+      items: [
+        {
+          text: '@opys/minecraft-vanilla',
+          link: '/packages/minecraft-vanilla',
+        },
+        {
+          text: '@opys/minecraft-serverlist',
+          link: '/packages/minecraft-serverlist',
+        },
+        { text: '@opys/authliberty', link: '/packages/authliberty' },
+        { text: '@opys/bifrost', link: '/packages/bifrost' },
+      ],
+    },
+    {
+      text: 'Minecraft mod loaders',
+      items: [
+        { text: '@opys/forge', link: '/packages/forge' },
+        { text: '@opys/neoforge', link: '/packages/neoforge' },
+        { text: '@opys/fabric', link: '/packages/fabric' },
+        { text: '@opys/cleanroom', link: '/packages/cleanroom' },
+        { text: '@opys/lwjgl3ify', link: '/packages/lwjgl3ify' },
+      ],
+    },
+    {
+      text: 'Minecraft mod resources',
+      items: [
+        { text: '@opys/modrinth', link: '/packages/modrinth' },
+        { text: '@opys/curseforge', link: '/packages/curseforge' },
+      ],
+    },
+    {
+      text: 'Java',
+      items: [
+        { text: '@opys/java', link: '/packages/java' },
+        { text: '@opys/dgpuj', link: '/packages/dgpuj' },
+      ],
+    },
+  ];
+  return {
+    nav: [
+      { text: 'Basics', link: '/basics/intro' },
+      { text: 'The format', link: '/format/' },
+      { text: 'Plugins', link: '/plugins/' },
+      { text: 'Reference', link: '/reference/troubleshooting' },
+      { text: 'Packages (trial)', link: '/packages/' },
+    ],
+    sidebar: {
+      '/packages/': packages,
+      '/basics/': sidebar,
+      '/plugins/': sidebar,
+      '/format/': sidebar,
+      '/reference/': sidebar,
+    },
+  };
+}
 
 const en = {
   guide: 'Guide',
@@ -99,8 +255,8 @@ const uk: typeof en = {
   testing: 'Тестування',
 };
 
-/** The navigation for one language, every link under `base`. */
-function theme(base: string, t: typeof en): DefaultTheme.Config {
+/** The navigation the Ukrainian pages still have, every link under `base`. */
+function legacy(base: string, t: typeof en): DefaultTheme.Config {
   const at = (path: string) => `${base}${path}`;
   const page = (text: string, path: string) => ({ text, link: at(path) });
   const plugin = (name: string, text = name) => page(text, `/plugins/${name}`);
@@ -248,7 +404,7 @@ export default defineConfig({
       description:
         'Build and launch Minecraft installations from a declarative manifest.',
       themeConfig: {
-        ...theme('', en),
+        ...english(),
         editLink: { pattern: `${repo}/edit/main/docs/:path` },
       },
     },
@@ -258,7 +414,7 @@ export default defineConfig({
       description:
         'Збирайте й запускайте інсталяції Minecraft із декларативного маніфесту.',
       themeConfig: {
-        ...theme('/uk', uk),
+        ...legacy('/uk', uk),
         editLink: {
           pattern: `${repo}/edit/main/docs/:path`,
           text: 'Редагувати цю сторінку на GitHub',

@@ -6,7 +6,7 @@
  * a harmless passthrough on macOS).
  *
  * Behaviour lives in the `opys-dgpuj` crate and reaches JS through
- * `@opys/dgpuj-binding`; this module is the typed surface over it. The
+ * `@opys/binding`, under `dgpuj`; this module is the typed surface over it. The
  * codegen'd binding types everything as `Json` (≈ `unknown`), so each wrapper
  * carries one `as`-cast at the boundary. No `as unknown as`.
  *
@@ -14,7 +14,7 @@
  * `BuildContext`, so the plugin wrapper — and its `ctx.log` — is JS.
  */
 
-import * as napi from '@opys/dgpuj-binding';
+import { dgpuj as napi } from '@opys/binding';
 import {
   definePlugin,
   pluginOptions,
@@ -112,30 +112,32 @@ export async function resolveDgpuj(
 /**
  * Provision the `dgpuj` launcher.
  *
- * Solely owns `dgpuj_dir` / `dgpuj_bin`, and exposes two launch groups:
- *   - `bin`  — the launcher binary (the `command`).
- *   - `home` — `--dgpuj-home ${java_home}`, so it locates the JVM provisioned
- *     by `@opys/java`. Prepend it to `args` before the usual JVM args; leave
- *     it out if you wire the JVM location yourself.
+ * Solely owns `dgpuj_dir` / `dgpuj_bin`, and exposes one launch group:
+ * `bin`, the launcher binary, which takes the place of the `command`.
+ *
+ * It is told where the JVM is with `--dgpuj-home`, and that is `java`'s to
+ * say: `'@java.home'`. Left out, the launcher reads `JAVA_HOME`, which the
+ * `java` plugin also sets.
  *
  * ```js
  * import { dgpuj } from '@opys/dgpuj';
- * // plugins: [forge('1.20.1-best'), java('17'), dgpuj()]
+ * // plugins: [forge({ version: '1.20.1' }), java({ version: '17' }), dgpuj()]
  * command: '@dgpuj.bin',
  * args: [
- *   '@dgpuj.home', '@forge.jvmArgs', '@forge.mainClass', '@forge.gameArgs',
+ *   '--dgpuj-home', '@java.home',
+ *   '@forge.jvmArgs', '@forge.mainClass', '@forge.gameArgs',
  * ],
  * ```
  */
 export function dgpuj(
   options: DgpujOptions = {},
-): ChainablePlugin<'dgpuj', 'bin' | 'home'> {
+): ChainablePlugin<'dgpuj', 'bin'> {
   pluginOptions('dgpuj({})', options);
   return definePlugin({
     name: 'dgpuj',
     async build(ctx) {
       const built = (await napi.buildDgpuj(options)) as {
-        output: { contribution: Contribution<'bin' | 'home'> };
+        output: { contribution: Contribution<'bin'> };
         release: DgpujRelease;
       };
       const { contribution } = built.output;

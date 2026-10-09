@@ -2,7 +2,7 @@
  * `@opys/curseforge` — CurseForge mod files and modpack archives.
  *
  * Behaviour lives in the `opys-curseforge` crate and reaches JS through
- * `@opys/curseforge-binding`; this module is the typed surface over it. The
+ * `@opys/binding`, under `curseforge`; this module is the typed surface over it. The
  * codegen'd binding types everything as `Json` (≈ `unknown`), so each wrapper
  * carries one `as`-cast at the boundary. No `as unknown as`.
  *
@@ -21,7 +21,7 @@
  * a built manifest installs without one.
  */
 
-import * as napi from '@opys/curseforge-binding';
+import { curseforge as napi } from '@opys/binding';
 import {
   definePlugin,
   type ChainablePlugin,

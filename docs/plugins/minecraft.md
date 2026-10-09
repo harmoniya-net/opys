@@ -1,176 +1,369 @@
-# minecraft
+# Vanilla Minecraft
 
-`minecraft()` adds the vanilla Minecraft client to your installation: the game
-jar, its libraries, its natives and its assets, for any version Mojang has
-published. Use it for a pack with no mod loader, and pair it with a
-[Java runtime](./java). The loader plugins, such as `forge` or `fabric`,
-already contribute the vanilla game they build on, so do not add `minecraft()`
-beside one. This page is for pack authors. If you write a loader, see
-[`@opys/minecraft-vanilla`](./minecraft-vanilla) for the functions underneath.
+The `minecraft` plugin, from `@opys/minecraft`.
 
-## Signature
+The game as Mojang ships it, with no mod loader.
 
-```ts
-minecraft(version?: string, options?: {
-  manifestBase?: string;
-}): ChainablePlugin
+<!-- prettier-ignore -->
+```js{4,8-13}
+// opys.config.mjs
+export default defineConfig({
+  plugins: [
+    minecraft({ version: '1.21.1' }),
+    java({ version: '21' }),
+  ],
+  manifest: {
+    command: '@minecraft.command',
+    args: [
+      '@minecraft.jvmArgs',
+      '@minecraft.mainClass',
+      '@minecraft.gameArgs',
+    ],
+    workdir: '${game_directory}',
+  },
+});
 ```
 
-Both arguments are optional. Calling `minecraft()` does no network work; the
-lookups happen when `opys build` or `opys launch` builds the config. It is
-exported from `@opys/minecraft` and from `@opys/minecraft-vanilla`.
-
-## Version
-
-`version` is an exact id from Mojang's version manifest, compared as a string.
-Anything the manifest lists works, including snapshot ids such as `24w14a`;
-the `type` field of each entry tells the kinds apart.
-
-- `minecraft('1.21.1')` takes that version.
-- `minecraft()` takes the version the manifest names as its latest release.
-- `minecraft('latest')` is not an alias. It is not in the manifest, so the
-  build fails.
-
-An id the manifest does not list fails the build with
-`Version '<id>' not found in the Mojang version manifest`.
-
-::: tip Pinning the version
-Name the version. Omitting it builds against whatever Mojang's latest release
-is on the day you build, so two builds of the same config can differ.
-:::
+Every loader plugin is built on this one, so this page also describes what
+they all have in common.
 
 ## Options
 
-| Option         | Type     | Default                             | Meaning                                                           |
-| -------------- | -------- | ----------------------------------- | ----------------------------------------------------------------- |
-| `manifestBase` | `string` | Mojang's `version_manifest_v2.json` | URL of the version manifest to read instead. Set it for a mirror. |
+| Option         | What it does                                                              |
+| -------------- | ------------------------------------------------------------------------- |
+| `version`      | A Minecraft version. Left out: the current release.                       |
+| `libraries`    | Libraries to add or replace. See [below](#adding-or-replacing-a-library). |
+| `manifestBase` | A mirror of Mojang's version list.                                        |
 
-`manifestBase` replaces the URL of the version manifest and nothing else. The
-version JSON and the asset index are fetched from the URLs the documents give.
-Asset objects always come from `resources.download.minecraft.net`, whatever
-`manifestBase` says.
+Name the version. `minecraft()` alone takes whatever is current on the day
+you build.
 
-## Launch groups
+## What it adds
 
-The plugin is named `minecraft`, so its groups are read as `minecraft.<group>`
-in `manifest.command` and `manifest.args`. Each is the piece of the launch
-command that Mojang's version JSON describes.
+| Kind        | What                                           |
+| ----------- | ---------------------------------------------- |
+| Files       | The game jar, libraries, natives, assets.      |
+| Launch      | `command`, `jvmArgs`, `mainClass`, `gameArgs`. |
+| Variables   | Folders, and what the game is told.            |
+| Environment | None.                                          |
 
-| Group                 | Type     | Contains                                                                                                                        |
-| --------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| `minecraft.command`   | string   | `${java_bin}`, the Java binary the [`java`](./java) plugin provides. The examples use `java.bin` for `manifest.command` instead |
-| `minecraft.jvmArgs`   | `Valset` | The JVM arguments from the version JSON, with their rules, including the classpath                                              |
-| `minecraft.mainClass` | `Val`    | The game's main class                                                                                                           |
-| `minecraft.gameArgs`  | `Valset` | The game arguments from the version JSON, with their rules                                                                      |
+Each one below: what it is, and how it ends up in the
+[manifest](/format/).
 
-A `Val` is a value that may carry rules, and a `Valset` is a list of them. See
-[Val and Valset](/reference/manifest#val-and-valset). The groups are separate
-so you can put your own arguments between them. Put them in `manifest.args` in
-the order the game needs them:
+### Files · the game jar
 
-```js
-args: ({ minecraft }) => [
-  minecraft.jvmArgs,
-  minecraft.mainClass,
-  minecraft.gameArgs,
-],
+One file. Pinned by the hash Mojang publishes.
+
+<!-- prettier-ignore -->
+```js{4}
+// opys.config.mjs
+export default defineConfig({
+  plugins: [
+    minecraft({ version: '1.21.1' }),
+    java({ version: '21' }),
+  ],
+  manifest: {
+    command: '@minecraft.command',
+    args: [
+      '@minecraft.jvmArgs',
+      '@minecraft.mainClass',
+      '@minecraft.gameArgs',
+    ],
+    workdir: '${game_directory}',
+  },
+});
 ```
 
-## Variables
-
-The plugin defines these variables. A manifest or a launch can refer to them
-as `${name}`.
-
-| Variable              | Value                                                                                                 |
-| --------------------- | ----------------------------------------------------------------------------------------------------- |
-| `root`                | `.` until the launching machine sets it, usually to a directory from `userDataDir()`                  |
-| `launcher_name`       | `opys`                                                                                                |
-| `launcher_version`    | The opys version                                                                                      |
-| `version_type`        | The release type from the version JSON, such as `release`                                             |
-| `version_name`        | The version id, such as `1.21.1`                                                                      |
-| `game_directory`      | `${root}/`                                                                                            |
-| `assets_root`         | `${root}/assets`                                                                                      |
-| `game_assets`         | The directory the game is handed for its assets. See [asset layouts](/reference/asset-layouts)        |
-| `assets_index_name`   | The asset index id, such as `1.20` or `legacy`                                                        |
-| `version_dir`         | `${root}/versions/${version_name}`                                                                    |
-| `library_directory`   | `${root}/libraries`                                                                                   |
-| `natives_directory`   | `${version_dir}/natives`                                                                              |
-| `classpath`           | The libraries the operating system's rules allow, then the client jar. One value per operating system |
-| `classpath_separator` | `;` on Windows, `:` on Linux and macOS                                                                |
-| `auth_player_name`    | `${username}`                                                                                         |
-| `auth_uuid`           | `${uuid}`                                                                                             |
-| `auth_session`        | `${token}`                                                                                            |
-| `auth_access_token`   | `${token}`                                                                                            |
-| `user_type`           | `mojang`                                                                                              |
-| `user_properties`     | `{}`                                                                                                  |
-| `clientid`            | Empty                                                                                                 |
-
-`username`, `uuid` and `token` are not defined by the plugin and have no
-default, so the launching machine must supply them. So must `root`, if the game
-should live anywhere but `.`. Set them in `runClient`, as
-[Launch-time values](/guide/run-client) describes, or with `--var` when you
-launch a bundle. The full list of names, with the `java` ones, is in
-[Variables](/launcher/vars).
-
-## Which Java
-
-Pick the Java version by the Minecraft version. opys does not check the
-pairing, so a mismatch fails when the game starts, not when you build.
-
-| Minecraft version  | Java |
-| ------------------ | ---- |
-| 1.16.5 and earlier | `8`  |
-| 1.17 to 1.20.4     | `17` |
-| 1.20.5 to 1.21.x   | `21` |
-| 26.x               | `25` |
-
-```js
-plugins: [minecraft('1.21.1'), java('21')],
+<!-- prettier-ignore -->
+```jsonc
+// in the manifest
+{
+  "path": "${version_dir}/client.jar",
+  "source": { "url": "https://piston-data.mojang.com/v1/objects/30c7…/client.jar" },
+  "size": 26836906,
+  "integrity": { "sha1": "30c73b1c5da787909b2f73340419fdf13b9def88" }
+}
 ```
 
-## How it works
+### Files · libraries
 
-`minecraft()` makes three requests at build time: the version manifest, the
-version JSON of the version you named, and its asset index. It turns them into
-four kinds of thing:
+About a hundred jars. One with native code has `rules`, so a Windows player
+does not download Linux natives, and `extract`, which unpacks it.
 
-- **The client jar.** One artifact at `${version_dir}/client.jar`, pinned by the
-  sha1 and size in the version JSON.
-- **Libraries.** One artifact per library, at
-  `${library_directory}/<maven path>`. Each keeps the rules from the version
-  JSON, so a library a platform does not need is not downloaded there. A
-  library with no sha1 in its version JSON is downloaded without a hash to
-  check.
-- **Natives.** A native library is extracted into `${natives_directory}` when
-  it is installed. Older version JSONs list natives under `natives`, newer ones
-  name a `natives-…` classifier. The extraction runs with its `clean` flag set
-  and skips `META-INF/`.
-- **Assets.** The asset index as `${assets_root}/indexes/<id>.json`, and one
-  artifact per asset object, each pinned by its sha1. Where the objects go
-  depends on the version. See [asset layouts](/reference/asset-layouts).
-
-It also contributes the variables above and the four launch groups. The
-classpath is built for each operating system separately, and the client jar
-always comes last on it, after every library.
-
-## Example
-
-This config installs vanilla 1.21.1 and starts it with a Java 21 runtime. It
-is the same file the [getting started](/guide/getting-started) guide uses:
-
-<<< @/examples/vanilla/opys.config.mjs
-
-To read the version manifest from a mirror, pass the options object:
-
-```js
-plugins: [
-  minecraft('1.21.1', {
-    manifestBase: 'https://mirror.example.com/mc/version_manifest_v2.json',
-  }),
-  java('21'),
-],
+<!-- prettier-ignore -->
+```js{4}
+// opys.config.mjs
+export default defineConfig({
+  plugins: [
+    minecraft({ version: '1.21.1' }),
+    java({ version: '21' }),
+  ],
+  manifest: {
+    command: '@minecraft.command',
+    args: [
+      '@minecraft.jvmArgs',
+      '@minecraft.mainClass',
+      '@minecraft.gameArgs',
+    ],
+    workdir: '${game_directory}',
+  },
+});
 ```
 
-Every value in `runClient` is supplied when the game starts, so the bundle
-built from this config carries no username, no token and no path from your
-machine. See [the config file](/guide/config) for the rest of the fields.
+<!-- prettier-ignore -->
+```jsonc
+// in the manifest
+{
+  "path": "${library_directory}/org/lwjgl/lwjgl-freetype/3.3.3/lwjgl-freetype-3.3.3-natives-linux.jar",
+  "source": { "url": "https://libraries.minecraft.net/org/lwjgl/…-natives-linux.jar" },
+  "size": 1245129,
+  "rules": "allow.os.linux",
+  "integrity": { "sha1": "149070a5480900347071b7074779531f25a6e3dc" },
+  "extract": { "into": "${natives_directory}", "clean": true, "excludes": ["META-INF/"] }
+}
+```
+
+### Files · assets
+
+Sounds, textures, languages: a few thousand small files, and the index
+that lists them. This is most of a manifest.
+
+<!-- prettier-ignore -->
+```js{4}
+// opys.config.mjs
+export default defineConfig({
+  plugins: [
+    minecraft({ version: '1.21.1' }),
+    java({ version: '21' }),
+  ],
+  manifest: {
+    command: '@minecraft.command',
+    args: [
+      '@minecraft.jvmArgs',
+      '@minecraft.mainClass',
+      '@minecraft.gameArgs',
+    ],
+    workdir: '${game_directory}',
+  },
+});
+```
+
+<!-- prettier-ignore -->
+```jsonc
+// in the manifest
+{
+  "path": "${assets_root}/objects/b6/b62ca8ec10d07e6bf5ac8dae0c8c1d2e6a1e3356",
+  "source": { "url": "https://resources.download.minecraft.net/b6/b62c…" },
+  "size": 9101,
+  "integrity": { "sha1": "b62ca8ec10d07e6bf5ac8dae0c8c1d2e6a1e3356" },
+  "metadata": { "name": "icons/icon_128x128.png" }
+}
+```
+
+### Launch
+
+The whole command line, as four pieces you put in order. The last game
+arguments are switched on by [features](#features).
+
+<!-- prettier-ignore -->
+```js{8-13}
+// opys.config.mjs
+export default defineConfig({
+  plugins: [
+    minecraft({ version: '1.21.1' }),
+    java({ version: '21' }),
+  ],
+  manifest: {
+    command: '@minecraft.command',
+    args: [
+      '@minecraft.jvmArgs',
+      '@minecraft.mainClass',
+      '@minecraft.gameArgs',
+    ],
+    workdir: '${game_directory}',
+  },
+});
+```
+
+<!-- prettier-ignore -->
+```jsonc
+// in the manifest
+"launch": {
+  // '@minecraft.command'
+  "command": "${java_bin}",
+  "args": [
+    // '@minecraft.jvmArgs'
+    { "rules": "allow.os.osx", "value": ["-XstartOnFirstThread"] },
+    "-Djava.library.path=${natives_directory}",
+    "-Dminecraft.launcher.brand=${launcher_name}",
+    // … a few more
+    "-cp",
+    "${classpath}",
+    // '@minecraft.mainClass'
+    "net.minecraft.client.main.Main",
+    // '@minecraft.gameArgs'
+    "--username", "${auth_player_name}",
+    "--version", "${version_name}",
+    "--gameDir", "${game_directory}",
+    "--assetsDir", "${assets_root}",
+    "--uuid", "${auth_uuid}",
+    "--accessToken", "${auth_access_token}",
+    // … a few more
+    { "rules": "allow.features.is_demo_user", "value": ["--demo"] },
+    {
+      "rules": "allow.features.has_custom_resolution",
+      "value": ["--width", "${resolution_width}", "--height", "${resolution_height}"]
+    }
+  ],
+  "workdir": "${game_directory}"
+}
+```
+
+| You write                | Becomes                                                       |
+| ------------------------ | ------------------------------------------------------------- |
+| `'@minecraft.command'`   | The program to run: whatever Java the pack has.               |
+| `'@minecraft.jvmArgs'`   | Arguments for Java itself, ending with the classpath.         |
+| `'@minecraft.mainClass'` | The class to start. One argument.                             |
+| `'@minecraft.gameArgs'`  | Arguments for the game: who is playing, and where things are. |
+
+**Why four pieces:** so you can put your own arguments between them. JVM
+flags go before the main class, game flags after.
+
+### Variables
+
+Three groups. All of them are in the manifest's `vars`.
+
+#### Folders
+
+Everything hangs off `root`. Move `root`, and the whole installation
+moves. Use these in `to` and in paths of your own.
+
+<!-- prettier-ignore -->
+```jsonc
+// in the manifest
+"vars": {
+  "root": ".",
+  "game_directory": "${root}/",                       // saves, mods, options
+  "library_directory": "${root}/libraries",
+  "assets_root": "${root}/assets",
+  "version_dir": "${root}/versions/${version_name}",  // the game jar
+  "natives_directory": "${version_dir}/natives"
+}
+```
+
+#### The player
+
+The game expects these names. Each one points at a variable the manifest
+does **not** define.
+
+<!-- prettier-ignore -->
+```jsonc
+// in the manifest
+"vars": {
+  "auth_player_name": "${username}",
+  "auth_uuid": "${uuid}",
+  "auth_access_token": "${token}",
+  "auth_session": "${token}"
+}
+```
+
+So `username`, `uuid` and `token` are **left open**, together with `root`.
+Set them in [`run`](/basics/config#run), with `--var`, or from a launcher.
+
+| Name       | What it is                                | If you leave it out                        |
+| ---------- | ----------------------------------------- | ------------------------------------------ |
+| `root`     | The folder everything is installed under. | `.`, the current directory. Always set it. |
+| `username` | The player's name.                        | The game gets the text `${username}`.      |
+| `uuid`     | The player's ID.                          | The game gets the text `${uuid}`.          |
+| `token`    | The access token. `0` plays offline.      | The game gets the text `${token}`.         |
+
+**Why open:** they differ per player, and a bundle is the same for
+everyone.
+
+#### What the game is told
+
+You can ignore these. The game's own arguments refer to them.
+
+<!-- prettier-ignore -->
+```jsonc
+// in the manifest
+"vars": {
+  "version_name": "1.21.1",
+  "version_type": "release",
+  "assets_index_name": "17",
+  "game_assets": "${assets_root}",
+  "launcher_name": "opys",
+  "launcher_version": "0.2.0",
+  "user_type": "mojang",
+  "user_properties": "{}",
+  "clientid": "",
+  "classpath_separator": [
+    { "value": ";", "rules": "allow.os.windows" },
+    { "value": ":", "rules": "allow.os.linux" },
+    { "value": ":", "rules": "allow.os.osx" }
+  ],
+  "classpath": [/* every library, then the game jar, per OS */]
+}
+```
+
+## Features
+
+Switches a launcher or `--feature` can turn on. These two come from the
+game's own data:
+
+| Feature                 | Effect                                                                     |
+| ----------------------- | -------------------------------------------------------------------------- |
+| `has_custom_resolution` | Passes a window size. Also set `resolution_width` and `resolution_height`. |
+| `is_demo_user`          | Starts the game in demo mode.                                              |
+
+```sh
+opys launch --feature has_custom_resolution \
+  --var resolution_width=1280 --var resolution_height=720
+```
+
+## Adding or replacing a library
+
+Every loader takes `libraries`, for a library the game does not ship or a
+patched copy of one it does:
+
+```js
+forge({
+  version: '1.20.1',
+  libraries: [
+    {
+      name: 'com.google.code.gson:gson:2.11.0',
+      artifact: {
+        path: 'com/google/code/gson/gson/2.11.0/gson-2.11.0.jar',
+        source: { file: 'libs/gson-2.11.0.jar' },
+      },
+    },
+  ],
+}),
+```
+
+| Field             | What it is                                        |
+| ----------------- | ------------------------------------------------- |
+| `name`            | `group:artifact:version`.                         |
+| `artifact.path`   | Where the jar goes inside the `libraries` folder. |
+| `artifact.source` | `{ url }`, or `{ file }` next to your config.     |
+
+The rest of `artifact` is an ordinary [artifact](/format/artifacts):
+`integrity`, `rules`, `extract`.
+
+- A `file` travels inside the bundle.
+- A `url` with no `integrity` is downloaded once while building, to pin its
+  hash.
+- Your libraries go **first** on the classpath.
+
+**Same name replaces.** One with the same `group:artifact` as a library the
+game uses takes its place, on every operating system. The example replaces
+the game's Gson.
+
+**Why on every OS:** an override is whole. If you limit yours to one OS
+with `rules`, the others get no copy at all. Add an entry per OS.
+
+## Good to know
+
+- Do not list `minecraft()` next to a loader. The loader already includes
+  it, and you get a warning per duplicated variable.
+- It does not add Java. Add [`java`](./java).

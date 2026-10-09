@@ -1,5 +1,6 @@
 import { resolve } from 'node:path';
-import { encodeManifest, writeBundle } from '@opys/core';
+import { writeBundle } from '@opys/bundle';
+import { encodeManifest } from '@opys/core';
 import { buildManifest, type BuildContext } from '@opys/dev';
 import { parseArgs } from '../args';
 import { loadConfig } from '../load-config';

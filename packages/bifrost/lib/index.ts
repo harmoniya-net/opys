@@ -14,7 +14,7 @@
  * wrapper carries one `as`-cast at the boundary. No `as unknown as`.
  */
 
-import * as napi from '@opys/bifrost-binding';
+import { bifrost as napi } from '@opys/binding';
 
 export interface BifrostOptions {
   /**

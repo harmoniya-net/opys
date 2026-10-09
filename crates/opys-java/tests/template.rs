@@ -312,6 +312,10 @@ fn builds_a_contribution_owning_the_java_vars_and_the_bin_launch_group() {
         opys_dev::LaunchFragment::Text("${java_bin}".to_owned())
     );
     assert_eq!(
+        contribution.launch["home"],
+        opys_dev::LaunchFragment::Text("${java_home}".to_owned())
+    );
+    assert_eq!(
         contribution.envs["JAVA_HOME"],
         ValDef::Flat("${java_home}".to_owned())
     );

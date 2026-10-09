@@ -1,13 +1,13 @@
 use indexmap::IndexMap;
 use opys_core::{
-    interpolate, resolve_val_defs, resolve_vars, resolved_args, resolved_envs, Head, OsOptions,
+    interpolate, resolve_val_defs, resolve_vars, resolved_args, resolved_envs, Manifest, OsOptions,
     VarMap,
 };
 use tokio::process::{Child, Command};
 
 use crate::errors::InstallError;
 use crate::install::{install_resolved, InstallOptions, InstallProgress};
-use crate::phases::resolve::{resolve, resolve_head, ManifestSource};
+use crate::phases::resolve::{resolve, resolve_manifest, ManifestSource};
 use crate::platform::current_platform;
 
 #[derive(Debug, Clone)]
@@ -39,12 +39,12 @@ impl LaunchOptions {
     }
 }
 
-/// The spawn-spec a manifest's head describes. Pure: nothing is read.
-fn launch_spec(head: &Head, options: &LaunchOptions) -> Result<LaunchSpec, InstallError> {
+/// The spawn-spec a manifest describes. Pure: nothing is read.
+fn launch_spec(manifest: &Manifest, options: &LaunchOptions) -> Result<LaunchSpec, InstallError> {
     let platform = options.platform.clone().unwrap_or_else(current_platform);
     let features = &options.features;
 
-    let mut flat = resolve_val_defs(&head.vars, &platform, features)?;
+    let mut flat = resolve_val_defs(&manifest.vars, &platform, features)?;
     if let Some(extra) = &options.vars {
         for (k, v) in extra.clone() {
             flat.insert(k, v);
@@ -52,7 +52,7 @@ fn launch_spec(head: &Head, options: &LaunchOptions) -> Result<LaunchSpec, Insta
     }
     let vars = resolve_vars(&flat).map_err(InstallError::other)?;
 
-    let Some(config) = &head.launch else {
+    let Some(config) = &manifest.launch else {
         return Err(InstallError::other("No launch config in manifest"));
     };
 
@@ -76,13 +76,12 @@ fn launch_spec(head: &Head, options: &LaunchOptions) -> Result<LaunchSpec, Insta
     })
 }
 
-/// Build a `LaunchSpec` without installing or spawning. Everything it needs
-/// is in the head, so for a bundle on disk the artifact list is never read.
+/// Build a `LaunchSpec` without installing or spawning.
 pub async fn build_launch(
     source: ManifestSource,
     options: &LaunchOptions,
 ) -> Result<LaunchSpec, InstallError> {
-    launch_spec(&resolve_head(source).await?, options)
+    launch_spec(&resolve_manifest(source).await?, options)
 }
 
 /// Install (unless `do_install` is off) and return what to spawn. The source
@@ -103,7 +102,7 @@ pub async fn prepare(
     }
     let resolved = resolve(source).await?;
     // A manifest that cannot be launched is found out before it is installed.
-    let spec = launch_spec(&resolved.manifest.head(), &options)?;
+    let spec = launch_spec(&resolved.manifest, &options)?;
 
     io.platform = Some(options.platform.clone().unwrap_or_else(current_platform));
     io.features = options.features.clone();

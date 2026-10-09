@@ -8,7 +8,7 @@
  * one, and by downloading and hashing the file where nobody does.
  *
  * Behaviour lives in the `opys-links` crate and reaches JS through
- * `@opys/links-binding`; this module is the typed surface over it. The
+ * `@opys/binding`, under `links`; this module is the typed surface over it. The
  * codegen'd binding types everything as `Json` (≈ `unknown`), so each wrapper
  * carries one `as`-cast at the boundary. No `as unknown as`.
  *
@@ -17,7 +17,7 @@
  * artifacts from the answers.
  */
 
-import * as napi from '@opys/links-binding';
+import { links as napi } from '@opys/binding';
 import { definePlugin, type ChainablePlugin } from '@opys/dev';
 import type { Artifact, HashEntry } from '@opys/core';
 

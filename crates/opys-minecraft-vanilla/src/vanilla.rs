@@ -3,8 +3,9 @@
 use std::collections::HashSet;
 
 use indexmap::IndexMap;
-use opys_core::{allow_os_ruleset, Artifact, Blobs, ConditionalVal, Launch, Val, ValDef, ValDefs};
-use opys_dev::{Contribution, LaunchFragment, PluginOutput};
+use opys_bundle::Blobs;
+use opys_core::{allow_os_ruleset, Artifact, ConditionalVal, Launch, Val, ValDef, ValDefs};
+use opys_dev::{BuildArtifact, Contribution, LaunchFragment, PluginOutput};
 use opys_mojang::{AssetManifest, Client, VersionPatch};
 use opys_mojang_rules::OsName;
 
@@ -227,9 +228,7 @@ pub fn build_minecraft(options: &MinecraftOptions) -> Result<PluginOutput, Minec
     Ok(PluginOutput {
         name: PLUGIN_NAME.to_owned(),
         contribution: Contribution {
-            artifacts: template.artifacts,
-            // Empty unless the config added a library from its own disk.
-            blobs: template.blobs,
+            artifacts: BuildArtifact::carrying(template.artifacts, &template.blobs),
             vars: template.vars,
             launch: [
                 (

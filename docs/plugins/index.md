@@ -1,58 +1,72 @@
 # Plugins
 
-A plugin contributes part of a manifest: files, variables, or pieces of the
-launch command. This section has one page per plugin, with its options, what
-it contributes and an example. For how plugins fit together, see
-[Concepts](/guide/concepts).
+A plugin adds one part of a pack. This section has a page per plugin, and
+each page answers the same question: **what does it add, and why?**
 
-Every plugin below is exported from `@opys/minecraft`, which re-exports the
-individual packages, except `files`, which comes from `@opys/dev`. Install
-the individual package instead if you want only one. `bifrost` is the one
-entry that is a function and not a plugin.
+## What a plugin can add
 
-## The game
+| Kind              | Is                                         | Used as                       |
+| ----------------- | ------------------------------------------ | ----------------------------- |
+| **Files**         | [Artifacts](/format/artifacts) to install. | They just get installed.      |
+| **Variables**     | [Named values](/format/variables).         | `${java_home}` anywhere.      |
+| **Launch pieces** | Named parts of the command line.           | `'@forge.jvmArgs'` in `args`. |
+| **Environment**   | Environment variables for the game.        | Set automatically.            |
 
-The first six each contribute the whole game, vanilla files included, so a
-config uses one of them and not two. [`java`](./java) goes beside it.
+Nothing else. A plugin runs only while you build, and none of it reaches the
+player's machine.
 
-| Plugin                     | Package                   | What it contributes                                               |
-| -------------------------- | ------------------------- | ----------------------------------------------------------------- |
-| [`minecraft`](./minecraft) | `@opys/minecraft-vanilla` | The vanilla client, its libraries and assets                      |
-| [`forge`](./forge)         | `@opys/forge`             | Forge, for every Minecraft version in its index from 1.1 on       |
-| [`neoforge`](./neoforge)   | `@opys/neoforge`          | NeoForge, for every Minecraft version in its index from 1.20.2 on |
-| [`fabric`](./fabric)       | `@opys/fabric`            | Fabric, for any Minecraft version Fabric Meta has a loader for    |
-| [`cleanroom`](./cleanroom) | `@opys/cleanroom`         | Cleanroom, a successor to Forge for 1.12.2, on a modern Java      |
-| [`lwjgl3ify`](./lwjgl3ify) | `@opys/lwjgl3ify`         | lwjgl3ify, Forge 1.7.10 on LWJGL 3 and a modern Java              |
-| [`java`](./java)           | `@opys/java`              | A Java runtime for each platform                                  |
+## Any pack
 
-## Content
+|                          | Plugin  | Does                                                |
+| ------------------------ | ------- | --------------------------------------------------- |
+| [Local files](./files)   | `files` | Installs a folder from your disk.                   |
+| [Files by link](./links) | `links` | Installs a file you have a URL for, pinned by hash. |
 
-| Plugin                       | Package            | What it contributes                    |
-| ---------------------------- | ------------------ | -------------------------------------- |
-| [`modrinth`](./modrinth)     | `@opys/modrinth`   | Mods and modpacks from Modrinth        |
-| [`curseforge`](./curseforge) | `@opys/curseforge` | Mods and modpacks from CurseForge      |
-| [`links`](./link)            | `@opys/link`       | Any published file, from a pasted link |
-| [`files`](./files)           | `@opys/dev`        | Files on your disk                     |
+Both take a `to` function that says where each file is installed:
 
-## Extras
+```js
+to: (file) => '${game_directory}/mods/' + file.filename,
+```
 
-| Plugin                         | Package                      | What it does                                                       |
-| ------------------------------ | ---------------------------- | ------------------------------------------------------------------ |
-| [`authliberty`](./authliberty) | `@opys/authliberty`          | Signs players in against your own auth server                      |
-| [`bifrost`](./bifrost)         | `@opys/bifrost`              | A function for `runClient`: mints a signed session token at launch |
-| [`serverlist`](./serverlist)   | `@opys/minecraft-serverlist` | Pre-fills the multiplayer server list                              |
-| [`dgpuj`](./dgpuj)             | `@opys/dgpuj`                | Starts the game on the discrete GPU                                |
+## Minecraft
 
-## Underneath
+|                                     | Plugin           | Does                                        |
+| ----------------------------------- | ---------------- | ------------------------------------------- |
+| [Vanilla Minecraft](./minecraft)    | `minecraft`      | The game as Mojang ships it.                |
+| [Server list](./serverlist)         | `serverlist`     | Pre-fills the multiplayer server list.      |
+| [Custom auth server](./authliberty) | `authliberty`    | Points the game at your own account server. |
+| [Bifrost](./bifrost)                | `resolveBifrost` | Makes a player's login token at launch.     |
 
-These are not plugins. They are the packages plugins and launchers are built
-on.
+## Minecraft mod loaders
 
-| Package                                          | What it is                                                            |
-| ------------------------------------------------ | --------------------------------------------------------------------- |
-| [`@opys/dev`](./dev)                             | The build SDK: `defineConfig`, the plugin contract, the build engine  |
-| [`@opys/core`](./core)                           | The manifest data model and the bundle                                |
-| [`@opys/runtime`](./runtime)                     | The installer and launcher                                            |
-| [`@opys/mojang`](./mojang)                       | Parsers for Mojang's own formats                                      |
-| [`@opys/mojang-rules`](./mojang-rules)           | The types of Mojang's rule format                                     |
-| [`@opys/minecraft-vanilla`](./minecraft-vanilla) | The mapping from a version JSON to a manifest, shared by every loader |
+Use one **instead of** `minecraft`. Each loader includes the game.
+
+|                          | Plugin      | Does                                 |
+| ------------------------ | ----------- | ------------------------------------ |
+| [Forge](./forge)         | `forge`     | Forge mods, Minecraft 1.1 and later. |
+| [NeoForge](./neoforge)   | `neoforge`  | NeoForge mods, 1.20.2 and later.     |
+| [Fabric](./fabric)       | `fabric`    | Fabric mods.                         |
+| [Cleanroom](./cleanroom) | `cleanroom` | Forge 1.12.2 mods on a modern Java.  |
+| [lwjgl3ify](./lwjgl3ify) | `lwjgl3ify` | Forge 1.7.10 mods on a modern Java.  |
+
+## Minecraft mod resources
+
+|                            | Plugin       | Does                                                   |
+| -------------------------- | ------------ | ------------------------------------------------------ |
+| [Modrinth](./modrinth)     | `modrinth`   | Mods and modpacks from Modrinth. No key needed.        |
+| [CurseForge](./curseforge) | `curseforge` | Mods and modpacks from CurseForge. Needs an API token. |
+
+## Java
+
+|                         | Plugin  | Does                                        |
+| ----------------------- | ------- | ------------------------------------------- |
+| [Java runtime](./java)  | `java`  | The Java that runs the game.                |
+| [Discrete GPU](./dgpuj) | `dgpuj` | Starts that Java on the fast graphics card. |
+
+## Where they come from
+
+Everything is exported by `@opys/minecraft`, except `files`, which is in
+`@opys/dev`.
+
+Need something that is not here? [Write a plugin](./writing-a-plugin). It
+is one function.

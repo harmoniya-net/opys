@@ -357,7 +357,10 @@ fn the_contribution_exposes_the_launch_groups_a_config_wires() {
         .collect();
     groups.sort_unstable();
     assert_eq!(groups, ["command", "gameArgs", "jvmArgs", "mainClass"]);
-    assert_eq!(output.contribution.artifacts, template.artifacts);
+    assert_eq!(
+        output.contribution.artifacts,
+        opys_dev::BuildArtifact::carrying(template.artifacts.clone(), &Default::default())
+    );
     assert_eq!(output.contribution.vars, template.vars);
     assert!(output.contribution.envs.is_empty());
 }

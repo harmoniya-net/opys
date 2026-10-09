@@ -236,7 +236,10 @@ describe('java', () => {
 
     expect(contribution.artifacts).toHaveLength(1);
     expect(contribution.vars?.java_runtime_dir).toBe('${root}/runtimes');
-    expect(contribution.launch).toEqual({ bin: '${java_bin}' });
+    expect(contribution.launch).toEqual({
+      bin: '${java_bin}',
+      home: '${java_home}',
+    });
     expect(contribution.envs).toEqual({ JAVA_HOME: '${java_home}' });
   });
 

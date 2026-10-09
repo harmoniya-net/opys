@@ -4,7 +4,8 @@ use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
 use futures::StreamExt;
-use opys_core::{open_bundle, read_bundle_head, Blobs, BundleError, Head, Manifest};
+use opys_bundle::{open_bundle, BundleError};
+use opys_core::Manifest;
 use serde::Deserialize;
 
 use crate::blobs::BlobStore;
@@ -14,16 +15,13 @@ use crate::fetch::{fetch_with_retry, RetryOptions};
 /// Where the manifest to install comes from.
 ///
 /// It decodes itself, discriminated by which field is present like every
-/// shape in the format: `{ manifest, blobs? }`, `{ bundle }` or `{ url }`.
+/// shape in the format: `{ manifest }`, `{ bundle }` or `{ url }`.
 #[derive(Debug, Clone, Deserialize)]
 #[serde(try_from = "ManifestSourceWire")]
 pub enum ManifestSource {
-    /// A manifest already in memory, and where each blob it names is kept —
-    /// what a build hands over when nothing was written out in between.
-    Manifest {
-        manifest: Box<Manifest>,
-        blobs: Blobs,
-    },
+    /// A manifest already in memory. It can name no blob: a blob is an
+    /// entry of a bundle, and there is none here to hold it.
+    Manifest(Box<Manifest>),
     /// Local filesystem path to a bundle.
     Bundle(PathBuf),
     /// HTTP(S) URL to a bundle. It is downloaded whole before anything is
@@ -40,8 +38,6 @@ pub(crate) struct ManifestSourceWire {
     #[serde(default)]
     manifest: Option<Box<Manifest>>,
     #[serde(default)]
-    blobs: Option<Blobs>,
-    #[serde(default)]
     bundle: Option<PathBuf>,
     #[serde(default)]
     url: Option<String>,
@@ -51,25 +47,19 @@ impl TryFrom<ManifestSourceWire> for ManifestSource {
     type Error = &'static str;
 
     fn try_from(raw: ManifestSourceWire) -> Result<Self, Self::Error> {
-        match (raw.manifest, raw.blobs, raw.bundle, raw.url) {
-            (Some(manifest), blobs, None, None) => Ok(ManifestSource::Manifest {
-                manifest,
-                blobs: blobs.unwrap_or_default(),
-            }),
-            (None, None, Some(bundle), None) => Ok(ManifestSource::Bundle(bundle)),
-            (None, None, None, Some(url)) => Ok(ManifestSource::Url(url)),
-            _ => Err("a manifest source is `{ manifest, blobs? }`, `{ bundle }` or `{ url }`"),
+        match (raw.manifest, raw.bundle, raw.url) {
+            (Some(manifest), None, None) => Ok(ManifestSource::Manifest(manifest)),
+            (None, Some(bundle), None) => Ok(ManifestSource::Bundle(bundle)),
+            (None, None, Some(url)) => Ok(ManifestSource::Url(url)),
+            _ => Err("a manifest source is `{ manifest }`, `{ bundle }` or `{ url }`"),
         }
     }
 }
 
 impl ManifestSource {
-    /// A manifest in memory that names no blobs.
+    /// A manifest in memory.
     pub fn manifest(manifest: Manifest) -> Self {
-        ManifestSource::Manifest {
-            manifest: Box::new(manifest),
-            blobs: Blobs::new(),
-        }
+        ManifestSource::Manifest(Box::new(manifest))
     }
 
     pub fn bundle(path: impl Into<PathBuf>) -> Self {
@@ -141,17 +131,15 @@ async fn download(url: &str) -> Result<tempfile::TempPath, InstallError> {
 
 pub(crate) async fn resolve(source: ManifestSource) -> Result<Resolved, InstallError> {
     match source {
-        ManifestSource::Manifest { manifest, blobs } => {
+        ManifestSource::Manifest(manifest) => {
             // The same promise an opened bundle makes: a blob the manifest
             // names and nothing holds is found here, not halfway through.
-            for id in manifest.blob_ids() {
-                if !blobs.contains_key(id) {
-                    return Err(BundleError::MissingBlob(id.to_owned()).into());
-                }
+            if let Some(id) = manifest.blob_ids().into_iter().next() {
+                return Err(BundleError::MissingBlob(id.to_owned()).into());
             }
             Ok(Resolved {
                 manifest: *manifest,
-                blobs: BlobStore::Table(blobs),
+                blobs: BlobStore::None,
             })
         }
         ManifestSource::Bundle(path) => resolve_bundle(&path, None),
@@ -166,13 +154,4 @@ pub(crate) async fn resolve(source: ManifestSource) -> Result<Resolved, InstallE
 /// The manifest alone, for a caller that installs nothing.
 pub async fn resolve_manifest(source: ManifestSource) -> Result<Manifest, InstallError> {
     Ok(resolve(source).await?.manifest)
-}
-
-/// A manifest's head. For a bundle on disk this reads the head entry and
-/// leaves the artifact list where it is.
-pub(crate) async fn resolve_head(source: ManifestSource) -> Result<Head, InstallError> {
-    match source {
-        ManifestSource::Bundle(path) => Ok(read_bundle_head(open_at(&path)?)?),
-        other => Ok(resolve(other).await?.manifest.head()),
-    }
 }

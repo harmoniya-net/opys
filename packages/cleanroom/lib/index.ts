@@ -3,7 +3,7 @@
  * on a modern JVM.
  *
  * Behaviour lives in the `opys-cleanroom` crate and reaches JS through
- * `@opys/cleanroom-binding`; this module is the typed surface over it. The
+ * `@opys/binding`, under `cleanroom`; this module is the typed surface over it. The
  * codegen'd binding types everything as `Json` (≈ `unknown`), so each wrapper
  * carries one `as`-cast at the boundary. No `as unknown as`.
  *
@@ -18,7 +18,7 @@
  * before the game does.
  */
 
-import * as napi from '@opys/cleanroom-binding';
+import { cleanroom as napi } from '@opys/binding';
 import {
   definePlugin,
   pluginOptions,
@@ -27,8 +27,10 @@ import {
   type ExtraLibrary,
   type ChainablePlugin,
   type LoaderGroups,
+  carrying,
 } from '@opys/dev';
-import type { Artifact, ConditionalVal, ValDefs, Blobs } from '@opys/core';
+import type { LoaderTemplate } from '@opys/dev';
+import type { Artifact, ConditionalVal, ValDefs } from '@opys/core';
 import type { LaunchParts } from '@opys/minecraft-vanilla';
 
 /** The canonical document index base URL. */
@@ -70,7 +72,7 @@ export interface CleanroomTemplate extends LaunchParts {
   /** The client jar, the assets, and every library the document lists. */
   readonly artifacts: Artifact[];
   /** Where the blobs among `artifacts` are kept; set only by a local library. */
-  readonly blobs?: Blobs;
+  readonly blobs?: LoaderTemplate['blobs'];
   readonly vars: ValDefs;
   /**
    * Per-OS classpath arms (also baked into `vars.classpath`), exposed so a
@@ -121,8 +123,7 @@ export function cleanroom(
       );
       ctx.log('cleanroom', `resolved ${version}`);
       return {
-        artifacts: t.artifacts,
-        blobs: t.blobs,
+        artifacts: carrying(t),
         vars: t.vars,
         launch: launchGroups(t),
       };

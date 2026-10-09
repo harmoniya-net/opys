@@ -4,29 +4,29 @@ layout: home
 hero:
   name: opys
   text: A Minecraft installation, described once
-  tagline: Write a config. Get one file that installs and launches the game anywhere.
+  tagline: Write a short config. Get one file that installs and launches the game on any machine.
   actions:
     - theme: brand
       text: Get started
-      link: /guide/getting-started
+      link: /basics/intro
     - theme: alt
-      text: Concepts
-      link: /guide/concepts
+      text: The config
+      link: /basics/config
     - theme: alt
       text: GitHub
       link: https://github.com/harmoniya-net/opys
 
 features:
-  - title: Building a pack
-    details: Compose a loader, a Java runtime and your mods in a config file, and launch it. Every Forge since 1.1, NeoForge, Fabric, Cleanroom and lwjgl3ify.
-    link: /guide/getting-started
-    linkText: The guide
-  - title: Building a launcher
-    details: Hand the runtime a bundle and it installs and starts the game, reporting progress and typed errors. It needs nothing else from opys.
-    link: /launcher/embedding
-    linkText: Embedding the runtime
-  - title: Reading the format
-    details: A bundle is a zip and a manifest is JSON. Everything is resolved and pinned at build time, so an installer downloads, verifies and looks nothing up.
-    link: /reference/bundle-format
-    linkText: The bundle format
+  - title: Make a pack
+    details: Pick a loader, a Java version and your mods in a config file. opys works out every file the game needs and pins each one by hash.
+    link: /basics/intro
+    linkText: Introduction
+  - title: Ship it
+    details: One command turns the config into a single file. Host it anywhere. Players get exactly what you built, and updates download only what changed.
+    link: /basics/bundle
+    linkText: The bundle
+  - title: Build a launcher
+    details: A small runtime installs a pack and starts the game, with progress and typed errors. It needs nothing else from opys.
+    link: /basics/launcher
+    linkText: Launcher integration
 ---

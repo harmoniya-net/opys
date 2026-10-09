@@ -1,3 +1,5 @@
+use std::collections::BTreeSet;
+
 use opys_mojang_rules::OsOptions;
 use serde::{Deserialize, Serialize};
 
@@ -49,6 +51,16 @@ impl From<Manifest> for ManifestWire {
             artifacts: Some(m.artifacts),
             cleanup: m.cleanup,
         }
+    }
+}
+
+impl Manifest {
+    /// The ids of the blobs this manifest is made of, each once, in order.
+    pub fn blob_ids(&self) -> BTreeSet<&str> {
+        self.artifacts
+            .iter()
+            .filter_map(Artifact::blob_id)
+            .collect()
     }
 }
 

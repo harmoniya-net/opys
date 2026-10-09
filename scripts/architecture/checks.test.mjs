@@ -53,9 +53,7 @@ const rules = () => ({
   ],
   classes: {},
   hashMaps: {},
-  withoutDefaultFeatures: [
-    { crate: 'opys-core-napi', dependency: 'opys-core' },
-  ],
+  withoutDefaultFeatures: [{ crate: 'opys-forge', dependency: 'opys-dev' }],
 });
 
 const dep = (name, extra = {}) => ({
@@ -67,8 +65,8 @@ const dep = (name, extra = {}) => ({
 const crate = (name, deps, extra = {}) => ({
   name,
   dir: `crates/${name}`,
-  publish: !name.endsWith('-napi'),
-  cdylib: name.endsWith('-napi'),
+  publish: name !== 'opys-napi',
+  cdylib: name === 'opys-napi',
   deps,
   sources: [],
   ...extra,
@@ -81,27 +79,48 @@ const file = (path, extra = {}) => ({
   escapes: [],
   ...extra,
 });
-const imp = (specifier, typeOnly = false) => ({ specifier, line: 1, typeOnly });
+const imp = (specifier, typeOnly = false, names = []) => ({
+  specifier,
+  line: 1,
+  typeOnly,
+  names,
+});
+/** A module of the addon: the crate it is named after, as JS sees it. */
+const module = (stem, text) => ({
+  path: `crates/opys-napi/src/${stem}.rs`,
+  text,
+});
 
 const world = () => ({
   crates: [
     crate('opys-core', []),
     crate('opys-dev', [dep('opys-core')]),
     crate('opys-runtime', [dep('opys-core')]),
-    crate('opys-forge', [dep('opys-core'), dep('opys-dev')]),
-    crate('opys-core-napi', [dep('opys-core', { defaultFeatures: false })]),
-    crate('opys-forge-napi', [dep('opys-forge')]),
+    crate('opys-forge', [
+      dep('opys-core'),
+      dep('opys-dev', { defaultFeatures: false }),
+    ]),
+    crate('opys-napi', [dep('opys-core'), dep('opys-forge')], {
+      sources: [
+        module('lib', 'pub mod core;\npub mod forge;'),
+        module('core', 'opys_core::parse_manifest(&input)'),
+        module(
+          'forge',
+          'opys_forge::resolve(o); opys_core::Manifest::default()',
+        ),
+      ],
+    }),
   ],
   packages: [
     {
       name: '@opys/core',
       dir: 'packages/core',
-      dependencies: { '@opys/core-binding': '1' },
+      dependencies: { '@opys/binding': '1' },
       peerDependencies: {},
       devDependencies: {},
       lib: [
         file('packages/core/lib/index.ts', {
-          imports: [imp('@opys/core-binding')],
+          imports: [imp('@opys/binding', false, ['core'])],
         }),
       ],
       tests: [],
@@ -109,12 +128,16 @@ const world = () => ({
     {
       name: '@opys/forge',
       dir: 'packages/forge',
-      dependencies: { '@opys/core': '1', '@opys/forge-binding': '1' },
+      dependencies: { '@opys/core': '1', '@opys/binding': '1' },
       peerDependencies: {},
       devDependencies: {},
       lib: [
         file('packages/forge/lib/index.ts', {
-          imports: [imp('@opys/core'), imp('node:fs')],
+          imports: [
+            imp('@opys/core'),
+            imp('node:fs'),
+            imp('@opys/binding', false, ['forge']),
+          ],
         }),
       ],
       tests: [
@@ -125,35 +148,21 @@ const world = () => ({
     },
   ],
   bindings: [
-    {
-      name: '@opys/core-binding',
-      crate: 'opys-core-napi',
-      dir: 'crates/opys-core-napi',
-    },
-    {
-      name: '@opys/forge-binding',
-      crate: 'opys-forge-napi',
-      dir: 'crates/opys-forge-napi',
-    },
+    { name: '@opys/binding', crate: 'opys-napi', dir: 'crates/opys-napi' },
   ],
   root: {
-    workspaces: [
-      'packages/core',
-      'packages/forge',
-      'crates/opys-core-napi',
-      'crates/opys-forge-napi',
-    ],
+    workspaces: ['packages/core', 'packages/forge', 'crates/opys-napi'],
     devDependencies: { vitest: '1' },
   },
   release: {
     workflow: [
-      '  for crate in crates/opys-*-napi; do',
-      '  path: crates/opys-*-napi/*.node',
+      '  working-directory: crates/opys-napi',
+      '  path: crates/opys-napi/*.node',
       '  for crate in $(node scripts/release/crates.mjs); do',
       '    cargo publish -p "$crate"',
       '',
     ].join('\n'),
-    smoke: `require('../crates/opys-core-napi/index.js'); require('../crates/opys-forge-napi/index.js');`,
+    smoke: `require('../crates/opys-napi/index.js');`,
   },
 });
 
@@ -207,58 +216,70 @@ test('a dependency outside the allow-list is refused, whatever its kind', () => 
   );
 });
 
-test('a binding must exist exactly where one is declared', () => {
+/** The addon, and one of its modules by the crate it exposes. */
+const addon = (w) => crateOf(w, 'opys-napi');
+const moduleOf = (w, stem) =>
+  addon(w).sources.find((source) => source.path.endsWith(`/${stem}.rs`));
+
+test('a module must exist exactly where a crate is declared as exposed', () => {
   one(
     broken(
       checkCrates,
-      (w) => (w.crates = w.crates.filter((c) => c.name !== 'opys-forge-napi')),
+      (w) =>
+        (addon(w).sources = addon(w).sources.filter(
+          (source) => source !== moduleOf(w, 'forge'),
+        )),
     ),
-    /opys-forge-napi does not exist/,
+    /is declared as exposed to JS, but opys-napi has no module/,
   );
   one(
     broken(checkCrates, (w) =>
-      w.crates.push(crate('opys-dev-napi', [dep('opys-dev')])),
+      addon(w).sources.push(module('dev', 'opys_dev::assemble(o, c)')),
     ),
-    /without a binding/,
+    /declared as not exposed to JS/,
   );
 });
 
-test('a binding depends on its own crate and reaches no further than it', () => {
+test('a module uses its own crate and names nothing that crate does not reach', () => {
+  one(
+    broken(checkBindingCrates, (w) => {
+      moduleOf(w, 'forge').text = 'opys_core::Manifest::default()';
+      addon(w).deps = [dep('opys-core')];
+    }),
+    /does not use opys-forge/,
+  );
+  // The wall between build time and runtime, held inside the one addon.
   one(
     broken(
       checkBindingCrates,
-      (w) => (crateOf(w, 'opys-forge-napi').deps = []),
+      (w) => (moduleOf(w, 'forge').text += ' opys_runtime::install(m)'),
     ),
-    /does not depend on opys-forge/,
-  );
-  one(
-    broken(checkBindingCrates, (w) =>
-      crateOf(w, 'opys-forge-napi').deps.push(dep('opys-runtime')),
-    ),
-    /opys-forge itself does not reach/,
+    /names opys-runtime, which opys-forge itself does not reach/,
   );
   // What the crate reaches transitively is fine.
   assert.deepEqual(
-    broken(checkBindingCrates, (w) =>
-      crateOf(w, 'opys-forge-napi').deps.push(dep('opys-core')),
+    broken(
+      checkBindingCrates,
+      (w) => (moduleOf(w, 'forge').text += ' opys_dev::assemble(o, c)'),
     ),
     [],
   );
 });
 
-test('a binding is a cdylib that stays off crates.io', () => {
+test('the addon links nothing its modules do not use', () => {
   one(
-    broken(
-      checkBindingCrates,
-      (w) => (crateOf(w, 'opys-forge-napi').cdylib = false),
-    ),
+    broken(checkBindingCrates, (w) => addon(w).deps.push(dep('opys-runtime'))),
+    /depends on opys-runtime, which none of its modules uses/,
+  );
+});
+
+test('the addon is a cdylib that stays off crates.io', () => {
+  one(
+    broken(checkBindingCrates, (w) => (addon(w).cdylib = false)),
     /not a cdylib/,
   );
   one(
-    broken(
-      checkBindingCrates,
-      (w) => (crateOf(w, 'opys-forge-napi').publish = true),
-    ),
+    broken(checkBindingCrates, (w) => (addon(w).publish = true)),
     /npm only/,
   );
 });
@@ -267,12 +288,12 @@ test('a dependency pinned to no default features is held to it', () => {
   one(
     broken(
       checkFeatures,
-      (w) => (crateOf(w, 'opys-core-napi').deps[0].defaultFeatures = true),
+      (w) => (crateOf(w, 'opys-forge').deps[1].defaultFeatures = true),
     ),
     /default features/,
   );
   one(
-    broken(checkFeatures, (w) => (crateOf(w, 'opys-core-napi').deps = [])),
+    broken(checkFeatures, (w) => (crateOf(w, 'opys-forge').deps = [])),
     /expected to depend/,
   );
 });
@@ -308,55 +329,56 @@ test('a package dependency outside the allow-list is refused, devDependencies in
   );
 });
 
-test("a package imports its own binding, never a sibling's", () => {
+test('a package takes its own namespace of the addon, and no other', () => {
+  const taking =
+    (...names) =>
+    (w) =>
+      packageNamed(w, '@opys/forge').lib[0].imports.push(
+        imp('@opys/binding', false, names),
+      );
+  one(
+    broken(checkImports, taking('core')),
+    /takes 'core' from @opys\/binding; @opys\/forge imports its own namespace, 'forge'/,
+  );
+  // All of it at once is every sibling's namespace too.
+  one(broken(checkImports, taking('*')), /takes '\*' from @opys\/binding/);
+  assert.deepEqual(broken(checkImports, taking('forge')), []);
+});
+
+test('only a declared wrapper depends on the addon, and a wrapper must', () => {
+  one(
+    broken(
+      checkPackages,
+      (w, r) => (r.packages['@opys/forge'].binding = false),
+    ).filter((message) => /not declared as a wrapper/.test(message)),
+    /depends on @opys\/binding, but is not declared as a wrapper/,
+  );
   one(
     broken(
       checkPackages,
       (w) =>
-        (packageNamed(w, '@opys/forge').dependencies['@opys/core-binding'] =
-          '1'),
+        delete packageNamed(w, '@opys/forge').dependencies['@opys/binding'],
     ),
-    /never a sibling's/,
+    /does not depend on @opys\/binding/,
   );
 });
 
-test('a wrapper without its binding, and a binding without a wrapper, are both refused', () => {
+test('a module nobody wraps, and a second addon, are both refused', () => {
   one(
-    broken(
-      checkPackages,
-      (w) =>
-        delete packageNamed(w, '@opys/forge').dependencies[
-          '@opys/forge-binding'
-        ],
+    broken(checkPackages, (w) =>
+      addon(w).sources.push(module('dev', 'opys_dev::assemble(o, c)')),
     ),
-    /does not depend on @opys\/forge-binding/,
+    /has no @opys\/dev package/,
   );
   one(
     broken(checkPackages, (w) =>
       w.bindings.push({
-        name: '@opys/dev-binding',
-        crate: 'opys-dev-napi',
-        dir: 'crates/opys-dev-napi',
+        name: '@opys/forge-binding',
+        crate: 'opys-forge-napi',
+        dir: 'crates/opys-forge-napi',
       }),
     ),
-    /has no @opys\/dev package/,
-  );
-});
-
-test('a binding is named after its crate', () => {
-  one(
-    broken(checkPackages, (w) => (w.bindings[1].crate = 'opys-other-napi')),
-    /named after its crate/,
-  );
-});
-
-test('a fixed third-party list admits nothing new', () => {
-  one(
-    broken(
-      checkPackages,
-      (w) => (packageNamed(w, '@opys/core').dependencies.lodash = '4'),
-    ),
-    /third-party dependencies are fixed/,
+    /there is one addon, opys-napi, published as @opys\/binding/,
   );
 });
 
@@ -601,7 +623,7 @@ test('a wall that names something that does not exist is refused', () => {
 test('a package or binding missing from workspaces is refused', () => {
   one(
     broken(checkWiring, (w) => w.root.workspaces.pop()),
-    /workspaces is missing crates\/opys-forge-napi/,
+    /workspaces is missing crates\/opys-napi/,
   );
 });
 
@@ -614,28 +636,24 @@ test('workspaces lists a package after what it is built on', () => {
   );
 });
 
-test('each binding is smoke-tested', () => {
+test('the addon is smoke-tested', () => {
   one(
-    broken(
-      checkWiring,
-      (w) =>
-        (w.release.smoke = "require('../crates/opys-core-napi/index.js');"),
-    ),
-    /never loads @opys\/forge-binding/,
+    broken(checkWiring, (w) => (w.release.smoke = '// nothing loaded')),
+    /never loads @opys\/binding/,
   );
 });
 
-test('the release finds its bindings and orders its crates, and lists neither', () => {
+test('the release builds the one addon and orders its crates without a list', () => {
   one(
     broken(
       checkWiring,
       (w) =>
         (w.release.workflow = w.release.workflow.replaceAll(
-          'crates/opys-*-napi',
+          'crates/opys-napi',
           'bindings',
         )),
     ),
-    /no longer finds the bindings/,
+    /no longer builds the addon/,
   );
   one(
     broken(
@@ -654,7 +672,7 @@ test('the release finds its bindings and orders its crates, and lists neither', 
       (w) =>
         (w.release.workflow += '  working-directory: crates/opys-forge-napi\n'),
     ),
-    /names opys-forge-napi; a binding is found, not listed/,
+    /names opys-forge-napi; there is one addon/,
   );
   one(
     broken(

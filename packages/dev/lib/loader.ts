@@ -1,18 +1,42 @@
 import { isAbsolute, resolve } from 'node:path';
-import type { Artifact, Blobs, Launch, Val, Valset } from '@opys/core';
-import type { LaunchGroups } from './plugin';
+import type { Blobs } from '@opys/bundle';
+import type { Artifact, Launch, Val, Valset } from '@opys/core';
+import type { BuildArtifact, LaunchGroups } from './plugin';
 
 /** Shared shape of the vanilla / forge-family loader templates. */
 export interface LoaderTemplate {
+  artifacts: ReadonlyArray<Artifact>;
   /**
    * Where the blobs among the artifacts are kept: empty, and so left out,
-   * unless the config added a library from its own disk.
+   * unless the config added a library from its own disk. The crate has
+   * already hashed those, so it holds the two apart; `carrying` puts them
+   * back together for the contribution.
    */
   blobs?: Blobs;
   launch: Launch;
   jvmArgs: Valset;
   mainClass: Val;
   gameArgs: Valset;
+}
+
+/**
+ * A loader template's artifacts as a contribution takes them: one that is a
+ * jar from the config's own disk says where the file is, rather than naming
+ * a blob somebody else would have to find.
+ */
+export function carrying(t: LoaderTemplate): BuildArtifact[] {
+  return t.artifacts.map((artifact) => {
+    const held =
+      'blob' in artifact.source ? t.blobs?.[artifact.source.blob] : undefined;
+    if (held === undefined) return artifact;
+    return {
+      ...artifact,
+      source:
+        'file' in held
+          ? { file: held.file }
+          : { bytes: Buffer.from(held.bytes, 'base64') },
+    };
+  });
 }
 
 /**

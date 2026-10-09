@@ -8,7 +8,7 @@
  * back to be hashed.
  */
 import { isAbsolute, resolve } from 'node:path';
-import * as napi from '@opys/dev-binding';
+import { dev as napi } from '@opys/binding';
 import {
   definePlugin,
   pluginOptions,

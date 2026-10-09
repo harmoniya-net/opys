@@ -3,7 +3,7 @@
  * auth, account, session and services hosts somewhere else.
  *
  * Behaviour lives in the `opys-authliberty` crate and reaches JS through
- * `@opys/authliberty-binding`; this module is the typed surface over it. The
+ * `@opys/binding`, under `authliberty`; this module is the typed surface over it. The
  * codegen'd binding types everything as `Json` (≈ `unknown`), so each wrapper
  * carries one `as`-cast at the boundary. No `as unknown as`.
  *
@@ -13,7 +13,7 @@
  * handed over as the plain map it produces.
  */
 
-import * as napi from '@opys/authliberty-binding';
+import { authliberty as napi } from '@opys/binding';
 import { definePlugin, pluginOptions, type ChainablePlugin } from '@opys/dev';
 import type { Artifact, Valset } from '@opys/core';
 

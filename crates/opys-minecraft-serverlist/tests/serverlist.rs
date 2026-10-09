@@ -2,7 +2,8 @@
 //! implementation used — wrote for the same lists.
 
 use base64::Engine;
-use opys_core::{blob_id, BlobSource};
+use opys_bundle::{blob_id, BlobSource};
+use opys_core::Artifact;
 use opys_minecraft_serverlist::{
     build_serverlist, encode_servers_dat, serverlist, ServerEntry, ServerlistOptions,
     DEFAULT_SERVERLIST_PATH,
@@ -23,13 +24,17 @@ fn base64(text: &str) -> Vec<u8> {
         .unwrap()
 }
 
-/// The bytes of the blob behind artifact `index`.
-fn bytes_of(contribution: &opys_dev::Contribution, index: usize) -> Vec<u8> {
-    let id = contribution.artifacts[index].blob_id().unwrap();
-    match &contribution.blobs[id] {
-        BlobSource::Bytes(bytes) => bytes.clone(),
-        other => panic!("a generated list is held as bytes, not {other:?}"),
+/// Artifact `index` as the merge makes it — a blob artifact — and the bytes
+/// it carries.
+fn resolved(contribution: &opys_dev::Contribution, index: usize) -> (Artifact, Vec<u8>) {
+    match contribution.artifacts[index].clone().resolve().unwrap() {
+        (artifact, Some((_, BlobSource::Bytes(bytes)))) => (artifact, bytes),
+        other => panic!("a generated list is carried as bytes, not {other:?}"),
     }
+}
+
+fn bytes_of(contribution: &opys_dev::Contribution, index: usize) -> Vec<u8> {
+    resolved(contribution, index).1
 }
 
 // ── the encoding, against the one it replaced ─────────────────────────────
@@ -93,17 +98,16 @@ fn entries_without_rules_are_one_file_at_the_default_path() {
     let servers = entries(json!([{ "name": "A", "ip": "a" }, { "name": "B", "ip": "b" }]));
     let contribution = serverlist(&servers, &ServerlistOptions::default());
     assert_eq!(contribution.artifacts.len(), 1);
-    let artifact = &contribution.artifacts[0];
+    let (artifact, bytes) = resolved(&contribution, 0);
     assert_eq!(artifact.path, DEFAULT_SERVERLIST_PATH);
     assert!(artifact.rules.is_empty());
 
-    let bytes = bytes_of(&contribution, 0);
     assert_eq!(bytes, encode(&[("A", "a"), ("B", "b")]));
     // The artifact is the blob: named by its hash, sized by its length.
     assert_eq!(artifact.blob_id(), Some(blob_id(&bytes).as_str()));
     assert_eq!(artifact.size, Some(bytes.len() as u64));
     assert_eq!(
-        serde_json::to_value(artifact).unwrap(),
+        serde_json::to_value(&artifact).unwrap(),
         json!({ "path": DEFAULT_SERVERLIST_PATH, "source": { "blob": blob_id(&bytes) }, "size": bytes.len() })
     );
 }
@@ -127,7 +131,7 @@ fn a_custom_path_is_where_every_file_goes() {
     assert!(contribution
         .artifacts
         .iter()
-        .all(|a| a.path == "custom/servers.dat"));
+        .all(|a| a.path() == Some("custom/servers.dat")));
 }
 
 #[test]
@@ -165,7 +169,6 @@ fn each_distinct_ruleset_gets_its_own_file_in_the_order_it_first_appears() {
         encode(&[("Linux", "linux"), ("Linux2", "linux2")])
     );
     assert_eq!(bytes_of(&contribution, 2), encode(&[("Win", "win")]));
-    assert_eq!(contribution.blobs.len(), 3);
 }
 
 #[test]

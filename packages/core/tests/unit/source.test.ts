@@ -1,9 +1,5 @@
-import { createHash } from 'node:crypto';
 import { describe, expect, test } from 'vitest';
 import {
-  blobBytes,
-  blobFile,
-  blobId,
   decodeManifest,
   encodeManifest,
   sourceBlob,
@@ -27,24 +23,6 @@ describe('Source factories', () => {
 });
 
 describe('blobs', () => {
-  test('a blob is named by the sha256 of its bytes', () => {
-    const bytes = new TextEncoder().encode('hello');
-    expect(blobId(bytes)).toBe(HELLO);
-    expect(blobId(bytes)).toBe(
-      createHash('sha256').update(bytes).digest('hex'),
-    );
-  });
-
-  test('blobBytes base64-encodes, so it survives the trip into Rust', () => {
-    const bytes = new Uint8Array([72, 101, 108, 108, 111]); // "Hello"
-    expect(blobBytes(bytes)).toEqual({ bytes: 'SGVsbG8=' });
-    expect(blobBytes(new Uint8Array())).toEqual({ bytes: '' });
-  });
-
-  test('blobFile names where the bytes are', () => {
-    expect(blobFile('/srv/a.jar')).toEqual({ file: '/srv/a.jar' });
-  });
-
   test('a blob artifact has one spelling, with no integrity beside it', () => {
     const wire = { path: 'a.txt', source: { blob: HELLO }, size: 5 };
     // An integrity that agrees with the name is accepted and not kept: the

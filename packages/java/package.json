@@ -16,9 +16,9 @@
     "test:int": "vitest run tests/integration --testTimeout=120000"
   },
   "dependencies": {
+    "@opys/binding": "^0.2.0",
     "@opys/core": "^0.2.0",
-    "@opys/dev": "^0.2.0",
-    "@opys/java-binding": "^0.2.0"
+    "@opys/dev": "^0.2.0"
   },
   "devDependencies": {
     "tsdown": "*",

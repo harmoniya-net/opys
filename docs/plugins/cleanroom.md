@@ -1,138 +1,197 @@
-# cleanroom
+# Cleanroom
 
-`cleanroom()` adds [Cleanroom](https://github.com/CleanroomMC/Cleanroom) to
-your installation: the game, its libraries and assets. Cleanroom is a successor
-to Forge for Minecraft 1.12.2 that runs on a modern Java and uses LWJGL 3. Use
-it to make a 1.12.2 pack that starts on Java 25. Use it in place of
-`minecraft()`, since `cleanroom()` already contributes the vanilla game, and
-pair it with a [Java runtime](./java). This page is for pack authors. For how
-loaders fit into a config, see [Loaders](/guide/loaders).
+The `cleanroom` plugin, from `@opys/minecraft`.
 
-## Signature
+[Cleanroom](https://github.com/CleanroomMC/Cleanroom): Forge 1.12.2 mods on a modern Java.
 
-```ts
-cleanroom(version: string, opts?: {
-  source?: string;
-}): ChainablePlugin
+<!-- prettier-ignore -->
+```js{4,8-13}
+// opys.config.mjs
+export default defineConfig({
+  plugins: [
+    cleanroom({ version: '1.12.2' }),
+    java({ version: '25' }),
+  ],
+  manifest: {
+    command: '@cleanroom.command',
+    args: [
+      '@cleanroom.jvmArgs',
+      '@cleanroom.mainClass',
+      '@cleanroom.gameArgs',
+    ],
+    workdir: '${game_directory}',
+  },
+});
 ```
 
-`version` is the only required argument. Calling `cleanroom()` does no network
-work; the lookups happen when `opys build` or `opys launch` builds the config.
-It is exported from `@opys/minecraft` and from `@opys/cleanroom`.
-
-## Version
-
-`version` takes one of three forms. The plugin tries them in this order.
-
-| Form                         | Example                                              | Resolves to                                            |
-| ---------------------------- | ---------------------------------------------------- | ------------------------------------------------------ |
-| Alias on a Minecraft version | `1.12.2-latest`, `1.12.2-recommended`, `1.12.2-best` | That promotion of the Minecraft version                |
-| Minecraft version            | `1.12.2`                                             | Its `best` release                                     |
-| Release tag                  | `0.6.13-alpha`                                       | That exact release. Its Minecraft version is looked up |
-
-Cleanroom has no promotions endpoint, so the index says what each alias means.
-`latest` is the newest release. `recommended` is the newest release GitHub
-does not mark as a prerelease. `best` is `recommended` when there is one, and
-`latest` otherwise. A bare Minecraft version means `best`. The index has one
-Minecraft version, `1.12.2`.
-
-A bare Minecraft version or an alias follows the index, so it can resolve to a
-newer release later. Name a release tag to pin one.
-
-If the version cannot be resolved, the build stops with one of these messages:
-
-| Message                                                       | Cause                                                         |
-| ------------------------------------------------------------- | ------------------------------------------------------------- |
-| `Unknown Minecraft version '<mc>' (resolving '<input>')`      | An alias on a Minecraft version the index does not list       |
-| `No '<alias>' Cleanroom build available for Minecraft <mc>`   | The Minecraft version has no build for that alias             |
-| `Could not resolve Cleanroom version '<input>' from <source>` | Neither a Minecraft version nor a release tag the index lists |
+Use it **instead of** `minecraft`. A loader brings the game with it.
 
 ## Options
 
-| Option   | Type     | Default                                              | Meaning                                              |
-| -------- | -------- | ---------------------------------------------------- | ---------------------------------------------------- |
-| `source` | `string` | `https://harmoniya-net.github.io/metadata/cleanroom` | Base URL of the document index. Set it for a mirror. |
+| Option      | What it does                                                              |
+| ----------- | ------------------------------------------------------------------------- |
+| `version`   | Which build. See below.                                                   |
+| `source`    | A mirror of the build index.                                              |
+| `libraries` | Libraries to [add or replace](./minecraft#adding-or-replacing-a-library). |
 
-There is no `manifestBase`: Cleanroom's document is a whole version, so no
-Mojang version manifest is read. There is no installer to configure and no
-GitHub token either; Cleanroom resolves from the index alone.
+### version
 
-## Launch groups
+| You write              | You get                                                        |
+| ---------------------- | -------------------------------------------------------------- |
+| `'1.12.2'`             | The recommended release, or the newest if none is recommended. |
+| `'1.12.2-latest'`      | The newest release.                                            |
+| `'1.12.2-recommended'` | The recommended release.                                       |
+| `'0.6.13-alpha'`       | Exactly that release.                                          |
 
-The plugin is named `cleanroom`, so its groups are read as `cleanroom.<group>`
-in `manifest.command` and `manifest.args`.
+The version is resolved **when you build**. `'1.12.2'` today and in six
+months can be different releases. For a pack that never moves, write the
+exact one.
 
-| Group                 | Type     | Contains                                                                                                                                      |
-| --------------------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| `cleanroom.command`   | string   | `${java_bin}`, the Java binary the [`java`](./java) plugin provides. The examples use `java.bin` for `manifest.command` instead               |
-| `cleanroom.jvmArgs`   | `Valset` | The JVM arguments for this release: `-Djava.library.path=${natives_directory}` and `-cp ${classpath}`, since the document has none of its own |
-| `cleanroom.mainClass` | `Val`    | The main class from the document, `top.outlands.foundation.boot.Foundation`                                                                   |
-| `cleanroom.gameArgs`  | `Valset` | The game arguments from the document                                                                                                          |
+## What it adds
 
-Put them in `manifest.args` in the order the game needs them:
+Everything [Vanilla Minecraft](./minecraft#what-it-adds) adds, with these
+differences.
 
-```js
-manifest: {
-  command: ({ java }) => java.bin,
-  args: ({ cleanroom }) => [
-    cleanroom.jvmArgs,
-    cleanroom.mainClass,
-    cleanroom.gameArgs,
+| Kind        | What                                           |
+| ----------- | ---------------------------------------------- |
+| Files       | The 1.12.2 game with Cleanroom's libraries.    |
+| Launch      | `command`, `jvmArgs`, `mainClass`, `gameArgs`. |
+| Variables   | The same as [vanilla](./minecraft#variables).  |
+| Environment | None.                                          |
+
+Each one below: what it is, and how it ends up in the
+[manifest](/format/).
+
+### Files · the game and Cleanroom libraries
+
+The 1.12.2 game, with the old graphics library (LWJGL 2) swapped for the
+current one (LWJGL 3). The old one is not installed at all.
+
+<!-- prettier-ignore -->
+```js{4}
+// opys.config.mjs
+export default defineConfig({
+  plugins: [
+    cleanroom({ version: '1.12.2' }),
+    java({ version: '25' }),
   ],
-  workdir: '${game_directory}',
-},
+  manifest: {
+    command: '@cleanroom.command',
+    args: [
+      '@cleanroom.jvmArgs',
+      '@cleanroom.mainClass',
+      '@cleanroom.gameArgs',
+    ],
+    workdir: '${game_directory}',
+  },
+});
 ```
 
-## Variables
-
-`cleanroom()` defines the same variables as [`minecraft`](./minecraft#variables),
-with two differences. `classpath` is built from the libraries of Cleanroom's
-own document, and `version_name` and `version_type` come from that document
-and not from a vanilla version: for `0.6.13-alpha`, `version_name` is
-`1.12.2-Cleanroom-0.6.13-alpha`, and so `version_dir` is
-`${root}/versions/1.12.2-Cleanroom-0.6.13-alpha`.
-
-`root` is `.` until the launching machine sets it. `username`, `uuid` and
-`token` are not defined at all, so the launching machine must supply them. The
-[launch-time values](/guide/run-client) page says how. `cleanroom()` does not
-define `java_bin`, `java_home` or `java_runtime_dir`. The [`java`](./java)
-plugin does.
-
-## Which Java
-
-Use Java 25: `java('25')`. Running 1.12.2 on a current Java is what Cleanroom
-is for, and the current release declares Java 25. opys does not check the
-pairing, so a mismatch fails when the game starts, not when you build.
-
-```js
-plugins: [cleanroom('1.12.2'), java('25')],
+<!-- prettier-ignore -->
+```jsonc
+// in the manifest
+{
+  "path": "${library_directory}/com/cleanroommc/cleanroom/0.6.13-alpha/cleanroom-0.6.13-alpha.jar",
+  "source": { "url": "https://github.com/CleanroomMC/Cleanroom/releases/download/0.6.13-alpha/cleanroom-0.6.13-alpha-universal.jar" },
+  "size": 6505649,
+  "integrity": { "sha1": "8d59eda7065f26fc0c1bbd3a9fa9f272ff89917f" }
+}
 ```
 
-Not every vendor ships Java 25 for every platform; see
-[Platforms](./java#platforms).
+### Launch
 
-## How it works
+A short one. 1.12.2 needs little, and Cleanroom starts through its own
+main class.
 
-Cleanroom's installer does not run on your machine. Each Cleanroom release is
-published ahead of time as one complete version document, so `cleanroom()`
-makes three requests at build time: the index of releases, to find the one you
-asked for, then that release's document, then the asset index the document
-names. It does not fetch a vanilla version. The document already names the
-1.12.2 client, its assets and every library that runs.
+<!-- prettier-ignore -->
+```js{8-13}
+// opys.config.mjs
+export default defineConfig({
+  plugins: [
+    cleanroom({ version: '1.12.2' }),
+    java({ version: '25' }),
+  ],
+  manifest: {
+    command: '@cleanroom.command',
+    args: [
+      '@cleanroom.jvmArgs',
+      '@cleanroom.mainClass',
+      '@cleanroom.gameArgs',
+    ],
+    workdir: '${game_directory}',
+  },
+});
+```
 
-The document is mapped with the same code as a vanilla version. Cleanroom
-replaces vanilla 1.12.2's LWJGL 2 with LWJGL 3, and the document lists LWJGL 3
-and not LWJGL 2. The plugin does not filter the library list: what the document
-declares is what runs. The client jar goes last on the classpath, as in the
-`minecraft` plugin.
+<!-- prettier-ignore -->
+```jsonc
+// in the manifest
+"launch": {
+  // '@cleanroom.command'
+  "command": "${java_bin}",
+  "args": [
+    // '@cleanroom.jvmArgs'
+    "-Djava.library.path=${natives_directory}",
+    "-cp",
+    "${classpath}",
+    // '@cleanroom.mainClass'
+    "top.outlands.foundation.boot.Foundation",
+    // '@cleanroom.gameArgs'
+    "--username", "${auth_player_name}",
+    // … the rest of the 1.12.2 game arguments, then:
+    "--tweakClass", "net.minecraftforge.fml.common.launcher.FMLTweaker",
+    "--versionType", "Forge"
+  ],
+  "workdir": "${game_directory}"
+}
+```
 
-Nothing is installed by Cleanroom on the launching machine before the game
-starts. The [metadata](/internals/metadata) page describes the documents and
-how they are generated.
+| You write                | Becomes                                                       |
+| ------------------------ | ------------------------------------------------------------- |
+| `'@cleanroom.command'`   | The program to run: whatever Java the pack has.               |
+| `'@cleanroom.jvmArgs'`   | Arguments for Java itself, ending with the classpath.         |
+| `'@cleanroom.mainClass'` | The class to start. One argument.                             |
+| `'@cleanroom.gameArgs'`  | Arguments for the game: who is playing, and where things are. |
 
-## Example
+### Variables
 
-<<< @/examples/plugin-cleanroom-basic/opys.config.mjs
+The same names as vanilla. `classpath` now has this loader's libraries
+ahead of the game's.
 
-Run `opys build` to write `game.opys`, or `opys launch` to start the game from
-the config. Mods go alongside the loader. See [Mods and files](/guide/mods).
+<!-- prettier-ignore -->
+```js{4}
+// opys.config.mjs
+export default defineConfig({
+  plugins: [
+    cleanroom({ version: '1.12.2' }),
+    java({ version: '25' }),
+  ],
+  manifest: {
+    command: '@cleanroom.command',
+    args: [
+      '@cleanroom.jvmArgs',
+      '@cleanroom.mainClass',
+      '@cleanroom.gameArgs',
+    ],
+    workdir: '${game_directory}',
+  },
+});
+```
+
+<!-- prettier-ignore -->
+```jsonc
+// in the manifest
+"vars": {
+  "game_directory": "${root}/",
+  "library_directory": "${root}/libraries",
+  // … the rest, as in vanilla
+}
+```
+
+Nothing runs on the player's machine before the game.
+
+## Good to know
+
+- It replaces both `minecraft` and `forge`.
+- Use Java 25 whatever the Minecraft version says. opys does not check.
+- Pair it with [`java({ version: '25' })`](./java#which-java-for-which-minecraft).

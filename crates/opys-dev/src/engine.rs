@@ -6,8 +6,9 @@
 
 use std::collections::HashMap;
 
+use opys_bundle::Blobs;
 use opys_core::{
-    deduplicate_artifacts, Artifact, Blobs, CleanupRule, Launch, Manifest, Val, ValDefs, Valset,
+    deduplicate_artifacts, Artifact, CleanupRule, Launch, Manifest, Val, ValDefs, Valset,
 };
 use serde::Deserialize;
 
@@ -70,6 +71,8 @@ pub enum AssembleError {
     /// A reference goes by plugin name, so a name has to mean one plugin.
     #[error("two plugins are named '{name}': rename one with `.as('…')`")]
     DuplicatePlugin { name: String },
+    #[error("plugin '{plugin}': {reason}")]
+    Artifact { plugin: String, reason: String },
     #[error("'{reference}' is not a reference: one is written `@plugin.group`")]
     BadReference { reference: String },
     #[error("'{reference}': there is no plugin named '{plugin}' (there are: {})", .plugins.join(", "))]
@@ -251,9 +254,23 @@ pub fn assemble(
     }
 
     // Artifacts: plugin output in list order, then the literal artifacts.
+    // One that is carried is read here and becomes a blob artifact, with its
+    // bytes set aside for whoever writes the bundle.
     let mut artifacts: Vec<Artifact> = Vec::new();
+    let mut held = Blobs::new();
     for output in outputs {
-        artifacts.extend(output.contribution.artifacts.iter().cloned());
+        for built in &output.contribution.artifacts {
+            let (artifact, blob) =
+                built
+                    .clone()
+                    .resolve()
+                    .map_err(|error| AssembleError::Artifact {
+                        plugin: output.name.clone(),
+                        reason: error.to_string(),
+                    })?;
+            artifacts.push(artifact);
+            held.extend(blob);
+        }
     }
     artifacts.extend(config.artifacts.iter().cloned());
     let artifacts = deduplicate_artifacts(artifacts);
@@ -269,14 +286,13 @@ pub fn assemble(
     }
 
     // Blobs need no merge rule. An id is the hash of its bytes, so two plugins
-    // holding the same id hold the same thing and either copy will do.
+    // carrying the same id carry the same thing and either copy will do. One
+    // whose artifact a later plugin replaced is dropped with it.
     let named: std::collections::BTreeSet<&str> =
         artifacts.iter().filter_map(Artifact::blob_id).collect();
-    let blobs: Blobs = outputs
-        .iter()
-        .flat_map(|output| &output.contribution.blobs)
+    let blobs: Blobs = held
+        .into_iter()
         .filter(|(id, _)| named.contains(id.as_str()))
-        .map(|(id, source)| (id.clone(), source.clone()))
         .collect();
 
     let launch = Launch {

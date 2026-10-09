@@ -1,4 +1,3 @@
-import { blobBytes, blobId, sourceBlob } from '@opys/core';
 import { defineConfig, definePlugin, userDataDir } from '@opys/dev';
 import { java, minecraft } from '@opys/minecraft';
 
@@ -10,9 +9,9 @@ const welcome = (motd) =>
     build(ctx) {
       ctx.log('welcome', `motd is "${motd}"`);
 
-      // A generated file, carried in the bundle as a blob named by its hash.
+      // A generated file. It is carried in the bundle: the build names it by
+      // its content, so there is nothing to hash or keep track of here.
       const config = new TextEncoder().encode(`motd = "${motd}"\n`);
-      const id = blobId(config);
 
       return {
         vars: { motd },
@@ -25,9 +24,8 @@ const welcome = (motd) =>
             size: 80082,
             integrity: { sha1: 'd15b53a14cf20fdcaa98f731af5dda654452c010' },
           },
-          { path: '${root}/config/welcome.toml', source: sourceBlob(id) },
+          { path: '${root}/config/welcome.toml', source: { bytes: config } },
         ],
-        blobs: { [id]: blobBytes(config) },
         launch: { jvmArg: '-Dwelcome.motd=${motd}' },
       };
     },

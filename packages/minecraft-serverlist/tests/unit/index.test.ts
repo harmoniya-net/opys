@@ -9,18 +9,15 @@
  * usable contribution, and that it chains.
  */
 import { describe, expect, it } from 'vitest';
-import { blobId, type Artifact } from '@opys/core';
-import type { Contribution } from '@opys/dev';
+import type { BuildArtifact } from '@opys/dev';
 import { DEFAULT_PATH, serverlist } from '../../lib';
 
 const ctx = { log: () => {}, configDir: '/tmp', mode: '' };
 
-/** The bytes of the blob `artifact` is made of, read out of the contribution. */
-function bytesOf(contribution: Contribution, artifact: Artifact): Buffer {
-  if (!('blob' in artifact.source)) throw new Error('expected a blob source');
-  const held = contribution.blobs![artifact.source.blob]!;
-  if (!('bytes' in held)) throw new Error('expected the blob held as bytes');
-  return Buffer.from(held.bytes, 'base64');
+/** The bytes `artifact` carries. */
+function bytesOf(artifact: BuildArtifact): Buffer {
+  if (!('bytes' in artifact.source)) throw new Error('expected carried bytes');
+  return Buffer.from(artifact.source.bytes);
 }
 
 describe('serverlist', () => {
@@ -34,18 +31,15 @@ describe('serverlist', () => {
     expect(DEFAULT_PATH).toBe('${game_directory}/servers.dat');
   });
 
-  it('builds one blob artifact whose name is the hash of its bytes', async () => {
+  it('builds one artifact that carries the bytes of the list', async () => {
     const contribution = await serverlist({
       servers: [{ name: 'Home', ip: 'play.example' }],
     }).build(ctx);
     expect(contribution.artifacts).toHaveLength(1);
     const [artifact] = contribution.artifacts!;
-    const bytes = bytesOf(contribution, artifact!);
-    expect(artifact).toEqual({
-      path: DEFAULT_PATH,
-      source: { blob: blobId(bytes) },
-      size: bytes.length,
-    });
+    const bytes = bytesOf(artifact!);
+    // No id and no size: the build names the bytes when it carries them.
+    expect(artifact).toEqual({ path: DEFAULT_PATH, source: { bytes } });
     // NBT, with the entry in it.
     expect(bytes[0]).toBe(0x0a);
     expect(bytes.toString('utf8')).toContain('play.example');
@@ -75,17 +69,15 @@ describe('serverlist', () => {
       undefined,
       'allow.os.linux',
     ]);
-    const linux = bytesOf(contribution, contribution.artifacts![1]!);
+    const linux = bytesOf(contribution.artifacts![1]!);
     expect(linux.toString('utf8')).toContain('linux2');
-    expect(Object.keys(contribution.blobs!)).toHaveLength(2);
   });
 
-  it('chains: a rule added afterwards lands on the artifact, the blob stays', async () => {
+  it('chains: a rule added afterwards lands on the artifact, the bytes stay', async () => {
     const contribution = await serverlist({ servers: [{ name: 'S', ip: 'x' }] })
       .addRule('**', 'allow.os.linux')
       .build(ctx);
     expect(contribution.artifacts![0]!.rules).toHaveLength(1);
-    expect(Object.keys(contribution.blobs!)).toHaveLength(1);
   });
 
   it('surfaces a rule that does not parse as an error from build', async () => {

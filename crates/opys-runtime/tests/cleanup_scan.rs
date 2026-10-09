@@ -12,8 +12,8 @@
 
 mod common;
 
-use common::{blob, blob_file, blobs, serve, unreadable_blob};
-use opys_runtime::{install, InstallOptions, InstallProgress, ManifestSource};
+use common::{blob, blob_file, serve};
+use opys_runtime::{install, InstallOptions, InstallProgress};
 use serde_json::json;
 use std::sync::{Arc, Mutex};
 use tempfile::tempdir;
@@ -28,10 +28,7 @@ async fn run(manifest_json: String) -> Vec<InstallProgress> {
     let mut opts = InstallOptions::new();
     opts.on_progress = Some(cb);
     let manifest = opys_core::parse_manifest(&manifest_json).unwrap();
-    let source = ManifestSource::Manifest {
-        manifest: Box::new(manifest),
-        blobs: blobs(),
-    };
+    let source = common::bundled(&manifest);
     install(source, opts).await.unwrap();
     Arc::try_unwrap(events).unwrap().into_inner().unwrap()
 }
@@ -61,8 +58,7 @@ fn download_skipped(events: &[InstallProgress]) -> Option<u32> {
 
 // ── Integrity skip ────────────────────────────────────────────────────────
 
-/// A present file whose hash matches must be left untouched — the blob is
-/// never read, and here it could not be.
+/// A present file whose hash matches must be left untouched.
 #[tokio::test]
 async fn matching_integrity_skips_refetch() {
     let dir = tempdir().unwrap();
@@ -73,7 +69,7 @@ async fn matching_integrity_skips_refetch() {
         "vars": { "root": root },
         "artifacts": [{
             "path": "${root}/keep.txt",
-            "source": { "blob": unreadable_blob("prior") }
+            "source": { "blob": blob("prior") }
         }]
     })
     .to_string())
@@ -645,15 +641,9 @@ async fn a_rule_naming_an_undefined_variable_fails_before_anything_is_installed(
         .to_string(),
     )
     .unwrap();
-    let error = install(
-        ManifestSource::Manifest {
-            manifest: Box::new(manifest),
-            blobs: blobs(),
-        },
-        InstallOptions::new(),
-    )
-    .await
-    .unwrap_err();
+    let error = install(common::bundled(&manifest), InstallOptions::new())
+        .await
+        .unwrap_err();
 
     assert!(
         matches!(error.report(), opys_runtime::ErrorReport::Manifest { .. }),

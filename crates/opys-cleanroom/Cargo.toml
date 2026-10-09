@@ -10,6 +10,7 @@ description = "Cleanroom loader for opys — resolves a published version docume
 
 [dependencies]
 opys-core = { workspace = true }
+opys-bundle = { workspace = true }
 opys-dev = { workspace = true, features = ["net"] }
 opys-minecraft-vanilla = { workspace = true }
 opys-mojang = { workspace = true }

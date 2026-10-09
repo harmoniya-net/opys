@@ -1,7 +1,5 @@
 use serde::{Deserialize, Serialize};
 
-use crate::blob::is_blob_id;
-
 /// Where an artifact's bytes come from. There are two answers and no third:
 /// somewhere on the network, or in the bundle the manifest came in.
 ///
@@ -71,4 +69,9 @@ impl From<Source> for SourceWire {
             },
         }
     }
+}
+
+/// Lowercase hex sha256 — the only spelling of a blob id.
+pub fn is_blob_id(id: &str) -> bool {
+    id.len() == 64 && id.bytes().all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f'))
 }

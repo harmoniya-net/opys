@@ -4,7 +4,8 @@
 mod common;
 
 use common::{Reply, TestServer};
-use opys_core::{blob_id, BlobSource, Source, ValDef};
+use opys_bundle::{blob_id, BlobSource};
+use opys_core::{Source, ValDef};
 use opys_minecraft_vanilla::{
     add_libraries, client_to_template, resolve_libraries, with_libraries, ExtraLibrary,
     ExtraSource, MinecraftTemplate,
@@ -267,6 +268,24 @@ fn a_file_becomes_a_blob_and_the_table_says_where_it_is() {
 }
 
 #[test]
+fn two_libraries_at_one_path_are_refused_before_anything_is_fetched() {
+    // Nothing listens here, and neither link carries its integrity: a
+    // request would fail the test with a different error.
+    let at = |rules: &str| {
+        library(tool(
+            json!({ "source": { "url": "http://127.0.0.1:1/t.jar" }, "rules": rules }),
+        ))
+    };
+    let error = resolve_libraries(&[at("allow.os.linux"), at("allow.os.osx")])
+        .expect_err("refused")
+        .to_string();
+    assert!(
+        error.contains("are both installed at 'org/example/tool/1.2/tool-1.2.jar'"),
+        "{error}"
+    );
+}
+
+#[test]
 fn a_natives_bundle_is_unpacked_and_supersedes_nothing() {
     let natives = |fields: Value| {
         let mut raw = tool(fields);
@@ -353,19 +372,49 @@ fn a_rule_keeps_a_library_off_the_classpath_of_the_others() {
 }
 
 #[test]
-fn a_library_with_rules_goes_ahead_and_replaces_nothing() {
+fn a_library_with_rules_still_replaces_the_versions_own_everywhere() {
     let old = "${library_directory}/com/google/code/gson/gson/2.10.1/gson-2.10.1.jar";
-    let resolved = resolve_libraries(&[library(gson_2_11(json!({ "rules": "allow.os.linux" })))])
-        .expect("resolved");
+    let linux_only = gson_2_11(json!({ "rules": "allow.os.linux" }));
     let before = template();
-    let after = with_libraries(before.clone(), resolved).expect("folded");
+    let after = with_libraries(
+        before.clone(),
+        resolve_libraries(&[library(linux_only.clone())]).expect("resolved"),
+    )
+    .expect("folded");
 
-    // Linux gets the new one first, and the version's own is still behind
-    // it: every other OS has only that.
-    let cp = classpath(&after);
-    assert!(cp[0].ends_with("gson-2.11.0.jar"));
-    assert!(cp.contains(&old.to_owned()));
-    assert!(after.artifacts.iter().any(|a| a.path == old));
+    // The version's copy is gone for every OS, downloads included: an
+    // override is whole, and what the other systems run is the author's to
+    // say.
+    assert!(classpath(&after)[0].ends_with("gson-2.11.0.jar"));
+    assert!(!classpath(&after).contains(&old.to_owned()));
+    assert!(!after.artifacts.iter().any(|a| a.path == old));
+    let Some(ValDef::Arms(arms)) = after.vars.get("classpath") else {
+        panic!("classpath is not per-OS");
+    };
+    assert!(arms
+        .iter()
+        .filter(|arm| !format!("{:?}", arm.rules).contains("Linux"))
+        .all(|arm| !arm.value.contains("/gson/")));
+
+    // Said for each OS, each gets its own.
+    let mut elsewhere = gson_2_11(json!({ "rules": "disallow.os.linux" }));
+    elsewhere["artifact"]["path"] = json!("com/google/code/gson/gson/2.10.1/gson-2.10.1.jar");
+    let both = with_libraries(
+        before,
+        resolve_libraries(&[library(linux_only), library(elsewhere)]).expect("resolved"),
+    )
+    .expect("folded");
+    assert!(arms_with_gson(&both) == 3);
+}
+
+/// How many of the three per-OS classpaths have exactly one gson on them.
+fn arms_with_gson(t: &MinecraftTemplate) -> usize {
+    let Some(ValDef::Arms(arms)) = t.vars.get("classpath") else {
+        panic!("classpath is not per-OS");
+    };
+    arms.iter()
+        .filter(|arm| arm.value.matches("/gson/").count() == 1)
+        .count()
 }
 
 #[test]

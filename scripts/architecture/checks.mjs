@@ -9,13 +9,39 @@
  * @typedef {{ rule: string, where: string, message: string }} Violation
  */
 
-const NAPI = /-napi$/;
-const BINDING = /-binding$/;
+/** The one addon: the crate, and the package it is published as. */
+const ADDON = 'opys-napi';
+const BINDING = '@opys/binding';
+const NAPI = { test: (name) => name === ADDON };
 
 const violation = (rule, where, message) => ({ rule, where, message });
 
-/** `opys-forge-napi` → `opys-forge`. */
-export const baseCrateOf = (binding) => binding.replace(NAPI, '');
+/**
+ * The addon's modules. Each is a crate as JS sees it and a namespace of the
+ * addon: `src/minecraft_vanilla.rs` exposes `opys-minecraft-vanilla` as
+ * `minecraftVanilla`. `uses` is every workspace crate the module names.
+ */
+export function addonModules(world) {
+  const addon = world.crates.find((c) => c.name === ADDON);
+  return (addon?.sources ?? [])
+    .map((source) => ({ ...source, stem: /([^/]+)\.rs$/.exec(source.path)[1] }))
+    .filter((source) => source.stem !== 'lib')
+    .map((source) => ({
+      path: source.path,
+      crate: `opys-${source.stem.replace(/_/g, '-')}`,
+      uses: [
+        ...new Set(
+          [...source.text.matchAll(/\bopys_[a-z0-9_]+(?=::)/g)].map((m) =>
+            m[0].replace(/_/g, '-'),
+          ),
+        ),
+      ],
+    }));
+}
+
+/** `@opys/minecraft-vanilla` → `minecraftVanilla`, its namespace of the addon. */
+export const namespaceOf = (pkg) =>
+  pkg.replace('@opys/', '').replace(/-(\w)/g, (_, c) => c.toUpperCase());
 
 /** Everything `from` reaches in `graph`, itself excluded. */
 export function reachable(graph, from) {
@@ -39,6 +65,7 @@ const workspaceDeps = (crate) => [...new Set(crate.deps.map((d) => d.name))];
 export function checkCrates(rules, world) {
   const out = [];
   const actual = new Map(world.crates.map((c) => [c.name, c]));
+  const exposed = new Set(addonModules(world).map((m) => m.crate));
 
   for (const name of Object.keys(rules.crates)) {
     if (!actual.has(name))
@@ -70,21 +97,20 @@ export function checkCrates(rules, world) {
           ),
         );
     }
-    const binding = `${crate.name}-napi`;
-    if (rule.binding && !actual.has(binding))
+    if (rule.binding && !exposed.has(crate.name))
       out.push(
         violation(
           'bindings',
           crate.name,
-          `is declared with a binding, but ${binding} does not exist`,
+          `is declared as exposed to JS, but ${ADDON} has no module for it`,
         ),
       );
-    if (!rule.binding && actual.has(binding))
+    if (!rule.binding && exposed.has(crate.name))
       out.push(
         violation(
           'bindings',
           crate.name,
-          `is declared without a binding, but ${binding} exists`,
+          `is declared as not exposed to JS, but ${ADDON} has a module for it`,
         ),
       );
   }
@@ -92,58 +118,71 @@ export function checkCrates(rules, world) {
 }
 
 /**
- * One binding per crate: `opys-<x>-napi` exposes `opys-<x>` and reaches
- * nothing that crate does not already reach.
+ * One addon, and the boundaries between crates kept inside it: a module
+ * exposes the crate it is named after, and names nothing that crate does not
+ * already reach. So `mod forge` cannot call into `opys-runtime`, any more
+ * than `opys-forge` can.
  */
 export function checkBindingCrates(rules, world) {
   const out = [];
   const graph = Object.fromEntries(
     Object.entries(rules.crates).map(([name, rule]) => [name, rule.deps]),
   );
-  for (const crate of world.crates) {
-    if (!NAPI.test(crate.name)) continue;
-    const base = baseCrateOf(crate.name);
-    if (!rules.crates[base]) {
+  const addon = world.crates.find((c) => c.name === ADDON);
+  if (!addon) return out;
+
+  const used = new Set();
+  for (const module of addonModules(world)) {
+    if (!rules.crates[module.crate]) {
       out.push(
         violation(
           'bindings',
-          crate.name,
-          `exposes ${base}, which is not a declared crate`,
+          module.path,
+          `exposes ${module.crate}, which is not a declared crate`,
         ),
       );
       continue;
     }
-    const deps = workspaceDeps(crate);
-    if (!deps.includes(base))
+    if (!module.uses.includes(module.crate))
       out.push(
         violation(
           'bindings',
-          crate.name,
-          `does not depend on ${base}, the crate it is named after`,
+          module.path,
+          `does not use ${module.crate}, the crate it is named after`,
         ),
       );
-    const allowed = reachable(graph, base);
-    for (const dep of deps) {
-      if (dep !== base && !allowed.has(dep))
+    const allowed = reachable(graph, module.crate);
+    for (const dep of module.uses) {
+      used.add(dep);
+      if (dep !== module.crate && !allowed.has(dep))
         out.push(
           violation(
             'bindings',
-            crate.name,
-            `depends on ${dep}, which ${base} itself does not reach`,
+            module.path,
+            `names ${dep}, which ${module.crate} itself does not reach`,
           ),
         );
     }
-    if (!crate.cdylib)
-      out.push(violation('bindings', crate.name, 'is not a cdylib'));
-    if (crate.publish)
+  }
+  for (const dep of workspaceDeps(addon)) {
+    if (!used.has(dep))
       out.push(
         violation(
           'bindings',
-          crate.name,
-          'is publishable to crates.io; a binding ships to npm only',
+          ADDON,
+          `depends on ${dep}, which none of its modules uses`,
         ),
       );
   }
+  if (!addon.cdylib) out.push(violation('bindings', ADDON, 'is not a cdylib'));
+  if (addon.publish)
+    out.push(
+      violation(
+        'bindings',
+        ADDON,
+        'is publishable to crates.io; the addon ships to npm only',
+      ),
+    );
   return out;
 }
 
@@ -174,7 +213,6 @@ export function checkFeatures(rules, world) {
 
 // ── packages ────────────────────────────────────────────────────────────────
 
-const ownBinding = (name) => `${name}-binding`;
 const isOpys = (name) => name.startsWith('@opys/');
 
 /** Every package has a place, and declares nothing outside it. */
@@ -208,13 +246,13 @@ export function checkPackages(rules, world) {
       ...pkg.devDependencies,
     };
     for (const dep of Object.keys(declared).filter(isOpys)) {
-      if (BINDING.test(dep)) {
-        if (dep !== ownBinding(pkg.name) || !rule.binding)
+      if (dep === BINDING) {
+        if (!rule.binding)
           out.push(
             violation(
               'bindings',
               pkg.name,
-              `depends on ${dep}; a package imports its own binding, never a sibling's`,
+              `depends on ${dep}, but is not declared as a wrapper`,
             ),
           );
       } else if (!rule.deps.includes(dep)) {
@@ -227,24 +265,22 @@ export function checkPackages(rules, world) {
         );
       }
     }
-    const has = ownBinding(pkg.name) in pkg.dependencies;
-    if (rule.binding && !has)
+    if (rule.binding && !(BINDING in pkg.dependencies))
       out.push(
         violation(
           'bindings',
           pkg.name,
-          `is declared as a wrapper but does not depend on ${ownBinding(pkg.name)}`,
+          `is declared as a wrapper but does not depend on ${BINDING}`,
         ),
       );
-    if (rule.binding && !bindings.has(ownBinding(pkg.name)))
+    if (rule.binding && !bindings.has(BINDING))
       out.push(
         violation(
           'bindings',
           pkg.name,
-          `wraps ${ownBinding(pkg.name)}, which no crate publishes`,
+          `wraps ${BINDING}, which no crate publishes`,
         ),
       );
-
     if (rule.external) {
       const runtime = { ...pkg.dependencies, ...pkg.peerDependencies };
       for (const dep of Object.keys(runtime).filter((d) => !isOpys(d))) {
@@ -260,26 +296,25 @@ export function checkPackages(rules, world) {
     }
   }
 
-  // The other direction: a binding nobody wraps is a crate with no JS surface.
-  for (const binding of world.bindings) {
-    const owner = binding.name.replace(BINDING, '');
+  // The other direction: a module nobody wraps is a crate with no JS surface.
+  for (const module of addonModules(world)) {
+    const owner = module.crate.replace(/^opys-/, '@opys/');
     if (!rules.packages[owner]?.binding)
       out.push(
         violation(
           'bindings',
-          binding.name,
+          module.path,
           `has no ${owner} package declared as its wrapper`,
         ),
       );
-    if (
-      binding.name !==
-      `@opys/${baseCrateOf(binding.crate).replace(/^opys-/, '')}-binding`
-    )
+  }
+  for (const binding of world.bindings) {
+    if (binding.name !== BINDING || binding.crate !== ADDON)
       out.push(
         violation(
           'bindings',
           binding.crate,
-          `publishes ${binding.name}; a binding is named after its crate`,
+          `publishes ${binding.name}; there is one addon, ${ADDON}, published as ${BINDING}`,
         ),
       );
   }
@@ -313,8 +348,22 @@ export function checkImports(rules, world) {
     ]);
     const scan = (files, allowed, kind) => {
       for (const file of files) {
-        for (const { specifier, line, typeOnly } of file.imports) {
+        for (const { specifier, line, typeOnly, names = [] } of file.imports) {
           const where = `${file.path}:${line}`;
+          // The addon is shared, so the boundary is the namespace: a package
+          // takes its own and no other, which is what importing its own
+          // binding and never a sibling's used to say.
+          if (specifier === BINDING) {
+            const own = namespaceOf(pkg.name);
+            for (const name of names.filter((n) => n !== own))
+              out.push(
+                violation(
+                  'imports',
+                  where,
+                  `takes '${name}' from ${BINDING}; ${pkg.name} imports its own namespace, '${own}', and no other`,
+                ),
+              );
+          }
           if (NODE_BUILTIN.test(specifier)) continue;
           if (specifier.startsWith('.')) {
             if (file.escapes?.includes(specifier))
@@ -550,7 +599,7 @@ export function checkWalls(rules, world) {
         p.name,
         Object.keys({ ...p.dependencies, ...p.peerDependencies })
           .filter(isOpys)
-          .filter((d) => !BINDING.test(d)),
+          .filter((d) => d !== BINDING),
       ]),
     ),
     rules,
@@ -632,10 +681,7 @@ export function checkWiring(rules, world) {
 
   // The release finds its bindings and orders its crates; neither is a list.
   for (const [text, what] of [
-    [
-      'crates/opys-*-napi',
-      'no longer finds the bindings by their directory name',
-    ],
+    [`crates/${ADDON}`, 'no longer builds the addon'],
     [
       'scripts/release/crates.mjs',
       'no longer takes the crates.io publish order from the dependency graph',
@@ -652,7 +698,7 @@ export function checkWiring(rules, world) {
       violation(
         'wiring',
         'release.yml',
-        `names ${name}; a binding is found, not listed`,
+        `names ${name}; there is one addon, ${ADDON}`,
       ),
     );
   }

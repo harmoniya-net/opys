@@ -10,6 +10,7 @@ description = "lwjgl3ify loader for opys — a published version document on the
 
 [dependencies]
 opys-core = { workspace = true }
+opys-bundle = { workspace = true }
 opys-dev = { workspace = true, features = ["net"] }
 opys-minecraft-vanilla = { workspace = true }
 opys-mojang = { workspace = true }

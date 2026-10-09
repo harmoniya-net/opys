@@ -10,6 +10,7 @@ description = "opys install + launch executor. Consumes a frozen Manifest."
 
 [dependencies]
 opys-core = { workspace = true }
+opys-bundle = { workspace = true }
 opys-mojang-rules = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

@@ -1,4 +1,5 @@
-import { type Artifact, globToRegex, parseShortRuleset } from '@opys/core';
+import { globToRegex, parseShortRuleset } from '@opys/core';
+import type { BuildArtifact } from './plugin';
 
 /**
  * Targets a subset of artifacts for a {@link ChainablePlugin} method:
@@ -8,11 +9,12 @@ import { type Artifact, globToRegex, parseShortRuleset } from '@opys/core';
  * - predicate — `(a) => boolean`, the escape hatch for matching on source
  *   kind, size, metadata, …
  */
-export type Selector = string | string[] | ((artifact: Artifact) => boolean);
+export type Selector =
+  string | string[] | ((artifact: BuildArtifact) => boolean);
 
 export function matchesSelector(
   selector: Selector,
-  artifact: Artifact,
+  artifact: BuildArtifact,
 ): boolean {
   if (typeof selector === 'function') return selector(artifact);
   const globs = (Array.isArray(selector) ? selector : [selector]).map(

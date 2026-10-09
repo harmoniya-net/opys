@@ -2,20 +2,20 @@
 
 [![npm](https://img.shields.io/npm/v/@opys/runtime.svg)](https://www.npmjs.com/package/@opys/runtime)
 
-Installs an opys manifest and starts its game, for a launcher you write yourself. It downloads and verifies what the manifest lists, extracts archives, and spawns the process the manifest describes. Backed by the `opys-runtime` Rust crate via napi-rs.
+The part of opys a launcher needs. It takes a bundle, installs what the bundle
+lists, and starts the game. It builds nothing, and of opys it needs only
+`@opys/core`, so it stays small.
 
 ```sh
 npm install @opys/runtime
 ```
-
-It needs Node.js 20 or newer. It depends on `@opys/core` for types only, and on its own binding.
 
 ```js
 import { launch, RuntimeError } from '@opys/runtime';
 
 try {
   const child = await launch(
-    { bundle: '/home/player/packs/my-pack.opys' },
+    { url: 'https://example.com/packs/game.opys' },
     {
       vars: {
         root: '/home/player/.local/share/my-pack',
@@ -25,26 +25,34 @@ try {
       },
       install: {
         onProgress(p) {
-          if (p.phase === 'download') {
-            process.stderr.write(`\r${p.fetched}/${p.total} files`);
-          }
+          if (p.phase === 'download')
+            console.log(`${p.fetched}/${p.total} files`);
         },
       },
     },
   );
-  child.on('exit', (code) => console.log(`the game exited with code ${code}`));
+  child.on('exit', (code) => console.log('the game exited with', code));
 } catch (err) {
   if (err instanceof RuntimeError) console.error(`${err.code}: ${err.message}`);
   else throw err;
 }
 ```
 
-- The first argument of `install`, `prepare`, `buildLaunch` and `launch` is a source: `{ bundle }` (an absolute path on disk), `{ url }` (a bundle, downloaded whole first) or `{ manifest, blobs }` (in memory).
-- `install` only installs. `launch` is `prepare` (install, then return the `LaunchSpec`) followed by `spawnLaunch`. `buildLaunch` returns the spec and installs nothing.
-- Values that belong to the machine, such as `root`, are passed as `vars`. Pass `install: false` to `launch` or `prepare` to skip the install.
-- Every failure is a `RuntimeError` with a `code`: `network`, `integrity`, `extraction`, `manifest`, `io`, `cancelled` or `other`. Branch on the code or the class, never on the message.
+- The pack comes from `{ url }`, `{ bundle }` (a file on disk) or
+  `{ manifest }` (in memory, with no carried files).
+- `install` only installs. `launch` installs and starts the game. `prepare`
+  installs and tells you what to start, for when you want to spawn it yourself.
+- Everything that belongs to the player's machine, such as `root`, is passed
+  as `vars`.
+- A failure is a `RuntimeError` with a `code`: `network`, `integrity`,
+  `extraction`, `manifest`, `io` or `other`. Decide from the code, not from
+  the message.
+
+Needs Node.js 20 or newer.
 
 ## Documentation
 
-- [@opys/runtime](https://harmoniya-net.github.io/opys/plugins/runtime): every export, option, progress event and error.
-- [Install and launch](https://harmoniya-net.github.io/opys/launcher/embedding): sources, options and a complete launcher.
+- [Launcher integration](https://harmoniya-net.github.io/opys/basics/launcher)
+- [Variables](https://harmoniya-net.github.io/opys/plugins/minecraft#variables)
+
+Part of [opys](https://github.com/harmoniya-net/opys).

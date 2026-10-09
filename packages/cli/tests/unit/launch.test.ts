@@ -3,7 +3,7 @@ import { EventEmitter } from 'node:events';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { isAbsolute, join } from 'node:path';
-import { writeBundle } from '@opys/core';
+import { readBundle, writeBundle } from '@opys/bundle';
 
 const installMock = vi.hoisted(() => vi.fn());
 const launchMock = vi.hoisted(() => vi.fn());
@@ -60,11 +60,11 @@ describe('cmdLaunch — happy path', () => {
     expect(launchMock).toHaveBeenCalledOnce();
   });
 
-  it('launches the in-memory built manifest (no bundle written)', async () => {
+  it('launches what it built from a bundle, as a published pack is', async () => {
     const cfg = await fixture();
     await cmdLaunch(['-i', cfg], logger, 'launch');
     const source = launchMock.mock.calls[0]![0];
-    expect(source.manifest.launch.command).toBe('java');
+    expect(readBundle(source.bundle).launch?.command).toBe('java');
     // What was installed is what is launched.
     expect(installMock.mock.calls[0]![0]).toBe(source);
   });
@@ -109,7 +109,7 @@ describe('cmdLaunch — happy path', () => {
     const cfg = await fixture(patched);
     await cmdLaunch(['-i', cfg], logger, 'launch');
     const source = launchMock.mock.calls[0]![0];
-    expect(source.manifest.vars.username).toBe('Steve');
+    expect(readBundle(source.bundle).vars.username).toBe('Steve');
   });
 });
 

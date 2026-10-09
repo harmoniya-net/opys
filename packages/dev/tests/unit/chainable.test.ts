@@ -7,6 +7,7 @@ import {
 } from '@opys/core';
 import {
   definePlugin,
+  type BuildArtifact,
   type Contribution,
   type OpysPlugin,
 } from '../../lib/plugin';
@@ -25,7 +26,7 @@ const art = (path: string, extra: Partial<Artifact> = {}): Artifact => ({
 const fake = (contribution: Contribution) =>
   definePlugin({ name: 'fake', build: () => contribution });
 
-const built = async (plugin: OpysPlugin): Promise<Artifact[]> =>
+const built = async (plugin: OpysPlugin): Promise<BuildArtifact[]> =>
   (await plugin.build(ctx)).artifacts ?? [];
 
 describe('matchesSelector', () => {

@@ -10,6 +10,7 @@ description = "Vanilla Minecraft as manifest artifacts, plus the version-JSON ma
 
 [dependencies]
 opys-core = { workspace = true }
+opys-bundle = { workspace = true }
 opys-dev = { workspace = true, features = ["net"] }
 opys-mojang = { workspace = true }
 opys-mojang-rules = { workspace = true }

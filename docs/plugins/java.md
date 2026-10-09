@@ -1,158 +1,225 @@
-# java
+# Java runtime
 
-`java()` provides a Java runtime for every platform, so the game runs on the
-JDK opys installs and not on whatever the launching machine has. Add
-`java('21')` to `plugins`, then point the launch `command` at `java.bin`. The
-JDK comes from Eclipse Temurin unless you choose Azul Zulu or GraalVM Community
-Edition with `vendor`. At build time opys asks the vendor's API for one archive
-per platform and pins its sha256. The launching machine downloads and extracts
-only the archive for its own platform. This page is for pack authors. For which
-Java each Minecraft version needs, see [Java](/guide/java).
+The `java` plugin, from `@opys/minecraft`.
 
-## Signature
+A Java runtime for every player.
 
-```ts
-java(version: string, options?: {
-  vendor?: 'temurin' | 'zulu' | 'graalvm';
-  platforms?: { os: 'linux' | 'osx' | 'windows'; arch: 'x86_64' | 'aarch64' }[];
-  apiBase?: string;
-  token?: string;
-}): ChainablePlugin
+```js
+java({ version: '21' });
 ```
 
-`version` is the first argument and is a string. `java({ version: '17' })` is
-rejected with a `TypeError` that shows the right call. Calling `java()` does no
-network work; the lookups happen when `opys build` or `opys launch` builds the
-config. It is exported from `@opys/minecraft` and from `@opys/java`, which also
-exports each vendor's resolver (`resolveTemurin`, `resolveZulu`,
-`resolveGraalvm`) if you need release metadata without the plugin.
+Nothing is installed on your machine. The plugin adds a JDK to the pack,
+and each player downloads the one for their computer.
 
-## Version
-
-`version` takes a major version or an exact build. Which exact spellings work
-depends on the vendor.
-
-| Input               | Vendor    | Resolves to                                                                                                            |
-| ------------------- | --------- | ---------------------------------------------------------------------------------------------------------------------- |
-| `'21'`              | all       | The latest release of major 21. For `graalvm`, the newest `jdk-21.*` release                                           |
-| `'21.0.12.1+1'`     | `temurin` | That Adoptium release. The `jdk-` prefix is added                                                                      |
-| `'jdk-21.0.12.1+1'` | `temurin` | The same release, written with its full name                                                                           |
-| `'8u492-b09'`       | `temurin` | The Java 8 release `jdk8u492-b09`                                                                                      |
-| `'21.0.12'`         | `temurin` | Fails with "No Temurin binaries found". Temurin release names carry a build number, so give the full form              |
-| `'21.0.12'`         | `zulu`    | Passed to Azul as `java_version`. The build returned can have a longer version: `21.0.12` came back as JDK `21.0.12.1` |
-| `'21.0.2'`          | `graalvm` | The release tagged `jdk-21.0.2`                                                                                        |
-| `'jdk-21.0.2'`      | `graalvm` | The release with that tag, used as written                                                                             |
-| `'graal-25.2.4'`    | `graalvm` | Fails. Only tags of the form `jdk-<major>.…` are supported                                                             |
-
-The build prints the release it resolved, as `[java] Temurin 21.0.12.1+1`.
-Check that line after you change a version.
+**Why not use the player's Java:** most players have none, or the wrong
+one. A pack that brings its own always starts.
 
 ## Options
 
-| Option      | Type                               | Default                                                                                                          | Meaning                                                                                                                                                    |
-| ----------- | ---------------------------------- | ---------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `vendor`    | `'temurin' \| 'zulu' \| 'graalvm'` | `'temurin'`                                                                                                      | The distribution. `temurin` is Eclipse Adoptium, `zulu` is Azul Zulu, `graalvm` is GraalVM Community Edition                                               |
-| `platforms` | `{ os, arch }[]`                   | The six platforms listed under [Platforms](#platforms)                                                           | The platforms to provision. `os` is `'linux'`, `'osx'` or `'windows'`; `arch` is `'x86_64'` or `'aarch64'`. A platform the vendor does not ship is skipped |
-| `apiBase`   | `string`                           | Adoptium `https://api.adoptium.net/v3`, Azul `https://api.azul.com/metadata/v1`, GitHub `https://api.github.com` | The vendor's API base URL. Set it for a mirror, or for the GitHub Enterprise API with `graalvm`                                                            |
-| `token`     | `string`                           | None                                                                                                             | A GitHub token, to raise the API rate limit. Used by `graalvm` only. It is used at build time and is not written to the bundle                             |
+| Option      | What it does                                                  |
+| ----------- | ------------------------------------------------------------- |
+| `version`   | A major (`'21'`, the newest release of it) or an exact build. |
+| `vendor`    | `'temurin'` (default), `'zulu'` or `'graalvm'`.               |
+| `platforms` | Which platforms get a JDK. All six by default.                |
+| `apiBase`   | A mirror of the vendor's API.                                 |
+| `token`     | A GitHub token, for GraalVM's rate limit.                     |
 
-To use another vendor, pass the option as the second argument:
+An exact build is written the vendor's way: `'21.0.12.1+1'` or
+`'8u312-b07'` for Temurin, `'21.0.12'` for Zulu and GraalVM.
 
-```js
-java('21', { vendor: 'zulu' });
-```
+## Which Java for which Minecraft
 
-## Launch groups
+| Minecraft            | Java |
+| -------------------- | ---- |
+| Up to 1.16.5         | 8    |
+| 1.17 to 1.20.4       | 17   |
+| 1.20.5 to 1.21.x     | 21   |
+| 26.x                 | 25   |
+| Cleanroom, lwjgl3ify | 25   |
 
-The plugin is named `java`, so its group is read as `java.bin` in
-`manifest.command`.
+opys does not check the pairing. A wrong Java shows up as the game failing
+to start.
 
-| Group      | Type   | Contains      |
-| ---------- | ------ | ------------- |
-| `java.bin` | string | `${java_bin}` |
+## What it adds
 
-Use it as `command: ({ java }) => java.bin`.
+| Kind        | What                                         |
+| ----------- | -------------------------------------------- |
+| Files       | One JDK per platform.                        |
+| Launch      | `bin`, `home`.                               |
+| Variables   | `java_runtime_dir`, `java_home`, `java_bin`. |
+| Environment | `JAVA_HOME`.                                 |
 
-## Variables
+Each one below: what it is, and how it ends up in the
+[manifest](/format/).
 
-The plugin owns these variables. No other plugin should define them.
+### Files · one JDK per platform
 
-| Variable           | Value                             | Meaning                                                                                                       |
-| ------------------ | --------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| `java_runtime_dir` | `${root}/runtimes`                | Where the archives are downloaded and the JDKs are extracted. It follows `root`, so you rarely need to set it |
-| `java_home`        | `${java_runtime_dir}/jdk-<major>` | The JDK directory. On macOS it ends in `/Contents/Home`                                                       |
-| `java_bin`         | See below                         | The Java executable                                                                                           |
+Six archives: Linux, macOS and Windows, each on x86_64 and ARM. The `rules`
+mean a player downloads exactly one. `extract` unpacks it.
 
-`java_bin` is `${java_home}/bin/java` on Linux and macOS. On Windows it is
-`${java_home}/bin/javaw.exe`, which starts without a console window. With the
-`java_console` feature on, it is `${java_home}/bin/java.exe` instead, so the
-game's output is visible. Turn the feature on with
-`opys launch --feature java_console`.
-
-The plugin also sets the environment variable `JAVA_HOME` to `${java_home}`
-in the manifest. Tools that the launch starts, such as [dgpuj](./dgpuj), find
-the JDK through it.
-
-## Platforms
-
-By default the plugin provisions six platforms:
-
-- Linux, `x86_64` and `aarch64`
-- macOS (`osx`), `x86_64` and `aarch64`
-- Windows, `x86_64` and `aarch64`
-
-Vendors do not ship every platform for every version. At the time of writing:
-
-| Input                      | Platforms that resolved                                              |
-| -------------------------- | -------------------------------------------------------------------- |
-| `temurin` `'21'`           | All six                                                              |
-| `temurin` `'17'` or `'25'` | Five. There is no Windows `aarch64` build                            |
-| `temurin` `'8'`            | Four. There is no macOS `aarch64` and no Windows `aarch64` build     |
-| `zulu` `'21'` or `'25'`    | All six. The Linux builds are glibc builds, so musl systems get none |
-| `zulu` `'7'`               | Three. `x86_64` on Linux, macOS and Windows                          |
-| `graalvm` `'21.0.2'`       | Five. There is no Windows `aarch64` build                            |
-
-A platform with no build is left out. For a major version, Temurin and Zulu are
-asked once per platform, and a platform whose newest release differs from the
-one most platforms agree on is dropped too, so that every platform lands on one
-release. If no platform resolves, the build fails. If a launching machine is on
-a platform that was left out, it gets no JDK, so check the vendor's list before
-you ship a bundle for that platform.
-
-## Integrity
-
-Every archive is pinned by its sha256. Temurin and Zulu take it from their
-APIs. GraalVM takes it from the GitHub asset digest, or from the `.sha256` file
-next to the archive for older releases. If neither is available, the build
-fails instead of shipping an unverified JDK.
-
-## Example
-
-Add `java` to `plugins`, and use `java.bin` as the command:
-
-```js
-plugins: [minecraft('1.21.1'), java('21')],
-manifest: {
-  command: ({ java }) => java.bin,
-  args: ({ minecraft }) => [
-    minecraft.jvmArgs,
-    minecraft.mainClass,
-    minecraft.gameArgs,
+<!-- prettier-ignore -->
+```js{5}
+// opys.config.mjs
+export default defineConfig({
+  plugins: [
+    minecraft({ version: '1.21.1' }),
+    java({ version: '21' }),
   ],
-},
+  manifest: {
+    command: '@java.bin',
+    args: ['@minecraft.jvmArgs', '@minecraft.mainClass', '@minecraft.gameArgs'],
+    workdir: '${game_directory}',
+  },
+});
 ```
 
-The plugin only supplies the binary. The arguments still come from the game
-plugin, which here is `minecraft`. A `forge` or `fabric` config is the same,
-with that plugin's groups in `args`. The complete example below uses the
-default vendor and launches vanilla 1.21.1:
+<!-- prettier-ignore -->
+```jsonc
+// in the manifest
+{
+  "path": "${java_runtime_dir}/OpenJDK21U-jdk_x64_linux_hotspot_21.0.12.1_1.tar.gz",
+  "source": { "url": "https://github.com/adoptium/temurin21-binaries/releases/download/…_x64_linux_….tar.gz" },
+  "size": 207473347,
+  "rules": ["allow.os.linux", "allow.arch.x86_64"],
+  "integrity": { "sha256": "ce79869e1307ed8ee1e2baa86a412b1eb5b75d10a01006d788a6f968bcfaee94" },
+  "extract": { "matches": "*", "into": "${java_runtime_dir}/jdk-21", "strip": ["*/"] }
+}
+```
 
-<<< @/examples/plugin-java-basic/opys.config.mjs
+### Variables
 
-::: tip
-`root` is set in `runClient`, not in `manifest`, so the JDK is extracted under
-the launching machine's data directory and not under yours. Why the split
-exists is explained in [Concepts](/guide/concepts).
-:::
+Where the JDK is. The paths differ per OS, which is why they are
+variables with one value per platform.
 
-The other plugins are listed on the [plugins page](./index).
+<!-- prettier-ignore -->
+```js{5}
+// opys.config.mjs
+export default defineConfig({
+  plugins: [
+    minecraft({ version: '1.21.1' }),
+    java({ version: '21' }),
+  ],
+  manifest: {
+    command: '@java.bin',
+    args: ['@minecraft.jvmArgs', '@minecraft.mainClass', '@minecraft.gameArgs'],
+    workdir: '${game_directory}',
+  },
+});
+```
+
+<!-- prettier-ignore -->
+```jsonc
+// in the manifest
+"vars": {
+  "java_runtime_dir": "${root}/runtimes",
+  "java_home": [
+    { "value": "${java_runtime_dir}/jdk-21", "rules": "allow.os.linux" },
+    { "value": "${java_runtime_dir}/jdk-21/Contents/Home", "rules": "allow.os.osx" },
+    { "value": "${java_runtime_dir}/jdk-21", "rules": "allow.os.windows" }
+  ],
+  "java_bin": [
+    { "value": "${java_home}/bin/java", "rules": "allow.os.linux" },
+    { "value": "${java_home}/bin/java", "rules": "allow.os.osx" },
+    { "value": "${java_home}/bin/javaw.exe", "rules": ["allow.os.windows", "disallow.features.java_console"] },
+    { "value": "${java_home}/bin/java.exe", "rules": ["allow.os.windows", "allow.features.java_console"] }
+  ]
+}
+```
+
+Override `java_runtime_dir` to keep JDKs somewhere else.
+
+### Launch
+
+Two pieces. `bin` you rarely name, since a loader's `command` already
+resolves to it. `home` is for something that starts Java for you, such as
+[Discrete GPU](./dgpuj#telling-it-where-java-is).
+
+<!-- prettier-ignore -->
+```js{11-12}
+// opys.config.mjs
+export default defineConfig({
+  plugins: [
+    minecraft({ version: '1.21.1' }),
+    java({ version: '21' }),
+    dgpuj(),
+  ],
+  manifest: {
+    command: '@dgpuj.bin',
+    args: [
+      '--dgpuj-home',
+      '@java.home',
+      '@minecraft.jvmArgs',
+      '@minecraft.mainClass',
+      '@minecraft.gameArgs',
+    ],
+    workdir: '${game_directory}',
+  },
+});
+```
+
+<!-- prettier-ignore -->
+```jsonc
+// in the manifest
+"launch": {
+  "command": "${dgpuj_bin}",
+  "args": [
+    "--dgpuj-home",
+    // '@java.home'
+    "${java_home}"
+    // …
+  ]
+}
+```
+
+| You write      | Becomes                                   |
+| -------------- | ----------------------------------------- |
+| `'@java.bin'`  | `${java_bin}`, the `java` executable.     |
+| `'@java.home'` | `${java_home}`, the folder the JDK is in. |
+
+**Why pieces, when `${java_bin}` and `${java_home}` exist:** a piece is
+checked when you build. A misspelt variable is not.
+
+### Environment · `JAVA_HOME`
+
+Set for the game process. Tools started along with the game find Java
+through it.
+
+<!-- prettier-ignore -->
+```js{5}
+// opys.config.mjs
+export default defineConfig({
+  plugins: [
+    minecraft({ version: '1.21.1' }),
+    java({ version: '21' }),
+  ],
+  manifest: {
+    command: '@java.bin',
+    args: ['@minecraft.jvmArgs', '@minecraft.mainClass', '@minecraft.gameArgs'],
+    workdir: '${game_directory}',
+  },
+});
+```
+
+<!-- prettier-ignore -->
+```jsonc
+// in the manifest
+"envs": { "JAVA_HOME": "${java_home}" }
+```
+
+## Features
+
+| Feature        | Effect                                             |
+| -------------- | -------------------------------------------------- |
+| `java_console` | On Windows, run `java.exe` instead of `javaw.exe`. |
+
+**Why:** `javaw.exe` shows no console window, which is what players want.
+`opys launch --feature java_console` brings the game's output back when you
+are debugging.
+
+## Good to know
+
+- A platform the vendor has no build for is left out. A player on it gets
+  no Java.
+- **Check what Zulu gave you.** Its API answers with its newest JDK when it
+  cannot read a version. Look at the `[java]` line the build prints.
+- No pack Java at all? Leave the plugin out and supply `java_bin` yourself.

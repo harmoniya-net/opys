@@ -15,7 +15,7 @@
     "test": "vitest run tests/unit --passWithNoTests"
   },
   "dependencies": {
-    "@opys/cleanroom-binding": "^0.2.0",
+    "@opys/binding": "^0.2.0",
     "@opys/core": "^0.2.0",
     "@opys/dev": "^0.2.0",
     "@opys/minecraft-vanilla": "^0.2.0"

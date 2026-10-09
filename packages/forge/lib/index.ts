@@ -2,7 +2,7 @@
  * `@opys/forge` — the Forge mod loader.
  *
  * Behaviour lives in the `opys-forge` crate and reaches JS through
- * `@opys/forge-binding`; this module is the typed surface over it. The
+ * `@opys/binding`, under `forge`; this module is the typed surface over it. The
  * codegen'd binding types everything as `Json` (≈ `unknown`), so each wrapper
  * carries one `as`-cast at the boundary. No `as unknown as`.
  *
@@ -16,7 +16,7 @@
  * shape as `@opys/fabric`.
  */
 
-import * as napi from '@opys/forge-binding';
+import { forge as napi } from '@opys/binding';
 import {
   definePlugin,
   pluginOptions,
@@ -25,8 +25,10 @@ import {
   type ExtraLibrary,
   type ChainablePlugin,
   type LoaderGroups,
+  carrying,
 } from '@opys/dev';
-import type { Artifact, ConditionalVal, ValDefs, Blobs } from '@opys/core';
+import type { LoaderTemplate } from '@opys/dev';
+import type { Artifact, ConditionalVal, ValDefs } from '@opys/core';
 import type { LaunchParts } from '@opys/minecraft-vanilla';
 
 /** The canonical document index base URL. */
@@ -73,7 +75,7 @@ export interface ForgeTemplate extends LaunchParts {
   /** Vanilla artifacts followed by Forge's own libraries. */
   readonly artifacts: Artifact[];
   /** Where the blobs among `artifacts` are kept; set only by a local library. */
-  readonly blobs?: Blobs;
+  readonly blobs?: LoaderTemplate['blobs'];
   readonly vars: ValDefs;
   /**
    * Per-OS classpath arms (also baked into `vars.classpath`), exposed so a
@@ -119,8 +121,7 @@ export function forge(
       const t = await resolveForge(withLibraryFiles(options, ctx.configDir));
       ctx.log('forge', `resolved ${version}`);
       return {
-        artifacts: t.artifacts,
-        blobs: t.blobs,
+        artifacts: carrying(t),
         vars: t.vars,
         launch: launchGroups(t),
       };

@@ -1,6 +1,10 @@
 # @opys/mojang-rules
 
-The types of Mojang's rule format: a rule that allows or disallows something for an operating system or a feature. The package has no native code and no dependencies, and its only runtime code is two factory functions. Evaluation lives in `@opys/mojang`.
+[![npm](https://img.shields.io/npm/v/@opys/mojang-rules.svg)](https://www.npmjs.com/package/@opys/mojang-rules)
+
+The TypeScript types of Mojang's rule format, the `{ action, os, features }`
+objects that say which platform a library or an argument is for. Types only:
+no code, no dependencies.
 
 ```sh
 npm install @opys/mojang-rules
@@ -10,20 +14,22 @@ npm install @opys/mojang-rules
 import { satisfiesRuleset } from '@opys/mojang';
 import type { MojangRuleset } from '@opys/mojang-rules';
 
-// Satisfied everywhere except osx.
-const notOsx: MojangRuleset = [
+// Passes everywhere except macOS.
+const notMac: MojangRuleset = [
   { action: 'allow' },
   { action: 'disallow', os: { name: 'osx' } },
 ];
 
-satisfiesRuleset(notOsx, { name: 'linux', version: '6.12', arch: 'x86_64' }); // true
+satisfiesRuleset(notMac, { name: 'linux', version: '6.12', arch: 'x86_64' }); // true
 ```
 
-- A rule is an action (`allow` or `disallow`) with at most one constraint, `os` or `features`. A ruleset is an array of rules.
-- A ruleset is satisfied when every rule in it is. The evaluator does not pick the first or last match, so two `allow` rules for different operating systems are satisfied on no platform.
-- The `Mojang` prefix marks the expanded form. A manifest may also write a rule as shorthand, such as `'allow.os.linux'`; `@opys/core` accepts both spellings and `@opys/mojang` rejects the shorthand.
-- A rule with both `os` and `features` keeps only `os`, and a rule whose `os` cannot be read is read as a bare rule. Neither is reported as an error.
+- A ruleset passes when **every** rule in it passes. So two `allow` rules for
+  two different operating systems pass nowhere.
+- The functions that evaluate rules are in `@opys/mojang` (strict) and
+  `@opys/core` (which also accepts the short form, `'allow.os.linux'`).
 
 ## Documentation
 
-- [@opys/mojang-rules](https://harmoniya-net.github.io/opys/plugins/mojang-rules): the types, the helpers, how a ruleset is evaluated and the shorthand.
+- [Rules](https://harmoniya-net.github.io/opys/format/rules)
+
+Part of [opys](https://github.com/harmoniya-net/opys).

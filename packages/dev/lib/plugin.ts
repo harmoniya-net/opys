@@ -1,4 +1,4 @@
-import type { Artifact, Blobs, ValDefs, Val, Valset } from '@opys/core';
+import type { Artifact, Source, ValDefs, Val, Valset } from '@opys/core';
 import { parseShortRuleset } from '@opys/core';
 import { matchesSelector, type RulesetInput, type Selector } from './selector';
 
@@ -22,21 +22,31 @@ export type LaunchGroups<G extends string = string> = Record<
 >;
 
 /**
+ * Where a build-time artifact's bytes are: as a manifest says it, or on this
+ * machine — a file, or bytes a plugin made. The last two never reach a
+ * manifest: the build reads them, names them by their content and carries
+ * them in the bundle as blobs.
+ */
+export type BuildSource =
+  Source | { readonly file: string } | { readonly bytes: Uint8Array };
+
+/** An artifact as a plugin hands it over: a manifest's, with a `BuildSource`. */
+export type BuildArtifact = Omit<Artifact, 'source'> & {
+  readonly source: BuildSource;
+};
+
+/**
  * What a plugin's `build` hook returns. `G` is the names of the launch
  * groups in it — inferred from what `build` returns, so a plugin's type says
  * what a config may reference without anybody writing the list twice.
  */
 export interface Contribution<G extends string = string> {
-  /** Artifacts to download/copy/extract. */
-  artifacts?: Artifact[];
   /**
-   * Where the bytes of this plugin's blob artifacts are on this machine — a
-   * local file, or something the plugin generated. An artifact names a blob
-   * (`source: { blob: id }`); this is where to read it from, and what becomes
-   * the bundle's `blobs/` when one is written. Build both with
-   * `blobId` / `hashBlobFile` and `blobBytes` / `blobFile` from `@opys/core`.
+   * Artifacts to download/copy/extract. One whose bytes are on this machine
+   * says so in its own `source` — `{ file }`, or `{ bytes }` the plugin
+   * made — and the build carries it in the bundle.
    */
-  blobs?: Blobs;
+  artifacts?: BuildArtifact[];
   /** Manifest vars this plugin owns. */
   vars?: ValDefs;
   /**
@@ -76,13 +86,14 @@ export interface OpysPlugin<
  * current value, e.g. a mirror URL off the existing path).
  */
 export type ArtifactPatch =
-  Partial<Artifact> | ((artifact: Artifact) => Partial<Artifact>);
+  | Partial<BuildArtifact>
+  | ((artifact: BuildArtifact) => Partial<BuildArtifact>);
 
 /**
  * A plugin you can post-process fluently. Every method returns a **new** plugin
  * with one more artifact transform appended — pure, so the original is
  * untouched and chains read left-to-right. Transforms rewrite `artifacts` only;
- * `vars` / `launch` / `blobs` pass through. The engine sees only `name` / `build`.
+ * `vars` / `launch` pass through. The engine sees only `name` / `build`.
  */
 export interface ChainablePlugin<
   N extends string = string,
@@ -109,9 +120,12 @@ export interface ChainablePlugin<
 }
 
 /** A pure artifact-list rewrite accumulated by one fluent call. */
-type Transform = (artifacts: Artifact[]) => Artifact[];
+type Transform = (artifacts: BuildArtifact[]) => BuildArtifact[];
 
-const merge = (artifact: Artifact, patch: ArtifactPatch): Artifact => ({
+const merge = (
+  artifact: BuildArtifact,
+  patch: ArtifactPatch,
+): BuildArtifact => ({
   ...artifact,
   ...(typeof patch === 'function' ? patch(artifact) : patch),
 });
@@ -122,7 +136,7 @@ function chainable<N extends string, G extends string>(
 ): ChainablePlugin<N, G> {
   const push = (t: Transform) => chainable(base, [...transforms, t]);
   const mapMatched =
-    (match: Selector, f: (a: Artifact) => Artifact): Transform =>
+    (match: Selector, f: (a: BuildArtifact) => BuildArtifact): Transform =>
     (arts) =>
       arts.map((a) => (matchesSelector(match, a) ? f(a) : a));
 

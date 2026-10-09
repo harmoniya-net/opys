@@ -2,7 +2,7 @@
  * `@opys/lwjgl3ify` — lwjgl3ify, Forge 1.7.10 on LWJGL 3 and a current JVM.
  *
  * Behaviour lives in the `opys-lwjgl3ify` crate and reaches JS through
- * `@opys/lwjgl3ify-binding`; this module is the typed surface over it. The
+ * `@opys/binding`, under `lwjgl3ify`; this module is the typed surface over it. The
  * codegen'd binding types everything as `Json` (≈ `unknown`), so each wrapper
  * carries one `as`-cast at the boundary. No `as unknown as`.
  *
@@ -16,7 +16,7 @@
  * reads those off GitHub Releases.
  */
 
-import * as napi from '@opys/lwjgl3ify-binding';
+import { lwjgl3ify as napi } from '@opys/binding';
 import {
   definePlugin,
   pluginOptions,
@@ -25,8 +25,10 @@ import {
   type ExtraLibrary,
   type ChainablePlugin,
   type LoaderGroups,
+  carrying,
 } from '@opys/dev';
-import type { Artifact, ConditionalVal, ValDefs, Blobs } from '@opys/core';
+import type { LoaderTemplate } from '@opys/dev';
+import type { Artifact, ConditionalVal, ValDefs } from '@opys/core';
 import type { LaunchParts } from '@opys/minecraft-vanilla';
 
 /** The canonical document index base URL. */
@@ -88,7 +90,7 @@ export interface Lwjgl3ifyTemplate extends LaunchParts {
   /** The client jar, the assets, every library, then the jars for `mods/`. */
   readonly artifacts: Artifact[];
   /** Where the blobs among `artifacts` are kept; set only by a local library. */
-  readonly blobs?: Blobs;
+  readonly blobs?: LoaderTemplate['blobs'];
   readonly vars: ValDefs;
   /**
    * Per-OS classpath arms (also baked into `vars.classpath`), exposed so a
@@ -142,8 +144,7 @@ export function lwjgl3ify(
       );
       ctx.log('lwjgl3ify', `resolved ${version}`);
       return {
-        artifacts: t.artifacts,
-        blobs: t.blobs,
+        artifacts: carrying(t),
         vars: t.vars,
         launch: launchGroups(t),
       };

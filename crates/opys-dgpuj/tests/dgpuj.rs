@@ -226,18 +226,15 @@ fn a_token_is_sent_as_a_bearer() {
 }
 
 #[test]
-fn the_plugin_exposes_the_binary_and_where_the_jvm_is() {
+fn the_plugin_exposes_the_binary_and_nothing_of_another_plugins() {
     let server = github();
     let build = build_dgpuj(&options(&server)).unwrap();
 
     assert_eq!(build.output.name, "dgpuj");
     assert_eq!(build.output.contribution.artifacts.len(), 5);
     let launch = serde_json::to_value(&build.output.contribution.launch).unwrap();
-    assert_eq!(launch["bin"], "${dgpuj_bin}");
-    assert_eq!(
-        launch["home"],
-        json!({ "rules": [], "value": ["--dgpuj-home", "${java_home}"] })
-    );
+    // Where the JVM is belongs to `java`: a config writes `@java.home`.
+    assert_eq!(launch, json!({ "bin": "${dgpuj_bin}" }));
     // One resolve for both: the release the log line names comes with it.
     assert_eq!(build.release.tag_name, "v0.3.0");
     assert_eq!(server.targets().len(), 1);

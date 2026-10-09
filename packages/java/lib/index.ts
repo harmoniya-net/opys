@@ -2,7 +2,7 @@
  * `@opys/java` — JDK provisioning.
  *
  * Behaviour lives in the `opys-java` crate and reaches JS through
- * `@opys/java-binding`; this module is the typed surface over it. The
+ * `@opys/binding`, under `java`; this module is the typed surface over it. The
  * codegen'd binding types everything as `Json` (≈ `unknown`), so each wrapper
  * carries one `as`-cast at the boundary. No `as unknown as`.
  *
@@ -11,7 +11,7 @@
  * `ctx.log` — is JS. Everything it wraps is one native call.
  */
 
-import * as napi from '@opys/java-binding';
+import { java as napi } from '@opys/binding';
 import {
   definePlugin,
   pluginOptions,
@@ -185,12 +185,15 @@ interface JavaBuild {
 
 /**
  * Provision a JDK runtime. Solely owns the `java_home` / `java_bin` /
- * `java_runtime_dir` vars and exposes `bin` as a launch group, so a config
- * wires the launch command with `command: '@java.bin'`. Defaults
+ * `java_runtime_dir` vars and exposes two launch groups: `bin`, the
+ * executable, and `home`, the JDK it is in — `'@java.home'`, for whatever
+ * starts in place of `java` and has to be told where the JDK is. Defaults
  * to Temurin (Eclipse Adoptium); pass `vendor: 'zulu'` or `vendor: 'graalvm'`
  * for an alternate distribution.
  */
-export function java(options: JavaOptions): ChainablePlugin<'java', 'bin'> {
+export function java(
+  options: JavaOptions,
+): ChainablePlugin<'java', 'bin' | 'home'> {
   pluginOptions("java({ version: '17' })", options);
   return definePlugin({
     name: 'java',
@@ -199,7 +202,7 @@ export function java(options: JavaOptions): ChainablePlugin<'java', 'bin'> {
       // e.g. `Temurin 21.0.13+11` / `Zulu 21.52.15 (JDK 21.0.12)` / `GraalVM CE 21.0.2`.
       ctx.log('java', build.release.label);
       // The crate's contribution, whose one launch group is `bin`.
-      return build.output.contribution as Contribution<'bin'>;
+      return build.output.contribution as Contribution<'bin' | 'home'>;
     },
   });
 }

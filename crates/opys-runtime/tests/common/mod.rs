@@ -7,7 +7,7 @@ use std::io::{BufRead, BufReader, Write};
 use std::net::TcpListener;
 use std::path::Path;
 
-use opys_core::{blob_id, BlobSource, Blobs};
+use opys_bundle::{blob_id, BlobSource, Blobs};
 
 thread_local! {
     // Each `#[tokio::test]` runs on its own thread, so a table per thread is
@@ -36,18 +36,20 @@ pub fn blob_file(path: &Path) -> String {
     )
 }
 
-/// The id of the blob holding `content` — kept somewhere that cannot be read.
-/// An install that touches it fails, which is how a test shows one did not.
-pub fn unreadable_blob(content: &str) -> String {
-    register(
-        blob_id(content.as_bytes()),
-        BlobSource::File("/nonexistent/opys-test/blob".into()),
-    )
-}
-
 /// The table built up so far, leaving it in place for a second install.
 pub fn blobs() -> Blobs {
     BLOBS.with(|blobs| blobs.borrow().clone())
+}
+
+/// `manifest` and the blobs written down so far as a bundle on disk, which
+/// is the one thing a blob can be installed from. The file outlives the
+/// test that asked for it.
+#[allow(dead_code)]
+pub fn bundled(manifest: &opys_core::Manifest) -> opys_runtime::ManifestSource {
+    let file = tempfile::NamedTempFile::new().unwrap();
+    opys_bundle::write_bundle(file.as_file(), manifest, &blobs()).unwrap();
+    let (_, path) = file.keep().unwrap();
+    opys_runtime::ManifestSource::bundle(path)
 }
 
 /// Serve `files` (path → body) over loopback until the process ends, and

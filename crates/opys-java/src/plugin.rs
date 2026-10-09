@@ -20,20 +20,28 @@ pub struct JavaBuild {
 }
 
 /// Provision a JDK runtime. Solely owns the `java_home` / `java_bin` /
-/// `java_runtime_dir` vars and exposes `bin` as a launch group, so a config
-/// wires the launch command with `command: '@java.bin'`.
+/// `java_runtime_dir` vars and exposes two launch groups: `bin`, the
+/// executable, and `home`, the JDK it is in. `home` is there for whatever is
+/// started in place of `java` and has to be told where the JDK is — the dgpuj
+/// launcher's `--dgpuj-home` — so that the config names this plugin for it
+/// rather than a variable it hopes somebody defined.
 pub fn build_java(options: &JavaOptions) -> Result<JavaBuild, JavaError> {
     let template = resolve_java(options)?;
 
     let contribution = Contribution {
-        artifacts: template.artifacts,
+        artifacts: template.artifacts.into_iter().map(Into::into).collect(),
         // Every artifact here is a download; none travels with the manifest.
-        blobs: Default::default(),
         vars: template.vars,
-        launch: [(
-            "bin".to_owned(),
-            LaunchFragment::Text("${java_bin}".to_owned()),
-        )]
+        launch: [
+            (
+                "bin".to_owned(),
+                LaunchFragment::Text("${java_bin}".to_owned()),
+            ),
+            (
+                "home".to_owned(),
+                LaunchFragment::Text("${java_home}".to_owned()),
+            ),
+        ]
         .into_iter()
         .collect(),
         // Export JAVA_HOME by default so tools spawned at launch (e.g. the

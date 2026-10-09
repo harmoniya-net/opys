@@ -1,163 +1,211 @@
 # lwjgl3ify
 
-`lwjgl3ify()` adds [lwjgl3ify](https://github.com/GTNewHorizons/lwjgl3ify) to
-your installation: the game, its libraries and assets, and two jars in
-`mods/`, lwjgl3ify itself and UniMixins, which lwjgl3ify needs. lwjgl3ify runs
-Forge on Minecraft 1.7.10 with LWJGL 3 and a modern Java. Use it to make a
-1.7.10 pack that does not need the old LWJGL 2 runtime. Use it in place of
-`minecraft()` and `forge()`, since it already contributes the game, and pair it
-with a [Java runtime](./java). This page is for pack authors. For how loaders
-fit into a config, see [Loaders](/guide/loaders).
+The `lwjgl3ify` plugin, from `@opys/minecraft`.
 
-## Signature
+[lwjgl3ify](https://github.com/GTNewHorizons/lwjgl3ify): Forge 1.7.10 mods on a modern Java.
 
-```ts
-lwjgl3ify(version: string, opts?: {
-  source?: string;
-  repo?: string;
-  token?: string;
-  apiBase?: string;
-  unimixins?: { version?: string; repo?: string } | false;
-}): ChainablePlugin
+<!-- prettier-ignore -->
+```js{4,8-13}
+// opys.config.mjs
+export default defineConfig({
+  plugins: [
+    lwjgl3ify({ version: '1.7.10' }),
+    java({ version: '25' }),
+  ],
+  manifest: {
+    command: '@lwjgl3ify.command',
+    args: [
+      '@lwjgl3ify.jvmArgs',
+      '@lwjgl3ify.mainClass',
+      '@lwjgl3ify.gameArgs',
+    ],
+    workdir: '${game_directory}',
+  },
+});
 ```
 
-`version` is the only required argument. Calling `lwjgl3ify()` does no network
-work; the lookups happen when `opys build` or `opys launch` builds the config.
-It is exported from `@opys/minecraft` and from `@opys/lwjgl3ify`.
-
-## Version
-
-`version` takes one of three forms. The plugin tries them in this order.
-
-| Form                         | Example                                              | Resolves to                                            |
-| ---------------------------- | ---------------------------------------------------- | ------------------------------------------------------ |
-| Alias on a Minecraft version | `1.7.10-latest`, `1.7.10-recommended`, `1.7.10-best` | That promotion of the Minecraft version                |
-| Minecraft version            | `1.7.10`                                             | Its `best` release                                     |
-| Release tag                  | `3.0.37`                                             | That exact release. Its Minecraft version is looked up |
-
-lwjgl3ify has no promotions endpoint, so the index says what each alias means.
-`latest` is the newest release. `recommended` is the newest release GitHub
-does not mark as a prerelease. `best` is `recommended` when there is one, and
-`latest` otherwise. A bare Minecraft version means `best`. The index has one
-Minecraft version, `1.7.10`.
-
-A bare Minecraft version or an alias follows the index, so it can resolve to a
-newer release later. Name a release tag to pin one.
-
-If the version cannot be resolved, the build stops with one of these messages:
-
-| Message                                                       | Cause                                                         |
-| ------------------------------------------------------------- | ------------------------------------------------------------- |
-| `Unknown Minecraft version '<mc>' (resolving '<input>')`      | An alias on a Minecraft version the index does not list       |
-| `No '<alias>' lwjgl3ify build available for Minecraft <mc>`   | The Minecraft version has no build for that alias             |
-| `Could not resolve lwjgl3ify version '<input>' from <source>` | Neither a Minecraft version nor a release tag the index lists |
+Use it **instead of** `minecraft`. A loader brings the game with it.
 
 ## Options
 
-| Option      | Type                | Default                                              | Meaning                                                                    |
-| ----------- | ------------------- | ---------------------------------------------------- | -------------------------------------------------------------------------- |
-| `source`    | `string`            | `https://harmoniya-net.github.io/metadata/lwjgl3ify` | Base URL of the document index. Set it for a mirror.                       |
-| `repo`      | `string`            | `GTNewHorizons/lwjgl3ify`                            | GitHub repository the lwjgl3ify mod jar is released from, as `owner/name`. |
-| `token`     | `string`            | None: anonymous requests                             | A GitHub token. Use it when you hit GitHub's anonymous rate limit.         |
-| `apiBase`   | `string`            | `https://api.github.com`                             | GitHub API base URL, for GitHub Enterprise or a mirror.                    |
-| `unimixins` | `object` or `false` | The latest UniMixins release                         | Which UniMixins jar to put in `mods/`. `false` leaves it out.              |
+| Option      | What it does                                                              |
+| ----------- | ------------------------------------------------------------------------- |
+| `version`   | Which build. See below.                                                   |
+| `source`    | A mirror of the build index.                                              |
+| `unimixins` | `false` to leave UniMixins out, or `{ version, repo }` to pick another.   |
+| `repo`      | The GitHub repository the mod jar comes from.                             |
+| `token`     | A GitHub token, for the rate limit.                                       |
+| `apiBase`   | A GitHub API mirror.                                                      |
+| `libraries` | Libraries to [add or replace](./minecraft#adding-or-replacing-a-library). |
 
-There is no `manifestBase`: lwjgl3ify's document is a whole version, so no
-Mojang version manifest is read.
+### version
 
-`unimixins` takes its own options:
+| You write              | You get                                                        |
+| ---------------------- | -------------------------------------------------------------- |
+| `'1.7.10'`             | The recommended release, or the newest if none is recommended. |
+| `'1.7.10-latest'`      | The newest release.                                            |
+| `'1.7.10-recommended'` | The recommended release.                                       |
+| `'3.0.37'`             | Exactly that release.                                          |
 
-| Option              | Type     | Default                     | Meaning                                                                                                                                                                                   |
-| ------------------- | -------- | --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `unimixins.version` | `string` | `'latest'`                  | `'latest'`, `'prerelease'`, or a UniMixins release tag. `'latest'` is the newest stable release that carries the 1.7.10 jar, and `'prerelease'` the newest release of any kind that does. |
-| `unimixins.repo`    | `string` | `LegacyModdingMC/UniMixins` | GitHub repository the UniMixins jar is released from, as `owner/name`.                                                                                                                    |
+The version is resolved **when you build**. `'1.7.10'` today and in six
+months can be different releases. For a pack that never moves, write the
+exact one.
 
-::: warning
-`unimixins: false` removes the UniMixins jar from `mods/`. lwjgl3ify's coremod
-implements an interface that UniMixins provides, so lwjgl3ify does not load
-without UniMixins. Use `false` only when your pack provides its own mixin
-runtime in `mods/`.
-:::
+## What it adds
 
-## Launch groups
+Everything [Vanilla Minecraft](./minecraft#what-it-adds) adds, with these
+differences.
 
-The plugin is named `lwjgl3ify`, so its groups are read as `lwjgl3ify.<group>`
-in `manifest.command` and `manifest.args`.
+| Kind        | What                                                          |
+| ----------- | ------------------------------------------------------------- |
+| Files       | The 1.7.10 game with lwjgl3ify's libraries, and **two mods**. |
+| Launch      | `command`, `jvmArgs`, `mainClass`, `gameArgs`.                |
+| Variables   | The same as [vanilla](./minecraft#variables).                 |
+| Environment | None.                                                         |
 
-| Group                 | Type     | Contains                                                                                                                        |
-| --------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| `lwjgl3ify.command`   | string   | `${java_bin}`, the Java binary the [`java`](./java) plugin provides. The examples use `java.bin` for `manifest.command` instead |
-| `lwjgl3ify.jvmArgs`   | `Valset` | The JVM arguments from the lwjgl3ify version document                                                                           |
-| `lwjgl3ify.mainClass` | `Val`    | The main class from the document. It differs between releases                                                                   |
-| `lwjgl3ify.gameArgs`  | `Valset` | The game arguments from the document                                                                                            |
+Each one below: what it is, and how it ends up in the
+[manifest](/format/).
 
-Put them in `manifest.args` in the order the game needs them:
+### Files · two mods in `mods/`
 
-```js
-manifest: {
-  command: ({ java }) => java.bin,
-  args: ({ lwjgl3ify }) => [
-    lwjgl3ify.jvmArgs,
-    lwjgl3ify.mainClass,
-    lwjgl3ify.gameArgs,
+The lwjgl3ify mod, and UniMixins, which it cannot start without. Both come
+from GitHub releases, pinned by sha256.
+
+<!-- prettier-ignore -->
+```js{4}
+// opys.config.mjs
+export default defineConfig({
+  plugins: [
+    lwjgl3ify({ version: '1.7.10' }),
+    java({ version: '25' }),
   ],
-  workdir: '${game_directory}',
+  manifest: {
+    command: '@lwjgl3ify.command',
+    args: [
+      '@lwjgl3ify.jvmArgs',
+      '@lwjgl3ify.mainClass',
+      '@lwjgl3ify.gameArgs',
+    ],
+    workdir: '${game_directory}',
+  },
+});
+```
+
+<!-- prettier-ignore -->
+```jsonc
+// in the manifest
+{
+  "path": "${game_directory}/mods/lwjgl3ify-3.0.37.jar",
+  "source": { "url": "https://github.com/GTNewHorizons/lwjgl3ify/releases/download/3.0.37/lwjgl3ify-3.0.37.jar" },
+  "size": 8266971,
+  "integrity": { "sha256": "3c5af555d62eb9b7f4196adea94cb4cbd4c8efe3e1d512f83537aa88d9d5211e" }
 },
+{
+  "path": "${game_directory}/mods/+unimixins-all-1.7.10-0.3.2.jar",
+  "source": { "url": "https://github.com/LegacyModdingMC/UniMixins/releases/download/0.3.2/%2Bunimixins-all-1.7.10-0.3.2.jar" },
+  "size": 5520080,
+  "integrity": { "sha256": "2687b776c8503e0b60cd8413cf70eaabb836c19f9fc726280ef61d6612257034" }
+}
 ```
 
-## Variables
+### Launch
 
-`lwjgl3ify()` defines the same variables as [`minecraft`](./minecraft#variables),
-with two differences. `classpath` is built from the libraries of lwjgl3ify's
-own document, and `version_name` and `version_type` come from that document and
-not from a vanilla version: for `3.0.37`, `version_name` is
-`1.7.10-Forge10.13.4.1614-1.7.10-lwjgl3ify-3.0.37`, and `version_dir` is built
-from that name.
+A long one. A 2014 game on a modern Java needs many doors opened by hand.
 
-`root` is `.` until the launching machine sets it. `username`, `uuid` and
-`token` are not defined at all, so the launching machine must supply them. The
-[launch-time values](/guide/run-client) page says how. `lwjgl3ify()` does not
-define `java_bin`, `java_home` or `java_runtime_dir`. The [`java`](./java)
-plugin does.
-
-## Which Java
-
-Use Java 25: `java('25')`. Running 1.7.10 on a current Java is what lwjgl3ify
-is for, and the current release declares Java 25. opys does not check the
-pairing, so a mismatch fails when the game starts, not when you build.
-
-```js
-plugins: [lwjgl3ify('1.7.10'), java('25')],
+<!-- prettier-ignore -->
+```js{8-13}
+// opys.config.mjs
+export default defineConfig({
+  plugins: [
+    lwjgl3ify({ version: '1.7.10' }),
+    java({ version: '25' }),
+  ],
+  manifest: {
+    command: '@lwjgl3ify.command',
+    args: [
+      '@lwjgl3ify.jvmArgs',
+      '@lwjgl3ify.mainClass',
+      '@lwjgl3ify.gameArgs',
+    ],
+    workdir: '${game_directory}',
+  },
+});
 ```
 
-Not every vendor ships Java 25 for every platform; see
-[Platforms](./java#platforms).
+<!-- prettier-ignore -->
+```jsonc
+// in the manifest
+"launch": {
+  // '@lwjgl3ify.command'
+  "command": "${java_bin}",
+  "args": [
+    // '@lwjgl3ify.jvmArgs'
+    "-Djava.library.path=${natives_directory}",
+    "-cp",
+    "${classpath}",
+    "-Djava.system.class.loader=com.gtnewhorizons.retrofuturabootstrap.RfbSystemClassLoader",
+    "--add-opens", "java.base/java.io=ALL-UNNAMED",
+    "--add-opens", "java.base/java.lang=ALL-UNNAMED"
+    // … about forty more --add-opens
+    // '@lwjgl3ify.mainClass'
+    "com.gtnewhorizons.retrofuturabootstrap.MainStartOnFirstThread",
+    // '@lwjgl3ify.gameArgs'
+    "--username", "${auth_player_name}",
+    // … the rest of the 1.7.10 game arguments, then:
+    "--tweakClass", "cpw.mods.fml.common.launcher.FMLTweaker"
+  ],
+  "workdir": "${game_directory}"
+}
+```
 
-## How it works
+| You write                | Becomes                                                       |
+| ------------------------ | ------------------------------------------------------------- |
+| `'@lwjgl3ify.command'`   | The program to run: whatever Java the pack has.               |
+| `'@lwjgl3ify.jvmArgs'`   | Arguments for Java itself, ending with the classpath.         |
+| `'@lwjgl3ify.mainClass'` | The class to start. One argument.                             |
+| `'@lwjgl3ify.gameArgs'`  | Arguments for the game: who is playing, and where things are. |
 
-lwjgl3ify has no installer. Each release ships a complete version document, and
-the index republishes it with every library given a path, a hash and a size. So
-`lwjgl3ify()` makes the same three requests as [Cleanroom](./cleanroom): the
-index, to find the release, then the release's document, then the asset index
-the document names. The document is mapped with the same code as a vanilla
-version, and it does not inherit from a vanilla version, so no vanilla version
-is fetched. The client jar goes last on the classpath, as in the `minecraft`
-plugin.
+### Variables
 
-The two mod jars are a different case. A version document cannot say that a
-file belongs in `mods/`, so the plugin reads them from GitHub Releases. It
-looks up the lwjgl3ify release by its tag, because the index already names it,
-and takes the plain `lwjgl3ify-<tag>.jar`. It takes UniMixins's all-in-one
-`+unimixins-all-1.7.10-<version>.jar` from the release you chose. Both are
-added to the artifact list under `${game_directory}/mods/`, and neither goes on
-the classpath. Each is pinned by sha256: to the digest GitHub publishes for it
-or, for a release with no digest, to a hash computed from the downloaded file.
-The [metadata](/internals/metadata) page describes the documents and how they
-are generated.
+The same names as vanilla. `classpath` now has this loader's libraries
+ahead of the game's.
 
-## Example
+<!-- prettier-ignore -->
+```js{4}
+// opys.config.mjs
+export default defineConfig({
+  plugins: [
+    lwjgl3ify({ version: '1.7.10' }),
+    java({ version: '25' }),
+  ],
+  manifest: {
+    command: '@lwjgl3ify.command',
+    args: [
+      '@lwjgl3ify.jvmArgs',
+      '@lwjgl3ify.mainClass',
+      '@lwjgl3ify.gameArgs',
+    ],
+    workdir: '${game_directory}',
+  },
+});
+```
 
-<<< @/examples/plugin-lwjgl3ify-basic/opys.config.mjs
+<!-- prettier-ignore -->
+```jsonc
+// in the manifest
+"vars": {
+  "game_directory": "${root}/",
+  "library_directory": "${root}/libraries",
+  // … the rest, as in vanilla
+}
+```
 
-Run `opys build` to write `game.opys`, or `opys launch` to start the game from
-the config. Mods go alongside the loader. See [Mods and files](/guide/mods).
+**Why the mods are added for you:** forgetting either gives a game that
+does not start, with an error that does not say why.
+
+## Good to know
+
+- It replaces both `minecraft` and `forge`.
+- Pass `unimixins: false` only if your pack ships its own mixin runtime.
+- Both mods come from GitHub. Pass `token` if a build hits the rate limit.
+- Pair it with [`java({ version: '25' })`](./java#which-java-for-which-minecraft).

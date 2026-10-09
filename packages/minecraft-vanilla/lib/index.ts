@@ -2,7 +2,7 @@
  * `@opys/minecraft-vanilla` — vanilla Minecraft as manifest artifacts.
  *
  * Behaviour lives in the `opys-minecraft-vanilla` crate and reaches JS through
- * `@opys/minecraft-vanilla-binding`; this module is the typed surface over it.
+ * `@opys/binding`, under `minecraftVanilla`; this module is the typed surface over it.
  * The codegen'd binding types everything as `Json` (≈ `unknown`), so each
  * wrapper carries one `as`-cast at the boundary. No `as unknown as`.
  *
@@ -16,7 +16,7 @@
  * library mapping.
  */
 
-import * as napi from '@opys/minecraft-vanilla-binding';
+import { minecraftVanilla as napi } from '@opys/binding';
 import {
   definePlugin,
   pluginOptions,
@@ -25,7 +25,9 @@ import {
   type ExtraLibrary,
   type ChainablePlugin,
   type LoaderGroups,
+  carrying,
 } from '@opys/dev';
+import type { LoaderTemplate } from '@opys/dev';
 import type {
   Artifact,
   ConditionalVal,
@@ -34,7 +36,6 @@ import type {
   Val,
   ValDefs,
   Valset,
-  Blobs,
 } from '@opys/core';
 import type {
   AssetIndex,
@@ -94,7 +95,7 @@ export interface LaunchParts {
 export interface MinecraftTemplate extends LaunchParts {
   readonly artifacts: Artifact[];
   /** Where the blobs among `artifacts` are kept; set only by a local library. */
-  readonly blobs?: Blobs;
+  readonly blobs?: LoaderTemplate['blobs'];
   readonly vars: ValDefs;
   /**
    * Per-OS classpath arms (also baked into `vars.classpath`), exposed so a
@@ -231,8 +232,7 @@ export function minecraft(
       );
       ctx.log('minecraft', `vanilla ${version ?? 'latest'}`);
       return {
-        artifacts: t.artifacts,
-        blobs: t.blobs,
+        artifacts: carrying(t),
         vars: t.vars,
         launch: launchGroups(t),
       };

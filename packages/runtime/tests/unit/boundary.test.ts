@@ -8,8 +8,8 @@ import {
   blobId,
   writeBundle,
   type Blobs,
-  type Manifest,
-} from '@opys/core';
+} from '@opys/bundle';
+import type { Manifest } from '@opys/core';
 import {
   buildLaunch,
   currentPlatform,
@@ -44,10 +44,18 @@ describe('@opys/runtime — napi boundary smoke', () => {
     expect(currentPlatform().name.length).toBeGreaterThan(0);
   });
 
-  test('install copies a blob from memory and emits phase events', async () => {
+  /** `manifest` and its blobs as a bundle on disk: what a blob installs from. */
+  const bundled = async (manifest: Manifest, blobs: Blobs) => {
+    const bundle = join(tmp('bundle'), 'game.opys');
+    await writeBundle(bundle, manifest, blobs);
+    return { bundle };
+  };
+
+  test('install copies a blob out of a bundle and emits phase events', async () => {
     const dir = tmp('rt');
     const events: string[] = [];
-    await install(hello(dir), {
+    const { manifest, blobs } = hello(dir);
+    await install(await bundled(manifest, blobs), {
       verifyIntegrity: true,
       onProgress: (p: InstallProgress) => events.push(p.phase),
     });
@@ -57,28 +65,18 @@ describe('@opys/runtime — napi boundary smoke', () => {
     expect(events).toContain('download:done');
   });
 
-  test('install copies a blob from a file on this machine', async () => {
+  test('a bundle carries a blob that was a file on the building machine', async () => {
     const dir = tmp('file');
     const built = join(dir, 'built.txt');
     writeFileSync(built, 'world');
     const { manifest } = hello(join(dir, 'game'));
-    await install({
-      manifest,
-      blobs: { [blobId(text('world'))]: blobFile(built) },
-    });
+    await install(
+      await bundled(manifest, { [blobId(text('world'))]: blobFile(built) }),
+    );
     expect(readFileSync(join(dir, 'game/hello.txt'), 'utf8')).toBe('world');
   });
 
-  test('install reads a bundle on disk', async () => {
-    const dir = tmp('bundle');
-    const { manifest, blobs } = hello(join(dir, 'game'));
-    const bundle = join(dir, 'game.opys');
-    await writeBundle(bundle, manifest, blobs);
-    await install({ bundle });
-    expect(readFileSync(join(dir, 'game/hello.txt'), 'utf8')).toBe('world');
-  });
-
-  test('a manifest naming a blob nothing holds is refused before it starts', async () => {
+  test('a manifest in memory cannot name a blob: it came in no bundle', async () => {
     const { manifest } = hello(tmp('missing'));
     await expect(install({ manifest })).rejects.toThrow(/nothing holds it/);
   });
@@ -180,7 +178,10 @@ describe('@opys/runtime — napi boundary smoke', () => {
 
   test('prepare with install off installs nothing', async () => {
     const dir = tmp('noinstall');
-    const spec = await prepare(hello(dir), { install: false });
+    const { manifest, blobs } = hello(dir);
+    const spec = await prepare(await bundled(manifest, blobs), {
+      install: false,
+    });
     expect(spec.command).toBe('java');
     expect(() => readFileSync(join(dir, 'hello.txt'))).toThrow();
   });

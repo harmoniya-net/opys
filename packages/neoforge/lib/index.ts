@@ -2,7 +2,7 @@
  * `@opys/neoforge` — the NeoForge mod loader.
  *
  * Behaviour lives in the `opys-neoforge` crate and reaches JS through
- * `@opys/neoforge-binding`; this module is the typed surface over it. The
+ * `@opys/binding`, under `neoforge`; this module is the typed surface over it. The
  * codegen'd binding types everything as `Json` (≈ `unknown`), so each wrapper
  * carries one `as`-cast at the boundary. No `as unknown as`.
  *
@@ -16,7 +16,7 @@
  * take.
  */
 
-import * as napi from '@opys/neoforge-binding';
+import { neoforge as napi } from '@opys/binding';
 import {
   definePlugin,
   pluginOptions,
@@ -25,8 +25,10 @@ import {
   type ExtraLibrary,
   type ChainablePlugin,
   type LoaderGroups,
+  carrying,
 } from '@opys/dev';
-import type { Artifact, ConditionalVal, ValDefs, Blobs } from '@opys/core';
+import type { LoaderTemplate } from '@opys/dev';
+import type { Artifact, ConditionalVal, ValDefs } from '@opys/core';
 import type { LaunchParts } from '@opys/minecraft-vanilla';
 
 /** The canonical document index base URL. */
@@ -73,7 +75,7 @@ export interface NeoForgeTemplate extends LaunchParts {
   /** Vanilla artifacts followed by NeoForge's own libraries. */
   readonly artifacts: Artifact[];
   /** Where the blobs among `artifacts` are kept; set only by a local library. */
-  readonly blobs?: Blobs;
+  readonly blobs?: LoaderTemplate['blobs'];
   readonly vars: ValDefs;
   /**
    * Per-OS classpath arms (also baked into `vars.classpath`), exposed so a
@@ -119,8 +121,7 @@ export function neoforge(
       const t = await resolveNeoForge(withLibraryFiles(options, ctx.configDir));
       ctx.log('neoforge', `resolved ${version}`);
       return {
-        artifacts: t.artifacts,
-        blobs: t.blobs,
+        artifacts: carrying(t),
         vars: t.vars,
         launch: launchGroups(t),
       };

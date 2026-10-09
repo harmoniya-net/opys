@@ -3,7 +3,7 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { BUNDLE_FORMAT, readBundle, readBundleHead } from '@opys/core';
+import { BUNDLE_FORMAT, readBundle, readBundleHead } from '@opys/bundle';
 import { cmdBuild } from '../../lib/commands/build';
 import { UsageError } from '../../lib/errors';
 import { Logger } from '../../lib/logger';
@@ -38,9 +38,8 @@ const INLINE_PLUGIN = `{
   name: 'fixture',
   build: () => ({
     artifacts: [
-      { path: 'a.jar', source: { blob: '${X}' }, rules: [] },
+      { path: 'a.jar', source: { bytes: new TextEncoder().encode('x') }, rules: [] },
     ],
-    blobs: { '${X}': { bytes: 'eA==' } },
     vars: { root: '/games' },
     launch: {},
   }),
@@ -62,14 +61,13 @@ describe('cmdBuild', () => {
     await cmdBuild(['-i', join(dir, 'opys.config.mjs')], logger, 'build');
     const manifest = readBundle(join(dir, 'game.opys'));
     expect(manifest.artifacts).toEqual([
-      { path: 'a.jar', source: { blob: X } },
+      { path: 'a.jar', source: { blob: X }, size: 1 },
     ]);
     expect(manifest.launch?.command).toBe('java');
-    // The head is readable on its own, without the list.
+    expect(manifest.vars).toEqual({ root: '/games' });
+    // The head says what the bundle is, and nothing of the manifest.
     expect(readBundleHead(join(dir, 'game.opys'))).toEqual({
       format: BUNDLE_FORMAT,
-      vars: { root: '/games' },
-      launch: manifest.launch,
     });
     expect(existsSync(join(dir, 'game.opys.partial'))).toBe(false);
   });
@@ -81,15 +79,18 @@ describe('cmdBuild', () => {
     expect(bytes.subarray(0, 2).toString()).toBe('PK');
     // Entry names are stored as they are, and so is the head.
     expect(bytes.includes(`blobs/${X}`)).toBe(true);
-    expect(bytes.includes('"format": 2')).toBe(true);
+    expect(bytes.includes(`"format": ${BUNDLE_FORMAT}`)).toBe(true);
   });
 
-  it('fails, and leaves nothing behind, when a blob is not what its name says', async () => {
-    const lying = BASE_CONFIG.replace("bytes: 'eA=='", "bytes: 'eQ=='");
-    await writeConfig('opys.config.mjs', lying);
+  it('fails, and leaves nothing behind, when a carried file is gone', async () => {
+    const gone = BASE_CONFIG.replace(
+      "source: { bytes: new TextEncoder().encode('x') }",
+      "source: { file: '/nonexistent/opys-cli/a.jar' }",
+    );
+    await writeConfig('opys.config.mjs', gone);
     await expect(
       cmdBuild(['-i', join(dir, 'opys.config.mjs')], logger, 'build'),
-    ).rejects.toThrow(/does not hold what its name says/);
+    ).rejects.toThrow(/plugin 'fixture'.*\/nonexistent\/opys-cli\/a\.jar/);
     expect(existsSync(join(dir, 'game.opys'))).toBe(false);
     expect(existsSync(join(dir, 'game.opys.partial'))).toBe(false);
   });
@@ -119,7 +120,9 @@ describe('cmdBuild', () => {
     await cmdBuild(['-i', join(dir, 'opys.config.mjs')], logger, 'build');
     const printed = JSON.parse(out.join(''));
     // A view of the manifest: it names the blob and does not carry it.
-    expect(printed.artifacts).toEqual([{ path: 'a.jar', source: { blob: X } }]);
+    expect(printed.artifacts).toEqual([
+      { path: 'a.jar', source: { blob: X }, size: 1 },
+    ]);
     expect(out.join('').endsWith('\n')).toBe(true);
   });
 
@@ -150,8 +153,8 @@ describe('cmdBuild', () => {
       logger,
       'build',
     );
-    const head = readBundleHead(join(dir, 'mode.opys'));
-    expect(JSON.stringify(head.launch?.args)).toContain('staging');
+    const manifest = readBundle(join(dir, 'mode.opys'));
+    expect(JSON.stringify(manifest.launch?.args)).toContain('staging');
   });
 
   it('throws a UsageError when the config has no default export', async () => {

@@ -1,6 +1,11 @@
 # @opys/mojang
 
-Parsers for the formats Mojang publishes: the version manifest, a version JSON, libraries, arguments, asset indexes and Maven coordinates. It also holds the strict Mojang rule evaluator. A typed wrapper over the `opys-mojang` Rust crate.
+[![npm](https://img.shields.io/npm/v/@opys/mojang.svg)](https://www.npmjs.com/package/@opys/mojang)
+
+Parsers for Mojang's own file formats: the version list, a version file, its
+libraries, arguments and asset index. opys uses it to read what Mojang
+publishes. You need it only if you are writing a loader plugin or a tool of
+your own.
 
 ```sh
 npm install @opys/mojang
@@ -17,19 +22,20 @@ import {
 const manifest = parseVersionManifest(
   await (await fetch(VERSION_MANIFEST_URL)).json(),
 );
-const version = findVersion(manifest, '1.21.1'); // Version | undefined
+const version = findVersion(manifest, '1.21.1');
 if (!version) throw new Error('no such version');
 
 const client = parseClient(await (await fetch(version.url)).json());
-client.mainClass; // entry point class
-client.args.game; // game arguments
-client.libraries; // libraries, with their rules and artifact info
+client.mainClass; // the class the game starts from
+client.libraries; // its libraries, with their rules
 ```
 
-- The package does no I/O: you fetch the documents and it parses them. The fetch functions (`fetchVersionManifest`, `fetchAssetManifest`, `fetchClient`) are in `@opys/minecraft-vanilla`.
-- The rule functions (`satisfiesRuleset`, `decodeRuleset`, and the rest) take Mojang's own form only. The opys shorthand, such as `'allow.os.linux'`, is rejected; `@opys/core` accepts both spellings.
-- It also exports `parseAssetManifest`, `parseLibraries`, `parseArguments`, `mergeArgs` and the Maven helpers (`parseMaven`, `encodeMaven`, and others).
+- The package does no network or file access. You fetch, it parses.
+- Its rule functions take Mojang's own object form only. The short form
+  (`'allow.os.linux'`) is opys's, and `@opys/core` accepts both.
 
 ## Documentation
 
-- [@opys/mojang](https://harmoniya-net.github.io/opys/plugins/mojang): every export, with its signature and types.
+- [How opys is built](https://harmoniya-net.github.io/opys/reference/architecture)
+
+Part of [opys](https://github.com/harmoniya-net/opys).

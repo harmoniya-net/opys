@@ -12,10 +12,10 @@ import {
   definePlugin,
   pluginOptions,
   type ChainablePlugin,
-  type Contribution,
+  type BuildArtifact,
   type RulesetInput,
 } from '@opys/dev';
-import * as napi from '@opys/minecraft-serverlist-binding';
+import { minecraftServerlist as napi } from '@opys/binding';
 
 export interface ServerEntry {
   name: string;
@@ -54,9 +54,19 @@ export function serverlist(
         // The crate's name for it; `to` is what every plugin calls a place.
         to === undefined ? {} : { path: to },
       ) as {
-        contribution: Contribution<never>;
+        contribution: {
+          artifacts: (Omit<BuildArtifact, 'source'> & {
+            source: { bytes: string };
+          })[];
+        };
       };
-      return output.contribution;
+      // The list is made in the crate and crosses as base64.
+      return {
+        artifacts: output.contribution.artifacts.map((artifact) => ({
+          ...artifact,
+          source: { bytes: Buffer.from(artifact.source.bytes, 'base64') },
+        })),
+      };
     },
   });
 }

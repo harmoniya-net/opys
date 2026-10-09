@@ -11,67 +11,111 @@
  * fails the check, so nothing joins the workspace without a place in it.
  */
 
+import {
+  all,
+  because,
+  crate,
+  dependsOn,
+  each,
+  exempt,
+  exposedToJs,
+  noThirdParty,
+  pkg,
+  wall,
+  withoutDefaults,
+  wrapsItsBinding,
+} from './declare.mjs';
+
+const FORGE_FAMILY = ['forge', 'neoforge', 'fabric', 'cleanroom', 'lwjgl3ify'];
+
 /**
- * Every workspace crate that is not a binding: which workspace crates it may
- * depend on, and whether it has an `opys-<x>-napi` beside it.
- *
- * A binding is not listed. Its rules follow from the crate it exposes — it
- * must depend on that crate, and may otherwise reach only what that crate
+ * Every workspace crate that is not a binding. A binding is not listed: it
+ * must depend on the crate it exposes, and may reach only what that crate
  * already does.
  */
-export const crates = {
-  'opys-mojang-rules': { deps: [], binding: false },
-  'opys-mojang': { deps: ['opys-mojang-rules'], binding: true },
-  'opys-core': { deps: ['opys-mojang-rules'], binding: true },
-  'opys-runtime': { deps: ['opys-core', 'opys-mojang-rules'], binding: true },
-  'opys-dev': { deps: ['opys-core'], binding: true },
-
-  // What the two pack formats share. No binding: nothing in it is called
-  // from JS, only from the two crates below.
-  'opys-modpack': { deps: ['opys-core'], binding: false },
-
-  'opys-minecraft-vanilla': {
-    deps: ['opys-core', 'opys-dev', 'opys-mojang', 'opys-mojang-rules'],
-    binding: true,
-  },
-  ...Object.fromEntries(
-    ['forge', 'neoforge', 'fabric', 'cleanroom', 'lwjgl3ify'].map((loader) => [
-      `opys-${loader}`,
-      {
-        deps: [
-          'opys-core',
-          'opys-dev',
-          'opys-mojang',
-          'opys-minecraft-vanilla',
-        ],
-        binding: true,
-      },
-    ]),
+export const crates = all(
+  crate('opys-mojang-rules'),
+  crate('opys-mojang', dependsOn('opys-mojang-rules'), exposedToJs),
+  crate('opys-core', dependsOn('opys-mojang-rules'), exposedToJs),
+  crate(
+    'opys-bundle',
+    dependsOn('opys-core'),
+    exposedToJs,
+    because('the manifest is the contract; a zip is one way of carrying it'),
+  ),
+  crate(
+    'opys-runtime',
+    dependsOn('opys-core', 'opys-bundle', 'opys-mojang-rules'),
+    exposedToJs,
+  ),
+  crate(
+    'opys-dev',
+    dependsOn('opys-core', 'opys-bundle'),
+    exposedToJs,
+    because('the merge names a carried file and hands it to the bundle writer'),
+  ),
+  crate(
+    'opys-modpack',
+    dependsOn('opys-core'),
+    because('only the two pack crates call it, never JS'),
   ),
 
-  // Signs a token from its options and nothing else: no manifest, no network.
-  'opys-bifrost': { deps: [], binding: true },
-  'opys-minecraft-serverlist': {
-    deps: ['opys-core', 'opys-dev'],
-    binding: true,
-  },
-  'opys-java': { deps: ['opys-core', 'opys-dev'], binding: true },
-  'opys-authliberty': { deps: ['opys-core', 'opys-dev'], binding: true },
-  'opys-dgpuj': { deps: ['opys-core', 'opys-dev'], binding: true },
-  'opys-modrinth': {
-    deps: ['opys-core', 'opys-dev', 'opys-modpack'],
-    binding: true,
-  },
-  'opys-curseforge': {
-    deps: ['opys-core', 'opys-dev', 'opys-modpack'],
-    binding: true,
-  },
-  // Dispatches to the providers; holds no client of its own.
-  'opys-links': {
-    deps: ['opys-core', 'opys-dev', 'opys-modrinth', 'opys-curseforge'],
-    binding: true,
-  },
-};
+  crate(
+    'opys-minecraft-vanilla',
+    dependsOn(
+      'opys-core',
+      'opys-bundle',
+      'opys-dev',
+      'opys-mojang',
+      'opys-mojang-rules',
+    ),
+    exposedToJs,
+  ),
+  each(FORGE_FAMILY, (loader) =>
+    crate(
+      `opys-${loader}`,
+      dependsOn(
+        'opys-core',
+        'opys-bundle',
+        'opys-dev',
+        'opys-mojang',
+        'opys-minecraft-vanilla',
+      ),
+      exposedToJs,
+    ),
+  ),
+
+  crate(
+    'opys-bifrost',
+    exposedToJs,
+    because('signs a token from its options: no manifest, no network'),
+  ),
+  crate(
+    'opys-minecraft-serverlist',
+    dependsOn('opys-core', 'opys-bundle', 'opys-dev'),
+    exposedToJs,
+    because('its tests read back the bytes it carries, hence the bundle'),
+  ),
+  crate('opys-java', dependsOn('opys-core', 'opys-dev'), exposedToJs),
+  crate('opys-authliberty', dependsOn('opys-core', 'opys-dev'), exposedToJs),
+  crate('opys-dgpuj', dependsOn('opys-core', 'opys-dev'), exposedToJs),
+  crate(
+    'opys-modrinth',
+    dependsOn('opys-core', 'opys-dev', 'opys-modpack'),
+    exposedToJs,
+  ),
+  crate(
+    'opys-curseforge',
+    dependsOn('opys-core', 'opys-dev', 'opys-modpack'),
+    exposedToJs,
+  ),
+  crate(
+    'opys-links',
+    dependsOn('opys-core', 'opys-dev', 'opys-modrinth', 'opys-curseforge'),
+    exposedToJs,
+    because('dispatches to the providers; holds no client of its own'),
+  ),
+);
 
 const LOADERS = [
   '@opys/minecraft-vanilla',
@@ -81,63 +125,74 @@ const LOADERS = [
 ];
 
 /**
- * Every package under `packages/`: which `@opys/*` packages it may depend on,
- * and whether it wraps an `@opys/<name>-binding`. A package's own binding is
- * implied by `binding: true` and is the only binding it may import.
- *
- * `external`, where present, is the complete list of third-party runtime
- * dependencies the package may declare. Left out, any declared dependency is
- * allowed — the check that an import is declared at all applies either way.
+ * Every package under `packages/`. A package's own binding is the only one
+ * it may import. Where no third-party list is given, any declared dependency
+ * is allowed; that an import is declared at all is checked either way.
  */
-export const packages = {
-  // No dependencies of any kind, so either side of the wall can name the rule
-  // contract without pulling anything in.
-  '@opys/mojang-rules': { deps: [], binding: false, external: [] },
-  '@opys/mojang': { deps: ['@opys/mojang-rules'], binding: true },
-  '@opys/core': { deps: ['@opys/mojang-rules'], binding: true },
-  // A clean reimplementation target: core, its own addon, and `node:`.
-  '@opys/runtime': { deps: ['@opys/core'], binding: true, external: [] },
-  '@opys/dev': { deps: ['@opys/core'], binding: true },
+export const packages = all(
+  pkg(
+    '@opys/mojang-rules',
+    noThirdParty,
+    because('either side of the wall names the rule contract at no cost'),
+  ),
+  pkg('@opys/mojang', dependsOn('@opys/mojang-rules'), wrapsItsBinding),
+  pkg('@opys/core', dependsOn('@opys/mojang-rules'), wrapsItsBinding),
+  pkg('@opys/bundle', dependsOn('@opys/core'), wrapsItsBinding, noThirdParty),
+  pkg(
+    '@opys/runtime',
+    dependsOn('@opys/core', '@opys/bundle'),
+    wrapsItsBinding,
+    noThirdParty,
+    because(
+      'a clean reimplementation target; the bundle is for its tests alone, which write one to install from',
+    ),
+  ),
+  pkg('@opys/dev', dependsOn('@opys/core', '@opys/bundle'), wrapsItsBinding),
 
-  '@opys/minecraft-vanilla': {
-    deps: ['@opys/core', '@opys/dev', '@opys/mojang'],
-    binding: true,
-  },
-  ...Object.fromEntries(
-    ['forge', 'neoforge', 'fabric', 'cleanroom', 'lwjgl3ify'].map((loader) => [
+  pkg(
+    '@opys/minecraft-vanilla',
+    dependsOn('@opys/core', '@opys/dev', '@opys/mojang'),
+    wrapsItsBinding,
+  ),
+  each(FORGE_FAMILY, (loader) =>
+    pkg(
       `@opys/${loader}`,
-      {
-        deps: ['@opys/core', '@opys/dev', '@opys/minecraft-vanilla'],
-        binding: true,
-      },
-    ]),
+      dependsOn('@opys/core', '@opys/dev', '@opys/minecraft-vanilla'),
+      wrapsItsBinding,
+    ),
   ),
 
-  '@opys/java': { deps: ['@opys/core', '@opys/dev'], binding: true },
-  '@opys/authliberty': { deps: ['@opys/core', '@opys/dev'], binding: true },
-  '@opys/dgpuj': { deps: ['@opys/core', '@opys/dev'], binding: true },
-  '@opys/links': { deps: ['@opys/core', '@opys/dev'], binding: true },
-  // A modpack names its loader, and standing one up is running that loader's
-  // plugin — composition that stays in JS, hence the loader packages here and
-  // not in the crates.
-  '@opys/modrinth': {
-    deps: ['@opys/core', '@opys/dev', ...LOADERS],
-    binding: true,
-  },
-  '@opys/curseforge': {
-    deps: ['@opys/core', '@opys/dev', ...LOADERS],
-    binding: true,
-  },
+  pkg('@opys/java', dependsOn('@opys/core', '@opys/dev'), wrapsItsBinding),
+  pkg(
+    '@opys/authliberty',
+    dependsOn('@opys/core', '@opys/dev'),
+    wrapsItsBinding,
+  ),
+  pkg('@opys/dgpuj', dependsOn('@opys/core', '@opys/dev'), wrapsItsBinding),
+  pkg('@opys/links', dependsOn('@opys/core', '@opys/dev'), wrapsItsBinding),
+  pkg(
+    '@opys/modrinth',
+    dependsOn('@opys/core', '@opys/dev', ...LOADERS),
+    wrapsItsBinding,
+    because('a modpack names its loader, and running that plugin is JS'),
+  ),
+  pkg(
+    '@opys/curseforge',
+    dependsOn('@opys/core', '@opys/dev', ...LOADERS),
+    wrapsItsBinding,
+    because('a modpack names its loader, and running that plugin is JS'),
+  ),
 
-  '@opys/bifrost': { deps: [], binding: true },
-  '@opys/minecraft-serverlist': {
-    deps: ['@opys/core', '@opys/dev'],
-    binding: true,
-  },
+  pkg('@opys/bifrost', wrapsItsBinding),
+  pkg(
+    '@opys/minecraft-serverlist',
+    dependsOn('@opys/core', '@opys/dev'),
+    wrapsItsBinding,
+  ),
 
-  // The umbrella: re-exports the plugins and adds nothing of its own.
-  '@opys/minecraft': {
-    deps: [
+  pkg(
+    '@opys/minecraft',
+    dependsOn(
       '@opys/core',
       '@opys/dev',
       '@opys/mojang',
@@ -155,129 +210,155 @@ export const packages = {
       '@opys/curseforge',
       '@opys/bifrost',
       '@opys/minecraft-serverlist',
-    ],
-    binding: false,
-  },
-  '@opys/cli': {
-    deps: ['@opys/core', '@opys/dev', '@opys/runtime', '@opys/minecraft'],
-    binding: false,
-  },
-};
+    ),
+    because('the umbrella: re-exports the plugins and adds nothing'),
+  ),
+  pkg(
+    '@opys/cli',
+    dependsOn(
+      '@opys/core',
+      '@opys/bundle',
+      '@opys/dev',
+      '@opys/runtime',
+      '@opys/minecraft',
+    ),
+  ),
+);
+
+const everyCrate = Object.keys(crates);
+const everyPackage = Object.keys(packages);
+const except = (names, ...left) => names.filter((n) => !left.includes(n));
 
 /**
- * Boundaries stated on their own, over everything a node reaches rather than
- * only what it names. The allow-lists above already imply each of these; they
- * are repeated here so that loosening one of those lists cannot quietly take
- * a wall down with it — the lists themselves are checked against the walls.
- *
- * A wall is checked over one graph spanning both languages: a wrapper package
- * reaches the crate behind its binding, so `@opys/forge` reaching
- * `opys-runtime` through napi would break a wall exactly as a JS import would.
- *
- * `only`: the complete set `from` may reach. `never`: what it must not.
+ * Boundaries stated on their own. The allow-lists above already imply each;
+ * they are repeated so that loosening a list cannot take a wall down
+ * unnoticed. One graph spans both languages: a wrapper package reaches the
+ * crate behind its binding.
  */
 export const walls = [
-  {
-    name: 'runtime depends on core alone',
-    from: ['opys-runtime'],
-    only: ['opys-core', 'opys-mojang-rules'],
-  },
-  {
-    name: 'runtime depends on core alone',
-    from: ['@opys/runtime'],
-    only: [
+  wall('runtime depends on core and the bundle alone')
+    .from('opys-runtime')
+    .reachesOnly('opys-core', 'opys-bundle', 'opys-mojang-rules'),
+  wall('runtime depends on core and the bundle alone')
+    .from('@opys/runtime')
+    .reachesOnly(
       '@opys/core',
+      '@opys/bundle',
       '@opys/mojang-rules',
       'opys-runtime',
       'opys-core',
+      'opys-bundle',
       'opys-mojang-rules',
-    ],
-  },
-  {
-    name: 'dev and runtime never see each other',
-    from: ['opys-dev'],
-    never: ['opys-runtime'],
-  },
-  {
-    name: 'dev and runtime never see each other',
-    from: ['@opys/dev'],
-    never: ['@opys/runtime'],
-  },
-  {
-    name: 'core is the intersection of build time and runtime, not the union',
-    from: ['opys-core', '@opys/core'],
-    never: ['opys-dev', 'opys-runtime', '@opys/dev', '@opys/runtime'],
-  },
-  {
-    name: 'the Mojang protocol layer knows nothing of opys',
-    from: ['opys-mojang', '@opys/mojang'],
-    only: ['opys-mojang', 'opys-mojang-rules', '@opys/mojang-rules'],
-  },
-  {
-    name: 'only the cli joins build time to runtime',
-    from: Object.keys(packages).filter((name) => name !== '@opys/cli'),
-    never: ['@opys/cli'],
-  },
-  {
-    name: 'a plugin never installs or launches',
-    from: [
-      ...Object.keys(crates).filter((name) => name !== 'opys-runtime'),
-      ...Object.keys(packages).filter(
-        (name) => !['@opys/runtime', '@opys/cli'].includes(name),
+    ),
+  wall('the bundle carries a manifest and knows nothing else')
+    .from('opys-bundle', '@opys/bundle')
+    .reachesOnly(
+      '@opys/core',
+      '@opys/mojang-rules',
+      'opys-bundle',
+      'opys-core',
+      'opys-mojang-rules',
+    ),
+  wall('dev and runtime never see each other')
+    .from('opys-dev')
+    .neverReaches('opys-runtime'),
+  wall('dev and runtime never see each other')
+    .from('@opys/dev')
+    .neverReaches('@opys/runtime'),
+  wall('core is the intersection of build time and runtime, not the union')
+    .from('opys-core', '@opys/core')
+    .neverReaches(
+      'opys-dev',
+      'opys-runtime',
+      'opys-bundle',
+      '@opys/dev',
+      '@opys/runtime',
+      '@opys/bundle',
+    ),
+  wall('the Mojang protocol layer knows nothing of opys')
+    .from('opys-mojang', '@opys/mojang')
+    .reachesOnly('opys-mojang', 'opys-mojang-rules', '@opys/mojang-rules'),
+  wall('only the cli joins build time to runtime')
+    .from(except(everyPackage, '@opys/cli'))
+    .neverReaches('@opys/cli'),
+  wall('a plugin never installs or launches')
+    .from(
+      except(everyCrate, 'opys-runtime'),
+      except(everyPackage, '@opys/runtime', '@opys/cli'),
+    )
+    .neverReaches('opys-runtime', '@opys/runtime'),
+  ...each(FORGE_FAMILY, (loader) =>
+    wall('a loader is built on vanilla, never on another loader')
+      .from(`opys-${loader}`, `@opys/${loader}`)
+      .neverReaches(
+        except(FORGE_FAMILY, loader).flatMap((other) => [
+          `opys-${other}`,
+          `@opys/${other}`,
+        ]),
       ),
-    ],
-    never: ['opys-runtime', '@opys/runtime'],
-  },
-  ...['forge', 'neoforge', 'fabric', 'cleanroom', 'lwjgl3ify'].flatMap(
-    (loader, _, all) => [
-      {
-        name: 'a loader is built on vanilla, never on another loader',
-        from: [`opys-${loader}`, `@opys/${loader}`],
-        never: all
-          .filter((other) => other !== loader)
-          .flatMap((other) => [`opys-${other}`, `@opys/${other}`]),
-      },
-    ],
   ),
 ];
 
 /**
- * Principle 1: a `class` in a package's `lib/` is a smell. An `Error`
- * subclass is how JS spells a failure variant and is always allowed; anything
- * else is listed here with the reason it stays.
+ * A `class` in a package's `lib/` is a smell. An `Error` subclass is always
+ * allowed; anything else is here with the reason it stays.
  */
-export const classes = {
-  'packages/cli/lib/logger.ts#Logger':
+export const classes = all(
+  exempt(
+    'packages/cli/lib/logger.ts#Logger',
     'holds the attached ProgressWriter, so a log line can clear the bar first',
-  'packages/cli/lib/progress.ts#ProgressWriter':
+  ),
+  exempt(
+    'packages/cli/lib/progress.ts#ProgressWriter',
     'owns the lines last drawn on the terminal, which a redraw has to erase',
-};
+  ),
+);
 
 /**
- * Nothing that produces manifest artifacts iterates a `HashMap`: an artifact
- * list must not reorder between two builds. Iteration cannot be told from
- * lookup by reading text, so the rule is held one step earlier — a file that
- * names `HashMap` at all is listed here with what it is used for.
+ * Nothing that produces manifest artifacts iterates a `HashMap`. Iteration
+ * cannot be told from lookup by reading text, so a file that names `HashMap`
+ * at all is here with what it is used for.
  */
-export const hashMaps = {
-  'crates/opys-dev/src/contribution.rs':
+export const hashMaps = all(
+  exempt(
+    'crates/opys-dev/src/contribution.rs',
     'launch groups, read by name through the author accessors',
-  'crates/opys-dev/src/engine.rs': 'which plugin owns a var, looked up by key',
-  'crates/opys-curseforge/src/files.rs': 'file id → file, looked up per ref',
-  'crates/opys-curseforge/src/modpack.rs': 'file id → file, looked up per ref',
-  'crates/opys-modrinth/src/files.rs': 'version id → version, looked up per id',
-  'crates/opys-links/src/resolve.rs': 'provider id → file, looked up per link',
-  'crates/opys-core-napi/src/lib.rs': 'the vars object as it crosses napi',
-  // The install side reads a manifest and produces none.
-  'crates/opys-runtime-napi/src/lib.rs': 'vars and envs as they cross napi',
-};
+  ),
+  exempt(
+    'crates/opys-dev/src/engine.rs',
+    'which plugin owns a var, looked up by key',
+  ),
+  exempt(
+    'crates/opys-curseforge/src/files.rs',
+    'file id → file, looked up per ref',
+  ),
+  exempt(
+    'crates/opys-curseforge/src/modpack.rs',
+    'file id → file, looked up per ref',
+  ),
+  exempt(
+    'crates/opys-modrinth/src/files.rs',
+    'version id → version, looked up per id',
+  ),
+  exempt(
+    'crates/opys-links/src/resolve.rs',
+    'provider id → file, looked up per link',
+  ),
+  exempt('crates/opys-napi/src/core.rs', 'the vars object as it crosses napi'),
+  exempt(
+    'crates/opys-napi/src/runtime.rs',
+    'vars and envs as they cross napi; the install side produces no manifest',
+  ),
+);
 
 /**
- * The `net` feature of `opys-dev` is the blocking HTTP client. A binding that
- * only folds contributions must not link it.
+ * The `net` feature of `opys-dev` is the blocking HTTP client, and these
+ * must not ask for it.
  */
 export const withoutDefaultFeatures = [
-  { crate: 'opys-dev-napi', dependency: 'opys-dev' },
-  // Generates a file; it never fetches one.
-  { crate: 'opys-minecraft-serverlist', dependency: 'opys-dev' },
+  withoutDefaults(
+    'opys-minecraft-serverlist',
+    'opys-dev',
+    because('it generates a file and never fetches one'),
+  ),
 ];

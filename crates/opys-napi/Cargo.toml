@@ -1,0 +1,44 @@
+[package]
+name = "opys-napi"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "The one napi-rs addon of opys: every crate that has a JS surface, each under its own namespace. Produces @opys/binding."
+# cdylib for npm consumption — not consumed by Rust callers, not on crates.io.
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+opys-authliberty = { workspace = true }
+opys-bifrost = { workspace = true }
+opys-bundle = { workspace = true }
+opys-cleanroom = { workspace = true }
+opys-core = { workspace = true }
+opys-curseforge = { workspace = true }
+opys-dev = { workspace = true, features = ["net"] }
+opys-dgpuj = { workspace = true }
+opys-fabric = { workspace = true }
+opys-forge = { workspace = true }
+opys-java = { workspace = true }
+opys-links = { workspace = true }
+opys-lwjgl3ify = { workspace = true }
+opys-minecraft-serverlist = { workspace = true }
+opys-minecraft-vanilla = { workspace = true }
+opys-modrinth = { workspace = true }
+opys-mojang = { workspace = true }
+opys-mojang-rules = { workspace = true }
+opys-neoforge = { workspace = true }
+opys-runtime = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+indexmap = { version = "2", features = ["serde"] }
+tokio = { version = "1", features = ["rt-multi-thread"] }
+
+napi = { version = "2", default-features = false, features = ["napi8", "tokio_rt", "serde-json"] }
+napi-derive = "2"
+
+[build-dependencies]
+napi-build = "2"

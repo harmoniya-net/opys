@@ -11,7 +11,7 @@ env:
 
 jobs:
   # Holds the tree to scripts/architecture/rules.mjs: the dependency DAG of
-  # crates and packages, the walls across it, one binding per crate, and the
+  # crates and packages, the walls across it, one addon with a namespace per crate, and the
   # hand-kept lists that remain. Reads manifests and sources only, so it needs
   # nothing built and runs first.
   architecture:
@@ -79,7 +79,7 @@ jobs:
       - run: npm ci
       # Build the napi `.node` for the host (linux-x64-gnu) so the TS
       # packages can `require` it during typecheck and test.
-      - run: npm run build --workspace=@opys/core-binding --workspace=@opys/runtime-binding
+      - run: npm run build --workspace=@opys/binding
       - run: npm run build --workspaces --if-present
       - run: npm run typecheck
       - run: npm test

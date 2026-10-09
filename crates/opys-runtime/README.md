@@ -17,7 +17,7 @@ use opys_runtime::{install, launch, ManifestSource, InstallOptions, LaunchOption
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // A bundle on disk. `ManifestSource::url` downloads one first, and
-    // `ManifestSource::Manifest { manifest, blobs }` installs from memory.
+    // `ManifestSource::manifest(m)` installs one from memory, if it names no blob.
     install(ManifestSource::bundle("server.opys"), InstallOptions::new()).await?;
 
     let mut opts = LaunchOptions::new();

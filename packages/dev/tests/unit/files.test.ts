@@ -4,7 +4,7 @@ import { mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join } from 'node:path';
 import { files, type PublishedFiles } from '../../lib/files';
-import type { BuildContext } from '../../lib/plugin';
+import type { BuildArtifact, BuildContext } from '../../lib/plugin';
 import type { Artifact } from '@opys/core';
 
 let dir = '';
@@ -30,7 +30,8 @@ const touch = async (rel: string, body: string) => {
   await writeFile(abs, body);
 };
 
-const byPath = (a: Artifact, b: Artifact) => a.path.localeCompare(b.path);
+const byPath = (a: BuildArtifact, b: BuildArtifact) =>
+  a.path.localeCompare(b.path);
 
 const run = async (opts: Omit<PublishedFiles, 'from'>) => {
   const plugin = files({ from: dir, ...opts });
@@ -61,45 +62,30 @@ describe('files', () => {
     expect(arts[0]!.integrity).toEqual({ sha256 });
   });
 
-  it('with no url, each file is a blob and the table says where it is', async () => {
+  it('with no url, each file is carried and says where it is', async () => {
     await touch('a.txt', 'hello');
     await touch('sub/b.txt', 'world');
     const plugin = files({
       from: dir,
       to: (f) => `\${root}/${f.rel}`,
     });
-    const { artifacts, blobs } = await plugin.build(ctx);
-    const hello = createHash('sha256').update('hello').digest('hex');
-    const world = createHash('sha256').update('world').digest('hex');
-    // No url to give and no integrity to choose: the blob's name is its hash.
-    // Already in path order: the crate sorts what the filesystem lists.
+    const { artifacts } = await plugin.build(ctx);
+    // No url to give, no hash to compute: the build names each file by its
+    // content when it carries it. Already in path order: the crate sorts
+    // what the filesystem lists.
     expect(artifacts).toEqual([
-      { path: '${root}/a.txt', source: { blob: hello }, size: 5 },
-      { path: '${root}/sub/b.txt', source: { blob: world }, size: 5 },
+      { path: '${root}/a.txt', source: { file: join(dir, 'a.txt') } },
+      { path: '${root}/sub/b.txt', source: { file: join(dir, 'sub/b.txt') } },
     ]);
-    expect(blobs).toEqual({
-      [hello]: { file: join(dir, 'a.txt') },
-      [world]: { file: join(dir, 'sub/b.txt') },
-    });
   });
 
-  it('with no url, two files with the same content are one blob', async () => {
-    await touch('a.txt', 'same');
-    await touch('b.txt', 'same');
-    const { artifacts, blobs } = await files({
-      from: dir,
-    }).build(ctx);
-    expect(artifacts).toHaveLength(2);
-    expect(Object.keys(blobs!)).toHaveLength(1);
-  });
-
-  it('with a url there are no blobs to carry', async () => {
+  it('with a url nothing is carried', async () => {
     await touch('a.txt', 'hello');
     const result = await files({
       from: dir,
       url: (f) => `https://cdn/${f.rel}`,
     }).build(ctx);
-    expect(result.blobs).toEqual({});
+    expect(result.artifacts![0]!.source).toEqual({ url: 'https://cdn/a.txt' });
   });
 
   it('defaults the artifact path to the relative path', async () => {

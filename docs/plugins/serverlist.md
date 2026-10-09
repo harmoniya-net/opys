@@ -1,83 +1,88 @@
-# serverlist
+# Server list
 
-`serverlist` writes the game's `servers.dat`, so the multiplayer screen already
-lists your servers when a player first opens it. The file is built from the
-list you give, encoded in the game's own format, and carried in the bundle
-like any other file.
+The `serverlist` plugin, from `@opys/minecraft`.
 
-## Signature
+Pre-fills the multiplayer server list.
 
-```ts
-serverlist(servers: ServerEntry[], options?: ServerlistOptions): ChainablePlugin
-
-interface ServerEntry {
-  name: string;
-  ip: string;
-  rules?: RulesetInput;
-}
+```js
+serverlist({
+  servers: [
+    { name: 'My SMP', ip: 'mc.example.com' },
+    { name: 'Creative', ip: 'creative.example.com:25566' },
+  ],
+});
 ```
 
-It is a plugin, so it goes in `plugins`. It is exported from `@opys/minecraft`
-and from `@opys/minecraft-serverlist`, which also exports `DEFAULT_PATH`, the
-path the file goes to unless you change it.
+Players see your servers the first time they open Multiplayer.
 
 ## Options
 
-Each entry in `servers` takes:
+| Option    | What it does                                                  |
+| --------- | ------------------------------------------------------------- |
+| `servers` | The entries, in the order the game lists them.                |
+| `to`      | Where the file goes. Default `${game_directory}/servers.dat`. |
 
-| Name    | Type           | Default             | Meaning                                                                                                            |
-| ------- | -------------- | ------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| `name`  | `string`       | none, required      | The label shown in the list.                                                                                       |
-| `ip`    | `string`       | none, required      | The address the game connects to, with a port if it is not the default.                                            |
-| `rules` | `RulesetInput` | none: always listed | When the entry applies. Accepts the same shorthand as any rule, such as `'allow.os.linux'`. See the warning below. |
+Each entry is `{ name, ip }`. It may also have `rules`.
 
-The second argument takes:
+## What it adds
 
-| Name   | Type     | Default                           | Meaning                    |
-| ------ | -------- | --------------------------------- | -------------------------- |
-| `path` | `string` | `'${game_directory}/servers.dat'` | Where the file is written. |
+| Kind        | What           |
+| ----------- | -------------- |
+| Files       | `servers.dat`. |
+| Launch      | None.          |
+| Variables   | None.          |
+| Environment | None.          |
 
-::: warning Entries with `rules` are not all kept yet
-Entries are grouped by ruleset, and each group is written to its own
-`servers.dat`, gated by that ruleset. Entries with no rules are a group of
-their own. All the files are artifacts at the same path. The manifest keeps one
-artifact per path, so when your list has more than one ruleset, only the file
-of the ruleset whose first entry comes last in the list is kept. The other
-entries are dropped. The only sign is the build log's count of deduplicated
-artifacts, such as `(1 deduped)`.
+Each one below: what it is, and how it ends up in the
+[manifest](/format/).
 
-Until this is fixed, give every entry the same rules, or none. A list with no
-`rules` at all is unaffected.
-:::
+### Files · `servers.dat`
 
-## What it contributes
+The file the game keeps its server list in. It is generated while
+building and carried in the bundle as a blob. Nothing is downloaded.
 
-- **One blob artifact** for each ruleset in the list, at `path`: the file's
-  bytes are in the bundle, not fetched from anywhere. The bytes are an
-  uncompressed NBT document, the format `servers.dat` uses, with one `name`
-  and `ip` per entry.
-- **One blob** holding those bytes, for each of those artifacts.
-- **No launch pieces.** The plugin adds nothing to the command line or to
-  `vars`.
+<!-- prettier-ignore -->
+```js{6-11}
+// opys.config.mjs
+export default defineConfig({
+  plugins: [
+    minecraft({ version: '1.21.1' }),
+    java({ version: '21' }),
+    serverlist({
+      servers: [
+        { name: 'My SMP', ip: 'mc.example.com' },
+        { name: 'Friends', ip: 'friends.example.com:25566' },
+      ],
+    }),
+  ],
+  manifest: {
+    command: '@minecraft.command',
+    args: ['@minecraft.jvmArgs', '@minecraft.mainClass', '@minecraft.gameArgs'],
+    workdir: '${game_directory}',
+  },
+});
+```
 
-An empty list still writes a file, with no servers in it. That replaces
-whatever list the player had, which is what passing no entries means.
+<!-- prettier-ignore -->
+```jsonc
+// in the manifest
+{
+  "path": "${game_directory}/servers.dat",
+  "source": { "blob": "f5b3f218f52d0ab5593094a9281e8905276a3e7aa405d5b78ea410a089e21b3b" },
+  "size": 105
+}
+```
 
-The file is an artifact like any other, and an install checks it against the
-manifest's hash like any other file. A list the player has changed, for example
-by adding a server in the game, no longer matches, so it is put back to yours
-the next time the game is installed or launched.
+**Why a generated file:** the game has no setting for "default servers". It
+only reads this file.
 
-## Example
+No launch pieces and no variables.
 
-This config builds without any secret. It lists two servers, with no rules.
+## Good to know
 
-<<< @/examples/plugin-extras-serverlist/opys.config.mjs
-
-The list is the only part that changes between packs. Each server appears in
-the multiplayer screen under its `name`, and the game connects to its `ip`.
-
-## Related
-
-- [Mods and files](/guide/mods) covers other files that a manifest places.
-- [All plugins](./) lists every plugin and its package.
+- **It overwrites.** The file is part of the pack, so it is put back on
+  every install. Servers a player adds in the game are lost at the next
+  update.
+- An empty list still writes a file, which clears the player's list.
+- Give every entry the same `rules`, or none. Entries with different rules
+  become separate files at the same path, and only one survives.

@@ -140,10 +140,7 @@ describe('dgpuj()', () => {
     expect(targets).toHaveLength(1);
     expect(contribution.artifacts).toHaveLength(1);
     expect(contribution.vars).toHaveProperty('dgpuj_bin');
-    expect(contribution.launch).toEqual({
-      bin: '${dgpuj_bin}',
-      home: { rules: [], value: ['--dgpuj-home', '${java_home}'] },
-    });
+    expect(contribution.launch).toEqual({ bin: '${dgpuj_bin}' });
   });
 
   it('propagates a resolve failure out of build', async () => {

@@ -1,22 +1,20 @@
 //! Where the blobs of the manifest being installed are.
 //!
-//! A manifest says which bytes a blob artifact is made of and never where
-//! they are kept, so the installer is handed that separately. There are two
-//! answers: inside the bundle the manifest was read from, or — when the
-//! manifest was built a moment ago on this machine and never written out — a
-//! table of files and buffers.
+//! A blob is an entry of a bundle, so there is one answer: inside the bundle
+//! the manifest was read from. A manifest handed over in memory has no
+//! bundle and names no blob.
 
 use std::fs::File;
-use std::io::{self, Write};
 use std::path::Path;
 use std::sync::Mutex;
 
-use opys_core::{BlobSource, Blobs, Bundle, BundleError};
+use opys_bundle::{Bundle, BundleError};
 
 use crate::errors::InstallError;
 
 pub(crate) enum BlobStore {
-    Table(Blobs),
+    /// A manifest in memory: resolving it has already refused any blob.
+    None,
     Bundle {
         // One reader, so one copy at a time. A blob is a local read, and the
         // zip's directory is parsed once rather than once per blob.
@@ -36,19 +34,7 @@ impl BlobStore {
         };
         let mut out = File::create(dest).map_err(io_at(dest))?;
         let written = match self {
-            BlobStore::Table(blobs) => match blobs.get(id) {
-                None => return Err(BundleError::MissingBlob(id.to_owned()).into()),
-                Some(BlobSource::Bytes(bytes)) => {
-                    out.write_all(bytes).map_err(io_at(dest))?;
-                    bytes.len() as u64
-                }
-                // Read and written rather than `fs::copy`d: the installed file
-                // should not inherit the mode of wherever it was built from.
-                Some(BlobSource::File(path)) => {
-                    let mut file = File::open(path).map_err(io_at(path))?;
-                    io::copy(&mut file, &mut out).map_err(io_at(dest))?
-                }
-            },
+            BlobStore::None => return Err(BundleError::MissingBlob(id.to_owned()).into()),
             BlobStore::Bundle { bundle, .. } => bundle
                 .lock()
                 .unwrap_or_else(|poisoned| poisoned.into_inner())

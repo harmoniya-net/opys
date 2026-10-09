@@ -2,12 +2,11 @@
 //! `packages/dev/tests/unit/engine.test.ts`; the references were added here,
 //! since resolving them is this crate's.
 
-use opys_core::{
-    blob_id, Artifact, BlobSource, Blobs, CleanupRule, ConditionalVal, Source, Val, ValDef, ValDefs,
-};
+use opys_bundle::{blob_id, BlobSource, Blobs};
+use opys_core::{Artifact, CleanupRule, ConditionalVal, Source, Val, ValDef, ValDefs};
 use opys_dev::{
-    assemble as try_assemble, AssembleError, Assembled, Contribution, LaunchFragment,
-    ManifestConfig, PluginOutput,
+    assemble as try_assemble, AssembleError, Assembled, BuildArtifact, Contribution,
+    LaunchFragment, ManifestConfig, PluginOutput,
 };
 
 fn assemble(outputs: &[PluginOutput], config: &ManifestConfig) -> Assembled {
@@ -63,7 +62,7 @@ fn merges_artifacts_and_vars_and_assembles_launch() {
         plugin(
             "base",
             Contribution {
-                artifacts: vec![artifact("a.jar", "http://x/a")],
+                artifacts: vec![artifact("a.jar", "http://x/a").into()],
                 vars: flat(&[("root", ".")]),
                 ..Default::default()
             },
@@ -71,7 +70,7 @@ fn merges_artifacts_and_vars_and_assembles_launch() {
         plugin(
             "extra",
             Contribution {
-                artifacts: vec![artifact("b.jar", "http://x/b")],
+                artifacts: vec![artifact("b.jar", "http://x/b").into()],
                 ..Default::default()
             },
         ),
@@ -164,8 +163,8 @@ fn flattens_a_bare_val_arg_and_dedupes_artifacts() {
         "p",
         Contribution {
             artifacts: vec![
-                artifact("same.jar", "http://x/1"),
-                artifact("same.jar", "http://x/2"),
+                artifact("same.jar", "http://x/1").into(),
+                artifact("same.jar", "http://x/2").into(),
             ],
             ..Default::default()
         },
@@ -354,6 +353,10 @@ fn a_var_reference_arg_and_a_plain_var_coexist() {
 
 // ── blobs ─────────────────────────────────────────────────────────────────
 
+fn carried(path: &str, content: &str) -> BuildArtifact {
+    BuildArtifact::bytes(path, content.into())
+}
+
 fn held(content: &str) -> (String, BlobSource) {
     (
         blob_id(content.as_bytes()),
@@ -362,7 +365,7 @@ fn held(content: &str) -> (String, BlobSource) {
 }
 
 #[test]
-fn a_plugins_blobs_travel_with_the_artifacts_that_name_them() {
+fn a_carried_artifact_becomes_a_blob_and_its_bytes_travel_beside_the_manifest() {
     let (a, a_bytes) = held("a");
     let (b, b_bytes) = held("b");
     let assembled = assemble(
@@ -370,8 +373,7 @@ fn a_plugins_blobs_travel_with_the_artifacts_that_name_them() {
             plugin(
                 "one",
                 Contribution {
-                    artifacts: vec![Artifact::blob("a.txt", &a, 1)],
-                    blobs: Blobs::from([(a.clone(), a_bytes.clone())]),
+                    artifacts: vec![carried("a.txt", "a")],
                     ..Default::default()
                 },
             ),
@@ -379,39 +381,84 @@ fn a_plugins_blobs_travel_with_the_artifacts_that_name_them() {
                 "two",
                 Contribution {
                     artifacts: vec![
-                        Artifact::blob("b.txt", &b, 1),
-                        artifact("c.jar", "https://x/c.jar"),
+                        carried("b.txt", "b"),
+                        artifact("c.jar", "https://x/c.jar").into(),
                     ],
-                    blobs: Blobs::from([(b.clone(), b_bytes.clone())]),
                     ..Default::default()
                 },
             ),
         ],
         &config(),
     );
+    // The manifest names the bytes and says nothing of where they were.
+    assert_eq!(
+        assembled.manifest.artifacts[..2],
+        [
+            Artifact::blob("a.txt", &a, 1),
+            Artifact::blob("b.txt", &b, 1)
+        ]
+    );
     assert_eq!(assembled.blobs, Blobs::from([(a, a_bytes), (b, b_bytes)]));
     assert!(assembled.warnings.is_empty());
 }
 
 #[test]
+fn a_carried_file_is_read_and_named_by_its_content() {
+    let dir = tempfile::tempdir().unwrap();
+    let file = dir.path().join("pack.toml");
+    std::fs::write(&file, "hello").unwrap();
+    let assembled = assemble(
+        &[plugin(
+            "files",
+            Contribution {
+                artifacts: vec![BuildArtifact::file("config/pack.toml", &file)],
+                ..Default::default()
+            },
+        )],
+        &config(),
+    );
+    let id = blob_id(b"hello");
+    assert_eq!(
+        assembled.manifest.artifacts,
+        [Artifact::blob("config/pack.toml", &id, 5)]
+    );
+    assert_eq!(assembled.blobs, Blobs::from([(id, BlobSource::File(file))]));
+}
+
+#[test]
+fn a_carried_file_that_is_gone_stops_the_build_and_names_its_plugin() {
+    let error = try_assemble(
+        &[plugin(
+            "files",
+            Contribution {
+                artifacts: vec![BuildArtifact::file("a.txt", "/nonexistent/a.txt")],
+                ..Default::default()
+            },
+        )],
+        &config(),
+    )
+    .unwrap_err();
+    let message = error.to_string();
+    assert!(message.contains("plugin 'files'"), "{message}");
+    assert!(message.contains("/nonexistent/a.txt"), "{message}");
+}
+
+#[test]
 fn a_blob_whose_artifact_was_replaced_is_dropped_with_it() {
-    let (old, old_bytes) = held("old");
     let (new, new_bytes) = held("new");
     let assembled = assemble(
         &[
             plugin(
                 "one",
                 Contribution {
-                    artifacts: vec![Artifact::blob("config.toml", &old, 3)],
-                    blobs: Blobs::from([(old, old_bytes)]),
+                    artifacts: vec![carried("config.toml", "old")],
                     ..Default::default()
                 },
             ),
             plugin(
                 "two",
                 Contribution {
-                    artifacts: vec![Artifact::blob("config.toml", &new, 3)],
-                    blobs: Blobs::from([(new.clone(), new_bytes.clone())]),
+                    artifacts: vec![carried("config.toml", "new")],
                     ..Default::default()
                 },
             ),
@@ -423,11 +470,9 @@ fn a_blob_whose_artifact_was_replaced_is_dropped_with_it() {
 }
 
 #[test]
-fn two_plugins_holding_the_same_blob_is_not_a_collision() {
-    let (id, bytes) = held("shared");
+fn two_plugins_carrying_the_same_bytes_is_not_a_collision() {
     let contribution = |path: &str| Contribution {
-        artifacts: vec![Artifact::blob(path, &id, 6)],
-        blobs: Blobs::from([(id.clone(), bytes.clone())]),
+        artifacts: vec![carried(path, "shared")],
         ..Default::default()
     };
     let assembled = assemble(
@@ -437,25 +482,67 @@ fn two_plugins_holding_the_same_blob_is_not_a_collision() {
         ],
         &config(),
     );
+    assert_eq!(assembled.manifest.artifacts.len(), 2);
     assert_eq!(assembled.blobs.len(), 1);
     assert!(assembled.warnings.is_empty());
 }
 
 #[test]
-fn a_contribution_reads_its_blobs_off_the_wire() {
-    let (id, _) = held("hello");
+fn a_contribution_reads_where_an_artifacts_bytes_are_off_the_wire() {
     let output: PluginOutput = serde_json::from_value(serde_json::json!({
         "name": "files",
         "contribution": {
-            "artifacts": [{ "path": "a.txt", "source": { "blob": id } }],
-            "blobs": { id.clone(): { "file": "/srv/build/a.txt" } },
+            "artifacts": [
+                { "path": "a.txt", "source": { "file": "/srv/build/a.txt" }, "rules": "allow.os.linux" },
+                { "path": "b.txt", "source": { "bytes": "aGVsbG8=" } },
+                { "path": "c.jar", "source": { "url": "https://x/c.jar" } },
+            ],
         },
     }))
     .unwrap();
+    let [a, b, c] = &output.contribution.artifacts[..] else {
+        panic!("three artifacts");
+    };
+    assert_eq!(a.path(), Some("a.txt"));
+    // Everything but the source is read by the manifest's own reader.
+    let (b, bytes) = b.clone().resolve().unwrap();
+    assert_eq!(b, Artifact::blob("b.txt", blob_id(b"hello"), 5));
+    assert_eq!(bytes.unwrap().1, BlobSource::Bytes(b"hello".to_vec()));
     assert_eq!(
-        output.contribution.blobs,
-        Blobs::from([(id, BlobSource::File("/srv/build/a.txt".into()))])
+        c.clone().resolve().unwrap().0,
+        artifact("c.jar", "https://x/c.jar")
     );
+    // What it serialises to is what it reads.
+    let wire = serde_json::to_value(&output.contribution.artifacts).unwrap();
+    assert_eq!(wire[0]["rules"], serde_json::json!("allow.os.linux"));
+    assert_eq!(
+        wire[0]["source"],
+        serde_json::json!({ "file": "/srv/build/a.txt" })
+    );
+    assert_eq!(
+        serde_json::from_value::<Vec<BuildArtifact>>(wire).unwrap(),
+        output.contribution.artifacts
+    );
+}
+
+#[test]
+fn an_artifact_with_a_source_nobody_knows_is_refused() {
+    for source in [
+        serde_json::json!({ "string": "hi" }),
+        serde_json::json!({ "file": "/a", "bytes": "aA==" }),
+    ] {
+        let wrong = serde_json::from_value::<BuildArtifact>(
+            serde_json::json!({ "path": "a", "source": source }),
+        );
+        assert!(wrong.is_err());
+    }
+    assert!(serde_json::from_value::<BuildArtifact>(serde_json::json!({ "path": "a" })).is_err());
+    // A field the manifest's reader does not know stops the merge.
+    let odd: BuildArtifact = serde_json::from_value(
+        serde_json::json!({ "path": "a", "source": { "bytes": "aA==" }, "nope": 1 }),
+    )
+    .unwrap();
+    assert!(odd.resolve().unwrap_err().to_string().contains("nope"));
 }
 
 /// A loader and a JDK, as the launch line sees them.

@@ -8,8 +8,8 @@
  */
 
 import { spawn, type ChildProcess } from 'node:child_process';
-import type { Blobs, Manifest } from '@opys/core';
-import * as napi from '@opys/runtime-binding';
+import type { Manifest } from '@opys/core';
+import { runtime as napi } from '@opys/binding';
 
 /**
  * Where the manifest to install comes from. Discriminated by which field is
@@ -17,14 +17,13 @@ import * as napi from '@opys/runtime-binding';
  *
  *  - `{ bundle }` — a bundle on disk;
  *  - `{ url }` — a bundle to download, whole, before anything is installed;
- *  - `{ manifest, blobs }` — a manifest in memory and where each blob it
- *    names is kept, which is what a build hands over when nothing was written
- *    out in between.
+ *  - `{ manifest }` — a manifest in memory. It can name no blob: a blob is
+ *    an entry of a bundle.
  */
 export type ManifestSource =
   | { readonly bundle: string }
   | { readonly url: string }
-  | { readonly manifest: Manifest; readonly blobs?: Blobs };
+  | { readonly manifest: Manifest };
 
 /**
  * Discriminated by `phase`. The Rust bridge populates only the fields
@@ -207,10 +206,7 @@ export async function install(
   }
 }
 
-/**
- * What to spawn, without installing or spawning. Everything it needs is in
- * the manifest's head, so for a bundle on disk the artifact list is not read.
- */
+/** What to spawn, without installing or spawning. */
 export async function buildLaunch(
   source: ManifestSource,
   options: Omit<LaunchOptions, 'install'> = {},

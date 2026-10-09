@@ -12,14 +12,11 @@ use serde_json::json;
 use std::sync::Arc;
 use tempfile::tempdir;
 
-use common::{blob, blobs};
+use common::blob;
 
-/// The manifest, with the blobs written down so far.
+/// The manifest, with the blobs written down so far, as a bundle.
 fn in_memory(manifest: Manifest) -> ManifestSource {
-    ManifestSource::Manifest {
-        manifest: Box::new(manifest),
-        blobs: blobs(),
-    }
+    common::bundled(&manifest)
 }
 
 #[tokio::test]

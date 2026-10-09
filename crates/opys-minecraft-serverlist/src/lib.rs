@@ -7,11 +7,8 @@
 
 mod nbt;
 
-use opys_core::{
-    blob_id, parse_short_ruleset, Artifact, BlobSource, Blobs, MojangRuleset, Ruleset,
-    ShorthandError,
-};
-use opys_dev::{Contribution, PluginOutput};
+use opys_core::{parse_short_ruleset, MojangRuleset, Ruleset, ShorthandError};
+use opys_dev::{BuildArtifact, Contribution, PluginOutput};
 use serde::Deserialize;
 
 pub use nbt::encode_servers_dat;
@@ -78,7 +75,7 @@ fn grouped(servers: &[ServerEntry]) -> Vec<(&MojangRuleset, Vec<&ServerEntry>)> 
     groups
 }
 
-/// The artifacts and blobs of a server list: one `servers.dat` per distinct
+/// The artifacts of a server list: one `servers.dat` per distinct
 /// ruleset among `servers`, or a single empty one when there are none.
 pub fn serverlist(servers: &[ServerEntry], options: &ServerlistOptions) -> Contribution {
     let path = options.path.as_deref().unwrap_or(DEFAULT_SERVERLIST_PATH);
@@ -90,20 +87,17 @@ pub fn serverlist(servers: &[ServerEntry], options: &ServerlistOptions) -> Contr
         groups.push((&unconditional, Vec::new()));
     }
 
-    let mut artifacts = Vec::with_capacity(groups.len());
-    let mut blobs = Blobs::new();
-    for (rules, entries) in groups {
-        let bytes = encode_servers_dat(entries.iter().map(|e| (e.name.as_str(), e.ip.as_str())));
-        let id = blob_id(&bytes);
-        let mut artifact = Artifact::blob(path, &id, bytes.len() as u64);
-        artifact.rules = rules.clone();
-        artifacts.push(artifact);
-        blobs.insert(id, BlobSource::Bytes(bytes));
-    }
+    let artifacts = groups
+        .into_iter()
+        .map(|(rules, entries)| {
+            let bytes =
+                encode_servers_dat(entries.iter().map(|e| (e.name.as_str(), e.ip.as_str())));
+            BuildArtifact::bytes(path, bytes).with_rules(rules)
+        })
+        .collect();
 
     Contribution {
         artifacts,
-        blobs,
         ..Default::default()
     }
 }

@@ -10,12 +10,12 @@ use std::fs::File;
 use std::io::{self, Read};
 use std::path::{Path, PathBuf};
 
-use opys_core::{blob_id_of, Artifact, BlobSource, HashEntry, Integrity, Source};
+use opys_core::{Artifact, HashEntry, Integrity, Source};
 use serde::{Deserialize, Serialize};
 use sha1::{Digest, Sha1};
 use sha2::Sha256;
 
-use crate::contribution::Contribution;
+use crate::contribution::{BuildArtifact, Contribution};
 
 #[derive(Debug, thiserror::Error)]
 pub enum ScanError {
@@ -130,7 +130,7 @@ fn digest<D: Digest>(path: &Path) -> Result<(String, u64), ScanError> {
     }
 }
 
-/// The artifacts, and the blobs behind them, of a scanned directory.
+/// The artifacts of a scanned directory.
 ///
 /// Every file is hashed, including one that is only pointed at: an artifact
 /// with no hash is trusted by path alone and never re-fetched, so a changed
@@ -140,14 +140,9 @@ pub fn scanned_files(files: &[PlacedFile], hash: ScanHash) -> Result<Contributio
     let mut contribution = Contribution::default();
     for file in files {
         let artifact = match &file.url {
-            None => {
-                let (id, size) = blob_id_of(File::open(&file.abs).map_err(io_at(&file.abs))?)
-                    .map_err(io_at(&file.abs))?;
-                contribution
-                    .blobs
-                    .insert(id.clone(), BlobSource::File(file.abs.clone()));
-                Artifact::blob(&file.path, id, size)
-            }
+            // Carried: the artifact says where the file is, and the merge
+            // names it by its content.
+            None => BuildArtifact::file(&file.path, &file.abs),
             Some(url) => {
                 let (entry, size) = match hash {
                     ScanHash::Sha1 => {
@@ -168,6 +163,7 @@ pub fn scanned_files(files: &[PlacedFile], hash: ScanHash) -> Result<Contributio
                     metadata: None,
                     extract: None,
                 }
+                .into()
             }
         };
         contribution.artifacts.push(artifact);

@@ -15,7 +15,7 @@
  *     TS impl exists for consumers that need expanded `MojangRule` objects.
  */
 
-import * as napi from '@opys/core-binding';
+import { core as napi } from '@opys/binding';
 import type {
   MojangRule,
   MojangRuleset,
@@ -119,44 +119,6 @@ export function globToRegexSource(glob: string): string {
   return napi.globToRegexSource(glob);
 }
 
-/** The id of the blob holding exactly `bytes`: the hex sha256 of them. */
-export function blobId(bytes: Uint8Array): string {
-  return napi.blobId(Buffer.from(bytes));
-}
-
-/** The id and size of the blob a file on disk would be. */
-export function hashBlobFile(
-  path: string,
-): Promise<{ id: string; size: number }> {
-  return napi.hashBlobFile(path) as Promise<{ id: string; size: number }>;
-}
-
-/**
- * Write `manifest` and the blobs it names to `path` as a bundle — the one
- * published form of a manifest. `blobs` may hold more than the manifest
- * names; a blob it names and `blobs` lacks is an error.
- */
-export function writeBundle(
-  path: string,
-  manifest: Manifest,
-  blobs: Blobs = {},
-): Promise<void> {
-  return napi.writeBundle(path, manifest, blobs) as Promise<void>;
-}
-
-/** The whole manifest of the bundle at `path`. */
-export function readBundle(path: string): Manifest {
-  return napi.readBundle(path) as Manifest;
-}
-
-/** The head of the bundle at `path`, leaving its artifact list unread. */
-export function readBundleHead(path: string): Head {
-  return napi.readBundleHead(path) as Head;
-}
-
-/** The bundle format this build reads and writes. */
-export const BUNDLE_FORMAT: number = napi.bundleFormat();
-
 /** Compile a glob to a real `RegExp` (the binding returns the source string). */
 export function globToRegex(glob: string): RegExp {
   return new RegExp(napi.globToRegexSource(glob));
@@ -174,17 +136,6 @@ export function globToRegex(glob: string): RegExp {
  * shape, and there is no second spelling of it. Narrow with `'url' in s`.
  */
 export type Source = { readonly url: string } | { readonly blob: string };
-
-/**
- * Where a blob's bytes are on the machine that built the manifest: a file, or
- * bytes (base64) a plugin produced. This is never part of a manifest — the
- * manifest names the blob, and this says where to read it until it is written
- * into a bundle.
- */
-export type BlobSource = { readonly file: string } | { readonly bytes: string };
-
-/** Blob id → where its bytes are. */
-export type Blobs = Readonly<Record<string, BlobSource>>;
 
 export type HashEntry = { sha1: string } | { sha256: string } | { md5: string };
 export type Integrity = HashEntry | HashEntry[];
@@ -222,7 +173,9 @@ export interface ExtractDump {
 export type ExtractRule = ExtractPick | ExtractScan | ExtractDump;
 
 /** An artifact's extract rules as a list, whichever way they were written. */
-export function extractRules(artifact: Artifact): readonly ExtractRule[] {
+export function extractRules(
+  artifact: Pick<Artifact, 'extract'>,
+): readonly ExtractRule[] {
   const { extract } = artifact;
   return extract === undefined
     ? []
@@ -301,26 +254,12 @@ export interface Manifest {
   readonly cleanup?: ReadonlyArray<CleanupRule>;
 }
 
-/**
- * A bundle's first entry: the manifest without its artifact list, so it can
- * be read without the megabytes that follow, and the format the bundle is
- * written in.
- */
-export interface Head extends Omit<Manifest, 'artifacts'> {
-  readonly format: number;
-}
-
 // ──────────────────────────────────────────────────────────────────────────
 // Factories — pure TS, no boundary crossing.
 // ──────────────────────────────────────────────────────────────────────────
 
 export const sourceUrl = (url: string): Source => ({ url });
 export const sourceBlob = (blob: string): Source => ({ blob });
-
-export const blobFile = (file: string): BlobSource => ({ file });
-export const blobBytes = (bytes: Uint8Array): BlobSource => ({
-  bytes: Buffer.from(bytes).toString('base64'),
-});
 
 export const extractPick = (file: string, into: string): ExtractPick => ({
   file,

@@ -7,9 +7,9 @@
 //   npm run release major    # major bump
 //   npm run release 2.0.0    # explicit version
 //
-// npm and crates.io versions stay in lockstep. The -napi crates are
-// `publish = false` so cargo skips them; they ship through their npm-side
-// `@opys/*-binding` packages, which carry the same version.
+// npm and crates.io versions stay in lockstep. The addon crate, `opys-napi`, is
+// `publish = false` so cargo skips it; it ships through its npm-side
+// `@opys/binding` package, which carries the same version.
 
 import { execSync } from 'node:child_process';
 import {

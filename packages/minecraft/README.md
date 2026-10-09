@@ -1,37 +1,49 @@
 # @opys/minecraft
 
-The Minecraft meta-package for opys. It has no code of its own: it re-exports
-the loader, provider and helper packages, so a config can take its plugins from
-one import.
+[![npm](https://img.shields.io/npm/v/@opys/minecraft.svg)](https://www.npmjs.com/package/@opys/minecraft)
+
+Every Minecraft plugin for opys in one import. This package has no code of its
+own. It re-exports the loaders (`minecraft`, `forge`, `neoforge`, `fabric`,
+`cleanroom`, `lwjgl3ify`), `java`, the mod sources (`modrinth`, `curseforge`,
+`links`) and the extras (`authliberty`, `bifrost`, `serverlist`, `dgpuj`).
 
 ```sh
+npm install -g @opys/cli
 npm install -D @opys/dev @opys/minecraft
 ```
 
 ```js
-import { defineConfig } from '@opys/dev';
+import { defineConfig, userDataDir } from '@opys/dev';
 import { forge, java } from '@opys/minecraft';
 
 export default defineConfig({
   output: 'game.opys',
-  plugins: [forge('1.20.1'), java('17')],
+  plugins: [forge({ version: '1.20.1' }), java({ version: '17' })],
   manifest: {
-    command: ({ java }) => java.bin,
-    args: ({ forge }) => [forge.jvmArgs, forge.mainClass, forge.gameArgs],
+    command: '@forge.command',
+    args: ['@forge.jvmArgs', '@forge.mainClass', '@forge.gameArgs'],
     workdir: '${game_directory}',
   },
+  run: (manifest) => ({
+    vars: {
+      ...manifest.vars,
+      root: userDataDir('my-pack'),
+      username: 'Player',
+      uuid: '00000000-0000-0000-0000-000000000001',
+      token: '0',
+    },
+  }),
 });
 ```
 
-- Every plugin on the plugins page is exported from here, except `files`, which
-  comes from `@opys/dev`. `bifrost` is a function for `runClient`, not a plugin.
-- Each package is also published on its own. Install that one instead if you
-  want only one plugin.
-- `@opys/dgpuj` and `@opys/java` both export `DEFAULT_PLATFORMS`, so this
-  package re-exports only `@opys/java`'s. Import dgpuj's from `@opys/dgpuj`.
-- Launching needs `username`, `uuid` and `token`, from `runClient` or `--var`.
+Then `opys launch`.
+
+- `files`, for a folder on your disk, comes from `@opys/dev`.
+- Each plugin is also published as its own package, if you want only one.
 
 ## Documentation
 
-- https://harmoniya-net.github.io/opys/plugins/
-- https://harmoniya-net.github.io/opys/guide/getting-started
+- [Introduction](https://harmoniya-net.github.io/opys/basics/intro)
+- [All plugins](https://harmoniya-net.github.io/opys/plugins/)
+
+Part of [opys](https://github.com/harmoniya-net/opys).

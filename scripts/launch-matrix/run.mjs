@@ -302,11 +302,11 @@ const PREFIXES = {
   '${java_runtime_dir}/': 'runtimes/',
 };
 function pooled(dir) {
-  const list = JSON.parse(
-    sh('unzip', ['-p', path.join(dir, 'case.opys'), 'artifacts.json']) || '[]',
+  const manifest = JSON.parse(
+    sh('unzip', ['-p', path.join(dir, 'case.opys'), 'manifest.json']) || '{}',
   );
   const out = [];
-  for (const a of Array.isArray(list) ? list : (list.artifacts ?? [])) {
+  for (const a of manifest.artifacts ?? []) {
     if (!a.source?.url || !(a.integrity || a.path.includes('/objects/')))
       continue;
     for (const [k, v] of Object.entries(PREFIXES))

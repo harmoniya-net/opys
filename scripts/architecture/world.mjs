@@ -38,14 +38,32 @@ export function readTypeScript(path, text, packageDir) {
 
   const unwrap = (node) =>
     ts.isParenthesizedExpression(node) ? unwrap(node.expression) : node;
-  const add = (literal, node, typeOnly) => {
+  const add = (literal, node, typeOnly, names = []) => {
     if (literal && ts.isStringLiteralLike(literal))
-      imports.push({ specifier: literal.text, line: lineOf(node), typeOnly });
+      imports.push({
+        specifier: literal.text,
+        line: lineOf(node),
+        typeOnly,
+        names,
+      });
+  };
+  /** What an import takes by name: `*` for all of it, nothing for a bare one. */
+  const namesOf = (clause) => {
+    const bound = clause?.namedBindings;
+    if (!bound) return clause?.name ? ['default'] : [];
+    return ts.isNamespaceImport(bound)
+      ? ['*']
+      : bound.elements.map((e) => (e.propertyName ?? e.name).text);
   };
 
   const visit = (node) => {
     if (ts.isImportDeclaration(node)) {
-      add(node.moduleSpecifier, node, node.importClause?.isTypeOnly ?? false);
+      add(
+        node.moduleSpecifier,
+        node,
+        node.importClause?.isTypeOnly ?? false,
+        namesOf(node.importClause),
+      );
     } else if (ts.isExportDeclaration(node)) {
       add(node.moduleSpecifier, node, node.isTypeOnly);
     } else if (

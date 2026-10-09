@@ -7,7 +7,8 @@ export default defineConfig({
   manifest: {
     command: '@dgpuj.bin',
     args: [
-      '@dgpuj.home',
+      '--dgpuj-home',
+      '@java.home',
       '@minecraft.jvmArgs',
       '@minecraft.mainClass',
       '@minecraft.gameArgs',

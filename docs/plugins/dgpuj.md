@@ -1,129 +1,197 @@
-# dgpuj
+# Discrete GPU
 
-The `dgpuj` plugin starts the game through [dgpuj](https://github.com/harmoniya-net/dgpuj),
-a small launcher that asks for the discrete GPU on machines with two graphics
-chips. Use `dgpuj.bin` as the launch `command` in place of `java.bin`, and the
-game runs on the discrete GPU where dgpuj can force it. dgpuj then starts the
-JVM inside its own process. That is why it is a command and not a JVM argument:
-the GPU choice is made for the process that creates the graphics context, and
-a launcher that only spawns `java` cannot make that choice for the child.
+The `dgpuj` plugin, from `@opys/minecraft`.
 
-## Signature
+Runs the game on the fast graphics card.
 
-```ts
-dgpuj(options?: DgpujOptions): ChainablePlugin
+<!-- prettier-ignore -->
+```js{6,9,11-12}
+// opys.config.mjs
+export default defineConfig({
+  plugins: [
+    minecraft({ version: '1.21.1' }),
+    java({ version: '21' }),
+    dgpuj(),
+  ],
+  manifest: {
+    command: '@dgpuj.bin',
+    args: [
+      '--dgpuj-home',
+      '@java.home',
+      '@minecraft.jvmArgs',
+      '@minecraft.mainClass',
+      '@minecraft.gameArgs',
+    ],
+    workdir: '${game_directory}',
+  },
+});
 ```
 
-The plugin takes an options object or nothing. It has no positional argument.
+On a laptop with two GPUs, Windows and Linux choose one per program, and
+often choose the slow one for Java.
 
-## Versions
-
-The `version` option selects which dgpuj release is bundled.
-
-| Input                            | Resolves to                                         |
-| -------------------------------- | --------------------------------------------------- |
-| `'latest'` (default)             | The latest published release, excluding prereleases |
-| `'prerelease'`                   | The newest release, prereleases included            |
-| An exact tag, such as `'v0.3.0'` | That release                                        |
-
-The plugin looks for the archives listed under [Platforms](#platforms). Releases
-before `v0.3.0` ship bare binaries instead, so an earlier tag fails the build
-with `No matching asset`, followed by the assets that release does have.
+**Why a launcher cannot fix that from outside:** the choice belongs to the
+process that opens the window. So
+[dgpuj](https://github.com/harmoniya-net/dgpuj) _becomes_ that process. It
+asks for the fast card, then runs Java inside itself.
 
 ## Options
 
-| Option      | Type              | Default                                        | Meaning                                                                                                                                                                         |
-| ----------- | ----------------- | ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `version`   | `string`          | `'latest'`                                     | The release to bundle: `'latest'`, `'prerelease'`, or an exact tag                                                                                                              |
-| `platforms` | `DgpujPlatform[]` | The five targets under [Platforms](#platforms) | The build targets to bundle. Each entry is a `DgpujPlatform` with `os`, `arch`, `target`, `ext` and `bin`. The default list is `DEFAULT_PLATFORMS`, exported from `@opys/dgpuj` |
-| `repo`      | `string`          | `'harmoniya-net/dgpuj'`                        | The GitHub repository to read releases from, as `owner/name`. Also exported as `DEFAULT_REPO`                                                                                   |
-| `token`     | `string`          | None                                           | A GitHub token, to raise the API rate limit. Used at build time only                                                                                                            |
-| `apiBase`   | `string`          | `https://api.github.com`                       | The GitHub API base URL, for a GitHub Enterprise host or a mirror.                                                                                                              |
+| Option                     | What it does                                                 |
+| -------------------------- | ------------------------------------------------------------ |
+| `version`                  | `'latest'` (default), `'prerelease'`, or a tag (`'v0.3.0'`). |
+| `platforms`                | Which platforms get it.                                      |
+| `repo`, `token`, `apiBase` | Where it is downloaded from, and a GitHub token.             |
 
-Most packs need none of these. The `platforms` option takes `DgpujPlatform`
-objects, not the `{ os, arch }` pairs that the [java](./java) plugin takes.
+## What it adds
 
-## Launch groups
+| Kind        | What                            |
+| ----------- | ------------------------------- |
+| Files       | One small archive per platform. |
+| Launch      | `bin`.                          |
+| Variables   | `dgpuj_dir`, `dgpuj_bin`.       |
+| Environment | None.                           |
 
-| Group  | Expands to                  | Use                                                           |
-| ------ | --------------------------- | ------------------------------------------------------------- |
-| `bin`  | `${dgpuj_bin}`              | The launcher. This is the command                             |
-| `home` | `--dgpuj-home ${java_home}` | Tells dgpuj where the JDK is. Put it before the JVM arguments |
+Each one below: what it is, and how it ends up in the
+[manifest](/format/).
 
-`home` reads `${java_home}`, which only the [java](./java) plugin defines. Use
-`home` with `java` in the same config. Leave it out if you do not use `java`.
+### Files · one archive per platform
 
-## Variables
+Five archives. `rules` pick the one for the player's machine, and `extract`
+takes the single executable out of it.
 
-The plugin owns these two variables.
-
-| Variable    | Value                                                                        | Meaning                                              |
-| ----------- | ---------------------------------------------------------------------------- | ---------------------------------------------------- |
-| `dgpuj_dir` | `${root}/dgpuj`                                                              | The directory the launcher archive is extracted into |
-| `dgpuj_bin` | `${dgpuj_dir}/dgpuj.exe` on Windows, `${dgpuj_dir}/dgpuj` on Linux and macOS | The launcher binary                                  |
-
-The plugin sets no environment variables of its own. The `java` plugin sets
-`JAVA_HOME`, and that is how dgpuj finds the JDK when `home` is left out.
-
-## Platforms
-
-Releases from `v0.3.0` on publish five targets. Each one is its own archive,
-and the install downloads only the archive for the launching machine:
-
-| OS      | Architecture | Archive                                 |
-| ------- | ------------ | --------------------------------------- |
-| Windows | `x86_64`     | `dgpuj-x86_64-pc-windows-msvc.zip`      |
-| Windows | `aarch64`    | `dgpuj-aarch64-pc-windows-msvc.zip`     |
-| Linux   | `x86_64`     | `dgpuj-x86_64-unknown-linux-gnu.tar.gz` |
-| macOS   | `x86_64`     | `dgpuj-x86_64-apple-darwin.tar.gz`      |
-| macOS   | `aarch64`    | `dgpuj-aarch64-apple-darwin.tar.gz`     |
-
-There is no Linux `aarch64` archive. On a Linux `aarch64` machine nothing is
-installed at `${dgpuj_bin}`, so the launch fails. A pack that must run there
-should leave dgpuj out.
-
-On Linux, dgpuj sets NVIDIA's render-offload variables, and only when the
-proprietary NVIDIA driver is present. On macOS, dgpuj does not force a GPU: the
-system chooses, and dgpuj only starts the JVM.
-
-Every archive is pinned by sha256. The build reads the digest from GitHub, or
-downloads the archive and hashes it when GitHub has none.
-
-## Use it in a config
-
-Add `dgpuj()` beside `java`, and use `dgpuj.bin` as the command. Pass
-`dgpuj.home` before the JVM arguments so dgpuj finds the JDK:
-
-```js
-import { dgpuj, java, minecraft } from '@opys/minecraft';
-
-plugins: [minecraft('1.21.1'), java('21'), dgpuj()],
-manifest: {
-  command: ({ dgpuj }) => dgpuj.bin,
-  args: ({ dgpuj, minecraft }) => [
-    dgpuj.home,
-    minecraft.jvmArgs,
-    minecraft.mainClass,
-    minecraft.gameArgs,
+<!-- prettier-ignore -->
+```js{6}
+// opys.config.mjs
+export default defineConfig({
+  plugins: [
+    minecraft({ version: '1.21.1' }),
+    java({ version: '21' }),
+    dgpuj(),
   ],
-  workdir: '${game_directory}',
-},
+  manifest: {
+    command: '@dgpuj.bin',
+    args: [
+      '--dgpuj-home',
+      '@java.home',
+      '@minecraft.jvmArgs',
+      '@minecraft.mainClass',
+      '@minecraft.gameArgs',
+    ],
+    workdir: '${game_directory}',
+  },
+});
 ```
 
-Without `home`, the JDK is found through `JAVA_HOME`, which the `java` plugin
-sets. With no `java` plugin, set `JAVA_HOME` yourself or pass
-`--dgpuj-jvm <path>`; both are dgpuj's own, described in
-[its README](https://github.com/harmoniya-net/dgpuj).
+<!-- prettier-ignore -->
+```jsonc
+// in the manifest
+{
+  "path": "${dgpuj_dir}/dgpuj-x86_64-pc-windows-msvc.zip",
+  "source": { "url": "https://github.com/harmoniya-net/dgpuj/releases/download/v0.3.0/dgpuj-x86_64-pc-windows-msvc.zip" },
+  "size": 77321,
+  "rules": ["allow.os.windows", "allow.arch.x86_64"],
+  "integrity": { "sha256": "3dc7ef481abdd390cbb0ba23137d808b4b8652b23a49915f761a4bc422969a13" },
+  "extract": { "file": "dgpuj.exe", "into": "${dgpuj_dir}/dgpuj.exe" }
+}
+```
 
-The complete example below uses the `java` plugin and `home`, and launches
-vanilla 1.21.1:
+### Variables
 
-<<< @/examples/plugin-dgpuj-basic/opys.config.mjs
+Where the executable is, per OS.
 
-::: tip
-The Windows launcher is `dgpuj.exe`. The config does not need to name it. The
-`dgpuj_bin` variable chooses the file for each platform.
-:::
+<!-- prettier-ignore -->
+```js{6}
+// opys.config.mjs
+export default defineConfig({
+  plugins: [
+    minecraft({ version: '1.21.1' }),
+    java({ version: '21' }),
+    dgpuj(),
+  ],
+  manifest: {
+    command: '@dgpuj.bin',
+    args: [
+      '--dgpuj-home',
+      '@java.home',
+      '@minecraft.jvmArgs',
+      '@minecraft.mainClass',
+      '@minecraft.gameArgs',
+    ],
+    workdir: '${game_directory}',
+  },
+});
+```
 
-For the JDK that dgpuj starts, see the [java](./java) plugin. For the other
-plugins, see the [plugins page](./index).
+<!-- prettier-ignore -->
+```jsonc
+// in the manifest
+"vars": {
+  "dgpuj_dir": "${root}/dgpuj",
+  "dgpuj_bin": [
+    { "value": "${dgpuj_dir}/dgpuj.exe", "rules": "allow.os.windows" },
+    { "value": "${dgpuj_dir}/dgpuj", "rules": "allow.os.linux" },
+    { "value": "${dgpuj_dir}/dgpuj", "rules": "allow.os.osx" }
+  ]
+}
+```
+
+### Launch · `@dgpuj.bin`
+
+The dgpuj executable. It goes in `command`, because it has to be the
+program that starts.
+
+<!-- prettier-ignore -->
+```js{9}
+// opys.config.mjs
+export default defineConfig({
+  plugins: [
+    minecraft({ version: '1.21.1' }),
+    java({ version: '21' }),
+    dgpuj(),
+  ],
+  manifest: {
+    command: '@dgpuj.bin',
+    args: [
+      '--dgpuj-home',
+      '@java.home',
+      '@minecraft.jvmArgs',
+      '@minecraft.mainClass',
+      '@minecraft.gameArgs',
+    ],
+    workdir: '${game_directory}',
+  },
+});
+```
+
+<!-- prettier-ignore -->
+```jsonc
+// in the manifest
+"command": "${dgpuj_bin}"
+```
+
+This is the one case where `command` does not come from the loader.
+
+## Telling it where Java is
+
+```js
+args: ['--dgpuj-home', '@java.home', '@forge.jvmArgs', …],
+```
+
+`--dgpuj-home` is dgpuj's own flag, and
+[`@java.home`](./java#what-it-adds) is the JDK the `java` plugin installed.
+Put the pair first in `args`.
+
+**Why `dgpuj` does not provide this itself:** where Java is, is the `java`
+plugin's to say. Named this way, a config without `java` fails at build
+time instead of starting with a broken path.
+
+You may leave the pair out. `java` also sets `JAVA_HOME`, and dgpuj reads
+that.
+
+## Good to know
+
+- It ships for Windows and macOS on x86_64 and ARM, and for Linux on
+  x86_64. There is no Linux ARM build.
+- On macOS there is nothing to force, so it only starts Java.
+- On Linux it acts only when the proprietary NVIDIA driver is present.

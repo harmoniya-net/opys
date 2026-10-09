@@ -46,14 +46,27 @@ it — a non-TypeScript reimplementation would reimplement exactly `core`.
 Package layout, plugin API, config shape, and CLI flags may all change freely;
 the format changes only on purpose, and a bundle says which format it is
 written in (`format`, in its head) so a reader refuses what it does not know.
+The bundle itself — the zip, its head — is `@opys/bundle`'s: the manifest is
+the contract, and the file is one way of carrying it.
 
-It has been changed on purpose three times. `pointer` sources and the
+**A reader reads one format and refuses every other**, an older one as much
+as a newer. There is no migration, no compatibility reading and no "best
+effort": a manifest that is half understood installs or deletes the wrong
+files, and a bundle is cheap to rebuild from its config. So a format change
+ships with no code for the format it replaces, and the answer to an old
+bundle is `opys build`.
+
+Nothing has been published yet, so the format is still 1, and it has
+already been reshaped on purpose four times. `pointer` sources and the
 `discovery` block were removed, because a manifest must be fully resolved.
 Then the three sources that put a file _into_ the manifest or read it off the
 installing machine — `file`, `string`, `bytes` — gave way to `blob`, and the
 manifest went from a JSON document to a bundle. Then `restrict`, a list of
-globs, became `cleanup`, a list of rules, and the format went from 1 to 2.
-All three are described under _Invariants_.
+globs, became `cleanup`, a list of rules. Then the manifest, which a bundle
+had kept in two entries, went back to one, and the head kept nothing but
+`format`. From the first published bundle on, a change like any of these
+raises the number.
+All four are described under _Invariants_.
 
 ## Packages
 
@@ -66,16 +79,18 @@ them, and the list below names the layers rather than every one:
 @opys/mojang        Mojang protocol parsers (version JSON, libraries, assets, …).
                      Thin wrapper over the `opys-mojang` crate. → mojang-rules
 @opys/core          Manifest data model + opys shorthand + Val/Valset.
-                     The bundle. The reference implementation of the format. → mojang-rules
+                     The reference implementation of the format.        → mojang-rules
+@opys/bundle        The bundle: the zip a manifest is published as.
+                     Thin wrapper over the `opys-bundle` crate.                  → core
 @opys/dev           Build SDK: defineConfig, the build engine, the plugin contract,
                      artifact overrides, files, userDataDir.
                      The contribution merge is the `opys-dev` crate.               → core
-@opys/runtime       install + launch executor.                              → core ONLY
+@opys/runtime       install + launch executor.                       → core, bundle ONLY
 @opys/minecraft     Minecraft-domain plugins — minecraft / forge / neoforge /
                      fabric / cleanroom / lwjgl3ify / curseforge / authliberty — +
                      bifrost / serverlist helpers. Every plugin here is a thin
-                     wrapper over the crate of the same name, each with its
-                     own `.node`.                           → dev, core, mojang
+                     wrapper over the crate of the same name, through its
+                     namespace of the addon.                → dev, core, mojang
 @opys/java          JDK provisioning — Temurin / Zulu / GraalVM CE.
                      Thin wrapper over the `opys-java` crate.                → dev, core
 @opys/links         A pasted link → a pinned artifact: GitHub / GitLab / Modrinth /
@@ -83,7 +98,7 @@ them, and the list below names the layers rather than every one:
                      Thin wrapper over the `opys-links` crate.                → dev, core
 @opys/dgpuj         The dgpuj GPU-selection shim, one archive per target.
                      Thin wrapper over the `opys-dgpuj` crate.               → dev, core
-@opys/cli           the `opys` binary.                 → core, dev, runtime, minecraft
+@opys/cli           the `opys` binary.         → core, bundle, dev, runtime, minecraft
 ```
 
 ### Invariants
@@ -94,30 +109,53 @@ them, and the list below names the layers rather than every one:
   _which_ bytes and never where they are kept, so the name is also the
   integrity pin and a blob artifact carries no `integrity` of its own.
   Decoding gives it one all the same, which is why nothing in the runtime
-  tells a blob from a download when it verifies. Where the bytes are is the
-  holder's business — an entry of a bundle once published, and before that a
-  `Blobs` table (`BlobSource`: a file on the build machine, or bytes a plugin
-  made). That table is build-machine state and is never in a manifest; that
+  tells a blob from a download when it verifies. Where the bytes are is an
+  entry of a bundle, and nothing else: a blob exists only in one. Before a
+  bundle is written the bytes are on the build machine, and that is said by
+  a build-time artifact, never by a manifest; that
   is the whole difference from the `file` and `bytes` sources it replaced,
   which made a manifest either machine-specific or megabytes of base64.
 - **A manifest is published as a bundle, and a bundle is a zip.** `opys.json`
-  (the head: `format`, `vars`, `launch`, `cleanup`), `artifacts.json` (the
-  list), and `blobs/<sha256>`. Not a format of our own: the reader is
-  `unzip`. The manifest is split because its halves are read for different
-  reasons and differ a thousandfold in size — the list is one line per file
-  of an installation, the head is what anything else asks about — so the head
-  is the first entry and is stored uncompressed, readable with one seek. The
-  split is the container's and not the model's: both halves decode into the
-  one `Manifest`. A bundle is written deterministically (fixed timestamps,
+  (the head), `manifest.json` (the manifest, whole) and `blobs/<sha256>`. Not
+  a format of our own: the reader is `unzip`. The head is about the bundle
+  and the manifest is about the installation, and nothing of the manifest is
+  in the head. It was once: a bundle kept `vars`, `launch` and `cleanup`
+  there and the artifact list in an entry of its own, so that a launch line
+  could be read without the megabytes of list. That bought one cheap read
+  and cost the format a second spelling of the manifest — two entries that
+  had to be put back together, and a `Head` type that was a `Manifest` with
+  a field missing. So `manifest.json` is exactly what `core` reads and
+  writes, and the head says only `format` today. It is still the first entry
+  and stored uncompressed, readable with one seek, because it is where
+  whatever is worth knowing about a bundle without decoding its manifest
+  will go. A bundle is written deterministically (fixed timestamps,
   blobs in id order), each blob is hashed against its name as it is written,
   and a reader refuses a bundle that names a blob it does not hold before
   installing anything from it.
-- **Dev and production install the same way.** `opys launch` hands the
-  runtime the manifest and the blob table in memory; a deployed launcher hands
-  it a bundle. Both are blobs behind one `BlobStore`, so there is no source
-  kind that exists only on a developer's machine and no install path that
-  production never exercises. The cost is hashing local files on each build,
-  which the `files` plugin (then `artifactScanner`) already did.
+- **A carried file is said on its own artifact, and only until the merge.**
+  A plugin hands over a `BuildArtifact` (`opys-dev`): a manifest's artifact
+  whose `source` may also be `{ file }`, a path on the build machine, or
+  `{ bytes }` the plugin made. `assemble` reads each one, names it by its
+  sha256 and emits an ordinary `{ blob }` artifact, with the bytes set aside
+  as the bundle writer's input. So a plugin computes no id and keeps no
+  table, and the manifest cannot hold either source. There used to be a
+  `blobs` table beside a contribution's artifacts, id → where the bytes
+  are: the old `file` and `bytes` sources moved one step sideways, and a
+  second object every plugin, the engine and the runtime had to pass along.
+  Everything of a build-time artifact but its source is read by the
+  manifest's own reader, so it has no second spelling of `rules` or
+  `extract`. The loader crates still hold an id → path map between
+  resolving a config's libraries and building their contribution, since
+  they hash those to pin them; `BuildArtifact::carrying` puts the two back
+  together there, and nothing past that point sees it.
+- **Dev and production install the same way: from a bundle.** A blob is
+  copied out of a bundle and from nowhere else, so `opys launch` writes what
+  it built to a temporary bundle and hands the runtime that, exactly what a
+  deployed launcher hands it. The runtime's `{ manifest }` source remains
+  for a manifest that carries nothing, and one that names a blob is refused
+  before anything is installed. There is no source kind that exists only on
+  a developer's machine and no install path production never exercises. The
+  cost is zipping the carried files on each launch.
 - **A manifest is fully resolved; the installer looks nothing up.** Every
   artifact names a concrete source and, wherever one can be had, a pinned
   hash. Finding out what to download or what its hash should be is build-time
@@ -163,9 +201,16 @@ them, and the list below names the layers rather than every one:
   the version JSON's `natives` / `classifiers` maps and the asset manifest's
   `objects` are `BTreeMap`s. Both were `HashMap`s and both made a manifest
   differ run to run.
-- **`runtime` depends on `core` alone** among `@opys/*` — `runtime/lib`
-  imports only `@opys/core`, its own binding, and `node:`, with no third-party
-  dependency at all. It is a clean reimplementation target.
+- **The bundle is its own crate and package, beside `core`.** `core` is the
+  manifest; `opys-bundle` reads and writes the file one is published in, and
+  owns `Head` and the format number. It also owns
+  what a bundle is written from — `Blobs`, id → a file or bytes — and the
+  hashing that names a blob. `core` keeps only the reference, `{ blob }`,
+  and the check that an id is well formed.
+- **`runtime` depends on `core` and the bundle alone** among `@opys/*`. The
+  crate reads a bundle through `opys-bundle`; `runtime/lib` imports only
+  `@opys/core`, its namespace of the addon, and `node:`, with no third-party dependency
+  at all. It is a clean reimplementation target.
 - **`dev` and `runtime` never see each other.** `core` is the only plank across
   the build-time / runtime wall; they are joined solely by the manifest.
 - **One rule format, one implementation** — the `opys-mojang-rules` crate owns
@@ -223,9 +268,11 @@ them, and the list below names the layers rather than every one:
   resolved whatever the author wrote. Libraries go ahead of everything on the
   classpath and take the place of the version's library of the same
   `group:artifact`, which is what `inheritsFrom` means for a patch's and is
-  the same code path. One rule is this option's own: a library with `rules`
-  replaces nothing, since wherever its rules do not hold it is absent, and
-  dropping the version's copy there would leave that machine with neither.
+  the same code path. That holds for a library with `rules` too: it replaces
+  the version's copy on every OS, including those its rules leave out. An
+  override is whole, and whoever makes one says what each OS gets by adding
+  an entry for each; replacing a library for one OS while the version's own
+  carried on for the rest would be two sources of truth for one module.
   It all happens in `opys-minecraft-vanilla`'s `add_libraries`, which every
   loader ends in; a template keeps its classpath as entries for this, since
   what a library supersedes can only be told from an entry's module.
@@ -303,17 +350,24 @@ them, and the list below names the layers rather than every one:
   installer's own version JSON and the crate looks a build id up in the index.
   Nothing anywhere parses either one. The JS `nfVersionToMc` that used to did,
   and was already wrong.
-- **One binding per crate.** `opys-<x>-napi` → `@opys/<x>-binding`, named after
-  the module it exposes and nothing else; a JS package imports its own binding,
-  never a sibling's. Every addon that resolves anything statically links the same ~4 MB of
-  ureq/rustls/serde across seven triples, and that cost is accepted on purpose:
-  the crate split is the architecture and the binding count must not be allowed
-  to shape it. Collapsing addons into one `.node` stays a live option, but it
-  is one decision taken for all of them at once — not a family at a time, which
-  only yields a half-merged layout that is neither.
+- **One addon, and a namespace per crate.** `opys-napi` is the only `cdylib`
+  and `@opys/binding` the only binding. Every crate with a JS surface is a
+  module there and a namespace of the addon: `opys-forge` is `mod forge` and,
+  from JS, `binding.forge`. The boundaries did not go with the addons, they
+  moved to the namespace: a module names its own crate and what that crate
+  already reaches, and an `@opys/*` package imports its own namespace and no
+  other. So `mod forge` cannot call `opys-runtime` any more than `opys-forge`
+  can, and the wall between build time and runtime holds inside one binary.
+  There were nineteen addons, one per crate. Each that resolved anything
+  linked its own copy of ureq, rustls and serde, and together they weighed
+  89 MB on one target where the one addon weighs 16; a release published 133
+  platform packages where it now publishes seven. The cost is that a
+  launcher, which wants the runtime alone, carries the build side too: about
+  2 MB more than `runtime` and `core` came to. The crate split is the
+  architecture and was never the addon count.
 - **One merge, one implementation.** Folding plugin contributions into a
   `Manifest` is `opys-dev`'s `assemble`; `@opys/dev` calls it through
-  `@opys/dev-binding`. Driving the plugins stays in JS because plugins are
+  the addon's `dev` namespace. Driving the plugins stays in JS because plugins are
   closures — but a native builder running Rust plugins reaches the identical
   merge.
 - **The launch line is data, and a reference is resolved where the merge
@@ -342,8 +396,9 @@ them, and the list below names the layers rather than every one:
   and `get_bytes`, because a modpack's index is inside its archive and has to
   be read to resolve it. Neither is a downloader. Resolvers run once against small JSON APIs;
   the install path has its own downloader in `opys-runtime`, and the two must
-  never be confused for one another. `opys-dev-napi` builds with the `net`
-  feature off, since merging contributions needs no network.
+  never be confused for one another. The `net` feature is what a crate that fetches asks for; one that only
+  merges or generates, like `opys-minecraft-serverlist`, takes `opys-dev`
+  without it.
   `http::get_json` is the layer every resolver actually calls — GET, reject a
   non-2xx as `JsonGetError::Status`, decode. It lives in `opys-dev` rather
   than in each loader crate because the status check and the decode must have
@@ -445,9 +500,11 @@ What it holds:
   and across napi: a wrapper package reaches the crate behind its binding. The
   allow-lists are checked against the walls too, so loosening one cannot take
   a wall down unnoticed.
-- **One binding per crate.** `opys-<x>-napi` depends on `opys-<x>`, reaches
-  nothing that crate does not, is a `cdylib`, and stays off crates.io; a
-  package depends on its own binding and no other.
+- **One addon, bounded by namespace.** `opys-napi` is a `cdylib` and stays
+  off crates.io. Each of its modules exists exactly where a crate is declared
+  as exposed, uses that crate, and names nothing it does not reach; the addon
+  links nothing its modules do not use. A package that wraps takes its own
+  namespace from `@opys/binding` and no other, read off the import itself.
 - **Imports are declared.** Read from the TypeScript syntax tree: no package a
   `package.json` does not list (hoisting hides those), no subpath into another
   package, no relative path out of one. `lib/` may not use a devDependency.
@@ -475,8 +532,7 @@ interface OpysPlugin {
   build(ctx: BuildContext): Promise<Contribution> | Contribution;
 }
 interface Contribution {
-  artifacts?: Artifact[];
-  blobs?: Blobs; // where this plugin's blob artifacts are kept
+  artifacts?: BuildArtifact[]; // a manifest's, or carried: { file } / { bytes }
   vars?: ValDefs;
   launch?: Record<string, Valset | Val | string>; // named launch groups
 }
@@ -547,13 +603,11 @@ export default defineConfig(({ mode }) => ({
   `install()` cannot do them. The flag goes on the JVM line, never into the
   manifest, which describes an installation and not a run of one: the launch
   is built as the manifest says and the flag is added to what comes back.
-- **`opys launch`** — builds the manifest in-memory from the config and
-  launches it directly; no bundle is written, and the blobs are read from
-  where they are. `run(manifest) => Partial<Manifest>` is the
+- **`opys launch`** — builds the manifest from the config, writes it and
+  what it carries to a temporary bundle, and launches from that. `run(manifest) => Partial<Manifest>` is the
   launch-time patch, applied every launch (so e.g. `bifrost` mints a fresh
   token) as a shallow per-field override. The build/runtime wall holds — `cli`
-  orchestrates `dev` + `runtime`, joined by the in-memory `Manifest` and its
-  blobs; a _deployed_ launcher instead feeds `@opys/runtime` a published
+  orchestrates `dev` + `runtime`, joined by that bundle; a _deployed_ launcher instead feeds `@opys/runtime` a published
   bundle with no `dev`.
 - **`opys launch <bundle>` / `opys install <bundle>`** — that second path,
   from the command line: install and launch a built bundle as it is. No config
@@ -595,5 +649,5 @@ export default defineConfig(({ mode }) => ({
 - **`npm run architecture`** holds the tree to
   `scripts/architecture/rules.mjs`. It reads manifests and sources only, so it
   needs nothing built; it runs on every commit and first in CI.
-- **`node scripts/smoke-napi.mjs`** loads every `.node` and crosses each
-  binding once — the check that the addons are actually built and loadable.
+- **`node scripts/smoke-napi.mjs`** loads the addon and crosses each
+  namespace once — the check that it is actually built and loadable.

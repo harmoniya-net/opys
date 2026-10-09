@@ -2,7 +2,7 @@
  * `@opys/modrinth` — Modrinth mod files and `.mrpack` modpacks.
  *
  * Behaviour lives in the `opys-modrinth` crate and reaches JS through
- * `@opys/modrinth-binding`; this module is the typed surface over it. The
+ * `@opys/binding`, under `modrinth`; this module is the typed surface over it. The
  * codegen'd binding types everything as `Json` (≈ `unknown`), so each wrapper
  * carries one `as`-cast at the boundary. No `as unknown as`.
  *
@@ -19,7 +19,7 @@
  * CDN links.
  */
 
-import * as napi from '@opys/modrinth-binding';
+import { modrinth as napi } from '@opys/binding';
 import {
   definePlugin,
   pluginOptions,

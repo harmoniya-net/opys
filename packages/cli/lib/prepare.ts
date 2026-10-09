@@ -1,5 +1,8 @@
-import { resolve } from 'node:path';
-import { readBundleHead, type Launch, type Manifest } from '@opys/core';
+import { join, resolve } from 'node:path';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { readBundle, writeBundle } from '@opys/bundle';
+import type { Launch, Manifest } from '@opys/core';
 import { buildManifest, type BuildContext } from '@opys/dev';
 import type { ManifestSource } from '@opys/runtime';
 import { parseArgs } from './args';
@@ -10,7 +13,7 @@ import type { Logger } from './logger';
 export interface Prepared {
   /** What `@opys/runtime` installs and launches from. */
   source: ManifestSource;
-  /** The manifest's launch block, read without its artifact list. */
+  /** The manifest's launch block. */
   launch: Launch | undefined;
   features: string[];
   /** `--var` overrides, layered over the manifest's own vars. */
@@ -34,9 +37,8 @@ function parseVars(pairs: string[]): Record<string, string> {
  * What `launch` and `install` both do before they differ: turn the command
  * line into something to install from.
  *
- * There are two ways in. With no argument, the config file is built in
- * memory and handed over as it is — the manifest, and its blobs still where
- * they are on this machine, with no bundle written in between. With a path,
+ * There are two ways in. With no argument, the config file is built
+ * and written to a temporary bundle, which is installed from. With a path,
  * that bundle is what gets installed, exactly as a deployed launcher would
  * install it: no config, no `dev`, and so no `run` either, which is
  * what `--var` is for.
@@ -76,7 +78,7 @@ export async function prepare(
     const path = resolve(bundle);
     return {
       source: { bundle: path },
-      launch: readBundleHead(path).launch,
+      launch: readBundle(path).launch,
       features,
       vars,
     };
@@ -111,8 +113,16 @@ export async function prepare(
     }
   }
 
+  // Installed the way a published pack is: from a bundle. Written to a
+  // temporary file that goes with the process, so a carried file is copied
+  // out of the same container here as on a player's machine.
+  const dir = mkdtempSync(join(tmpdir(), 'opys-'));
+  process.once('exit', () => rmSync(dir, { recursive: true, force: true }));
+  const written = join(dir, 'launch.opys');
+  await writeBundle(written, manifest, built.blobs);
+
   return {
-    source: { manifest, blobs: built.blobs },
+    source: { bundle: written },
     launch: manifest.launch,
     features,
     vars,

@@ -3,7 +3,7 @@
 
 use std::path::Path;
 
-use opys_core::{blob_id, BlobSource};
+use opys_bundle::{blob_id, BlobSource};
 use opys_dev::{scan_directory, scanned_files, PlacedFile, ScanError, ScanHash, ScannedFile};
 use serde_json::json;
 use tempfile::tempdir;
@@ -123,33 +123,24 @@ fn a_scanned_file_crosses_to_the_caller_as_plain_fields() {
 // ── a file that travels with the manifest ─────────────────────────────────
 
 #[test]
-fn a_file_with_no_url_is_a_blob_and_the_table_says_where_it_is() {
+fn a_file_with_no_url_is_carried_and_says_where_it_is() {
     let dir = tempdir().unwrap();
     touch(dir.path(), "a.txt", "hello");
     let abs = dir.path().join("a.txt");
     let contribution = scanned_files(&[blob(&abs, "${root}/a.txt")], ScanHash::default()).unwrap();
 
-    let id = blob_id(b"hello");
+    // Not hashed here: the merge names it by its content.
     assert_eq!(
         serde_json::to_value(&contribution.artifacts).unwrap(),
-        json!([{ "path": "${root}/a.txt", "source": { "blob": id }, "size": 5 }])
+        json!([{ "path": "${root}/a.txt", "source": { "file": abs } }])
     );
-    assert_eq!(contribution.blobs.len(), 1);
-    assert_eq!(contribution.blobs[&id], BlobSource::File(abs));
-}
-
-#[test]
-fn two_files_with_the_same_content_are_two_artifacts_and_one_blob() {
-    let dir = tempdir().unwrap();
-    touch(dir.path(), "a.txt", "same");
-    touch(dir.path(), "b.txt", "same");
-    let files = [
-        blob(&dir.path().join("a.txt"), "a"),
-        blob(&dir.path().join("b.txt"), "b"),
-    ];
-    let contribution = scanned_files(&files, ScanHash::default()).unwrap();
-    assert_eq!(contribution.artifacts.len(), 2);
-    assert_eq!(contribution.blobs.len(), 1);
+    let (artifact, held) = contribution.artifacts[0].clone().resolve().unwrap();
+    let id = blob_id(b"hello");
+    assert_eq!(
+        serde_json::to_value(&artifact).unwrap(),
+        json!({ "path": "${root}/a.txt", "source": { "blob": id }, "size": 5 })
+    );
+    assert_eq!(held, Some((id, BlobSource::File(abs))));
 }
 
 // ── a file published elsewhere ────────────────────────────────────────────
@@ -170,11 +161,11 @@ fn a_file_with_a_url_points_at_it_and_is_pinned_by_sha1_unless_asked_otherwise()
         json!([{ "path": "a.txt", "source": { "url": "https://cdn/a.txt" }, "size": 5, "integrity": { "sha1": SHA1_HELLO } }])
     );
     // Nothing to carry: the installer fetches it.
-    assert!(sha1.blobs.is_empty());
+    assert_eq!(sha1.artifacts[0].clone().resolve().unwrap().1, None);
 
     let sha256 = scanned_files(&files, ScanHash::Sha256).unwrap();
     assert_eq!(
-        serde_json::to_value(&sha256.artifacts[0].integrity).unwrap(),
+        serde_json::to_value(&sha256.artifacts[0]).unwrap()["integrity"],
         json!({ "sha256": blob_id(b"hello") })
     );
 }
@@ -196,10 +187,9 @@ fn the_two_kinds_mix_and_keep_the_order_they_were_placed_in() {
     let paths: Vec<&str> = contribution
         .artifacts
         .iter()
-        .map(|a| a.path.as_str())
+        .map(|a| a.path().unwrap())
         .collect();
     assert_eq!(paths, ["mods/pub.jar", "mods/priv.jar"]);
-    assert_eq!(contribution.blobs.len(), 1);
 }
 
 #[test]
@@ -211,8 +201,9 @@ fn the_size_is_what_was_hashed() {
     let abs = dir.path().join("big.bin");
     for file in [blob(&abs, "big"), published(&abs, "big", "https://cdn/big")] {
         let contribution = scanned_files(&[file], ScanHash::Sha256).unwrap();
-        assert_eq!(contribution.artifacts[0].size, Some(200_000));
-        let integrity = serde_json::to_value(&contribution.artifacts[0].integrity).unwrap();
+        let (artifact, _) = contribution.artifacts[0].clone().resolve().unwrap();
+        assert_eq!(artifact.size, Some(200_000));
+        let integrity = serde_json::to_value(&artifact.integrity).unwrap();
         assert_eq!(integrity, json!({ "sha256": blob_id(body.as_bytes()) }));
     }
 }
@@ -220,10 +211,16 @@ fn the_size_is_what_was_hashed() {
 #[test]
 fn a_file_that_vanished_between_the_scan_and_the_hash_is_named() {
     let gone = Path::new("/nonexistent/opys-scan/a.txt");
-    for file in [blob(gone, "a"), published(gone, "a", "https://cdn/a")] {
-        let ScanError::Io { path, .. } = scanned_files(&[file], ScanHash::default()).unwrap_err();
-        assert_eq!(path, "/nonexistent/opys-scan/a.txt");
-    }
+    let ScanError::Io { path, .. } = scanned_files(
+        &[published(gone, "a", "https://cdn/a")],
+        ScanHash::default(),
+    )
+    .unwrap_err();
+    assert_eq!(path, "/nonexistent/opys-scan/a.txt");
+    // A carried file is read by the merge, which is where it is missed.
+    let carried = scanned_files(&[blob(gone, "a")], ScanHash::default()).unwrap();
+    let error = carried.artifacts[0].clone().resolve().unwrap_err();
+    assert!(error.to_string().contains("/nonexistent/opys-scan/a.txt"));
 }
 
 #[test]

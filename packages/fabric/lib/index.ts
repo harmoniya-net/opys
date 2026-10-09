@@ -2,7 +2,7 @@
  * `@opys/fabric` — the Fabric mod loader.
  *
  * Behaviour lives in the `opys-fabric` crate and reaches JS through
- * `@opys/fabric-binding`; this module is the typed surface over it. The
+ * `@opys/binding`, under `fabric`; this module is the typed surface over it. The
  * codegen'd binding types everything as `Json` (≈ `unknown`), so each wrapper
  * carries one `as`-cast at the boundary. No `as unknown as`.
  *
@@ -11,7 +11,7 @@
  * `ctx.log` — is JS. Everything it wraps is one native call.
  */
 
-import * as napi from '@opys/fabric-binding';
+import { fabric as napi } from '@opys/binding';
 import {
   definePlugin,
   pluginOptions,
@@ -20,8 +20,10 @@ import {
   type ExtraLibrary,
   type ChainablePlugin,
   type LoaderGroups,
+  carrying,
 } from '@opys/dev';
-import type { Artifact, ConditionalVal, ValDefs, Blobs } from '@opys/core';
+import type { LoaderTemplate } from '@opys/dev';
+import type { Artifact, ConditionalVal, ValDefs } from '@opys/core';
 import type { LaunchParts } from '@opys/minecraft-vanilla';
 
 /** The canonical Fabric Meta base URL. */
@@ -68,7 +70,7 @@ export interface FabricTemplate extends LaunchParts {
   /** Vanilla artifacts followed by the loader's own libraries. */
   readonly artifacts: Artifact[];
   /** Where the blobs among `artifacts` are kept; set only by a local library. */
-  readonly blobs?: Blobs;
+  readonly blobs?: LoaderTemplate['blobs'];
   readonly vars: ValDefs;
   /**
    * Per-OS classpath arms (also baked into `vars.classpath`), exposed so a
@@ -121,8 +123,7 @@ export function fabric(
       const t = await resolveFabric(withLibraryFiles(options, ctx.configDir));
       ctx.log('fabric', `resolved ${version}`);
       return {
-        artifacts: t.artifacts,
-        blobs: t.blobs,
+        artifacts: carrying(t),
         vars: t.vars,
         launch: launchGroups(t),
       };

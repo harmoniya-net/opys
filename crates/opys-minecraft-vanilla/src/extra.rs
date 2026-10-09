@@ -26,7 +26,8 @@
 use std::fs::File;
 use std::path::PathBuf;
 
-use opys_core::{blob_id_of, Artifact, BlobSource, Blobs, ExtractRule, Integrity, Source, ValDef};
+use opys_bundle::{blob_id_of, BlobSource, Blobs};
+use opys_core::{Artifact, ExtractRule, Integrity, Source, ValDef};
 use opys_dev::pin::{pin_url, PinError};
 use opys_mojang::MavenCoord;
 use opys_mojang_rules::{MojangRuleset, RuleError};
@@ -114,6 +115,15 @@ pub enum ExtraLibraryError {
     Path { name: String, path: String },
     #[error("library '{0}': a file is pinned by its own content, so it takes no `integrity`")]
     FileIntegrity(String),
+    #[error(
+        "libraries '{first}' and '{second}' are both installed at '{path}': artifacts are told \
+         apart by path, so one would silently take the other's place"
+    )]
+    SamePath {
+        first: String,
+        second: String,
+        path: String,
+    },
     #[error("library '{name}': {source}")]
     Pin {
         name: String,
@@ -242,6 +252,18 @@ pub struct ResolvedLibraries {
 pub fn resolve_libraries(
     libraries: &[ExtraLibrary],
 ) -> Result<ResolvedLibraries, ExtraLibraryError> {
+    // Before anything is fetched: two entries for one module are how an
+    // override is spelled per OS, and they have to be two files.
+    for (index, library) in libraries.iter().enumerate() {
+        if let Some(earlier) = libraries[..index].iter().find(|l| l.path == library.path) {
+            return Err(ExtraLibraryError::SamePath {
+                first: earlier.name.to_string(),
+                second: library.name.to_string(),
+                path: library.path.clone(),
+            });
+        }
+    }
+
     let mut resolved = ResolvedLibraries::default();
     for library in libraries {
         let name = || library.name.to_string();
@@ -309,14 +331,11 @@ pub fn with_libraries(
         return Ok(template);
     }
     let (added, ahead): (Vec<Artifact>, Vec<ClasspathEntry>) = resolved.entries.into_iter().unzip();
-    // Only a library that applies everywhere takes another's place. One with
-    // rules is absent wherever they do not hold, and dropping the version's
-    // own copy there would leave that machine with neither.
-    let replaced: Vec<&str> = ahead
-        .iter()
-        .filter(|e| e.rules.is_empty())
-        .filter_map(|e| e.module.as_deref())
-        .collect();
+    // An added library replaces the version's own outright, rules or no
+    // rules. Replacing a library for one OS and keeping the version's for the
+    // rest would be two sources of truth for one module; whoever overrides it
+    // says what every OS gets, by adding an entry for each.
+    let replaced: Vec<&str> = ahead.iter().filter_map(|e| e.module.as_deref()).collect();
     let gone = |e: &ClasspathEntry| e.module.as_deref().is_some_and(|m| replaced.contains(&m));
 
     // What leaves the classpath leaves the download set with it.

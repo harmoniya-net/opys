@@ -28,7 +28,9 @@ pub mod pin;
 mod scan;
 pub mod url;
 
-pub use contribution::{Contribution, LaunchFragment, LaunchGroups, PluginOutput};
+pub use contribution::{
+    BuildArtifact, BuildArtifactError, Contribution, LaunchFragment, LaunchGroups, PluginOutput,
+};
 pub use engine::{assemble, AssembleError, Assembled, ManifestConfig};
 #[cfg(feature = "net")]
 pub use http::{HttpBytes, HttpError, HttpResponse, JsonGetError, OPYS_USER_AGENT};

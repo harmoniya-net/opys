@@ -16,6 +16,7 @@
   "workspaces": [
     "packages/mojang-rules",
     "packages/core",
+    "packages/bundle",
     "packages/dev",
     "packages/mojang",
     "packages/minecraft-vanilla",
@@ -35,24 +36,7 @@
     "packages/minecraft",
     "packages/runtime",
     "packages/cli",
-    "crates/opys-dev-napi",
-    "crates/opys-java-napi",
-    "crates/opys-mojang-napi",
-    "crates/opys-minecraft-vanilla-napi",
-    "crates/opys-fabric-napi",
-    "crates/opys-forge-napi",
-    "crates/opys-neoforge-napi",
-    "crates/opys-cleanroom-napi",
-    "crates/opys-lwjgl3ify-napi",
-    "crates/opys-authliberty-napi",
-    "crates/opys-modrinth-napi",
-    "crates/opys-curseforge-napi",
-    "crates/opys-links-napi",
-    "crates/opys-dgpuj-napi",
-    "crates/opys-bifrost-napi",
-    "crates/opys-minecraft-serverlist-napi",
-    "crates/opys-core-napi",
-    "crates/opys-runtime-napi"
+    "crates/opys-napi"
   ],
   "devDependencies": {
     "@emnapi/core": "^1.10.0",

@@ -1,5 +1,6 @@
-import type { Blobs, Manifest } from '@opys/core';
-import * as napi from '@opys/dev-binding';
+import type { Blobs } from '@opys/bundle';
+import type { Manifest } from '@opys/core';
+import { dev as napi } from '@opys/binding';
 import type { OpysConfig } from './config';
 import type { BuildContext } from './plugin';
 
@@ -10,9 +11,7 @@ interface Assembled extends Built {
 
 /**
  * A build's result: the manifest, and where each blob it names is kept on
- * this machine. The two travel together — to `writeBundle`, which publishes
- * them as one file, or straight to `@opys/runtime`, which installs from them
- * with nothing written in between.
+ * this machine. The two go to `writeBundle`, which makes one file of them.
  */
 export interface Built {
   manifest: Manifest;
@@ -61,8 +60,15 @@ export async function buildManifest(
   const outputs = results.map((r) => ({
     name: r.name,
     contribution: {
-      artifacts: r.contribution.artifacts ?? [],
-      blobs: r.contribution.blobs ?? {},
+      // Bytes cross into the crate as base64, like everything that does.
+      artifacts: (r.contribution.artifacts ?? []).map((a) =>
+        'bytes' in a.source
+          ? {
+              ...a,
+              source: { bytes: Buffer.from(a.source.bytes).toString('base64') },
+            }
+          : a,
+      ),
       vars: r.contribution.vars ?? {},
       launch: r.contribution.launch ?? {},
       envs: r.contribution.envs ?? {},

@@ -1,8 +1,9 @@
 //! The `cleanroom` plugin: a published Cleanroom version document, mapped.
 
-use opys_core::{Artifact, Blobs, ConditionalVal, Launch, Val, ValDefs};
+use opys_bundle::Blobs;
+use opys_core::{Artifact, ConditionalVal, Launch, Val, ValDefs};
 use opys_dev::http::get_json;
-use opys_dev::{Contribution, LaunchFragment, PluginOutput};
+use opys_dev::{BuildArtifact, Contribution, LaunchFragment, PluginOutput};
 use opys_minecraft_vanilla::{add_libraries, resolve_client_template, ExtraLibrary};
 use opys_mojang::Client;
 use serde::{Deserialize, Serialize};
@@ -94,9 +95,7 @@ pub fn build_cleanroom(options: &CleanroomOptions) -> Result<PluginOutput, Clean
     Ok(PluginOutput {
         name: PLUGIN_NAME.to_owned(),
         contribution: Contribution {
-            artifacts: template.artifacts,
-            // Empty unless the config added a library from its own disk.
-            blobs: template.blobs,
+            artifacts: BuildArtifact::carrying(template.artifacts, &template.blobs),
             vars: template.vars,
             launch: [
                 (

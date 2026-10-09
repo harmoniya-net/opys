@@ -922,18 +922,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "opys-authliberty-napi"
-version = "0.2.0"
-dependencies = [
- "napi",
- "napi-build",
- "napi-derive",
- "opys-authliberty",
- "serde",
- "serde_json",
-]
-
-[[package]]
 name = "opys-bifrost"
 version = "0.2.0"
 dependencies = [
@@ -945,21 +933,25 @@ dependencies = [
 ]
 
 [[package]]
-name = "opys-bifrost-napi"
+name = "opys-bundle"
 version = "0.2.0"
 dependencies = [
- "napi",
- "napi-build",
- "napi-derive",
- "opys-bifrost",
+ "base64 0.22.1",
+ "hex",
+ "opys-core",
  "serde",
  "serde_json",
+ "sha2",
+ "tempfile",
+ "thiserror",
+ "zip",
 ]
 
 [[package]]
 name = "opys-cleanroom"
 version = "0.2.0"
 dependencies = [
+ "opys-bundle",
  "opys-core",
  "opys-dev",
  "opys-minecraft-vanilla",
@@ -970,46 +962,15 @@ dependencies = [
 ]
 
 [[package]]
-name = "opys-cleanroom-napi"
-version = "0.2.0"
-dependencies = [
- "napi",
- "napi-build",
- "napi-derive",
- "opys-cleanroom",
- "serde",
- "serde_json",
-]
-
-[[package]]
 name = "opys-core"
 version = "0.2.0"
 dependencies = [
- "base64 0.22.1",
- "hex",
  "indexmap",
  "opys-mojang-rules",
  "regex",
  "serde",
  "serde_json",
- "sha2",
- "tempfile",
  "thiserror",
- "zip",
-]
-
-[[package]]
-name = "opys-core-napi"
-version = "0.2.0"
-dependencies = [
- "indexmap",
- "napi",
- "napi-build",
- "napi-derive",
- "opys-core",
- "opys-mojang-rules",
- "serde",
- "serde_json",
 ]
 
 [[package]]
@@ -1026,23 +987,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "opys-curseforge-napi"
-version = "0.2.0"
-dependencies = [
- "napi",
- "napi-build",
- "napi-derive",
- "opys-curseforge",
- "serde",
- "serde_json",
-]
-
-[[package]]
 name = "opys-dev"
 version = "0.2.0"
 dependencies = [
  "hex",
  "indexmap",
+ "opys-bundle",
  "opys-core",
  "percent-encoding",
  "serde",
@@ -1052,20 +1002,6 @@ dependencies = [
  "tempfile",
  "thiserror",
  "ureq",
-]
-
-[[package]]
-name = "opys-dev-napi"
-version = "0.2.0"
-dependencies = [
- "indexmap",
- "napi",
- "napi-build",
- "napi-derive",
- "opys-core",
- "opys-dev",
- "serde",
- "serde_json",
 ]
 
 [[package]]
@@ -1080,21 +1016,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "opys-dgpuj-napi"
-version = "0.2.0"
-dependencies = [
- "napi",
- "napi-build",
- "napi-derive",
- "opys-dgpuj",
- "serde",
- "serde_json",
-]
-
-[[package]]
 name = "opys-fabric"
 version = "0.2.0"
 dependencies = [
+ "opys-bundle",
  "opys-core",
  "opys-dev",
  "opys-minecraft-vanilla",
@@ -1102,24 +1027,13 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror",
-]
-
-[[package]]
-name = "opys-fabric-napi"
-version = "0.2.0"
-dependencies = [
- "napi",
- "napi-build",
- "napi-derive",
- "opys-fabric",
- "serde",
- "serde_json",
 ]
 
 [[package]]
 name = "opys-forge"
 version = "0.2.0"
 dependencies = [
+ "opys-bundle",
  "opys-core",
  "opys-dev",
  "opys-minecraft-vanilla",
@@ -1127,18 +1041,6 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror",
-]
-
-[[package]]
-name = "opys-forge-napi"
-version = "0.2.0"
-dependencies = [
- "napi",
- "napi-build",
- "napi-derive",
- "opys-forge",
- "serde",
- "serde_json",
 ]
 
 [[package]]
@@ -1151,18 +1053,6 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror",
-]
-
-[[package]]
-name = "opys-java-napi"
-version = "0.2.0"
-dependencies = [
- "napi",
- "napi-build",
- "napi-derive",
- "opys-java",
- "serde",
- "serde_json",
 ]
 
 [[package]]
@@ -1179,21 +1069,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "opys-links-napi"
-version = "0.2.0"
-dependencies = [
- "napi",
- "napi-build",
- "napi-derive",
- "opys-links",
- "serde",
- "serde_json",
-]
-
-[[package]]
 name = "opys-lwjgl3ify"
 version = "0.2.0"
 dependencies = [
+ "opys-bundle",
  "opys-core",
  "opys-dev",
  "opys-minecraft-vanilla",
@@ -1204,36 +1083,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "opys-lwjgl3ify-napi"
-version = "0.2.0"
-dependencies = [
- "napi",
- "napi-build",
- "napi-derive",
- "opys-lwjgl3ify",
- "serde",
- "serde_json",
-]
-
-[[package]]
 name = "opys-minecraft-serverlist"
 version = "0.2.0"
 dependencies = [
  "base64 0.22.1",
+ "opys-bundle",
  "opys-core",
  "opys-dev",
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "opys-minecraft-serverlist-napi"
-version = "0.2.0"
-dependencies = [
- "napi",
- "napi-build",
- "napi-derive",
- "opys-minecraft-serverlist",
  "serde",
  "serde_json",
 ]
@@ -1243,6 +1099,7 @@ name = "opys-minecraft-vanilla"
 version = "0.2.0"
 dependencies = [
  "indexmap",
+ "opys-bundle",
  "opys-core",
  "opys-dev",
  "opys-mojang",
@@ -1251,19 +1108,6 @@ dependencies = [
  "serde_json",
  "tempfile",
  "thiserror",
-]
-
-[[package]]
-name = "opys-minecraft-vanilla-napi"
-version = "0.2.0"
-dependencies = [
- "napi",
- "napi-build",
- "napi-derive",
- "opys-minecraft-vanilla",
- "opys-mojang",
- "serde",
- "serde_json",
 ]
 
 [[package]]
@@ -1293,18 +1137,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "opys-modrinth-napi"
-version = "0.2.0"
-dependencies = [
- "napi",
- "napi-build",
- "napi-derive",
- "opys-modrinth",
- "serde",
- "serde_json",
-]
-
-[[package]]
 name = "opys-mojang"
 version = "0.2.0"
 dependencies = [
@@ -1312,19 +1144,6 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror",
-]
-
-[[package]]
-name = "opys-mojang-napi"
-version = "0.2.0"
-dependencies = [
- "napi",
- "napi-build",
- "napi-derive",
- "opys-mojang",
- "opys-mojang-rules",
- "serde",
- "serde_json",
 ]
 
 [[package]]
@@ -1338,9 +1157,43 @@ dependencies = [
 ]
 
 [[package]]
+name = "opys-napi"
+version = "0.2.0"
+dependencies = [
+ "indexmap",
+ "napi",
+ "napi-build",
+ "napi-derive",
+ "opys-authliberty",
+ "opys-bifrost",
+ "opys-bundle",
+ "opys-cleanroom",
+ "opys-core",
+ "opys-curseforge",
+ "opys-dev",
+ "opys-dgpuj",
+ "opys-fabric",
+ "opys-forge",
+ "opys-java",
+ "opys-links",
+ "opys-lwjgl3ify",
+ "opys-minecraft-serverlist",
+ "opys-minecraft-vanilla",
+ "opys-modrinth",
+ "opys-mojang",
+ "opys-mojang-rules",
+ "opys-neoforge",
+ "opys-runtime",
+ "serde",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
 name = "opys-neoforge"
 version = "0.2.0"
 dependencies = [
+ "opys-bundle",
  "opys-core",
  "opys-dev",
  "opys-minecraft-vanilla",
@@ -1348,18 +1201,6 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror",
-]
-
-[[package]]
-name = "opys-neoforge-napi"
-version = "0.2.0"
-dependencies = [
- "napi",
- "napi-build",
- "napi-derive",
- "opys-neoforge",
- "serde",
- "serde_json",
 ]
 
 [[package]]
@@ -1372,6 +1213,7 @@ dependencies = [
  "hex",
  "indexmap",
  "md-5",
+ "opys-bundle",
  "opys-core",
  "opys-mojang-rules",
  "rand 0.8.6",
@@ -1387,22 +1229,6 @@ dependencies = [
  "tokio",
  "tokio-util",
  "zip",
-]
-
-[[package]]
-name = "opys-runtime-napi"
-version = "0.2.0"
-dependencies = [
- "indexmap",
- "napi",
- "napi-build",
- "napi-derive",
- "opys-core",
- "opys-mojang-rules",
- "opys-runtime",
- "serde",
- "serde_json",
- "tokio",
 ]
 
 [[package]]

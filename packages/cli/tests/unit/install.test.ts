@@ -3,7 +3,7 @@ import { EventEmitter } from 'node:events';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { writeBundle } from '@opys/core';
+import { writeBundle } from '@opys/bundle';
 
 const installMock = vi.hoisted(() => vi.fn());
 const buildLaunchMock = vi.hoisted(() => vi.fn());

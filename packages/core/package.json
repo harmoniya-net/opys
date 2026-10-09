@@ -19,7 +19,7 @@
   },
   "type": "module",
   "dependencies": {
-    "@opys/core-binding": "^0.2.0",
+    "@opys/binding": "^0.2.0",
     "@opys/mojang-rules": "^0.2.0"
   },
   "engines": {

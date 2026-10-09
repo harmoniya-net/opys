@@ -28,7 +28,10 @@ describe('java plugin (live, Temurin)', () => {
     // The plugin solely owns these vars and the `bin` launch group.
     expect(c.vars).toHaveProperty('java_home');
     expect(c.vars).toHaveProperty('java_bin');
-    expect(c.launch).toEqual({ bin: '${java_bin}' });
+    expect(c.launch).toEqual({
+      bin: '${java_bin}',
+      home: '${java_home}',
+    });
   });
 
   it('resolveTemurin returns hash-pinned binaries for JDK 17', async () => {

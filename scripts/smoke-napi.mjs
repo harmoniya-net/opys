@@ -16,24 +16,27 @@ import { join } from 'node:path';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const core = require('../crates/opys-core-napi/index.js');
-const runtime = require('../crates/opys-runtime-napi/index.js');
-const mojang = require('../crates/opys-mojang-napi/index.js');
-const dev = require('../crates/opys-dev-napi/index.js');
-const java = require('../crates/opys-java-napi/index.js');
-const minecraft = require('../crates/opys-minecraft-vanilla-napi/index.js');
-const fabricNapi = require('../crates/opys-fabric-napi/index.js');
-const forgeNapi = require('../crates/opys-forge-napi/index.js');
-const neoforgeNapi = require('../crates/opys-neoforge-napi/index.js');
-const cleanroomNapi = require('../crates/opys-cleanroom-napi/index.js');
-const lwjgl3ifyNapi = require('../crates/opys-lwjgl3ify-napi/index.js');
-const authlibertyNapi = require('../crates/opys-authliberty-napi/index.js');
-const modrinthNapi = require('../crates/opys-modrinth-napi/index.js');
-const curseforgeNapi = require('../crates/opys-curseforge-napi/index.js');
-const linkNapi = require('../crates/opys-links-napi/index.js');
-const dgpujNapi = require('../crates/opys-dgpuj-napi/index.js');
-const bifrostNapi = require('../crates/opys-bifrost-napi/index.js');
-const serverlistNapi = require('../crates/opys-minecraft-serverlist-napi/index.js');
+// One addon, a namespace per crate.
+const binding = require('../crates/opys-napi/index.js');
+const core = binding.core;
+const bundleNapi = binding.bundle;
+const runtime = binding.runtime;
+const mojang = binding.mojang;
+const dev = binding.dev;
+const java = binding.java;
+const minecraft = binding.minecraftVanilla;
+const fabricNapi = binding.fabric;
+const forgeNapi = binding.forge;
+const neoforgeNapi = binding.neoforge;
+const cleanroomNapi = binding.cleanroom;
+const lwjgl3ifyNapi = binding.lwjgl3ify;
+const authlibertyNapi = binding.authliberty;
+const modrinthNapi = binding.modrinth;
+const curseforgeNapi = binding.curseforge;
+const linkNapi = binding.links;
+const dgpujNapi = binding.dgpuj;
+const bifrostNapi = binding.bifrost;
+const serverlistNapi = binding.minecraftServerlist;
 
 let ok = 0;
 let fail = 0;
@@ -141,15 +144,18 @@ console.log(`  tmpdir: ${dir}`);
 const events = [];
 // One blob, held as bytes: the manifest names it, the table says where it is.
 const world = Buffer.from('world');
-const worldId = core.blobId(world);
+const worldId = bundleNapi.blobId(world);
 const helloManifest = {
   vars: { root: dir },
   launch: { command: 'java', workdir: '${root}', args: ['-jar', 'a.jar'] },
   artifacts: [{ path: '${root}/hello.txt', source: { blob: worldId } }],
 };
 const helloBlobs = { [worldId]: { bytes: world.toString('base64') } };
+// A blob installs from a bundle, and from nothing else.
+const helloBundle = join(dir, 'install.opys');
+await bundleNapi.writeBundle(helloBundle, helloManifest, helloBlobs);
 await runtime.install(
-  { manifest: helloManifest, blobs: helloBlobs },
+  { bundle: helloBundle },
   { verifyIntegrity: true },
   (event) => events.push(event.phase),
 );
@@ -159,16 +165,16 @@ check('install copies a blob to disk', written === 'world');
 
 // The same thing published: one file, read back and installed elsewhere.
 const bundlePath = join(dir, 'hello.opys');
-await core.writeBundle(bundlePath, helloManifest, helloBlobs);
+await bundleNapi.writeBundle(bundlePath, helloManifest, helloBlobs);
 check(
-  'writeBundle writes a zip whose head reads without the list',
+  'writeBundle writes a zip whose head says its format and nothing else',
   readFileSync(bundlePath).subarray(0, 2).toString() === 'PK' &&
-    core.readBundleHead(bundlePath).format === core.bundleFormat() &&
-    core.readBundleHead(bundlePath).artifacts === undefined,
+    JSON.stringify(bundleNapi.readBundleHead(bundlePath)) ===
+      JSON.stringify({ format: bundleNapi.bundleFormat() }),
 );
 check(
   'readBundle gives back the manifest that was written',
-  core.readBundle(bundlePath).artifacts[0].source.blob === worldId,
+  bundleNapi.readBundle(bundlePath).artifacts[0].source.blob === worldId,
 );
 const elsewhere = mkdtempSync(join(tmpdir(), 'opys-napi-bundle-'));
 const prepared = await runtime.prepare(
@@ -183,7 +189,7 @@ check(
 );
 check(
   'hashBlobFile names a file the way blobId names its bytes',
-  (await core.hashBlobFile(join(elsewhere, 'hello.txt'))).id === worldId,
+  (await bundleNapi.hashBlobFile(join(elsewhere, 'hello.txt'))).id === worldId,
 );
 check(
   'a source the format dropped is refused by name',
@@ -217,9 +223,8 @@ const assembled = dev.assemble(
       contribution: {
         artifacts: [
           { path: 'a.jar', source: { url: 'https://x/b' } },
-          { path: 'hello.txt', source: { blob: worldId } },
+          { path: 'hello.txt', source: { bytes: world.toString('base64') } },
         ],
-        blobs: helloBlobs,
         vars: { root: 'clash' },
         envs: { E: '1' },
       },
@@ -237,8 +242,9 @@ check(
     assembled.manifest.artifacts[0].source.url === 'https://x/b',
 );
 check(
-  'assemble carries the blobs the manifest names',
-  JSON.stringify(assembled.blobs) === JSON.stringify(helloBlobs),
+  'assemble names a carried artifact by its content and sets its bytes aside',
+  assembled.manifest.artifacts[1].source.blob === worldId &&
+    JSON.stringify(assembled.blobs) === JSON.stringify(helloBlobs),
 );
 check(
   'assemble warns on a plugin-vs-plugin var collision',
@@ -1245,12 +1251,10 @@ check(
       (a) => a.path === serverlistNapi.defaultServerlistPath(),
     ),
 );
-const listedBlob = listed.contribution.artifacts[0].source.blob;
 check(
-  'buildServerlist carries each list as a blob named by its hash',
-  core.blobId(
-    Buffer.from(listed.contribution.blobs[listedBlob].bytes, 'base64'),
-  ) === listedBlob,
+  'buildServerlist carries each list as bytes on its own artifact',
+  Buffer.from(listed.contribution.artifacts[0].source.bytes, 'base64')[0] ===
+    0x0a,
 );
 
 // ── scanner ───────────────────────────────────────────────────────────────
@@ -1268,9 +1272,8 @@ const scannedBlob = await dev.scannedFiles([
   { abs: scanned[0].abs, path: '${root}/hello.txt' },
 ]);
 check(
-  'scannedFiles makes a file with no url a blob read from where it is',
-  scannedBlob.artifacts[0].source.blob === worldId &&
-    scannedBlob.blobs[worldId].file === scanned[0].abs,
+  'scannedFiles makes a file with no url say where it is',
+  scannedBlob.artifacts[0].source.file === scanned[0].abs,
 );
 const scannedUrl = await dev.scannedFiles(
   [{ abs: scanned[0].abs, path: 'hello.txt', url: 'https://cdn/hello.txt' }],
@@ -1279,7 +1282,7 @@ const scannedUrl = await dev.scannedFiles(
 check(
   'scannedFiles pins a file with a url and carries nothing',
   scannedUrl.artifacts[0].integrity.sha256 === worldId &&
-    Object.keys(scannedUrl.blobs).length === 0,
+    scannedUrl.artifacts[0].source.url === 'https://cdn/hello.txt',
 );
 mojangApi.close();
 

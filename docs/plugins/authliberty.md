@@ -1,111 +1,141 @@
-# authliberty
+# Custom auth server
 
-`authliberty` makes the game sign players in against your own auth server
-instead of Mojang's. It adds an authlib-injector style `-javaagent` to the
-launch, which rewires the game's account and session calls to the hosts you
-name. Use it when your players have accounts on a self-hosted Yggdrasil
-server.
+The `authliberty` plugin, from `@opys/minecraft`.
 
-The plugin only redirects the game. It does not run an auth server, and it
-does not give players an account. You still need a server that answers the
-requests the game makes.
+Points the game at your own account server.
 
-## Signature
-
-```ts
-authliberty(version: string, opts?: Omit<AuthLibertyOptions, 'version'>): ChainablePlugin
+```js
+authliberty({
+  version: 'latest',
+  hosts: {
+    auth: 'https://auth.example.com/authserver',
+    session: 'https://auth.example.com/sessionserver',
+  },
+});
 ```
 
-`version` is the AuthLiberty release to use: an exact version such as `'0.3'`,
-or `'latest'`. When you build, the plugin asks the AuthLiberty GitLab package
-registry where that jar is and what its sha256 is. The manifest records both,
-and the jar itself is downloaded when a player installs. A version the registry
-does not hold stops the build, with a message that lists up to eight versions it
-does.
-
-::: warning `latest` is frozen at build time
-`'latest'` is the build that the project's `main` branch last published, as of
-the moment you build. Its hash is written into the manifest then, so a later
-build of the same config may name a different jar. Pin an exact version if
-the players' installs must not change under you.
-:::
-
-The plugin is exported from `@opys/minecraft` and `@opys/authliberty`.
+The game normally asks Mojang about accounts.
+[AuthLiberty](https://gitlab.com/harmoniya/authliberty) is a small Java
+agent that redirects those calls. Your server must speak Yggdrasil,
+Mojang's account protocol.
 
 ## Options
 
-| Name      | Type                                                    | Default                   | Meaning                                                                                                                                 |
-| --------- | ------------------------------------------------------- | ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| `hosts`   | `AuthLibertyHosts` or `(server) => string \| undefined` | none                      | Replacement host for each Mojang service. A service left out stays on Mojang's. See below.                                              |
-| `project` | `string`                                                | `'harmoniya/authliberty'` | GitLab project path, `group/name`, that publishes the jar. It must hold a generic package named `authliberty` with a `.jar` file in it. |
-| `gitlab`  | `string`                                                | `'https://gitlab.com'`    | GitLab instance URL.                                                                                                                    |
-| `token`   | `string`                                                | none                      | GitLab token. Used only at build time, to look up the release. The installer downloads the jar without it.                              |
+| Option                       | What it does                                          |
+| ---------------------------- | ----------------------------------------------------- |
+| `version`                    | An exact version (`'0.3'`), or `'latest'`.            |
+| `hosts`                      | Which servers to redirect, and where.                 |
+| `project`, `gitlab`, `token` | Where the agent jar is published, if not the default. |
 
-### `hosts`
+`hosts` keys: `auth`, `account`, `session`, `services`. One you leave out
+stays on Mojang's. It may also be a function of the key.
 
-As a map, each key replaces one service:
+## What it adds
 
-| Key        | Replaces                            | System property                 |
-| ---------- | ----------------------------------- | ------------------------------- |
-| `auth`     | `https://authserver.mojang.com`     | `-Dminecraft.api.auth.host`     |
-| `account`  | `https://account.mojang.com`        | `-Dminecraft.api.account.host`  |
-| `session`  | `https://sessionserver.mojang.com`  | `-Dminecraft.api.session.host`  |
-| `services` | `https://api.minecraftservices.com` | `-Dminecraft.api.services.host` |
+| Kind        | What           |
+| ----------- | -------------- |
+| Files       | The agent jar. |
+| Launch      | `jvmArgs`.     |
+| Variables   | None.          |
+| Environment | None.          |
 
-In a map, a key that is left out or empty stays on Mojang's.
+Each one below: what it is, and how it ends up in the
+[manifest](/format/).
 
-As a function, it is called once for each of the four keys, with the key as
-its argument. Return a URL to replace that service, or `undefined` (or an
-empty string) to leave it on Mojang's. Only the URLs you return become
-`-D` arguments.
+### Files · the agent jar
 
-```js
-hosts: (server) =>
-  server === 'auth' ? 'https://auth.example.com/authserver' : undefined,
+One jar, in the libraries folder.
+
+<!-- prettier-ignore -->
+```js{6-12}
+// opys.config.mjs
+export default defineConfig({
+  plugins: [
+    minecraft({ version: '1.21.1' }),
+    java({ version: '21' }),
+    authliberty({
+      version: 'latest',
+      hosts: {
+        auth: 'https://auth.example.com/authserver',
+        session: 'https://auth.example.com/sessionserver',
+      },
+    }),
+  ],
+  manifest: {
+    command: '@minecraft.command',
+    args: [
+      '@authliberty.jvmArgs',
+      '@minecraft.jvmArgs',
+      '@minecraft.mainClass',
+      '@minecraft.gameArgs',
+    ],
+    workdir: '${game_directory}',
+  },
+});
 ```
 
-The function runs at build time, so the URLs it returns are written into the
-manifest. They are not secrets and belong there. Anything that differs per
-player or per machine does not; see [Launch-time values](/guide/run-client).
-
-## What it contributes
-
-- **One artifact**: the agent jar, at
-  `${library_directory}/net/harmoniya/authliberty/<version>/<file>`. It is a
-  download, so it carries a `url`, a size and a sha256 (when GitLab reports
-  one).
-- **One launch group, `jvmArgs`**: a `-javaagent:` argument pointing at that
-  jar, then one `-D` argument for each host you set, always in the order
-  `auth`, `account`, `session`, `services`. There is no command and no main
-  class.
-
-The group is read as `authliberty.jvmArgs`. Put it **before** the loader's
-JVM arguments, so the redirect is in place before any auth code runs.
-
-```js
-args: ({ authliberty, minecraft }) => [
-  authliberty.jvmArgs, // first: the agent must load before the game's auth code
-  minecraft.jvmArgs,
-  minecraft.mainClass,
-  minecraft.gameArgs,
-],
+<!-- prettier-ignore -->
+```jsonc
+// in the manifest
+{
+  "path": "${library_directory}/net/harmoniya/authliberty/latest/authliberty-latest.jar",
+  "source": { "url": "https://gitlab.com/api/v4/projects/harmoniya%2Fauthliberty/packages/generic/authliberty/latest/authliberty-latest.jar" },
+  "size": 601888,
+  "integrity": { "sha256": "aca98855bf83000fb48e3854929a83a7d4785785e4580dfa72c5727b0d3bdaaa" }
+}
 ```
 
-## Example
+### Launch · `@authliberty.jvmArgs`
 
-This config builds without any secret. It needs network access to GitLab, and
-it pins the current `latest` agent. `auth.example.com` is a placeholder for
-your own server.
+Loads the agent, then one line per host you set.
 
-<<< @/examples/plugin-extras-authliberty/opys.config.mjs
+<!-- prettier-ignore -->
+```js{6-12,17}
+// opys.config.mjs
+export default defineConfig({
+  plugins: [
+    minecraft({ version: '1.21.1' }),
+    java({ version: '21' }),
+    authliberty({
+      version: 'latest',
+      hosts: {
+        auth: 'https://auth.example.com/authserver',
+        session: 'https://auth.example.com/sessionserver',
+      },
+    }),
+  ],
+  manifest: {
+    command: '@minecraft.command',
+    args: [
+      '@authliberty.jvmArgs',
+      '@minecraft.jvmArgs',
+      '@minecraft.mainClass',
+      '@minecraft.gameArgs',
+    ],
+    workdir: '${game_directory}',
+  },
+});
+```
 
-The player's name, UUID and token are not in the config. `runClient` supplies
-them at each launch, as it does for every config; see
-[Launch-time values](/guide/run-client). `token: '0'` is the offline value
-from [Getting started](/guide/getting-started). Against your own server, use
-a token that server issues. [Bifrost](./bifrost) can mint one at launch.
+<!-- prettier-ignore -->
+```jsonc
+// in the manifest
+"args": [
+  "-javaagent:${library_directory}/net/harmoniya/authliberty/latest/authliberty-latest.jar",
+  "-Dminecraft.api.auth.host=https://auth.example.com/authserver",
+  "-Dminecraft.api.session.host=https://auth.example.com/sessionserver"
+  // … then the game's own JVM arguments
+]
+```
 
-## Related
+**Why you place it yourself, and first:** the agent must load before any
+account code runs. Only the launch line decides order, and the launch line
+is yours.
 
-- [Accounts, servers, GPUs](/guide/extras) covers signing players in.
-- [All plugins](./) lists every plugin and its package.
+No variables.
+
+## Good to know
+
+- It decides _where_ the game asks. It does not decide _who_ the player is.
+  That is the token: see [`bifrost`](./bifrost).
+- `'latest'` is pinned to the jar that is latest when you build.

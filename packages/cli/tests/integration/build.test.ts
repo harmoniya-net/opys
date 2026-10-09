@@ -12,7 +12,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
-import { readBundle } from '@opys/core';
+import { readBundle } from '@opys/bundle';
 import { cmdBuild } from '../../lib/commands/build';
 import { Logger } from '../../lib/logger';
 

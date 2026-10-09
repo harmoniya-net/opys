@@ -3,7 +3,7 @@
  * JSON, libraries, assets, Maven coordinates.
  *
  * Behaviour lives in the `opys-mojang` crate and reaches JS through
- * `@opys/mojang-binding`; this module is the typed surface over it. The
+ * `@opys/binding`, under `mojang`; this module is the typed surface over it. The
  * codegen'd binding types everything as `Json` (≈ `unknown`), so each wrapper
  * carries one `as`-cast at the boundary. No `as unknown as`.
  *
@@ -16,7 +16,7 @@
  * the HTTP (see `@opys/minecraft-vanilla`'s `fetchClient`).
  */
 
-import * as napi from '@opys/mojang-binding';
+import { mojang as napi } from '@opys/binding';
 import type {
   OsConstraint,
   OsOptions,

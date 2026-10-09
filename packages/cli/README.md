@@ -1,45 +1,42 @@
-# opys CLI
+# @opys/cli
 
-The `opys` command. It builds a Minecraft installation from a config file into a bundle, and installs and launches either the config or a built bundle.
+[![npm](https://img.shields.io/npm/v/@opys/cli.svg)](https://www.npmjs.com/package/@opys/cli)
 
-## Install
+The `opys` command. It turns a config file into a Minecraft installation: it
+builds one into a single shareable file, and installs and launches either the
+config or a built file.
 
 ```sh
 npm install -g @opys/cli
 ```
 
-It needs Node.js 20 or newer. The config is an ordinary JavaScript module, so install what it imports in your project, for example `npm install -D @opys/dev @opys/minecraft`.
-
-## Commands
+It needs Node.js 20 or newer. A config is an ordinary JavaScript file, so
+install what it imports in your project:
+`npm install -D @opys/dev @opys/minecraft`.
 
 ```sh
-opys build   [-i opys.config.mjs] [-o game.opys]  # run the plugins, write a bundle
-opys install [-i opys.config.mjs]                 # fetch, verify, extract, run the loader's install step; no game
-opys launch  [-i opys.config.mjs]                 # install what is missing, then start the game
+opys launch                 # build the config, install, start the game
+opys install                # the same, without starting the game
+opys build                  # write the bundle the config's `output` names
 
-# From a built bundle no config is read, so machine values come from --var
+# A built bundle runs without the config. The player's values come from --var.
 opys launch game.opys --var root=/path/to/install --var username=Player \
   --var uuid=00000000-0000-0000-0000-000000000001 --var token=0
 ```
 
-## Exit codes
-
-| Code | Meaning                                                                                                     |
-| ---- | ----------------------------------------------------------------------------------------------------------- |
-| 0    | Success                                                                                                     |
-| 1    | Usage error, a config or bundle that cannot be read, another runtime error, or an unexpected internal error |
-| 2    | Network error while installing                                                                              |
-| 3    | Integrity check failed                                                                                      |
-| 4    | Extraction failed                                                                                           |
-| 5    | The game started and then exited with a failure, or the loader's install step failed                        |
-
-## Good to know
-
-- `install` and `launch` take a config (built in memory, its `runClient` applied) or a bundle path; a bundle cannot be combined with `--input`. Both forms accept `--feature a,b` and a repeatable `--var key=value`.
-- `build` writes to `-o`, else the config's `output`, else prints the manifest as JSON to stdout. That JSON is for reading and diffing, not for installing from.
-- `--log-level silent|error|warn|info|debug` and `-v` apply to every command. There is no `--version` flag.
-- A game killed by a signal makes `opys` exit 0, not 5.
+| Exit code | Meaning                                                   |
+| --------- | --------------------------------------------------------- |
+| 0         | Success                                                   |
+| 1         | A mistake in the command or config, or a failure to build |
+| 2         | A download failed                                         |
+| 3         | A file did not match its hash                             |
+| 4         | An archive could not be unpacked                          |
+| 5         | The game started, then exited with an error of its own    |
 
 ## Documentation
 
-- [The opys command](https://harmoniya-net.github.io/opys/guide/cli): every flag, the output, and the exit codes in full.
+- [Introduction](https://harmoniya-net.github.io/opys/basics/intro)
+- [The CLI](https://harmoniya-net.github.io/opys/basics/cli)
+- [Troubleshooting](https://harmoniya-net.github.io/opys/reference/troubleshooting)
+
+Part of [opys](https://github.com/harmoniya-net/opys).

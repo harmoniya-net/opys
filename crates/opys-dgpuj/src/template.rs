@@ -2,7 +2,7 @@
 
 use opys_core::{
     Artifact, ConditionalVal, ExtractPick, ExtractRule, HashEntry, Integrity, MojangRule,
-    MojangRuleset, OsArch, OsConstraint, OsName, RuleAction, Source, Val, ValDef, ValDefs,
+    MojangRuleset, OsArch, OsConstraint, OsName, RuleAction, Source, ValDef, ValDefs,
 };
 use opys_dev::github::{
     fetch_github_release, pick_github_release, pin_github_asset, GitHubRelease, ReleaseSelector,
@@ -222,10 +222,14 @@ pub struct DgpujBuild {
     pub release: GitHubRelease,
 }
 
-/// A resolved template as a ready-to-merge contribution, with two launch
-/// groups: `bin`, the launcher itself, and `home`, which tells it where the
-/// JVM is — `${java_home}`, the var `opys-java` owns. A config that locates
-/// the JVM some other way simply leaves `home` out of its args.
+/// A resolved template as a ready-to-merge contribution, with one launch
+/// group: `bin`, the launcher itself.
+///
+/// Where the JVM is, is not this plugin's to say. It used to expose a `home`
+/// group holding `--dgpuj-home ${java_home}`, which named a var of another
+/// plugin and expanded to a literal `${java_home}` wherever that plugin was
+/// missing. A config writes `'--dgpuj-home', '@java.home'` instead, which is
+/// checked when it is built, or nothing: the launcher reads `JAVA_HOME`.
 pub fn build_dgpuj(options: &DgpujOptions) -> Result<DgpujBuild, DgpujError> {
     let template = resolve_dgpuj(options)?;
     Ok(DgpujBuild {
@@ -233,23 +237,13 @@ pub fn build_dgpuj(options: &DgpujOptions) -> Result<DgpujBuild, DgpujError> {
         output: PluginOutput {
             name: PLUGIN_NAME.to_owned(),
             contribution: Contribution {
-                artifacts: template.artifacts,
+                artifacts: template.artifacts.into_iter().map(Into::into).collect(),
                 // Every artifact here is a download; none travels with the manifest.
-                blobs: Default::default(),
                 vars: template.vars,
-                launch: [
-                    (
-                        "bin".to_owned(),
-                        LaunchFragment::Text("${dgpuj_bin}".to_owned()),
-                    ),
-                    (
-                        "home".to_owned(),
-                        LaunchFragment::One(Val {
-                            rules: Vec::new(),
-                            value: vec!["--dgpuj-home".to_owned(), "${java_home}".to_owned()],
-                        }),
-                    ),
-                ]
+                launch: [(
+                    "bin".to_owned(),
+                    LaunchFragment::Text("${dgpuj_bin}".to_owned()),
+                )]
                 .into_iter()
                 .collect(),
                 envs: Default::default(),

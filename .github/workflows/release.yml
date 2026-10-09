@@ -79,27 +79,18 @@ jobs:
 
       - run: npm ci --ignore-scripts
 
-      # Every binding, found rather than listed: a crate directory that ends
-      # in `-napi` is one. `bash` on every host, Windows included, so the
-      # loop is one spelling.
-      - name: Build every binding
+      # One addon holds every crate that has a JS surface, so there is one
+      # thing to build per target.
+      - name: Build the addon
         shell: bash
-        run: |
-          set -euo pipefail
-          for crate in crates/opys-*-napi; do
-            echo "::group::$crate"
-            (cd "$crate" && npx napi build --platform --release --target ${{ matrix.target }} ${{ contains(matrix.target, '-musl') && '--zig' || '' }})
-            echo "::endgroup::"
-          done
+        working-directory: crates/opys-napi
+        run: npx napi build --platform --release --target ${{ matrix.target }} ${{ contains(matrix.target, '-musl') && '--zig' || '' }}
 
-      # One artifact per target, holding every binding's `.node`. The path
-      # is kept from the first wildcard on, so it unpacks as
-      # `opys-<x>-napi/<file>.node`.
-      - name: Upload the bindings
+      - name: Upload the addon
         uses: actions/upload-artifact@v7
         with:
           name: bindings-${{ matrix.target }}
-          path: crates/opys-*-napi/*.node
+          path: crates/opys-napi/*.node
           if-no-files-found: error
 
   # ─────────────────────────────────────────────────────────────
@@ -126,42 +117,31 @@ jobs:
 
       - run: npm ci
 
-      # Every target's `.node` for every binding, merged into one tree:
-      # `napi-artifacts/opys-<x>-napi/<file>.node`.
+      # Every target's `.node`, side by side in one directory.
       - uses: actions/download-artifact@v8
         with:
           pattern: bindings-*
-          path: napi-artifacts
+          path: crates/opys-napi/artifacts
           merge-multiple: true
 
       # The `npm/<target>/` per-platform sub-package scaffolding is checked
-      # into git (see `crates/opys-*-napi/npm/`). `napi artifacts` walks
+      # into git (see `crates/opys-napi/npm/`). `napi artifacts` walks
       # `./artifacts` (the filename encodes the target) and routes each
       # `.node` into the matching `npm/<target>/` directory.
       - name: Route .node files into per-platform sub-packages
+        working-directory: crates/opys-napi
         run: |
           set -euo pipefail
-          for crate in crates/opys-*-napi; do
-            name=$(basename "$crate")
-            # A binding with nothing built for it is a release that would
-            # publish an empty package: stop here instead.
-            ls "napi-artifacts/$name"/*.node > /dev/null
-            mkdir -p "$crate/artifacts"
-            cp "napi-artifacts/$name"/*.node "$crate/artifacts/"
-            (cd "$crate" && npx napi artifacts)
-            ls -R "$crate/npm"
-          done
+          # Nothing built is a release that would publish an empty package.
+          ls artifacts/*.node > /dev/null
+          npx napi artifacts
+          ls -R npm
 
       # `napi prepublish` updates each sub-package's version (matches the
       # loader's) and publishes them all via `npm publish` under the hood.
-      - name: Publish every binding (loader + platform sub-packages)
-        run: |
-          set -euo pipefail
-          for crate in crates/opys-*-napi; do
-            echo "::group::$crate"
-            (cd "$crate" && npx napi prepublish -t npm --skip-gh-release)
-            echo "::endgroup::"
-          done
+      - name: Publish the addon (loader + platform sub-packages)
+        working-directory: crates/opys-napi
+        run: npx napi prepublish -t npm --skip-gh-release
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

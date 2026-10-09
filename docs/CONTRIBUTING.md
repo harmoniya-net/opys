@@ -1,43 +1,87 @@
 # Writing these pages
 
-Read `guide/getting-started.md` and `guide/concepts.md` first. They set the
+These pages are for people. Someone arrives with a job to do, such as making
+a pack, shipping it or writing a launcher, and wants to understand enough to
+do it. They do not want every detail. They want the idea, an example, and to
+know what will bite them.
+
+Read `basics/intro.md` and `basics/config.md` first. They set the
 voice; a new page should read as if the same person wrote it.
 
-## Rules
+## How to write
 
-1. **Nothing is invented.** Every option, default, function name, variable
-   name, flag and behaviour on a page is something you read in the source
-   (`packages/*/lib`, `crates/*/src`) or in an existing README. If the source
-   does not say, the page does not say. If you could not confirm something
-   you think the page needs, leave an HTML comment
-   `<!-- UNVERIFIED: … -->` at that spot instead of guessing.
-2. **Write for the reader named on your assignment**: a pack author, a
-   launcher developer, an implementer. A pack author does not care which
-   crate something lives in.
-3. **Lead with what the reader does**, then explain. A page opens with one or
-   two sentences saying what it covers and for whom, not with history.
-4. **Plain, direct sentences.** No marketing ("powerful", "seamless",
-   "simply"), no filler, no emoji. Say "opys" in lower case. Second person
-   ("you") for the reader. No long dashes, in either language: write
-   the sentence so it does not need one.
-5. **Explain a term the first time it appears**, or link to
-   `/guide/concepts`. Use one name for one thing throughout.
-6. **Examples are real.** A complete config goes in
-   `examples/<name>/opys.config.mjs` and is included with
-   `<<< @/examples/<name>/opys.config.mjs`; `npm run examples` builds every
-   one of them. Fragments may be inline. Do not show an option you have not
-   seen in the source.
-7. **Tables for facts you look up** (options, flags, variables, codes);
-   prose for anything that needs a reason.
-8. **Link, do not repeat.** If another page owns a topic, one sentence and a
-   link. Links are absolute from the site root without an extension
-   (`/guide/java`) or relative (`./java`).
-9. Standard VitePress Markdown: one `#` title, `##` sections, `::: tip`,
-   `::: warning`. Wrap prose at about 80 columns.
-10. Do not edit `.vitepress/config.ts`, other people's pages, or anything
-    outside `docs/`.
+1. **Start from what the reader is doing.** Open with the task or the idea,
+   in a sentence or two. No "this page covers" and no audience statement.
+2. **Show, then explain.** An example first, then what its parts mean.
+3. **Say why.** A rule with its reason is remembered. A rule without one is
+   a thing to look up again.
+4. **Leave things out.** A page is not a specification. Describe the common
+   path and the two or three surprises. An edge case nobody will meet does
+   not belong, and neither does how something is implemented. The one page
+   that must be exact is the `format/` section.
+5. **Keep the site small.** Before adding a page, try adding a section. One
+   page per job, not one page per package or per option.
+6. **Two to four lines, then a break.** People do not read a wall of text.
+   A paragraph longer than four lines gets split, turned into a list, or
+   cut. Plain, direct sentences. "You" for the reader. No
+   marketing ("powerful", "seamless", "simply"), no filler, no emoji. Say
+   "opys" in lower case. No long dashes, in either language: write the
+   sentence so it does not need one.
+7. **One name for one thing**, explained the first time it appears or linked
+   to the page that owns it.
+8. **Tables for what you look up** (options, flags, codes), prose for
+   anything that needs a reason.
+9. **Link, do not repeat.** If another page owns a topic, one sentence and a
+   link.
+
+## A plugin page
+
+Every page under `plugins/` has the same parts in the same order: what it
+is with an example, **Options**, **What it adds**, **Good to know**.
+
+"What it adds" starts with a four-row table (Files, Launch, Variables,
+Environment), then one entry per thing the plugin adds. An entry is always:
+
+1. A heading: `### Files · …`, `### Launch`, `### Variables`,
+   `### Environment · …`. Everything a plugin puts on the command line is
+   **one** Launch entry: the whole launch line highlighted, the whole
+   `launch` block of the manifest with a comment marking where each piece
+   starts, and a small table of the pieces.
+2. One or two lines saying what it is.
+3. Where it is in a config: a `js` block opening with `// opys.config.mjs`
+   that shows a **whole** config, with the lines this entry is about
+   highlighted (`js{7}`). Not a loose fragment: a reader should see where
+   the line sits.
+4. What it becomes (a `jsonc` block opening with `// in the manifest`),
+   taken from a real build of the example, not written from memory. Put
+   `<!-- prettier-ignore -->` above both blocks, so the formatter neither
+   moves the highlighted lines nor adds commas to the JSON.
+
+People look at the code blocks and skip the prose, so the blocks must be
+enough on their own.
+
+## What must be true
+
+- **Nothing is invented.** Every option, default, name, flag and behaviour
+  on a page is something you read in the source (`packages/*/lib`,
+  `crates/*/src`). If the source does not say, the page does not say.
+- **Examples are real.** A complete config goes in
+  `examples/<name>/opys.config.mjs` and is included with
+  `<<< @/examples/<name>/opys.config.mjs`. `npm run examples` builds every
+  one of them. Short fragments may be inline.
+- Standard VitePress Markdown: one `#` title, `##` sections, `::: tip`,
+  `::: warning`. Wrap prose at about 80 columns. Links are absolute from the
+  site root without an extension (`/plugins/loaders`) or relative
+  (`./config`).
+- A new page is added to the sidebar in `.vitepress/config.ts`.
 
 ## Translating
+
+**The translation is behind.** The English pages were rewritten into a
+smaller set and the Ukrainian pages have not been redone yet. Until they are,
+`uk/` holds the old pages under the old navigation, `npm run i18n` reports the
+difference, and the list of page titles at the end of this file describes the
+old set.
 
 Every page exists in English at `<path>.md` and in Ukrainian at
 `uk/<path>.md`. Change the English first, then the same place in the

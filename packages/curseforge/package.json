@@ -15,8 +15,8 @@
     "test": "vitest run tests/unit --passWithNoTests"
   },
   "dependencies": {
+    "@opys/binding": "^0.2.0",
     "@opys/core": "^0.2.0",
-    "@opys/curseforge-binding": "^0.2.0",
     "@opys/dev": "^0.2.0",
     "@opys/fabric": "^0.2.0",
     "@opys/forge": "^0.2.0",

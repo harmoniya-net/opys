@@ -1,0 +1,146 @@
+//! The `core` namespace: `opys-core`, as JS sees it.
+//!
+//! Strategy: JSON crosses the boundary as `serde_json::Value` (napi-rs maps
+//! it to native JS values). Behaviors live in Rust; the TS package's
+//! `@opys/core` index is a thin re-export of these bindings + .d.ts.
+
+use napi::bindgen_prelude::*;
+use napi_derive::napi;
+use serde_json::Value as Json;
+use std::collections::HashMap;
+
+fn map_err<E: std::fmt::Display>(e: E) -> napi::Error {
+    napi::Error::from_reason(e.to_string())
+}
+
+/// Decode a JS value into a domain type. The domain types own their wire
+/// conversion, so this is the single shape the boundary needs.
+fn from_js<T: serde::de::DeserializeOwned>(value: Json) -> Result<T> {
+    serde_json::from_value(value).map_err(map_err)
+}
+
+fn to_js<T: serde::Serialize>(value: &T) -> Result<Json> {
+    serde_json::to_value(value).map_err(map_err)
+}
+
+/// Decode a wire manifest (plain JS object) into the domain shape.
+/// Returns the domain object as plain JS.
+#[napi(namespace = "core", js_name = "decodeManifest")]
+pub fn decode_manifest(wire: Json) -> Result<Json> {
+    to_js(&from_js::<opys_core::Manifest>(wire)?)
+}
+
+/// Encode a domain manifest back to its wire form.
+#[napi(namespace = "core", js_name = "encodeManifest")]
+pub fn encode_manifest(domain: Json) -> Result<Json> {
+    // The domain object is just the wire shape (we don't keep separate runtime
+    // types on the TS side), so this is the same round-trip as `decodeManifest`
+    // — kept as its own export because the TS API names both directions.
+    to_js(&from_js::<opys_core::Manifest>(domain)?)
+}
+
+/// Parse a JSON-string manifest and return the domain shape as JS.
+#[napi(namespace = "core", js_name = "parseManifest")]
+pub fn parse_manifest(input: String) -> Result<Json> {
+    to_js(&opys_core::parse_manifest(&input).map_err(map_err)?)
+}
+
+#[napi(namespace = "core", object, js_name = "OsOptions")]
+pub struct OsOptionsJs {
+    pub name: String,
+    pub version: String,
+    pub arch: String,
+}
+
+impl From<OsOptionsJs> for opys_core::OsOptions {
+    fn from(o: OsOptionsJs) -> Self {
+        opys_core::OsOptions {
+            name: o.name,
+            version: o.version,
+            arch: o.arch,
+        }
+    }
+}
+
+/// Resolve `${var}` references in a flat var map. Throws on circular refs.
+#[napi(namespace = "core", js_name = "resolveVars")]
+pub fn resolve_vars(vars: HashMap<String, String>) -> Result<HashMap<String, String>> {
+    let m: indexmap::IndexMap<String, String> = vars.into_iter().collect();
+    let resolved = opys_core::resolve_vars(&m).map_err(napi::Error::from_reason)?;
+    Ok(resolved.into_iter().collect())
+}
+
+/// Substitute resolved vars into a template string.
+#[napi(namespace = "core", js_name = "interpolate")]
+pub fn interpolate(template: String, vars: HashMap<String, String>) -> String {
+    let m: indexmap::IndexMap<String, String> = vars.into_iter().collect();
+    opys_core::interpolate(&template, &m)
+}
+
+/// Drop artifacts whose rules exclude the given platform / features.
+#[napi(namespace = "core", js_name = "filterManifest")]
+pub fn filter_manifest(
+    manifest: Json,
+    platform: OsOptionsJs,
+    features: Vec<String>,
+) -> Result<Json> {
+    let m: opys_core::Manifest = from_js(manifest)?;
+    let filtered = opys_core::filter_manifest(&m, &platform.into(), &features).map_err(map_err)?;
+    to_js(&filtered)
+}
+
+/// Resolve a Launch's `args` rule-tagged values for the given platform.
+#[napi(namespace = "core", js_name = "resolvedArgs")]
+pub fn resolved_args(
+    launch: Json,
+    platform: OsOptionsJs,
+    features: Vec<String>,
+) -> Result<Vec<String>> {
+    let l: opys_core::Launch = from_js(launch)?;
+    opys_core::resolved_args(&l, &platform.into(), &features).map_err(map_err)
+}
+
+/// Resolve a Launch's `envs` rule-tagged values for the given platform.
+#[napi(namespace = "core", js_name = "resolvedEnvs")]
+pub fn resolved_envs(
+    launch: Json,
+    platform: OsOptionsJs,
+    features: Vec<String>,
+) -> Result<HashMap<String, String>> {
+    let l: opys_core::Launch = from_js(launch)?;
+    let env = opys_core::resolved_envs(&l, &platform.into(), &features).map_err(map_err)?;
+    Ok(env.into_iter().collect())
+}
+
+/// Evaluate a ruleset against a platform + active features.
+#[napi(namespace = "core", js_name = "satisfiesRuleset")]
+pub fn satisfies_ruleset(
+    rules: Json,
+    platform: OsOptionsJs,
+    features: Vec<String>,
+) -> Result<bool> {
+    let raw: opys_core::Ruleset = serde_json::from_value(rules).map_err(map_err)?;
+    let parsed = opys_core::parse_short_ruleset(raw).map_err(map_err)?;
+    opys_mojang_rules::satisfies_ruleset(&parsed, &platform.into(), &features).map_err(map_err)
+}
+
+/// Compile a glob to its regex source.
+#[napi(namespace = "core", js_name = "globToRegexSource")]
+pub fn glob_to_regex_source(glob: String) -> String {
+    opys_core::glob_to_regex(&glob).as_str().to_owned()
+}
+
+/// The non-wildcard prefix of a glob, where a cleanup rule starts walking.
+#[napi(namespace = "core", js_name = "globBase")]
+pub fn glob_base(glob: String) -> String {
+    opys_core::glob_base(&glob)
+}
+
+/// Single discriminated error shape (Q10 in design doc).
+#[napi(namespace = "core", object, js_name = "OpysErrorInfo")]
+pub struct OpysErrorInfo {
+    pub code: String,
+    pub message: String,
+}
+
+// ── blobs and the bundle ────────────────────────────────────────────────────
