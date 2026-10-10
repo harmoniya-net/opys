@@ -1,79 +1,144 @@
-# authliberty
+# Власний сервер авторизації
 
-`authliberty` змушує гру авторизувати гравців через ваш власний сервер авторизації замість серверів Mojang. Плагін додає до запуску `-javaagent` у стилі authlib-injector, який перенаправляє звернення гри до акаунтів і сесій на вказані вами хости. Використовуйте його, коли ваші гравці мають облікові записи на власному Yggdrasil-сервері.
+Плагін `authliberty` з `@opys/minecraft`.
 
-Плагін лише перенаправляє гру. Він не запускає сервер авторизації і не видає гравцям облікові записи. Вам усе одно потрібен сервер, який відповідатиме на запити гри.
-
-## Сигнатура {#signature}
-
-```ts
-authliberty(version: string, opts?: Omit<AuthLibertyOptions, 'version'>): ChainablePlugin
-```
-
-`version` це реліз AuthLiberty, який ви хочете використати: точна версія на зразок `'0.3'` або `'latest'`. Під час збирання плагін запитує у реєстрі пакетів GitLab проекту AuthLiberty, де лежить цей jar і який у нього sha256. Маніфест записує обидва значення, а сам jar завантажується, коли гравець встановлює інсталяцію. Версія, якої реєстр не має, зупиняє збирання з повідомленням, у якому перелічено до восьми наявних версій.
-
-::: warning `latest` фіксується під час збирання
-`'latest'` це збирання, яку гілка `main` проекту опублікувала останньою на момент вашої збирання. Її хеш тоді ж записується в маніфест, тож пізніша збирання тієї самої конфігурації може назвати інший jar. Фіксуйте точну версію, якщо інсталяції гравців не повинні змінюватися без вашого відома.
-:::
-
-Плагін експортується з `@opys/minecraft` і з `@opys/authliberty`.
-
-## Параметри {#options}
-
-| Назва     | Тип                                                      | Типово                    | Значення                                                                                                                                   |
-| --------- | -------------------------------------------------------- | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| `hosts`   | `AuthLibertyHosts` або `(server) => string \| undefined` | немає                     | Замінний хост для кожного сервісу Mojang. Сервіс, якого ви не вказали, залишається на Mojang. Докладніше нижче.                            |
-| `project` | `string`                                                 | `'harmoniya/authliberty'` | Шлях до GitLab-проекту, `group/name`, який публікує jar. У ньому має бути загальний пакет із назвою `authliberty`, а в пакеті файл `.jar`. |
-| `gitlab`  | `string`                                                 | `'https://gitlab.com'`    | URL екземпляра GitLab.                                                                                                                     |
-| `token`   | `string`                                                 | немає                     | Токен GitLab. Використовується лише під час збирання, щоб визначити реліз. Інсталятор завантажує jar без нього.                            |
-
-### `hosts` {#hosts}
-
-У вигляді мапи кожен ключ замінює один сервіс:
-
-| Ключ       | Замінює                             | Системна властивість            |
-| ---------- | ----------------------------------- | ------------------------------- |
-| `auth`     | `https://authserver.mojang.com`     | `-Dminecraft.api.auth.host`     |
-| `account`  | `https://account.mojang.com`        | `-Dminecraft.api.account.host`  |
-| `session`  | `https://sessionserver.mojang.com`  | `-Dminecraft.api.session.host`  |
-| `services` | `https://api.minecraftservices.com` | `-Dminecraft.api.services.host` |
-
-У мапі ключ, який ви пропустили або залишили порожнім, залишається на Mojang.
-
-У вигляді функції вона викликається один раз для кожного з чотирьох ключів, і ключ передається як аргумент. Поверніть URL, щоб замінити цей сервіс, або `undefined` (чи порожній рядок), щоб залишити його на Mojang. Аргументами `-D` стають лише повернуті вами URL.
+Спрямовує гру на ваш власний сервер облікових записів.
 
 ```js
-hosts: (server) =>
-  server === 'auth' ? 'https://auth.example.com/authserver' : undefined,
+authliberty({
+  version: 'latest',
+  hosts: {
+    auth: 'https://auth.example.com/authserver',
+    session: 'https://auth.example.com/sessionserver',
+  },
+});
 ```
 
-Функція виконується під час збирання, тож повернуті нею URL записуються в маніфест. Вони не є секретами, і їм там місце. Усе, що відрізняється для кожного гравця чи кожної машини, сюди не належить. Див. [Значення під час запуску](/uk/guide/run-client).
+Гра зазвичай питає Mojang про облікові записи.
+[AuthLiberty](https://gitlab.com/harmoniya/authliberty) це невеликий
+агент Java, який перенаправляє ці виклики. Ваш сервер має говорити
+Yggdrasil, протоколом облікових записів Mojang.
 
-## Що додає плагін {#what-it-contributes}
+## Параметри
 
-- **Один артефакт**: jar агента за шляхом `${library_directory}/net/harmoniya/authliberty/<version>/<file>`. Це завантаження, тому він має `url`, розмір і sha256 (коли GitLab його повідомляє).
-- **Одна група запуску, `jvmArgs`**: аргумент `-javaagent:`, який вказує на цей jar, а далі по одному аргументу `-D` для кожного вказаного хоста, завжди в порядку `auth`, `account`, `session`, `services`. Команди і головного класу тут немає.
+| Параметр                     | Що робить                                             |
+| ---------------------------- | ----------------------------------------------------- |
+| `version`                    | Точна версія (`'0.3'`) або `'latest'`.                |
+| `hosts`                      | Які сервери перенаправляти і куди.                    |
+| `project`, `gitlab`, `token` | Де опубліковано jar агента, якщо не за замовчуванням. |
 
-Група читається як `authliberty.jvmArgs`. Поставте її **перед** JVM-аргументами завантажувача, щоб перенаправлення вже діяло, коли запуститься код авторизації.
+Ключі `hosts`: `auth`, `account`, `session`, `services`. Той, який
+ви пропустили, лишається на серверах Mojang. Це також може бути
+функція від ключа.
 
-```js
-args: ({ authliberty, minecraft }) => [
-  authliberty.jvmArgs, // спочатку: агент має завантажитися раніше за код авторизації гри
-  minecraft.jvmArgs,
-  minecraft.mainClass,
-  minecraft.gameArgs,
-],
+## Що він додає
+
+| Вид        | Що          |
+| ---------- | ----------- |
+| Файли      | Jar агента. |
+| Запуск     | `jvmArgs`.  |
+| Змінні     | Немає.      |
+| Середовище | Немає.      |
+
+Кожен пункт нижче: що це таке і як воно потрапляє в
+[маніфест](/uk/format/).
+
+### Файли · jar агента
+
+Один jar у теці бібліотек.
+
+<!-- prettier-ignore -->
+```js{6-12}
+// opys.config.mjs
+export default defineConfig({
+  plugins: [
+    minecraft({ version: '1.21.1' }),
+    java({ version: '21' }),
+    authliberty({
+      version: 'latest',
+      hosts: {
+        auth: 'https://auth.example.com/authserver',
+        session: 'https://auth.example.com/sessionserver',
+      },
+    }),
+  ],
+  manifest: {
+    command: '@minecraft.command',
+    args: [
+      '@authliberty.jvmArgs',
+      '@minecraft.jvmArgs',
+      '@minecraft.mainClass',
+      '@minecraft.gameArgs',
+    ],
+    workdir: '${game_directory}',
+  },
+});
 ```
 
-## Приклад {#example}
+<!-- prettier-ignore -->
+```jsonc
+// у маніфесті
+{
+  "path": "${library_directory}/net/harmoniya/authliberty/latest/authliberty-latest.jar",
+  "source": { "url": "https://gitlab.com/api/v4/projects/harmoniya%2Fauthliberty/packages/generic/authliberty/latest/authliberty-latest.jar" },
+  "size": 601888,
+  "integrity": { "sha256": "aca98855bf83000fb48e3854929a83a7d4785785e4580dfa72c5727b0d3bdaaa" }
+}
+```
 
-Ця конфігурація збирається без жодного секрету. Їй потрібен доступ до мережі GitLab, і вона фіксує поточний агент `latest`. Адреса `auth.example.com` це заглушка замість вашого власного сервера.
+### Запуск · `@authliberty.jvmArgs`
 
-<<< @/examples/plugin-extras-authliberty/opys.config.mjs
+Завантажує агента, потім один рядок на кожен заданий вами хост.
 
-Імені гравця, UUID і токена в конфігурації немає. Їх на кожному запуску постачає `runClient`, як і для будь-якої конфігурації. Див. [Значення під час запуску](/uk/guide/run-client). Значення `token: '0'` це офлайн-значення з [Перших кроків](/uk/guide/getting-started). Для власного сервера використовуйте токен, який видає цей сервер. [Bifrost](./bifrost) може випустити такий токен під час запуску.
+<!-- prettier-ignore -->
+```js{6-12,17}
+// opys.config.mjs
+export default defineConfig({
+  plugins: [
+    minecraft({ version: '1.21.1' }),
+    java({ version: '21' }),
+    authliberty({
+      version: 'latest',
+      hosts: {
+        auth: 'https://auth.example.com/authserver',
+        session: 'https://auth.example.com/sessionserver',
+      },
+    }),
+  ],
+  manifest: {
+    command: '@minecraft.command',
+    args: [
+      '@authliberty.jvmArgs',
+      '@minecraft.jvmArgs',
+      '@minecraft.mainClass',
+      '@minecraft.gameArgs',
+    ],
+    workdir: '${game_directory}',
+  },
+});
+```
 
-## Пов’язані сторінки {#related}
+<!-- prettier-ignore -->
+```jsonc
+// у маніфесті
+"args": [
+  "-javaagent:${library_directory}/net/harmoniya/authliberty/latest/authliberty-latest.jar",
+  "-Dminecraft.api.auth.host=https://auth.example.com/authserver",
+  "-Dminecraft.api.session.host=https://auth.example.com/sessionserver"
+  // … далі власні аргументи JVM гри
+]
+```
 
-- [Акаунти, сервери, відеокарти](/uk/guide/extras) розповідає про вхід гравців.
-- [Усі плагіни](./) перелічує кожен плагін та його пакет.
+**Чому ви розміщуєте його самі і першим:** агент має
+завантажитися раніше, ніж запуститься будь-який код облікових
+записів. Лише рядок запуску визначає порядок, а рядок запуску
+ваш.
+
+Немає змінних.
+
+## Варто знати
+
+- Він вирішує, _куди_ гра звертається. Він не вирішує, _хто_
+  такий гравець. Це токен: див. [`bifrost`](./bifrost).
+- `'latest'` закріплюється за jar, який є найновішим на момент
+  збирання.

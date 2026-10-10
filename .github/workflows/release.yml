@@ -1,8 +1,23 @@
 name: Release
 
+# Called by CI on a push to `main`, once every check has passed: there is no
+# release that was not tested, and no step somebody has to remember.
+#
+# The version is told from the commits since the last release
+# (`scripts/release/bump.mjs`), stamped into this checkout and committed
+# nowhere: the tag made at the end is the record. A push that changes nothing
+# a package ships (docs, tests, CI) releases nothing.
+#
+# Every publish skips what is already published, so a release that failed
+# halfway is finished by running it again. The tag comes last for the same
+# reason: until it exists the next run works out the same version.
 on:
-  push:
-    tags: ['v*']
+  workflow_call:
+    secrets:
+      NPM_TOKEN:
+        required: true
+      CARGO_REGISTRY_TOKEN:
+        required: true
 
 env:
   CARGO_TERM_COLOR: always
@@ -11,10 +26,29 @@ env:
 
 jobs:
   # ─────────────────────────────────────────────────────────────
+  # 0. Which version, if any.
+  # ─────────────────────────────────────────────────────────────
+  plan:
+    name: Version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.next.outputs.version }}
+    steps:
+      # The whole history and its tags: the version is told from the commits
+      # since the last one.
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - id: next
+        run: echo "version=$(node scripts/release/next.mjs)" >> "$GITHUB_OUTPUT"
+
+  # ─────────────────────────────────────────────────────────────
   # 1. Cross-build the napi `.node` for every published target.
   # ─────────────────────────────────────────────────────────────
   build-napi:
     name: napi (${{ matrix.target }})
+    needs: plan
+    if: needs.plan.outputs.version != ''
     strategy:
       fail-fast: false
       matrix:
@@ -79,6 +113,9 @@ jobs:
 
       - run: npm ci --ignore-scripts
 
+      # Before the build: a crate reads its own version as it compiles.
+      - run: node scripts/release/stamp.mjs ${{ needs.plan.outputs.version }}
+
       # One addon holds every crate that has a JS surface, so there is one
       # thing to build per target.
       - name: Build the addon
@@ -98,7 +135,7 @@ jobs:
   # ─────────────────────────────────────────────────────────────
   publish-npm:
     name: Publish to npm
-    needs: build-napi
+    needs: [plan, build-napi]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -116,6 +153,8 @@ jobs:
       - uses: Swatinem/rust-cache@v2
 
       - run: npm ci
+
+      - run: node scripts/release/stamp.mjs ${{ needs.plan.outputs.version }}
 
       # Every target's `.node`, side by side in one directory.
       - uses: actions/download-artifact@v8
@@ -137,23 +176,14 @@ jobs:
           npx napi artifacts
           ls -R npm
 
-      # `napi prepublish` updates each sub-package's version (matches the
-      # loader's) and publishes them all via `npm publish` under the hood.
-      - name: Publish the addon (loader + platform sub-packages)
-        working-directory: crates/opys-napi
-        run: npx napi prepublish -t npm --skip-gh-release
-        env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-      # Build TS workspaces against the freshly downloaded host .node so
-      # tsdown produces dist/ before npm publish runs.
+      # Build TS workspaces against the host `.node` so tsdown produces
+      # dist/ before anything is published.
       - run: npm run build --workspaces --if-present
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      - name: Publish TS workspaces (@opys/core, runtime, dev, …)
-        run: npm publish --workspaces --access public --provenance
+      # The addon's platform packages, then every workspace in dependency
+      # order, each skipped if this version of it is already published.
+      - name: Publish every package not yet on npm
+        run: node scripts/release/publish-npm.mjs
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
@@ -162,24 +192,58 @@ jobs:
   # ─────────────────────────────────────────────────────────────
   publish-crates:
     name: Publish to crates.io
-    needs: publish-npm
+    needs: [plan, publish-npm]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
 
+      - run: node scripts/release/stamp.mjs ${{ needs.plan.outputs.version }}
+
       # The order is derived from the dependency graph, every crate after
       # the ones it depends on — see `scripts/release/order.mjs`. `cargo
       # publish` since 1.66 waits for crates.io indexing between packages, so
-      # a sequential publish in that order just works.
-      - name: Publish every crate, dependencies first
+      # a sequential publish in that order just works. A crate whose version
+      # is already there is skipped, so a second run finishes a first.
+      # `--allow-dirty`: the stamp is in the tree and in no commit.
+      - name: Publish every crate not yet on crates.io, dependencies first
         run: |
           set -euo pipefail
           for crate in $(node scripts/release/crates.mjs); do
             echo "::group::$crate"
-            cargo publish -p "$crate"
+            if curl -sf -o /dev/null -A "opys-release (github.com/harmoniya-net/opys)" \
+              "https://crates.io/api/v1/crates/$crate/$VERSION"; then
+              echo "$crate $VERSION: already published"
+            else
+              cargo publish -p "$crate" --allow-dirty
+            fi
             echo "::endgroup::"
           done
         env:
+          VERSION: ${{ needs.plan.outputs.version }}
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+
+  # ─────────────────────────────────────────────────────────────
+  # 4. Tag what was published. Last: the tag is what says a release is
+  #    whole, and what the next one counts its commits from.
+  # ─────────────────────────────────────────────────────────────
+  tag:
+    name: Tag the release
+    needs: [plan, publish-npm, publish-crates]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+      - name: Create the tag and its GitHub release
+        run: |
+          set -euo pipefail
+          if gh release view "v$VERSION" > /dev/null 2>&1; then
+            echo "v$VERSION: already released"
+          else
+            gh release create "v$VERSION" --target "$GITHUB_SHA" --title "v$VERSION" --generate-notes
+          fi
+        env:
+          VERSION: ${{ needs.plan.outputs.version }}
+          GH_TOKEN: ${{ github.token }}

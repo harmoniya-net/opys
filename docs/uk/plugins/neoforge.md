@@ -1,121 +1,207 @@
-# neoforge
+# NeoForge
 
-`neoforge()` додає до інсталяції збірку NeoForge: гру, її бібліотеки та ресурси, а також власні бібліотеки NeoForge й аргументи запуску. Він приймає будь-яку збірку, яку публікує індекс, для кожної версії Minecraft, яку той перелічує, починаючи від 1.20.2, через один шлях коду. Ви називаєте версію Minecraft або ідентифікатор збірки NeoForge, а решту визначає плагін. Використовуйте його замість `minecraft()`, бо `neoforge()` уже додає ванільну гру, на якій будується, і додайте поруч [середовище Java](./java). Ця сторінка для авторів паків.
+Плагін `neoforge` з `@opys/minecraft`.
 
-## Сигнатура {#signature}
+NeoForge для Minecraft 1.20.2 і новіших.
 
-```ts
-neoforge(version: string, opts?: {
-  source?: string;
-  manifestBase?: string;
-}): ChainablePlugin
-```
-
-`version` є єдиним обов’язковим аргументом. Виклик `neoforge()` не виконує мережевих запитів; пошук відбувається тоді, коли `opys build` або `opys launch` збирає конфігурацію. Плагін експортується з `@opys/minecraft` і з `@opys/neoforge`.
-
-## Версія {#version}
-
-`version` має одну з трьох форм. Плагін пробує їх у такому порядку.
-
-| Форма                         | Приклад                                              | У що визначається                       |
-| ----------------------------- | ---------------------------------------------------- | --------------------------------------- |
-| Псевдонім на версії Minecraft | `1.21.1-latest`, `1.21.1-recommended`, `1.21.1-best` | Це просування для цієї версії Minecraft |
-| Версія Minecraft              | `1.21.1`                                             | Її збірка `best`                        |
-| Ідентифікатор збірки          | `21.1.172`                                           | Саме ця збірка                          |
-
-NeoForge не має кінцевої точки просувань, тому індекс сам каже, що означає кожен псевдонім. `latest` є найновішою збіркою. `recommended` є найновішою збіркою, чия версія не має кваліфікатора на кшталт `-beta`. `best` означає `recommended`, коли він є, і `latest` в іншому разі. Гола версія Minecraft означає `best`. Багато версій Minecraft не мають збірки `recommended`, і для них `best` означає `latest`.
-
-Гола версія Minecraft або псевдонім слідує за індексом, тож згодом може визначитися в новішу збірку. Назвіть ідентифікатор збірки, щоб зафіксувати одну.
-
-Індекс перелічує версії Minecraft від 1.20.2, з кількома ключами знімків на кшталт `25w14craftmine` і `26.1-snapshot-1`. Серед них немає `1.20.1`, тому `neoforge('1.20.1')` завершується помилкою
-`Could not resolve NeoForge version '1.20.1' from <source>`.
-
-Якщо версію не вдається визначити, збирання зупиняється з одним з таких повідомлень:
-
-| Повідомлення                                                 | Причина                                                                       |
-| ------------------------------------------------------------ | ----------------------------------------------------------------------------- |
-| `Unknown Minecraft version '<mc>' (resolving '<input>')`     | Псевдонім на версії Minecraft, якої немає в індексі                           |
-| `No '<alias>' NeoForge build available for Minecraft <mc>`   | Версія Minecraft не має збірки для такого псевдоніма, наприклад `recommended` |
-| `Could not resolve NeoForge version '<input>' from <source>` | Ні версія Minecraft, ні ідентифікатор збірки з індексу                        |
-
-### Ідентифікатор збірки не називає версію Minecraft {#a-build-id-does-not-tell-you-its-minecraft-version}
-
-Не виводьте версію Minecraft з ідентифікатора збірки NeoForge і не очікуйте її від нього. `21.1.172` належить Minecraft 1.21.1, і роками так було з кожною збіркою NeoForge. `26.2.0.84` має чотири компоненти і належить Minecraft `26.2`, який взагалі не має початкового `1.`. Номери версій Mojang змінили форму, і за ними пішли ідентифікатори збірок NeoForge.
-
-Тому плагін ніколи не розбирає ідентифікатор збірки. Він шукає його по всьому індексу, і ви можете передати сам ідентифікатор:
-
-```js
-neoforge('26.2.0.84'); // знайдено в 26.2, версія Minecraft не потрібна
-```
-
-## Параметри {#options}
-
-| Параметр       | Тип      | Типово                                              | Значення                                                                                                                                  |
-| -------------- | -------- | --------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| `source`       | `string` | `https://harmoniya-net.github.io/metadata/neoforge` | Базова адреса індексу документів. Вкажіть її для дзеркала.                                                                                |
-| `manifestBase` | `string` | Маніфест `version_manifest_v2.json` від Mojang      | Адреса маніфесту версій від Mojang, за якою завантажується ванільна версія, від якої успадковує збірка NeoForge. Вкажіть її для дзеркала. |
-
-```js
-neoforge('1.21.1', { source: 'https://mirror.example.com/metadata/neoforge' });
-```
-
-## Групи запуску {#launch-groups}
-
-Плагін має ім’я `neoforge`, тому його групи читаються як `neoforge.<group>` у `manifest.command` і `manifest.args`.
-
-| Група                | Тип      | Містить                                                                                                                                      |
-| -------------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| `neoforge.command`   | string   | `${java_bin}`, бінарний файл Java, який дає плагін [`java`](./java). У прикладах для `manifest.command` замість нього використано `java.bin` |
-| `neoforge.jvmArgs`   | `Valset` | Аргументи JVM для цієї збірки, включно з classpath і властивостями `-Dhorno.*`                                                               |
-| `neoforge.mainClass` | `Val`    | `net.harmoniya.horno.Main`, для кожної збірки NeoForge                                                                                       |
-| `neoforge.gameArgs`  | `Valset` | Ігрові аргументи для цієї збірки                                                                                                             |
-
-Додайте їх до `manifest.args` у порядку, якого потребує гра:
-
-```js
-manifest: {
-  command: ({ java }) => java.bin,
-  args: ({ neoforge }) => [
-    neoforge.jvmArgs,
-    neoforge.mainClass,
-    neoforge.gameArgs,
+<!-- prettier-ignore -->
+```js{4,8-13}
+// opys.config.mjs
+export default defineConfig({
+  plugins: [
+    neoforge({ version: '1.21.1' }),
+    java({ version: '21' }),
   ],
-  workdir: '${game_directory}',
-},
+  manifest: {
+    command: '@neoforge.command',
+    args: [
+      '@neoforge.jvmArgs',
+      '@neoforge.mainClass',
+      '@neoforge.gameArgs',
+    ],
+    workdir: '${game_directory}',
+  },
+});
 ```
 
-## Змінні {#variables}
+Використовуйте його **замість** `minecraft`. Завантажувач привозить гру
+з собою.
 
-`neoforge()` визначає ті самі змінні, що й [`minecraft`](./minecraft#variables), з однією зміною: `classpath` зібраний для цієї збірки NeoForge. Він тримає бібліотеки збірки, а потім ванільні бібліотеки, які збірка не замінює. Збірка сама перелічує ванільне клієнтське jar як бібліотеку, тож цей запис стає замість клієнтського jar, який `minecraft` ставить останнім. `version_name` і `version_type` належать ванільній версії.
+## Параметри
 
-`root` є `.`, доки машина запуску не вкаже інше. Машина запуску має надати `username`, `uuid` і `token`, бо вони взагалі не визначені. Як це зробити, каже сторінка [значень під час запуску](/uk/guide/run-client). `neoforge()` не визначає `java_bin`, `java_home` чи `java_runtime_dir`. Їх визначає плагін [`java`](./java).
+| Параметр       | Що робить                                                                           |
+| -------------- | ----------------------------------------------------------------------------------- |
+| `version`      | Яка збірка. Див. нижче.                                                             |
+| `source`       | Дзеркало індексу збірок.                                                            |
+| `manifestBase` | Дзеркало списку версій Mojang.                                                      |
+| `libraries`    | Бібліотеки, щоб [додати або замінити](./minecraft#додавання-або-заміна-бібліотеки). |
 
-## Яка Java {#which-java}
+### version
 
-Вибирайте версію Java за версією Minecraft. opys не перевіряє цю відповідність, тому невідповідність проявиться під час старту гри, а не під час збирання.
+| Ви пишете              | Ви отримуєте                                                   |
+| ---------------------- | -------------------------------------------------------------- |
+| `'1.21.1'`             | Рекомендована збірка або найновіша, якщо рекомендованої немає. |
+| `'1.21.1-latest'`      | Найновіша збірка.                                              |
+| `'1.21.1-recommended'` | Рекомендована збірка.                                          |
+| `'21.1.172'`           | Саме ця збірка.                                                |
 
-| Версія Minecraft     | Java |
-| -------------------- | ---- |
-| від 1.20.2 до 1.20.4 | `17` |
-| від 1.20.5 до 1.21.x | `21` |
-| 26.x                 | `25` |
+Версія визначається **під час збирання**. `'1.21.1'` сьогодні і за шість
+місяців може означати різні збірки. Для збірки, яка ніколи не рухається,
+пишіть точну.
 
-```js
-plugins: [neoforge('1.21.1'), java('21')],
+## Що він додає
+
+Усе, що додає [ванільний Minecraft](./minecraft#що-він-додає), з такими
+відмінностями.
+
+| Вид        | Що                                             |
+| ---------- | ---------------------------------------------- |
+| Файли      | Бібліотеки NeoForge поверх гри.                |
+| Запуск     | `command`, `jvmArgs`, `mainClass`, `gameArgs`. |
+| Змінні     | Ті самі, що у [ванільної](./minecraft#змінні). |
+| Середовище | Нічого.                                        |
+
+Про кожен нижче: що це і як він опиняється у
+[маніфесті](/uk/format/).
+
+### Файли · бібліотеки NeoForge
+
+Власні jar NeoForge із сервера NeoForge.
+
+<!-- prettier-ignore -->
+```js{4}
+// opys.config.mjs
+export default defineConfig({
+  plugins: [
+    neoforge({ version: '1.21.1' }),
+    java({ version: '21' }),
+  ],
+  manifest: {
+    command: '@neoforge.command',
+    args: [
+      '@neoforge.jvmArgs',
+      '@neoforge.mainClass',
+      '@neoforge.gameArgs',
+    ],
+    workdir: '${game_directory}',
+  },
+});
 ```
 
-## Як це працює {#how-it-works}
+<!-- prettier-ignore -->
+```jsonc
+// у маніфесті
+{
+  "path": "${library_directory}/cpw/mods/modlauncher/11.0.5/modlauncher-11.0.5.jar",
+  "source": { "url": "https://maven.neoforged.net/releases/cpw/mods/modlauncher/11.0.5/modlauncher-11.0.5.jar" },
+  "size": 116486,
+  "integrity": { "sha1": "b8f0d49294f733fdb6173931b263553e943dc950" }
+}
+```
 
-Кожна збірка NeoForge опублікована як документ версії за адресою `harmoniya-net.github.io/metadata/neoforge`. Індекс перелічує кожну версію Minecraft та її збірки, і кожна збірка має документ тієї самої форми, що й документ [Forge](./forge). Коли ви називаєте версію, плагін читає індекс, читає документ, завантажує ванільну версію, від якої документ успадковує, і накладає їх одне на одне. Бібліотеки NeoForge стають перед ванільними, а ванільна бібліотека, яку замінює бібліотека NeoForge, зникає з classpath і з завантажень.
+### Запуск
 
-NeoForge встановлюється одним способом. Його інсталятор запускає процесори, які виправляють клієнта, і вони мають працювати на машині запуску. Тому кожна збірка запускається через [horno](/uk/internals/horno). Документ оголошує horno бібліотекою і називає його головним класом, а аргументи `-Dhorno.*` називають інсталятор NeoForge на maven NeoForge, його адресу та його SHA-1. Horno запускає процесори інсталятора перед стартом гри. Сторінка [метаданих](/uk/internals/metadata) описує документи та їхнє створення.
+Ванільний командний рядок із двома змінами: головний клас це **horno**,
+а рядки кажуть йому, що встановити. horno це малий помічник, який
+завершує встановлення завантажувача на комп'ютері гравця, а потім
+запускає гру.
 
-::: tip
-Тут нічого не потрібно налаштовувати. Плагін записує аргументи документа в маніфест, а решту робить лаунчер.
-:::
+<!-- prettier-ignore -->
+```js{8-13}
+// opys.config.mjs
+export default defineConfig({
+  plugins: [
+    neoforge({ version: '1.21.1' }),
+    java({ version: '21' }),
+  ],
+  manifest: {
+    command: '@neoforge.command',
+    args: [
+      '@neoforge.jvmArgs',
+      '@neoforge.mainClass',
+      '@neoforge.gameArgs',
+    ],
+    workdir: '${game_directory}',
+  },
+});
+```
 
-## Приклад {#example}
+<!-- prettier-ignore -->
+```jsonc
+// у маніфесті
+"launch": {
+  // '@neoforge.command'
+  "command": "${java_bin}",
+  "args": [
+    // '@neoforge.jvmArgs'
+    // … ванільні аргументи JVM, далі:
+    "-cp",
+    "${classpath}",
+    "-Dhorno.librariesDir=${library_directory}",
+    "-Dhorno.installer=${library_directory}/net/neoforged/neoforge/21.1.256/neoforge-21.1.256-installer.jar",
+    "-Dhorno.installerUrl=https://maven.neoforged.net/releases/…/neoforge-21.1.256-installer.jar",
+    "-Dhorno.installerSha1=9d85f6e652996e83f05ead32120317e1ef056590",
+    "-Dhorno.minecraft=${library_directory}/com/mojang/minecraft/1.21.1/minecraft-1.21.1-client.jar",
+    // '@neoforge.mainClass'
+    "net.harmoniya.horno.Main",
+    // '@neoforge.gameArgs'
+    "--username", "${auth_player_name}",
+    // … ванільні аргументи гри, далі:
+    "--fml.neoForgeVersion", "21.1.256",
+    "--fml.mcVersion", "1.21.1",
+    "--launchTarget", "forgeclient"
+  ],
+  "workdir": "${game_directory}"
+}
+```
 
-<<< @/examples/plugin-neoforge-basic/opys.config.mjs
+| Ви пишете               | Стає                                             |
+| ----------------------- | ------------------------------------------------ |
+| `'@neoforge.command'`   | Програма для запуску: та Java, що її має збірка. |
+| `'@neoforge.jvmArgs'`   | Аргументи самої Java, наприкінці з classpath.    |
+| `'@neoforge.mainClass'` | Клас для старту. Один аргумент.                  |
+| `'@neoforge.gameArgs'`  | Аргументи гри: хто грає і де що лежить.          |
 
-Виконайте `opys build`, щоб записати `game.opys`, або `opys launch`, щоб запустити гру з конфігурації. Моди додаються поруч із завантажувачем. Див. [моди та файли](/uk/guide/mods).
+### Змінні
+
+Ті самі імена, що у ванільної. `classpath` тепер має бібліотеки цього
+завантажувача попереду гри.
+
+<!-- prettier-ignore -->
+```js{4}
+// opys.config.mjs
+export default defineConfig({
+  plugins: [
+    neoforge({ version: '1.21.1' }),
+    java({ version: '21' }),
+  ],
+  manifest: {
+    command: '@neoforge.command',
+    args: [
+      '@neoforge.jvmArgs',
+      '@neoforge.mainClass',
+      '@neoforge.gameArgs',
+    ],
+    workdir: '${game_directory}',
+  },
+});
+```
+
+<!-- prettier-ignore -->
+```jsonc
+// у маніфесті
+"vars": {
+  "game_directory": "${root}/",
+  "library_directory": "${root}/libraries",
+  // … решта, як у ванільної
+}
+```
+
+**Чому перший запуск повільніший:** тоді horno робить свою роботу.
+Нічого налаштовувати. `opys install` робить це заздалегідь.
+
+## Варто знати
+
+- Збірка з кваліфікатором, таким як `-beta`, ніколи не «рекомендована».
+- Java: 17 для 1.20.2 до 1.20.4, 21 для 1.20.5 до 1.21.x, 25 для 26.x.
+- Поєднуйте його з [`java({ version: '21' })`](./java#яка-java-для-якого-minecraft).

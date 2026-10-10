@@ -9,9 +9,8 @@
     "test": "npm run test --workspaces --if-present",
     "test:int": "npm run test:int --workspaces --if-present",
     "architecture": "node scripts/check-architecture.mjs",
-    "test:architecture": "node --test scripts/architecture/checks.test.mjs scripts/release/order.test.mjs",
-    "prepare": "husky",
-    "release": "node scripts/release.mjs"
+    "test:architecture": "node --test scripts/architecture/checks.test.mjs scripts/release/order.test.mjs scripts/release/bump.test.mjs",
+    "prepare": "husky"
   },
   "workspaces": [
     "packages/mojang-rules",

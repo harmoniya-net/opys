@@ -3,30 +3,30 @@ layout: home
 
 hero:
   name: opys
-  text: Інсталяція Minecraft, описана один раз
-  tagline: Напишіть конфігурацію. Отримайте один файл, який встановлює гру і запускає її будь-де.
+  text: Встановлення Minecraft, описане один раз
+  tagline: Напишіть коротку конфігурацію. Отримайте один файл, який встановлює та запускає гру на будь-якому комп'ютері.
   actions:
     - theme: brand
-      text: Перші кроки
-      link: /uk/guide/getting-started
+      text: Почніть
+      link: /uk/basics/intro
     - theme: alt
-      text: Основні поняття
-      link: /uk/guide/concepts
+      text: Конфігурація
+      link: /uk/basics/config
     - theme: alt
       text: GitHub
       link: https://github.com/harmoniya-net/opys
 
 features:
-  - title: Збирання модпака
-    details: Зберіть завантажувач, середовище Java і свої моди у файлі конфігурації та запустіть гру. Усі Forge від версії 1.1, NeoForge, Fabric, Cleanroom і lwjgl3ify.
-    link: /uk/guide/getting-started
-    linkText: Посібник
-  - title: Створення лаунчера
-    details: Передайте рантайму бандл, і він встановить гру та запустить її, повідомляючи про прогрес і повертаючи типізовані помилки. Більше нічого від opys йому не потрібно.
-    link: /uk/launcher/embedding
-    linkText: Вбудовування рантайму
-  - title: Читання формату
-    details: Бандл це zip, а маніфест це JSON. Усе повністю визначено і зафіксовано під час збирання, тому інсталятор лише завантажує, перевіряє і нічого не шукає.
-    link: /uk/reference/bundle-format
-    linkText: Формат бандла
+  - title: Створіть збірку
+    details: Виберіть завантажувач, версію Java та свої моди у файлі конфігурації. opys знаходить кожен файл, потрібний грі, і фіксує кожен з них хешем.
+    link: /uk/basics/intro
+    linkText: Вступ
+  - title: Опублікуйте
+    details: Одна команда перетворює конфігурацію на один файл. Розмістіть його будь-де. Гравці отримують саме те, що ви зібрали, а оновлення завантажують лише те, що змінилося.
+    link: /uk/basics/bundle
+    linkText: Бандл
+  - title: Створіть лаунчер
+    details: Невеликий рантайм встановлює збірку та запускає гру, з прогресом і типізованими помилками. Йому більше нічого не треба від opys.
+    link: /uk/basics/launcher
+    linkText: Інтеграція з лаунчером
 ---

@@ -703,6 +703,18 @@ export default defineConfig(({ mode }) => ({
   handful of versions unless asked for the full list. What it guards also
   moves without a commit here: the published documents, horno. A change to a loader crate, the runtime or horno is not verified until
   the cases it touches have been launched.
+- **A push to `main` is a release.** CI's last job calls
+  `.github/workflows/release.yml` once every other job has passed, so there
+  is no release that was not tested and no step to remember. The version is
+  told from the commits since the last tag (`scripts/release/bump.mjs`):
+  breaking, `feat`, or a fix, and a push of only docs, tests or CI releases
+  nothing. It is stamped into the release's own checkout
+  (`scripts/release/stamp.mjs`) and committed nowhere, so the number in the
+  tree is not the released one: the tag is, and it is made last. Every
+  publish skips what is already published, which makes a release that
+  failed halfway something to run again. A release was a script run by
+  hand, which bumped, committed, tagged and pushed; it stamped neither the
+  workspace's own dependency table nor a crate with a digit in its name.
 - **`npm run architecture`** holds the tree to
   `scripts/architecture/rules.mjs`. It reads manifests and sources only, so it
   needs nothing built; it runs on every commit and first in CI.

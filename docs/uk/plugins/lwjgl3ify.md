@@ -1,115 +1,216 @@
 # lwjgl3ify
 
-`lwjgl3ify()` додає [lwjgl3ify](https://github.com/GTNewHorizons/lwjgl3ify) до інсталяції: гру, її бібліотеки та ресурси, а також два jar у `mods/`, сам lwjgl3ify і UniMixins, який потрібен lwjgl3ify. lwjgl3ify запускає Forge на Minecraft 1.7.10 з LWJGL 3 і сучасною Java. Використовуйте його, щоб зробити модпак 1.7.10, якому не потрібне старе середовище LWJGL 2. Використовуйте його замість `minecraft()` і `forge()`, оскільки він уже додає гру, і поєднуйте його із [середовищем Java](./java). Ця сторінка для авторів модпаків. Про місце завантажувачів у конфігурації див. [Завантажувачі модів](/uk/guide/loaders).
+Плагін `lwjgl3ify` з `@opys/minecraft`.
 
-## Сигнатура {#signature}
+[lwjgl3ify](https://github.com/GTNewHorizons/lwjgl3ify): моди Forge 1.7.10
+на сучасній Java.
 
-```ts
-lwjgl3ify(version: string, opts?: {
-  source?: string;
-  repo?: string;
-  token?: string;
-  apiBase?: string;
-  unimixins?: { version?: string; repo?: string } | false;
-}): ChainablePlugin
-```
-
-`version` це єдиний обов’язковий аргумент. Виклик `lwjgl3ify()` не виконує мережевої роботи; пошуки відбуваються, коли `opys build` або `opys launch` збирає конфігурацію. Він експортується з `@opys/minecraft` і з `@opys/lwjgl3ify`.
-
-## Версія {#version}
-
-`version` приймає одну з трьох форм. Плагін пробує їх у такому порядку.
-
-| Форма                         | Приклад                                              | Визначається як                                            |
-| ----------------------------- | ---------------------------------------------------- | ---------------------------------------------------------- |
-| Псевдонім на версії Minecraft | `1.7.10-latest`, `1.7.10-recommended`, `1.7.10-best` | Те просування тієї версії Minecraft                        |
-| Версія Minecraft              | `1.7.10`                                             | Її реліз `best`                                            |
-| Тег релізу                    | `3.0.37`                                             | Саме той реліз. Його версія Minecraft визначається пошуком |
-
-lwjgl3ify не має ендпоїнта просувань, тому індекс каже, що означає кожен псевдонім. `latest` це найновіший реліз. `recommended` це найновіший реліз, який GitHub не позначає як пререліз. `best` це `recommended`, коли він є, і `latest` в іншому разі. Гола версія Minecraft означає `best`. Індекс має одну версію Minecraft, `1.7.10`.
-
-Гола версія Minecraft або псевдонім іде за індексом, тому пізніше може визначитися в новіший реліз. Назвіть тег релізу, щоб зафіксувати один.
-
-Якщо версію не вдається визначити, збирання зупиняється з одним із таких повідомлень:
-
-| Повідомлення                                                  | Причина                                              |
-| ------------------------------------------------------------- | ---------------------------------------------------- |
-| `Unknown Minecraft version '<mc>' (resolving '<input>')`      | Псевдонім на версії Minecraft, якої немає в індексі  |
-| `No '<alias>' lwjgl3ify build available for Minecraft <mc>`   | Версія Minecraft не має збірки для того псевдоніма   |
-| `Could not resolve lwjgl3ify version '<input>' from <source>` | Ні версія Minecraft, ні тег релізу зі списку індексу |
-
-## Параметри {#options}
-
-| Параметр    | Тип                  | Типово                                               | Значення                                                                                 |
-| ----------- | -------------------- | ---------------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| `source`    | `string`             | `https://harmoniya-net.github.io/metadata/lwjgl3ify` | Базова URL індексу документів. Встановіть її для дзеркала.                               |
-| `repo`      | `string`             | `GTNewHorizons/lwjgl3ify`                            | Репозиторій GitHub, з релізів якого береться jar мода lwjgl3ify, у вигляді `owner/name`. |
-| `token`     | `string`             | Немає: анонімні запити                               | Токен GitHub. Використовуйте його, коли вичерпується ліміт анонімних запитів GitHub.     |
-| `apiBase`   | `string`             | `https://api.github.com`                             | Базова URL API GitHub, для GitHub Enterprise або дзеркала.                               |
-| `unimixins` | `object` або `false` | Останній реліз UniMixins                             | Який jar UniMixins покласти в `mods/`. `false` не додає його.                            |
-
-Параметра `manifestBase` немає: документ lwjgl3ify це ціла версія, тому маніфест версій Mojang не читається.
-
-`unimixins` має власні параметри:
-
-| Параметр            | Тип      | Типово                      | Значення                                                                                                                                                                      |
-| ------------------- | -------- | --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `unimixins.version` | `string` | `'latest'`                  | `'latest'`, `'prerelease'` або тег релізу UniMixins. `'latest'` це найновіший стабільний реліз із jar для 1.7.10, а `'prerelease'` це найновіший реліз будь-якого виду з ним. |
-| `unimixins.repo`    | `string` | `LegacyModdingMC/UniMixins` | Репозиторій GitHub, з релізів якого береться jar UniMixins, у вигляді `owner/name`.                                                                                           |
-
-::: warning
-`unimixins: false` прибирає jar UniMixins із `mods/`. Кормод lwjgl3ify реалізує інтерфейс, який надає UniMixins, тому без UniMixins lwjgl3ify не завантажується. Використовуйте `false` лише коли модпак дає власне середовище міксинів у `mods/`.
-:::
-
-## Групи запуску {#launch-groups}
-
-Плагін називається `lwjgl3ify`, тому його групи читаються як `lwjgl3ify.<group>` у `manifest.command` і `manifest.args`.
-
-| Група                 | Тип      | Містить                                                                                                                                        |
-| --------------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| `lwjgl3ify.command`   | string   | `${java_bin}`, бінарний файл Java, який надає плагін [`java`](./java). У прикладах для `manifest.command` замість цього використано `java.bin` |
-| `lwjgl3ify.jvmArgs`   | `Valset` | Аргументи JVM із документа версії lwjgl3ify                                                                                                    |
-| `lwjgl3ify.mainClass` | `Val`    | Головний клас із документа. Він відрізняється між релізами                                                                                     |
-| `lwjgl3ify.gameArgs`  | `Valset` | Ігрові аргументи з документа                                                                                                                   |
-
-Поставте їх у `manifest.args` у порядку, потрібному грі:
-
-```js
-manifest: {
-  command: ({ java }) => java.bin,
-  args: ({ lwjgl3ify }) => [
-    lwjgl3ify.jvmArgs,
-    lwjgl3ify.mainClass,
-    lwjgl3ify.gameArgs,
+<!-- prettier-ignore -->
+```js{4,8-13}
+// opys.config.mjs
+export default defineConfig({
+  plugins: [
+    lwjgl3ify({ version: '1.7.10' }),
+    java({ version: '25' }),
   ],
-  workdir: '${game_directory}',
+  manifest: {
+    command: '@lwjgl3ify.command',
+    args: [
+      '@lwjgl3ify.jvmArgs',
+      '@lwjgl3ify.mainClass',
+      '@lwjgl3ify.gameArgs',
+    ],
+    workdir: '${game_directory}',
+  },
+});
+```
+
+Використовуйте його **замість** `minecraft`. Завантажувач привозить гру
+з собою.
+
+## Параметри
+
+| Параметр    | Що робить                                                                           |
+| ----------- | ----------------------------------------------------------------------------------- |
+| `version`   | Яка збірка. Див. нижче.                                                             |
+| `source`    | Дзеркало індексу збірок.                                                            |
+| `unimixins` | `false`, щоб не додавати UniMixins, або `{ version, repo }`, щоб вибрати інші.      |
+| `repo`      | Репозиторій GitHub, звідки береться jar мода.                                       |
+| `token`     | Токен GitHub для обмеження частоти запитів.                                         |
+| `apiBase`   | Дзеркало API GitHub.                                                                |
+| `libraries` | Бібліотеки, щоб [додати або замінити](./minecraft#додавання-або-заміна-бібліотеки). |
+
+### version
+
+| Ви пишете              | Ви отримуєте                                                      |
+| ---------------------- | ----------------------------------------------------------------- |
+| `'1.7.10'`             | Рекомендований випуск або найновіший, якщо рекомендованого немає. |
+| `'1.7.10-latest'`      | Найновіший випуск.                                                |
+| `'1.7.10-recommended'` | Рекомендований випуск.                                            |
+| `'3.0.37'`             | Саме цей випуск.                                                  |
+
+Версія визначається **під час збирання**. `'1.7.10'` сьогодні і за шість
+місяців може означати різні випуски. Для збірки, яка ніколи не рухається,
+пишіть точний.
+
+## Що він додає
+
+Усе, що додає [ванільний Minecraft](./minecraft#що-він-додає), з такими
+відмінностями.
+
+| Вид        | Що                                                  |
+| ---------- | --------------------------------------------------- |
+| Файли      | Гра 1.7.10 з бібліотеками lwjgl3ify і **два моди**. |
+| Запуск     | `command`, `jvmArgs`, `mainClass`, `gameArgs`.      |
+| Змінні     | Ті самі, що у [ванільної](./minecraft#змінні).      |
+| Середовище | Нічого.                                             |
+
+Про кожен нижче: що це і як він опиняється у
+[маніфесті](/uk/format/).
+
+### Файли · два моди у `mods/`
+
+Мод lwjgl3ify і UniMixins, без якого він не стартує. Обидва з випусків
+GitHub, зафіксовані за sha256.
+
+<!-- prettier-ignore -->
+```js{4}
+// opys.config.mjs
+export default defineConfig({
+  plugins: [
+    lwjgl3ify({ version: '1.7.10' }),
+    java({ version: '25' }),
+  ],
+  manifest: {
+    command: '@lwjgl3ify.command',
+    args: [
+      '@lwjgl3ify.jvmArgs',
+      '@lwjgl3ify.mainClass',
+      '@lwjgl3ify.gameArgs',
+    ],
+    workdir: '${game_directory}',
+  },
+});
+```
+
+<!-- prettier-ignore -->
+```jsonc
+// у маніфесті
+{
+  "path": "${game_directory}/mods/lwjgl3ify-3.0.37.jar",
+  "source": { "url": "https://github.com/GTNewHorizons/lwjgl3ify/releases/download/3.0.37/lwjgl3ify-3.0.37.jar" },
+  "size": 8266971,
+  "integrity": { "sha256": "3c5af555d62eb9b7f4196adea94cb4cbd4c8efe3e1d512f83537aa88d9d5211e" }
 },
+{
+  "path": "${game_directory}/mods/+unimixins-all-1.7.10-0.3.2.jar",
+  "source": { "url": "https://github.com/LegacyModdingMC/UniMixins/releases/download/0.3.2/%2Bunimixins-all-1.7.10-0.3.2.jar" },
+  "size": 5520080,
+  "integrity": { "sha256": "2687b776c8503e0b60cd8413cf70eaabb836c19f9fc726280ef61d6612257034" }
+}
 ```
 
-## Змінні {#variables}
+### Запуск
 
-`lwjgl3ify()` визначає ті самі змінні, що й [`minecraft`](./minecraft#variables), з двома відмінностями. `classpath` зібрано з бібліотек власного документа lwjgl3ify, а `version_name` і `version_type` беруться з того документа, а не з ванільної версії: для `3.0.37` `version_name` це `1.7.10-Forge10.13.4.1614-1.7.10-lwjgl3ify-3.0.37`, а `version_dir` будується з того імені.
+Довгий. Гра 2014 року на сучасній Java потребує багатьох дверей,
+відчинених вручну.
 
-`root` дорівнює `.`, доки машина запуску його не встановить. `username`, `uuid` і `token` взагалі не визначені, тому їх має надати машина запуску. Як це зробити, пояснює сторінка [значень під час запуску](/uk/guide/run-client). `lwjgl3ify()` не визначає `java_bin`, `java_home` чи `java_runtime_dir`. Їх визначає плагін [`java`](./java).
-
-## Яка Java {#which-java}
-
-Використовуйте Java 25: `java('25')`. Запуск 1.7.10 на поточній Java це те, для чого існує lwjgl3ify, і поточний реліз заявляє Java 25. opys не перевіряє цю відповідність, тому невідповідність проявиться під час запуску гри, а не під час збирання.
-
-```js
-plugins: [lwjgl3ify('1.7.10'), java('25')],
+<!-- prettier-ignore -->
+```js{8-13}
+// opys.config.mjs
+export default defineConfig({
+  plugins: [
+    lwjgl3ify({ version: '1.7.10' }),
+    java({ version: '25' }),
+  ],
+  manifest: {
+    command: '@lwjgl3ify.command',
+    args: [
+      '@lwjgl3ify.jvmArgs',
+      '@lwjgl3ify.mainClass',
+      '@lwjgl3ify.gameArgs',
+    ],
+    workdir: '${game_directory}',
+  },
+});
 ```
 
-Не кожен постачальник дає Java 25 для кожної платформи; див. [Платформи](./java#platforms).
+<!-- prettier-ignore -->
+```jsonc
+// у маніфесті
+"launch": {
+  // '@lwjgl3ify.command'
+  "command": "${java_bin}",
+  "args": [
+    // '@lwjgl3ify.jvmArgs'
+    "-Djava.library.path=${natives_directory}",
+    "-cp",
+    "${classpath}",
+    "-Djava.system.class.loader=com.gtnewhorizons.retrofuturabootstrap.RfbSystemClassLoader",
+    "--add-opens", "java.base/java.io=ALL-UNNAMED",
+    "--add-opens", "java.base/java.lang=ALL-UNNAMED"
+    // … ще близько сорока --add-opens
+    // '@lwjgl3ify.mainClass'
+    "com.gtnewhorizons.retrofuturabootstrap.MainStartOnFirstThread",
+    // '@lwjgl3ify.gameArgs'
+    "--username", "${auth_player_name}",
+    // … решта аргументів гри 1.7.10, далі:
+    "--tweakClass", "cpw.mods.fml.common.launcher.FMLTweaker"
+  ],
+  "workdir": "${game_directory}"
+}
+```
 
-## Як це працює {#how-it-works}
+| Ви пишете                | Стає                                             |
+| ------------------------ | ------------------------------------------------ |
+| `'@lwjgl3ify.command'`   | Програма для запуску: та Java, що її має збірка. |
+| `'@lwjgl3ify.jvmArgs'`   | Аргументи самої Java, наприкінці з classpath.    |
+| `'@lwjgl3ify.mainClass'` | Клас для старту. Один аргумент.                  |
+| `'@lwjgl3ify.gameArgs'`  | Аргументи гри: хто грає і де що лежить.          |
 
-lwjgl3ify не має інсталятора. Кожен реліз постачає повний документ версії, а індекс перевидає його, де кожна бібліотека вже має шлях, хеш і розмір. Тому `lwjgl3ify()` робить ті самі три запити, що й [Cleanroom](./cleanroom): індекс, щоб знайти реліз, далі документ того релізу, далі індекс ресурсів, названий у документі. Документ відображається тим самим кодом, що й ванільна версія, і він не успадковується від ванільної версії, тому ванільна версія не завантажується. Клієнтський jar стає останнім у classpath, як у плагіні `minecraft`.
+### Змінні
 
-Два jar модів це інший випадок. Документ версії не може сказати, що файл належить до `mods/`, тому плагін читає їх із релізів GitHub. Він шукає реліз lwjgl3ify за його тегом, бо індекс уже його назвав, і бере звичайний `lwjgl3ify-<tag>.jar`. Він бере універсальний `+unimixins-all-1.7.10-<version>.jar` UniMixins з вибраного релізу. Обидва додаються до списку артефактів під `${game_directory}/mods/`, і жоден не потрапляє в classpath. Кожен зафіксовано за sha256: за дайджестом, який публікує GitHub, або, для релізу без дайджесту, за хешем, обчисленим із завантаженого файла. Сторінка [метаданих](/uk/internals/metadata) описує документи і спосіб їх створення.
+Ті самі імена, що у ванільної. `classpath` тепер має бібліотеки цього
+завантажувача попереду гри.
 
-## Приклад {#example}
+<!-- prettier-ignore -->
+```js{4}
+// opys.config.mjs
+export default defineConfig({
+  plugins: [
+    lwjgl3ify({ version: '1.7.10' }),
+    java({ version: '25' }),
+  ],
+  manifest: {
+    command: '@lwjgl3ify.command',
+    args: [
+      '@lwjgl3ify.jvmArgs',
+      '@lwjgl3ify.mainClass',
+      '@lwjgl3ify.gameArgs',
+    ],
+    workdir: '${game_directory}',
+  },
+});
+```
 
-<<< @/examples/plugin-lwjgl3ify-basic/opys.config.mjs
+<!-- prettier-ignore -->
+```jsonc
+// у маніфесті
+"vars": {
+  "game_directory": "${root}/",
+  "library_directory": "${root}/libraries",
+  // … решта, як у ванільної
+}
+```
 
-Запустіть `opys build`, щоб записати `game.opys`, або `opys launch`, щоб запустити гру з конфігурації. Моди додаються поруч із завантажувачем. Див. [Моди та файли](/uk/guide/mods).
+**Чому моди додаються за вас:** якщо забути будь-який, гра не
+запуститься, а помилка не скаже чому.
+
+## Варто знати
+
+- Він замінює і `minecraft`, і `forge`.
+- Передавайте `unimixins: false`, лише якщо ваша збірка привозить власне
+  середовище міксинів.
+- Обидва моди з GitHub. Передайте `token`, якщо збирання впирається в
+  обмеження частоти.
+- Поєднуйте його з [`java({ version: '25' })`](./java#яка-java-для-якого-minecraft).

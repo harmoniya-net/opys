@@ -1,105 +1,200 @@
-# dgpuj
+# Дискретна відеокарта
 
-Плагін `dgpuj` стартує гру через [dgpuj](https://github.com/harmoniya-net/dgpuj), невеликий лаунчер, який просить дискретну відеокарту на машинах із двома графічними чипами. Використовуйте `dgpuj.bin` як команду запуску `command` замість `java.bin`, і гра працюватиме на дискретній відеокарті там, де dgpuj може її примусово увімкнути. dgpuj далі стартує JVM усередині власного процесу. Саме тому це команда, а не аргумент JVM: вибір відеокарти робиться для процесу, який створює графічний контекст, а лаунчер, який лише породжує `java`, не може зробити той вибір за дочірній процес.
+Плагін `dgpuj` з `@opys/minecraft`.
 
-## Сигнатура {#signature}
+Запускає гру на швидкій відеокарті.
 
-```ts
-dgpuj(options?: DgpujOptions): ChainablePlugin
+<!-- prettier-ignore -->
+```js{6,9,11-12}
+// opys.config.mjs
+export default defineConfig({
+  plugins: [
+    minecraft({ version: '1.21.1' }),
+    java({ version: '21' }),
+    dgpuj(),
+  ],
+  manifest: {
+    command: '@dgpuj.bin',
+    args: [
+      '--dgpuj-home',
+      '@java.home',
+      '@minecraft.jvmArgs',
+      '@minecraft.mainClass',
+      '@minecraft.gameArgs',
+    ],
+    workdir: '${game_directory}',
+  },
+});
 ```
 
-Плагін приймає об’єкт параметрів або нічого. Він не має позиційного аргумента.
+На ноутбуці з двома відеокартами Windows і Linux вибирають одну
+для кожної програми і часто вибирають повільну для Java.
 
-## Версії {#versions}
+**Чому лаунчер не може виправити це ззовні:** вибір належить
+процесу, який відкриває вікно. Тому
+[dgpuj](https://github.com/harmoniya-net/dgpuj) _стає_ цим
+процесом. Він просить швидку карту, а потім запускає Java всередині
+себе.
 
-Параметр `version` вибирає, який реліз dgpuj пакується.
+## Параметри
 
-| Ввід                             | Визначається як                              |
-| -------------------------------- | -------------------------------------------- |
-| `'latest'` (типово)              | Останній опублікований реліз, без пререлізів |
-| `'prerelease'`                   | Найновіший реліз, із пререлізами включно     |
-| Точний тег, наприклад `'v0.3.0'` | Той реліз                                    |
+| Параметр                   | Що робить                                                           |
+| -------------------------- | ------------------------------------------------------------------- |
+| `version`                  | `'latest'` (за замовчуванням), `'prerelease'` або тег (`'v0.3.0'`). |
+| `platforms`                | Які платформи його отримують.                                       |
+| `repo`, `token`, `apiBase` | Звідки він завантажується, і токен GitHub.                          |
 
-Плагін шукає архіви, перелічені в [Платформах](#platforms). Релізи до `v0.3.0` постачають голі бінарні файли замість них, тому раніший тег завершує збирання з `No matching asset`, після якого йдуть файли того релізу.
+## Що він додає
 
-## Параметри {#options}
+| Вид        | Що                                    |
+| ---------- | ------------------------------------- |
+| Файли      | По одному малому архіву на платформу. |
+| Запуск     | `bin`.                                |
+| Змінні     | `dgpuj_dir`, `dgpuj_bin`.             |
+| Середовище | Немає.                                |
 
-| Параметр    | Тип               | Типово                                         | Значення                                                                                                                                                                  |
-| ----------- | ----------------- | ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `version`   | `string`          | `'latest'`                                     | Реліз для пакування: `'latest'`, `'prerelease'` або точний тег                                                                                                            |
-| `platforms` | `DgpujPlatform[]` | П’ять цілей із розділу [Платформи](#platforms) | Цілі збирання для пакування. Кожен запис це `DgpujPlatform` з `os`, `arch`, `target`, `ext` і `bin`. Типовий список це `DEFAULT_PLATFORMS`, експортований з `@opys/dgpuj` |
-| `repo`      | `string`          | `'harmoniya-net/dgpuj'`                        | Репозиторій GitHub, з якого читаються релізи, у вигляді `owner/name`. Також експортується як `DEFAULT_REPO`                                                               |
-| `token`     | `string`          | Немає                                          | Токен GitHub, щоб підняти ліміт частоти API. Використовується лише під час збирання                                                                                       |
-| `apiBase`   | `string`          | `https://api.github.com`                       | Базова URL API GitHub, для хоста GitHub Enterprise або дзеркала.                                                                                                          |
+Кожен пункт нижче: що це таке і як воно потрапляє в
+[маніфест](/uk/format/).
 
-Більшості модпаків жоден із них не потрібен. Параметр `platforms` приймає об’єкти `DgpujPlatform`, а не пари `{ os, arch }`, які приймає плагін [java](./java).
+### Файли · по одному архіву на платформу
 
-## Групи запуску {#launch-groups}
+П'ять архівів. `rules` вибирають той, що для комп'ютера гравця, а
+`extract` дістає з нього єдиний виконуваний файл.
 
-| Група  | Розгортається в             | Застосування                                            |
-| ------ | --------------------------- | ------------------------------------------------------- |
-| `bin`  | `${dgpuj_bin}`              | Лаунчер. Це команда                                     |
-| `home` | `--dgpuj-home ${java_home}` | Каже dgpuj, де JDK. Поставте його перед аргументами JVM |
+<!-- prettier-ignore -->
+```js{6}
+// opys.config.mjs
+export default defineConfig({
+  plugins: [
+    minecraft({ version: '1.21.1' }),
+    java({ version: '21' }),
+    dgpuj(),
+  ],
+  manifest: {
+    command: '@dgpuj.bin',
+    args: [
+      '--dgpuj-home',
+      '@java.home',
+      '@minecraft.jvmArgs',
+      '@minecraft.mainClass',
+      '@minecraft.gameArgs',
+    ],
+    workdir: '${game_directory}',
+  },
+});
+```
 
-`home` читає `${java_home}`, яку визначає лише плагін [java](./java). Використовуйте `home` разом із `java` в тій самій конфігурації. Пропустіть його, якщо не використовуєте `java`.
+<!-- prettier-ignore -->
+```jsonc
+// у маніфесті
+{
+  "path": "${dgpuj_dir}/dgpuj-x86_64-pc-windows-msvc.zip",
+  "source": { "url": "https://github.com/harmoniya-net/dgpuj/releases/download/v0.3.0/dgpuj-x86_64-pc-windows-msvc.zip" },
+  "size": 77321,
+  "rules": ["allow.os.windows", "allow.arch.x86_64"],
+  "integrity": { "sha256": "3dc7ef481abdd390cbb0ba23137d808b4b8652b23a49915f761a4bc422969a13" },
+  "extract": { "file": "dgpuj.exe", "into": "${dgpuj_dir}/dgpuj.exe" }
+}
+```
 
-## Змінні {#variables}
+### Змінні
 
-Плагін володіє цими двома змінними.
+Де знаходиться виконуваний файл, для кожної ОС.
 
-| Змінна      | Значення                                                                   | Значення                                      |
-| ----------- | -------------------------------------------------------------------------- | --------------------------------------------- |
-| `dgpuj_dir` | `${root}/dgpuj`                                                            | Каталог, у який розпаковується архів лаунчера |
-| `dgpuj_bin` | `${dgpuj_dir}/dgpuj.exe` на Windows, `${dgpuj_dir}/dgpuj` на Linux і macOS | Бінарний файл лаунчера                        |
+<!-- prettier-ignore -->
+```js{6}
+// opys.config.mjs
+export default defineConfig({
+  plugins: [
+    minecraft({ version: '1.21.1' }),
+    java({ version: '21' }),
+    dgpuj(),
+  ],
+  manifest: {
+    command: '@dgpuj.bin',
+    args: [
+      '--dgpuj-home',
+      '@java.home',
+      '@minecraft.jvmArgs',
+      '@minecraft.mainClass',
+      '@minecraft.gameArgs',
+    ],
+    workdir: '${game_directory}',
+  },
+});
+```
 
-Плагін не встановлює власних змінних середовища. Плагін `java` встановлює `JAVA_HOME`, і саме через неї dgpuj знаходить JDK, коли `home` пропущено.
+<!-- prettier-ignore -->
+```jsonc
+// у маніфесті
+"vars": {
+  "dgpuj_dir": "${root}/dgpuj",
+  "dgpuj_bin": [
+    { "value": "${dgpuj_dir}/dgpuj.exe", "rules": "allow.os.windows" },
+    { "value": "${dgpuj_dir}/dgpuj", "rules": "allow.os.linux" },
+    { "value": "${dgpuj_dir}/dgpuj", "rules": "allow.os.osx" }
+  ]
+}
+```
 
-## Платформи {#platforms}
+### Запуск · `@dgpuj.bin`
 
-Релізи від `v0.3.0` публікують п’ять цілей. Кожна це власний архів, а інсталяція завантажує лише архів для машини запуску:
+Виконуваний файл dgpuj. Він іде в `command`, бо саме він має бути
+програмою, яка стартує.
 
-| ОС      | Архітектура | Архів                                   |
-| ------- | ----------- | --------------------------------------- |
-| Windows | `x86_64`    | `dgpuj-x86_64-pc-windows-msvc.zip`      |
-| Windows | `aarch64`   | `dgpuj-aarch64-pc-windows-msvc.zip`     |
-| Linux   | `x86_64`    | `dgpuj-x86_64-unknown-linux-gnu.tar.gz` |
-| macOS   | `x86_64`    | `dgpuj-x86_64-apple-darwin.tar.gz`      |
-| macOS   | `aarch64`   | `dgpuj-aarch64-apple-darwin.tar.gz`     |
+<!-- prettier-ignore -->
+```js{9}
+// opys.config.mjs
+export default defineConfig({
+  plugins: [
+    minecraft({ version: '1.21.1' }),
+    java({ version: '21' }),
+    dgpuj(),
+  ],
+  manifest: {
+    command: '@dgpuj.bin',
+    args: [
+      '--dgpuj-home',
+      '@java.home',
+      '@minecraft.jvmArgs',
+      '@minecraft.mainClass',
+      '@minecraft.gameArgs',
+    ],
+    workdir: '${game_directory}',
+  },
+});
+```
 
-Архіву Linux `aarch64` немає. На машині Linux `aarch64` нічого не встановлюється за `${dgpuj_bin}`, тому запуск завершується помилкою. Модпак, який має працювати там, має обійтися без dgpuj.
+<!-- prettier-ignore -->
+```jsonc
+// у маніфесті
+"command": "${dgpuj_bin}"
+```
 
-На Linux dgpuj встановлює змінні render-offload NVIDIA, і лише коли присутній пропрієтарний драйвер NVIDIA. На macOS dgpuj не примушує відеокарту: система вибирає сама, а dgpuj лише стартує JVM.
+Це єдиний випадок, коли `command` приходить не від
+завантажувача.
 
-Кожен архів зафіксовано за sha256. Збирання читає дайджест із GitHub або завантажує архів і хешує його, коли GitHub не має жодного.
-
-## Використання в конфігурації {#use-it-in-a-config}
-
-Додайте `dgpuj()` поруч із `java` і використайте `dgpuj.bin` як команду. Передайте `dgpuj.home` перед аргументами JVM, щоб dgpuj знайшов JDK:
+## Як вказати, де Java
 
 ```js
-import { dgpuj, java, minecraft } from '@opys/minecraft';
-
-plugins: [minecraft('1.21.1'), java('21'), dgpuj()],
-manifest: {
-  command: ({ dgpuj }) => dgpuj.bin,
-  args: ({ dgpuj, minecraft }) => [
-    dgpuj.home,
-    minecraft.jvmArgs,
-    minecraft.mainClass,
-    minecraft.gameArgs,
-  ],
-  workdir: '${game_directory}',
-},
+args: ['--dgpuj-home', '@java.home', '@forge.jvmArgs', …],
 ```
 
-Без `home` JDK знаходиться через `JAVA_HOME`, яку встановлює плагін `java`. Без плагіна `java` встановіть `JAVA_HOME` самі або передайте `--dgpuj-jvm <path>`; обидва належать самому dgpuj і описані в [його README](https://github.com/harmoniya-net/dgpuj).
+`--dgpuj-home` це власний прапорець dgpuj, а
+[`@java.home`](./java#що-він-додає) це JDK, який встановив плагін
+`java`. Поставте цю пару першою в `args`.
 
-Повний приклад нижче використовує плагін `java` і `home` та запускає ванільну 1.21.1:
+**Чому `dgpuj` не дає цього сам:** де знаходиться Java, каже
+плагін `java`. За такої назви конфігурація без `java` падає під
+час збирання замість старту зі зламаним шляхом.
 
-<<< @/examples/plugin-dgpuj-basic/opys.config.mjs
+Пару можна пропустити. `java` також встановлює `JAVA_HOME`, а
+dgpuj читає її.
 
-::: tip
-Лаунчер Windows це `dgpuj.exe`. Називати його в конфігурації не потрібно. Змінна `dgpuj_bin` вибирає файл для кожної платформи.
-:::
+## Варто знати
 
-Про JDK, який стартує dgpuj, див. плагін [java](./java). Про інші плагіни див. [сторінку плагінів](./index).
+- Він постачається для Windows і macOS на x86_64 і ARM, а для
+  Linux на x86_64. Збірки Linux ARM немає.
+- На macOS примушувати нічого, тому він лише запускає Java.
+- На Linux він діє, лише коли присутній пропрієтарний драйвер
+  NVIDIA.

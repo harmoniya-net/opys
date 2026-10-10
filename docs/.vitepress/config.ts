@@ -1,405 +1,225 @@
 import { defineConfig, type DefaultTheme } from 'vitepress';
 
-// The site is written in English and translated into Ukrainian.
-//
-// The English pages were rewritten into a much smaller set, and the
-// translation has not followed yet. Until it does, the two languages have
-// different pages and so different navigation: `english` below is the new
-// one, and `legacy` is the layout the Ukrainian pages still have. When the
-// translation catches up, `legacy` and its label tables go, and both
-// languages are built from `english` again.
+// The site is written in English and translated into Ukrainian. Both
+// languages have the same pages, so both are built from one navigation,
+// `site`, with a table of labels each. The Ukrainian pages live under
+// `/uk`, a page for a page.
 
-/** The English navigation: one sidebar, since the whole site fits in it. */
-function english(): DefaultTheme.Config {
+const en = {
+  basics: 'Basics',
+  introduction: 'Introduction',
+  config: 'The config',
+  bundle: 'The bundle',
+  cli: 'The CLI',
+  launcher: 'Launcher integration',
+
+  format: 'The format',
+  overview: 'Overview',
+  variables: 'Variables',
+  rules: 'Rules',
+  artifacts: 'Artifacts',
+  launch: 'Launch',
+  cleanup: 'Cleanup',
+  bundleFile: 'The bundle file',
+
+  plugins: 'Plugins',
+  files: 'Local files',
+  links: 'Files by link',
+  minecraft: 'Minecraft',
+  vanilla: 'Vanilla Minecraft',
+  serverlist: 'Server list',
+  authliberty: 'Custom auth server',
+  loaders: 'Minecraft mod loaders',
+  resources: 'Minecraft mod resources',
+  java: 'Java',
+  javaRuntime: 'Java runtime',
+  dgpuj: 'Discrete GPU',
+  writingPlugin: 'Writing a plugin',
+
+  reference: 'Reference',
+  troubleshooting: 'Troubleshooting',
+  architecture: 'How opys is built',
+
+  packages: 'Packages',
+  packagesTrial: 'Packages (trial)',
+  buildingPack: 'Building a pack',
+  aLauncher: 'A launcher',
+  anyPack: 'Any pack',
+  mojangFormats: "Mojang's formats",
+};
+
+const uk: typeof en = {
+  basics: 'Основи',
+  introduction: 'Вступ',
+  config: 'Конфігурація',
+  bundle: 'Бандл',
+  cli: 'Командний рядок',
+  launcher: 'Інтеграція з лаунчером',
+
+  format: 'Формат',
+  overview: 'Огляд',
+  variables: 'Змінні',
+  rules: 'Правила',
+  artifacts: 'Артефакти',
+  launch: 'Запуск',
+  cleanup: 'Очищення',
+  bundleFile: 'Файл бандла',
+
+  plugins: 'Плагіни',
+  files: 'Локальні файли',
+  links: 'Файли за посиланням',
+  minecraft: 'Minecraft',
+  vanilla: 'Ванільний Minecraft',
+  serverlist: 'Список серверів',
+  authliberty: 'Власний сервер автентифікації',
+  loaders: 'Завантажувачі модів Minecraft',
+  resources: 'Джерела модів Minecraft',
+  java: 'Java',
+  javaRuntime: 'Середовище Java',
+  dgpuj: 'Дискретна відеокарта',
+  writingPlugin: 'Написання плагіна',
+
+  reference: 'Довідник',
+  troubleshooting: 'Усунення проблем',
+  architecture: 'Як побудовано opys',
+
+  packages: 'Пакети',
+  packagesTrial: 'Пакети (проба)',
+  buildingPack: 'Збирання збірки',
+  aLauncher: 'Лаунчер',
+  anyPack: 'Будь-яка збірка',
+  mojangFormats: 'Формати Mojang',
+};
+
+/** The navigation, every link under `base`: one sidebar, since the whole
+ * site fits in it. */
+function site(base: string, t: typeof en): DefaultTheme.Config {
+  const at = (path: string) => `${base}${path}`;
+  const page = (text: string, path: string) => ({ text, link: at(path) });
+  const pkg = (name: string) => page(`@opys/${name}`, `/packages/${name}`);
+
   const sidebar: DefaultTheme.SidebarItem[] = [
     {
-      text: 'Basics',
+      text: t.basics,
       items: [
-        { text: 'Introduction', link: '/basics/intro' },
-        { text: 'The config', link: '/basics/config' },
-        { text: 'The bundle', link: '/basics/bundle' },
-        { text: 'The CLI', link: '/basics/cli' },
-        { text: 'Launcher integration', link: '/basics/launcher' },
+        page(t.introduction, '/basics/intro'),
+        page(t.config, '/basics/config'),
+        page(t.bundle, '/basics/bundle'),
+        page(t.cli, '/basics/cli'),
+        page(t.launcher, '/basics/launcher'),
       ],
     },
     {
-      text: 'The format',
+      text: t.format,
       items: [
-        { text: 'Overview', link: '/format/' },
-        { text: 'Variables', link: '/format/variables' },
-        { text: 'Rules', link: '/format/rules' },
-        { text: 'Artifacts', link: '/format/artifacts' },
-        { text: 'Launch', link: '/format/launch' },
-        { text: 'Cleanup', link: '/format/cleanup' },
-        { text: 'The bundle file', link: '/format/bundle' },
+        page(t.overview, '/format/'),
+        page(t.variables, '/format/variables'),
+        page(t.rules, '/format/rules'),
+        page(t.artifacts, '/format/artifacts'),
+        page(t.launch, '/format/launch'),
+        page(t.cleanup, '/format/cleanup'),
+        page(t.bundleFile, '/format/bundle'),
       ],
     },
     {
-      text: 'Plugins',
+      text: t.plugins,
       items: [
-        { text: 'Overview', link: '/plugins/' },
-        { text: 'Local files', link: '/plugins/files' },
-        { text: 'Files by link', link: '/plugins/links' },
+        page(t.overview, '/plugins/'),
+        page(t.files, '/plugins/files'),
+        page(t.links, '/plugins/links'),
         {
-          text: 'Minecraft',
+          text: t.minecraft,
           collapsed: false,
           items: [
-            { text: 'Vanilla Minecraft', link: '/plugins/minecraft' },
-            { text: 'Server list', link: '/plugins/serverlist' },
-            { text: 'Custom auth server', link: '/plugins/authliberty' },
-            { text: 'Bifrost', link: '/plugins/bifrost' },
+            page(t.vanilla, '/plugins/minecraft'),
+            page(t.serverlist, '/plugins/serverlist'),
+            page(t.authliberty, '/plugins/authliberty'),
+            page('Bifrost', '/plugins/bifrost'),
           ],
         },
         {
-          text: 'Minecraft mod loaders',
+          text: t.loaders,
           collapsed: false,
           items: [
-            { text: 'Forge', link: '/plugins/forge' },
-            { text: 'NeoForge', link: '/plugins/neoforge' },
-            { text: 'Fabric', link: '/plugins/fabric' },
-            { text: 'Cleanroom', link: '/plugins/cleanroom' },
-            { text: 'lwjgl3ify', link: '/plugins/lwjgl3ify' },
+            page('Forge', '/plugins/forge'),
+            page('NeoForge', '/plugins/neoforge'),
+            page('Fabric', '/plugins/fabric'),
+            page('Cleanroom', '/plugins/cleanroom'),
+            page('lwjgl3ify', '/plugins/lwjgl3ify'),
           ],
         },
         {
-          text: 'Minecraft mod resources',
+          text: t.resources,
           collapsed: false,
           items: [
-            { text: 'Modrinth', link: '/plugins/modrinth' },
-            { text: 'CurseForge', link: '/plugins/curseforge' },
+            page('Modrinth', '/plugins/modrinth'),
+            page('CurseForge', '/plugins/curseforge'),
           ],
         },
         {
-          text: 'Java',
+          text: t.java,
           collapsed: false,
           items: [
-            { text: 'Java runtime', link: '/plugins/java' },
-            { text: 'Discrete GPU', link: '/plugins/dgpuj' },
+            page(t.javaRuntime, '/plugins/java'),
+            page(t.dgpuj, '/plugins/dgpuj'),
           ],
         },
-        { text: 'Writing a plugin', link: '/plugins/writing-a-plugin' },
+        page(t.writingPlugin, '/plugins/writing-a-plugin'),
       ],
     },
     {
-      text: 'Reference',
+      text: t.reference,
       items: [
-        { text: 'Troubleshooting', link: '/reference/troubleshooting' },
-        { text: 'How opys is built', link: '/reference/architecture' },
+        page(t.troubleshooting, '/reference/troubleshooting'),
+        page(t.architecture, '/reference/architecture'),
       ],
     },
   ];
   // A trial of another layout: each package's README as its page. Kept apart
   // from the sidebar above until one of the two replaces the other.
-  const packages = [
-    { text: 'Packages', items: [{ text: 'Overview', link: '/packages/' }] },
+  const packages: DefaultTheme.SidebarItem[] = [
+    { text: t.packages, items: [page(t.overview, '/packages/')] },
+    { text: t.buildingPack, items: [pkg('cli'), pkg('dev'), pkg('minecraft')] },
+    { text: t.aLauncher, items: [pkg('runtime')] },
+    { text: t.format, items: [pkg('core'), pkg('bundle')] },
+    { text: t.anyPack, items: [pkg('links')] },
     {
-      text: 'Building a pack',
+      text: t.minecraft,
       items: [
-        { text: '@opys/cli', link: '/packages/cli' },
-        { text: '@opys/dev', link: '/packages/dev' },
-        { text: '@opys/minecraft', link: '/packages/minecraft' },
+        pkg('minecraft-vanilla'),
+        pkg('minecraft-serverlist'),
+        pkg('authliberty'),
+        pkg('bifrost'),
       ],
     },
     {
-      text: 'A launcher',
-      items: [{ text: '@opys/runtime', link: '/packages/runtime' }],
-    },
-    {
-      text: 'The format',
+      text: t.loaders,
       items: [
-        { text: '@opys/core', link: '/packages/core' },
-        { text: '@opys/bundle', link: '/packages/bundle' },
+        pkg('forge'),
+        pkg('neoforge'),
+        pkg('fabric'),
+        pkg('cleanroom'),
+        pkg('lwjgl3ify'),
       ],
     },
-    {
-      text: 'Any pack',
-      items: [{ text: '@opys/links', link: '/packages/links' }],
-    },
-    {
-      text: 'Minecraft',
-      items: [
-        {
-          text: '@opys/minecraft-vanilla',
-          link: '/packages/minecraft-vanilla',
-        },
-        {
-          text: '@opys/minecraft-serverlist',
-          link: '/packages/minecraft-serverlist',
-        },
-        { text: '@opys/authliberty', link: '/packages/authliberty' },
-        { text: '@opys/bifrost', link: '/packages/bifrost' },
-      ],
-    },
-    {
-      text: 'Minecraft mod loaders',
-      items: [
-        { text: '@opys/forge', link: '/packages/forge' },
-        { text: '@opys/neoforge', link: '/packages/neoforge' },
-        { text: '@opys/fabric', link: '/packages/fabric' },
-        { text: '@opys/cleanroom', link: '/packages/cleanroom' },
-        { text: '@opys/lwjgl3ify', link: '/packages/lwjgl3ify' },
-      ],
-    },
-    {
-      text: 'Minecraft mod resources',
-      items: [
-        { text: '@opys/modrinth', link: '/packages/modrinth' },
-        { text: '@opys/curseforge', link: '/packages/curseforge' },
-      ],
-    },
-    {
-      text: 'Java',
-      items: [
-        { text: '@opys/java', link: '/packages/java' },
-        { text: '@opys/dgpuj', link: '/packages/dgpuj' },
-      ],
-    },
-    {
-      text: "Mojang's formats",
-      items: [
-        { text: '@opys/mojang', link: '/packages/mojang' },
-        { text: '@opys/mojang-rules', link: '/packages/mojang-rules' },
-      ],
-    },
+    { text: t.resources, items: [pkg('modrinth'), pkg('curseforge')] },
+    { text: t.java, items: [pkg('java'), pkg('dgpuj')] },
+    { text: t.mojangFormats, items: [pkg('mojang'), pkg('mojang-rules')] },
   ];
   return {
     nav: [
-      { text: 'Basics', link: '/basics/intro' },
-      { text: 'The format', link: '/format/' },
-      { text: 'Plugins', link: '/plugins/' },
-      { text: 'Reference', link: '/reference/troubleshooting' },
-      { text: 'Packages (trial)', link: '/packages/' },
-    ],
-    sidebar: {
-      '/packages/': packages,
-      '/basics/': sidebar,
-      '/plugins/': sidebar,
-      '/format/': sidebar,
-      '/reference/': sidebar,
-    },
-  };
-}
-
-const en = {
-  guide: 'Guide',
-  launchers: 'Launchers',
-  plugins: 'Plugins',
-  reference: 'Reference',
-  internals: 'Internals',
-
-  start: 'Start',
-  gettingStarted: 'Getting started',
-  concepts: 'Concepts',
-  writingConfig: 'Writing a config',
-  config: 'The config file',
-  runClient: 'Launch-time values',
-  loaders: 'Loaders',
-  java: 'Java',
-  mods: 'Mods and files',
-  extras: 'Accounts, servers, GPUs',
-  shipping: 'Shipping',
-  publishing: 'Publishing a bundle',
-  cli: 'The opys command',
-  troubleshooting: 'Troubleshooting',
-
-  embeddingGroup: 'Embedding the runtime',
-  embedding: 'Install and launch',
-  progress: 'Progress',
-  errors: 'Errors',
-  vars: 'Variables',
-
-  allPlugins: 'All plugins',
-  theGame: 'The game',
-  content: 'Content',
-  extrasGroup: 'Extras',
-  underneath: 'Underneath',
-
-  theFormat: 'The format',
-  bundle: 'Bundle',
-  manifest: 'Manifest',
-  assetLayouts: 'Asset layouts',
-  extending: 'Extending',
-  writingPlugin: 'Writing a plugin',
-  api: 'API',
-
-  architecture: 'Architecture',
-  metadata: 'Version documents',
-  testing: 'Testing',
-};
-
-const uk: typeof en = {
-  guide: 'Посібник',
-  launchers: 'Лаунчери',
-  plugins: 'Плагіни',
-  reference: 'Довідник',
-  internals: 'Внутрішня будова',
-
-  start: 'Початок',
-  gettingStarted: 'Перші кроки',
-  concepts: 'Основні поняття',
-  writingConfig: 'Написання конфігурації',
-  config: 'Файл конфігурації',
-  runClient: 'Значення під час запуску',
-  loaders: 'Завантажувачі модів',
-  java: 'Java',
-  mods: 'Моди та файли',
-  extras: 'Акаунти, сервери, відеокарти',
-  shipping: 'Розповсюдження',
-  publishing: 'Публікація бандла',
-  cli: 'Команда opys',
-  troubleshooting: 'Усунення проблем',
-
-  embeddingGroup: 'Вбудовування рантайму',
-  embedding: 'Встановлення і запуск',
-  progress: 'Прогрес',
-  errors: 'Помилки',
-  vars: 'Змінні',
-
-  allPlugins: 'Усі плагіни',
-  theGame: 'Гра',
-  content: 'Вміст',
-  extrasGroup: 'Додатково',
-  underneath: 'Під капотом',
-
-  theFormat: 'Формат',
-  bundle: 'Бандл',
-  manifest: 'Маніфест',
-  assetLayouts: 'Розкладки ресурсів',
-  extending: 'Розширення',
-  writingPlugin: 'Написання плагіна',
-  api: 'API',
-
-  architecture: 'Архітектура',
-  metadata: 'Документи версій',
-  testing: 'Тестування',
-};
-
-/** The navigation the Ukrainian pages still have, every link under `base`. */
-function legacy(base: string, t: typeof en): DefaultTheme.Config {
-  const at = (path: string) => `${base}${path}`;
-  const page = (text: string, path: string) => ({ text, link: at(path) });
-  const plugin = (name: string, text = name) => page(text, `/plugins/${name}`);
-
-  return {
-    nav: [
-      page(t.guide, '/guide/getting-started'),
-      page(t.launchers, '/launcher/embedding'),
+      page(t.basics, '/basics/intro'),
+      page(t.format, '/format/'),
       page(t.plugins, '/plugins/'),
-      page(t.reference, '/reference/bundle-format'),
-      page(t.internals, '/internals/architecture'),
+      page(t.reference, '/reference/troubleshooting'),
+      page(t.packagesTrial, '/packages/'),
     ],
     sidebar: {
-      [at('/guide/')]: [
-        {
-          text: t.start,
-          items: [
-            page(t.gettingStarted, '/guide/getting-started'),
-            page(t.concepts, '/guide/concepts'),
-          ],
-        },
-        {
-          text: t.writingConfig,
-          items: [
-            page(t.config, '/guide/config'),
-            page(t.runClient, '/guide/run-client'),
-            page(t.loaders, '/guide/loaders'),
-            page(t.java, '/guide/java'),
-            page(t.mods, '/guide/mods'),
-            page(t.extras, '/guide/extras'),
-          ],
-        },
-        {
-          text: t.shipping,
-          items: [
-            page(t.publishing, '/guide/publishing'),
-            page(t.cli, '/guide/cli'),
-            page(t.troubleshooting, '/guide/troubleshooting'),
-          ],
-        },
-      ],
-      [at('/launcher/')]: [
-        {
-          text: t.embeddingGroup,
-          items: [
-            page(t.embedding, '/launcher/embedding'),
-            page(t.progress, '/launcher/progress'),
-            page(t.errors, '/launcher/errors'),
-            page(t.vars, '/launcher/vars'),
-          ],
-        },
-      ],
-      [at('/plugins/')]: [
-        page(t.allPlugins, '/plugins/'),
-        {
-          text: t.theGame,
-          items: [
-            plugin('minecraft'),
-            plugin('forge'),
-            plugin('neoforge'),
-            plugin('fabric'),
-            plugin('cleanroom'),
-            plugin('lwjgl3ify'),
-            plugin('java'),
-          ],
-        },
-        {
-          text: t.content,
-          items: [
-            plugin('modrinth'),
-            plugin('curseforge'),
-            plugin('link', 'links'),
-            plugin('files'),
-          ],
-        },
-        {
-          text: t.extrasGroup,
-          items: [
-            plugin('authliberty'),
-            plugin('bifrost'),
-            plugin('serverlist'),
-            plugin('dgpuj'),
-          ],
-        },
-        {
-          text: t.underneath,
-          items: [
-            plugin('dev', '@opys/dev'),
-            plugin('core', '@opys/core'),
-            plugin('runtime', '@opys/runtime'),
-            plugin('mojang', '@opys/mojang'),
-            plugin('mojang-rules', '@opys/mojang-rules'),
-            plugin('minecraft-vanilla', '@opys/minecraft-vanilla'),
-          ],
-        },
-      ],
-      [at('/reference/')]: [
-        {
-          text: t.theFormat,
-          items: [
-            page(t.bundle, '/reference/bundle-format'),
-            page(t.manifest, '/reference/manifest'),
-            page(t.assetLayouts, '/reference/asset-layouts'),
-          ],
-        },
-        {
-          text: t.extending,
-          items: [
-            page(t.writingPlugin, '/reference/writing-a-plugin'),
-            page(t.api, '/reference/api'),
-          ],
-        },
-      ],
-      [at('/internals/')]: [
-        {
-          text: t.internals,
-          items: [
-            page(t.architecture, '/internals/architecture'),
-            page('horno', '/internals/horno'),
-            page(t.metadata, '/internals/metadata'),
-            page(t.testing, '/internals/testing'),
-          ],
-        },
-      ],
+      [at('/packages/')]: packages,
+      [at('/basics/')]: sidebar,
+      [at('/plugins/')]: sidebar,
+      [at('/format/')]: sidebar,
+      [at('/reference/')]: sidebar,
     },
   };
 }
@@ -423,7 +243,7 @@ export default defineConfig({
       description:
         'Build and launch Minecraft installations from a declarative manifest.',
       themeConfig: {
-        ...english(),
+        ...site('', en),
         editLink: { pattern: `${repo}/edit/main/docs/:path` },
       },
     },
@@ -433,7 +253,7 @@ export default defineConfig({
       description:
         'Збирайте й запускайте інсталяції Minecraft із декларативного маніфесту.',
       themeConfig: {
-        ...legacy('/uk', uk),
+        ...site('/uk', uk),
         editLink: {
           pattern: `${repo}/edit/main/docs/:path`,
           text: 'Редагувати цю сторінку на GitHub',

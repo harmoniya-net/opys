@@ -27,9 +27,11 @@ jobs:
       - run: npm ci --ignore-scripts
       - run: npm run test:architecture
       - run: npm run architecture
-      # The release workflow only runs on a tag, so the one piece of it that
-      # can be exercised on every push is: the publish order still resolves.
+      # The release only runs once everything here has passed, so the pieces
+      # of it that can fail early are run here: the publish order resolves,
+      # and a version stamps into every manifest it should.
       - run: node scripts/release/crates.mjs
+      - run: node scripts/release/stamp.mjs 99.0.0 && cargo metadata --format-version 1 > /dev/null
 
   cargo:
     name: Cargo build + test
@@ -83,3 +85,21 @@ jobs:
       - run: npm run build --workspaces --if-present
       - run: npm run typecheck
       - run: npm test
+
+  # A push to `main` that passed everything above is released. One at a
+  # time: a second push waits for the first, so two never work out the same
+  # version.
+  release:
+    name: Release
+    needs: [architecture, cargo, cargo-windows, node]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    concurrency:
+      group: release
+      cancel-in-progress: false
+    permissions:
+      contents: write
+      id-token: write
+    uses: ./.github/workflows/release.yml
+    secrets:
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+      CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}

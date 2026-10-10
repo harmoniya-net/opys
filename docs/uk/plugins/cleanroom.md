@@ -1,98 +1,200 @@
-# cleanroom
+# Cleanroom
 
-`cleanroom()` додає [Cleanroom](https://github.com/CleanroomMC/Cleanroom) до інсталяції: гру, її бібліотеки та ресурси. Cleanroom це наступник Forge для Minecraft 1.12.2, який працює на сучасній Java і використовує LWJGL 3. Використовуйте його, щоб зробити модпак 1.12.2, який стартує на Java 25. Використовуйте його замість `minecraft()`, оскільки `cleanroom()` уже додає ванільну гру, і поєднуйте його із [середовищем Java](./java). Ця сторінка для авторів модпаків. Про місце завантажувачів у конфігурації див. [Завантажувачі модів](/uk/guide/loaders).
+Плагін `cleanroom` з `@opys/minecraft`.
 
-## Сигнатура {#signature}
+[Cleanroom](https://github.com/CleanroomMC/Cleanroom): моди Forge
+1.12.2 на сучасному середовищі Java.
 
-```ts
-cleanroom(version: string, opts?: {
-  source?: string;
-}): ChainablePlugin
-```
-
-`version` це єдиний обов’язковий аргумент. Виклик `cleanroom()` не виконує мережевої роботи; пошуки відбуваються, коли `opys build` або `opys launch` збирає конфігурацію. Він експортується з `@opys/minecraft` і з `@opys/cleanroom`.
-
-## Версія {#version}
-
-`version` приймає одну з трьох форм. Плагін пробує їх у такому порядку.
-
-| Форма                         | Приклад                                              | Визначається як                                            |
-| ----------------------------- | ---------------------------------------------------- | ---------------------------------------------------------- |
-| Псевдонім на версії Minecraft | `1.12.2-latest`, `1.12.2-recommended`, `1.12.2-best` | Те просування тієї версії Minecraft                        |
-| Версія Minecraft              | `1.12.2`                                             | Її реліз `best`                                            |
-| Тег релізу                    | `0.6.13-alpha`                                       | Саме той реліз. Його версія Minecraft визначається пошуком |
-
-Cleanroom не має ендпоїнта просувань, тому індекс каже, що означає кожен псевдонім. `latest` це найновіший реліз. `recommended` це найновіший реліз, який GitHub не позначає як пререліз. `best` це `recommended`, коли він є, і `latest` в іншому разі. Гола версія Minecraft означає `best`. Індекс має одну версію Minecraft, `1.12.2`.
-
-Гола версія Minecraft або псевдонім іде за індексом, тому пізніше може визначитися в новіший реліз. Назвіть тег релізу, щоб зафіксувати один.
-
-Якщо версію не вдається визначити, збирання зупиняється з одним із таких повідомлень:
-
-| Повідомлення                                                  | Причина                                              |
-| ------------------------------------------------------------- | ---------------------------------------------------- |
-| `Unknown Minecraft version '<mc>' (resolving '<input>')`      | Псевдонім на версії Minecraft, якої немає в індексі  |
-| `No '<alias>' Cleanroom build available for Minecraft <mc>`   | Версія Minecraft не має збірки для того псевдоніма   |
-| `Could not resolve Cleanroom version '<input>' from <source>` | Ні версія Minecraft, ні тег релізу зі списку індексу |
-
-## Параметри {#options}
-
-| Параметр | Тип      | Типово                                               | Значення                                                   |
-| -------- | -------- | ---------------------------------------------------- | ---------------------------------------------------------- |
-| `source` | `string` | `https://harmoniya-net.github.io/metadata/cleanroom` | Базова URL індексу документів. Встановіть її для дзеркала. |
-
-Параметра `manifestBase` немає: документ Cleanroom це ціла версія, тому маніфест версій Mojang не читається. Немає інсталятора для налаштування і токена GitHub теж немає; Cleanroom визначається лише за індексом.
-
-## Групи запуску {#launch-groups}
-
-Плагін називається `cleanroom`, тому його групи читаються як `cleanroom.<group>` у `manifest.command` і `manifest.args`.
-
-| Група                 | Тип      | Містить                                                                                                                                        |
-| --------------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| `cleanroom.command`   | string   | `${java_bin}`, бінарний файл Java, який надає плагін [`java`](./java). У прикладах для `manifest.command` замість цього використано `java.bin` |
-| `cleanroom.jvmArgs`   | `Valset` | Аргументи JVM для цього релізу: `-Djava.library.path=${natives_directory}` і `-cp ${classpath}`, оскільки сам документ не має жодних           |
-| `cleanroom.mainClass` | `Val`    | Головний клас із документа, `top.outlands.foundation.boot.Foundation`                                                                          |
-| `cleanroom.gameArgs`  | `Valset` | Ігрові аргументи з документа                                                                                                                   |
-
-Поставте їх у `manifest.args` у порядку, потрібному грі:
-
-```js
-manifest: {
-  command: ({ java }) => java.bin,
-  args: ({ cleanroom }) => [
-    cleanroom.jvmArgs,
-    cleanroom.mainClass,
-    cleanroom.gameArgs,
+<!-- prettier-ignore -->
+```js{4,8-13}
+// opys.config.mjs
+export default defineConfig({
+  plugins: [
+    cleanroom({ version: '1.12.2' }),
+    java({ version: '25' }),
   ],
-  workdir: '${game_directory}',
-},
+  manifest: {
+    command: '@cleanroom.command',
+    args: [
+      '@cleanroom.jvmArgs',
+      '@cleanroom.mainClass',
+      '@cleanroom.gameArgs',
+    ],
+    workdir: '${game_directory}',
+  },
+});
 ```
 
-## Змінні {#variables}
+Використовуйте його **замість** `minecraft`. Завантажувач привозить
+гру з собою.
 
-`cleanroom()` визначає ті самі змінні, що й [`minecraft`](./minecraft#variables), з двома відмінностями. `classpath` зібрано з бібліотек власного документа Cleanroom, а `version_name` і `version_type` беруться з того документа, а не з ванільної версії: для `0.6.13-alpha` `version_name` це `1.12.2-Cleanroom-0.6.13-alpha`, і тому `version_dir` це `${root}/versions/1.12.2-Cleanroom-0.6.13-alpha`.
+## Параметри
 
-`root` дорівнює `.`, доки машина запуску його не встановить. `username`, `uuid` і `token` взагалі не визначені, тому їх має надати машина запуску. Як це зробити, пояснює сторінка [значень під час запуску](/uk/guide/run-client). `cleanroom()` не визначає `java_bin`, `java_home` чи `java_runtime_dir`. Їх визначає плагін [`java`](./java).
+| Параметр    | Що робить                                                                           |
+| ----------- | ----------------------------------------------------------------------------------- |
+| `version`   | Яка збірка. Див. нижче.                                                             |
+| `source`    | Дзеркало індексу збірок.                                                            |
+| `libraries` | Бібліотеки для [додавання або заміни](./minecraft#додавання-або-заміна-бібліотеки). |
 
-## Яка Java {#which-java}
+### version
 
-Використовуйте Java 25: `java('25')`. Запуск 1.12.2 на поточній Java це те, для чого існує Cleanroom, і поточний реліз заявляє Java 25. opys не перевіряє цю відповідність, тому невідповідність проявиться під час запуску гри, а не під час збирання.
+| Ви пишете              | Ви отримуєте                                                      |
+| ---------------------- | ----------------------------------------------------------------- |
+| `'1.12.2'`             | Рекомендований випуск або найновіший, якщо рекомендованого немає. |
+| `'1.12.2-latest'`      | Найновіший випуск.                                                |
+| `'1.12.2-recommended'` | Рекомендований випуск.                                            |
+| `'0.6.13-alpha'`       | Саме цей випуск.                                                  |
 
-```js
-plugins: [cleanroom('1.12.2'), java('25')],
+Версія визначається **під час збирання**. `'1.12.2'` сьогодні і за
+шість місяців може означати різні випуски. Для збірки, яка ніколи
+не рухається, пишіть точну версію.
+
+## Що він додає
+
+Усе, що додає [ванільний Minecraft](./minecraft#що-він-додає), з
+такими відмінностями.
+
+| Вид        | Що                                             |
+| ---------- | ---------------------------------------------- |
+| Файли      | Гра 1.12.2 з бібліотеками Cleanroom.           |
+| Запуск     | `command`, `jvmArgs`, `mainClass`, `gameArgs`. |
+| Змінні     | Ті самі, що [ванільні](./minecraft#змінні).    |
+| Середовище | Немає.                                         |
+
+Кожен пункт нижче: що це таке і як воно потрапляє в
+[маніфест](/uk/format/).
+
+### Файли · гра і бібліотеки Cleanroom
+
+Гра 1.12.2, у якій стару графічну бібліотеку (LWJGL 2) замінено на
+поточну (LWJGL 3). Стара взагалі не встановлюється.
+
+<!-- prettier-ignore -->
+```js{4}
+// opys.config.mjs
+export default defineConfig({
+  plugins: [
+    cleanroom({ version: '1.12.2' }),
+    java({ version: '25' }),
+  ],
+  manifest: {
+    command: '@cleanroom.command',
+    args: [
+      '@cleanroom.jvmArgs',
+      '@cleanroom.mainClass',
+      '@cleanroom.gameArgs',
+    ],
+    workdir: '${game_directory}',
+  },
+});
 ```
 
-Не кожен постачальник дає Java 25 для кожної платформи; див. [Платформи](./java#platforms).
+<!-- prettier-ignore -->
+```jsonc
+// у маніфесті
+{
+  "path": "${library_directory}/com/cleanroommc/cleanroom/0.6.13-alpha/cleanroom-0.6.13-alpha.jar",
+  "source": { "url": "https://github.com/CleanroomMC/Cleanroom/releases/download/0.6.13-alpha/cleanroom-0.6.13-alpha-universal.jar" },
+  "size": 6505649,
+  "integrity": { "sha1": "8d59eda7065f26fc0c1bbd3a9fa9f272ff89917f" }
+}
+```
 
-## Як це працює {#how-it-works}
+### Запуск
 
-Інсталятор Cleanroom не запускається на вашій машині. Кожен реліз Cleanroom публікується заздалегідь як один повний документ версії, тому `cleanroom()` робить під час збирання три запити: індекс релізів, щоб знайти проханий, далі документ того релізу, далі індекс ресурсів, названий у документі. Ванільна версія не завантажується. Документ уже називає клієнт 1.12.2, його ресурси й кожну бібліотеку, яка запускається.
+Короткий. Версії 1.12.2 потрібно мало, а Cleanroom стартує через
+власний головний клас.
 
-Документ відображається тим самим кодом, що й ванільна версія. Cleanroom замінює LWJGL 2 ванільної 1.12.2 на LWJGL 3, і документ перелічує LWJGL 3, а не LWJGL 2. Плагін не фільтрує список бібліотек: що заявляє документ, те й запускається. Клієнтський jar стає останнім у classpath, як у плагіні `minecraft`.
+<!-- prettier-ignore -->
+```js{8-13}
+// opys.config.mjs
+export default defineConfig({
+  plugins: [
+    cleanroom({ version: '1.12.2' }),
+    java({ version: '25' }),
+  ],
+  manifest: {
+    command: '@cleanroom.command',
+    args: [
+      '@cleanroom.jvmArgs',
+      '@cleanroom.mainClass',
+      '@cleanroom.gameArgs',
+    ],
+    workdir: '${game_directory}',
+  },
+});
+```
 
-Cleanroom нічого не встановлює на машині запуску перед стартом гри. Сторінка [метаданих](/uk/internals/metadata) описує документи і спосіб їх створення.
+<!-- prettier-ignore -->
+```jsonc
+// у маніфесті
+"launch": {
+  // '@cleanroom.command'
+  "command": "${java_bin}",
+  "args": [
+    // '@cleanroom.jvmArgs'
+    "-Djava.library.path=${natives_directory}",
+    "-cp",
+    "${classpath}",
+    // '@cleanroom.mainClass'
+    "top.outlands.foundation.boot.Foundation",
+    // '@cleanroom.gameArgs'
+    "--username", "${auth_player_name}",
+    // … решта аргументів гри 1.12.2, далі:
+    "--tweakClass", "net.minecraftforge.fml.common.launcher.FMLTweaker",
+    "--versionType", "Forge"
+  ],
+  "workdir": "${game_directory}"
+}
+```
 
-## Приклад {#example}
+| Ви пишете                | Стає                                             |
+| ------------------------ | ------------------------------------------------ |
+| `'@cleanroom.command'`   | Програма для запуску: та Java, яку має збірка.   |
+| `'@cleanroom.jvmArgs'`   | Аргументи для самої Java, в кінці з classpath.   |
+| `'@cleanroom.mainClass'` | Клас для старту. Один аргумент.                  |
+| `'@cleanroom.gameArgs'`  | Аргументи для гри: хто грає і де що знаходиться. |
 
-<<< @/examples/plugin-cleanroom-basic/opys.config.mjs
+### Змінні
 
-Запустіть `opys build`, щоб записати `game.opys`, або `opys launch`, щоб запустити гру з конфігурації. Моди додаються поруч із завантажувачем. Див. [Моди та файли](/uk/guide/mods).
+Ті самі імена, що у ванільної версії. `classpath` тепер має
+бібліотеки цього завантажувача перед бібліотеками гри.
+
+<!-- prettier-ignore -->
+```js{4}
+// opys.config.mjs
+export default defineConfig({
+  plugins: [
+    cleanroom({ version: '1.12.2' }),
+    java({ version: '25' }),
+  ],
+  manifest: {
+    command: '@cleanroom.command',
+    args: [
+      '@cleanroom.jvmArgs',
+      '@cleanroom.mainClass',
+      '@cleanroom.gameArgs',
+    ],
+    workdir: '${game_directory}',
+  },
+});
+```
+
+<!-- prettier-ignore -->
+```jsonc
+// у маніфесті
+"vars": {
+  "game_directory": "${root}/",
+  "library_directory": "${root}/libraries",
+  // … решта, як у ванільній версії
+}
+```
+
+Нічого не запускається на комп'ютері гравця до гри.
+
+## Варто знати
+
+- Він замінює і `minecraft`, і `forge`.
+- Використовуйте Java 25 незалежно від того, що каже версія
+  Minecraft. opys не перевіряє.
+- Поєднуйте його з [`java({ version: '25' })`](./java#яка-java-для-якого-minecraft).

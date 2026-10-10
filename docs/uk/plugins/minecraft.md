@@ -1,132 +1,373 @@
-# minecraft
+# Ванільний Minecraft
 
-`minecraft()` додає до інсталяції ванільний клієнт Minecraft: ігровий jar, його бібліотеки, нативні бібліотеки та ресурси гри, для будь-якої версії, яку опублікував Mojang. Використовуйте його для пака без завантажувача модів і додайте поруч [середовище Java](./java). Плагіни завантажувачів, такі як `forge` чи `fabric`, уже додають ванільну гру, на якій будуються, тому не додавайте `minecraft()` поруч із ними. Ця сторінка для авторів паків. Якщо ви пишете завантажувач, див. [`@opys/minecraft-vanilla`](./minecraft-vanilla) з описом функцій під ним.
+Плагін `minecraft` з `@opys/minecraft`.
 
-## Сигнатура {#signature}
+Гра так, як її постачає Mojang, без завантажувача модів.
 
-```ts
-minecraft(version?: string, options?: {
-  manifestBase?: string;
-}): ChainablePlugin
+<!-- prettier-ignore -->
+```js{4,8-13}
+// opys.config.mjs
+export default defineConfig({
+  plugins: [
+    minecraft({ version: '1.21.1' }),
+    java({ version: '21' }),
+  ],
+  manifest: {
+    command: '@minecraft.command',
+    args: [
+      '@minecraft.jvmArgs',
+      '@minecraft.mainClass',
+      '@minecraft.gameArgs',
+    ],
+    workdir: '${game_directory}',
+  },
+});
 ```
 
-Обидва аргументи необов’язкові. Виклик `minecraft()` не виконує мережевих запитів; пошук відбувається тоді, коли `opys build` або `opys launch` збирає конфігурацію. Плагін експортується з `@opys/minecraft` і з `@opys/minecraft-vanilla`.
+Кожен плагін завантажувача побудовано на цьому, тож ця сторінка описує
+і те, що в них усіх спільного.
 
-## Версія {#version}
+## Параметри
 
-`version` є точним ідентифікатором з маніфесту версій Mojang, який порівнюється як рядок. Підходить усе, що містить маніфест, включно з ідентифікаторами знімків на кшталт `24w14a`; поле `type` кожного запису розрізняє їхні типи.
+| Параметр       | Що робить                                                                            |
+| -------------- | ------------------------------------------------------------------------------------ |
+| `version`      | Версія Minecraft. Якщо пропущено, поточний випуск.                                   |
+| `libraries`    | Бібліотеки, щоб додати або замінити. Див. [нижче](#додавання-або-заміна-бібліотеки). |
+| `manifestBase` | Дзеркало списку версій Mojang.                                                       |
 
-- `minecraft('1.21.1')` бере саме цю версію.
-- `minecraft()` бере версію, яку маніфест називає останнім релізом.
-- `minecraft('latest')` не є псевдонімом. Його немає в маніфесті, тому збирання завершується помилкою.
+Називайте версію. Сам `minecraft()` бере ту, що є поточною на день
+збирання.
 
-Ідентифікатор, якого немає в маніфесті, зупиняє збирання з повідомленням
-`Version '<id>' not found in the Mojang version manifest`.
+## Що він додає
 
-::: tip Фіксуйте версію
-Називайте версію. Без неї збирання спирається на останній реліз Mojang на день збирання, тож дві збирання тієї самої конфігурації можуть розійтися.
-:::
+| Вид        | Що                                             |
+| ---------- | ---------------------------------------------- |
+| Файли      | Jar гри, бібліотеки, нативні файли, ресурси.   |
+| Запуск     | `command`, `jvmArgs`, `mainClass`, `gameArgs`. |
+| Змінні     | Теки і те, що повідомляють грі.                |
+| Середовище | Нічого.                                        |
 
-## Параметри {#options}
+Про кожен нижче: що це і як він опиняється у
+[маніфесті](/uk/format/).
 
-| Параметр       | Тип      | Типово                                         | Значення                                                                          |
-| -------------- | -------- | ---------------------------------------------- | --------------------------------------------------------------------------------- |
-| `manifestBase` | `string` | Маніфест `version_manifest_v2.json` від Mojang | Адреса маніфесту версій, яку читати замість стандартної. Вкажіть її для дзеркала. |
+### Файли · jar гри
 
-`manifestBase` замінює лише адресу маніфесту версій. Документ версії та індекс ресурсів завантажуються за адресами, які вказують самі документи. Об’єкти ресурсів завжди надходять з `resources.download.minecraft.net`, хоч би що казав `manifestBase`.
+Один файл. Зафіксовано хешем, який публікує Mojang.
 
-## Групи запуску {#launch-groups}
+<!-- prettier-ignore -->
+```js{4}
+// opys.config.mjs
+export default defineConfig({
+  plugins: [
+    minecraft({ version: '1.21.1' }),
+    java({ version: '21' }),
+  ],
+  manifest: {
+    command: '@minecraft.command',
+    args: [
+      '@minecraft.jvmArgs',
+      '@minecraft.mainClass',
+      '@minecraft.gameArgs',
+    ],
+    workdir: '${game_directory}',
+  },
+});
+```
 
-Плагін має ім’я `minecraft`, тому його групи читаються як `minecraft.<group>` у `manifest.command` і `manifest.args`. Кожна з них є частиною команди запуску, яку описує документ версії від Mojang.
+<!-- prettier-ignore -->
+```jsonc
+// у маніфесті
+{
+  "path": "${version_dir}/client.jar",
+  "source": { "url": "https://piston-data.mojang.com/v1/objects/30c7…/client.jar" },
+  "size": 26836906,
+  "integrity": { "sha1": "30c73b1c5da787909b2f73340419fdf13b9def88" }
+}
+```
 
-| Група                 | Тип      | Містить                                                                                                                                      |
-| --------------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| `minecraft.command`   | string   | `${java_bin}`, бінарний файл Java, який дає плагін [`java`](./java). У прикладах для `manifest.command` замість нього використано `java.bin` |
-| `minecraft.jvmArgs`   | `Valset` | Аргументи JVM з документа версії разом з їхніми правилами, включно з classpath                                                               |
-| `minecraft.mainClass` | `Val`    | Головний клас гри                                                                                                                            |
-| `minecraft.gameArgs`  | `Valset` | Ігрові аргументи з документа версії разом з їхніми правилами                                                                                 |
+### Файли · бібліотеки
 
-`Val` є значенням, яке може нести правила, а `Valset` є їхнім списком. Див. [Val and Valset](/uk/reference/manifest#val-and-valset). Групи розділені, щоб ви могли вставити власні аргументи між ними. Додайте їх до `manifest.args` у порядку, якого потребує гра:
+Близько сотні jar. Той, що має нативний код, має `rules`, щоб гравець
+Windows не завантажував нативні файли Linux, і `extract`, який його
+розпаковує.
+
+<!-- prettier-ignore -->
+```js{4}
+// opys.config.mjs
+export default defineConfig({
+  plugins: [
+    minecraft({ version: '1.21.1' }),
+    java({ version: '21' }),
+  ],
+  manifest: {
+    command: '@minecraft.command',
+    args: [
+      '@minecraft.jvmArgs',
+      '@minecraft.mainClass',
+      '@minecraft.gameArgs',
+    ],
+    workdir: '${game_directory}',
+  },
+});
+```
+
+<!-- prettier-ignore -->
+```jsonc
+// у маніфесті
+{
+  "path": "${library_directory}/org/lwjgl/lwjgl-freetype/3.3.3/lwjgl-freetype-3.3.3-natives-linux.jar",
+  "source": { "url": "https://libraries.minecraft.net/org/lwjgl/…-natives-linux.jar" },
+  "size": 1245129,
+  "rules": "allow.os.linux",
+  "integrity": { "sha1": "149070a5480900347071b7074779531f25a6e3dc" },
+  "extract": { "into": "${natives_directory}", "clean": true, "excludes": ["META-INF/"] }
+}
+```
+
+### Файли · ресурси
+
+Звуки, текстури, мови: кілька тисяч малих файлів та індекс, який їх
+перелічує. Це більша частина маніфесту.
+
+<!-- prettier-ignore -->
+```js{4}
+// opys.config.mjs
+export default defineConfig({
+  plugins: [
+    minecraft({ version: '1.21.1' }),
+    java({ version: '21' }),
+  ],
+  manifest: {
+    command: '@minecraft.command',
+    args: [
+      '@minecraft.jvmArgs',
+      '@minecraft.mainClass',
+      '@minecraft.gameArgs',
+    ],
+    workdir: '${game_directory}',
+  },
+});
+```
+
+<!-- prettier-ignore -->
+```jsonc
+// у маніфесті
+{
+  "path": "${assets_root}/objects/b6/b62ca8ec10d07e6bf5ac8dae0c8c1d2e6a1e3356",
+  "source": { "url": "https://resources.download.minecraft.net/b6/b62c…" },
+  "size": 9101,
+  "integrity": { "sha1": "b62ca8ec10d07e6bf5ac8dae0c8c1d2e6a1e3356" },
+  "metadata": { "name": "icons/icon_128x128.png" }
+}
+```
+
+### Запуск
+
+Весь командний рядок у вигляді чотирьох фрагментів, які ви складаєте по
+порядку. Останні аргументи гри вмикаються [прапорцями](#прапорці).
+
+<!-- prettier-ignore -->
+```js{8-13}
+// opys.config.mjs
+export default defineConfig({
+  plugins: [
+    minecraft({ version: '1.21.1' }),
+    java({ version: '21' }),
+  ],
+  manifest: {
+    command: '@minecraft.command',
+    args: [
+      '@minecraft.jvmArgs',
+      '@minecraft.mainClass',
+      '@minecraft.gameArgs',
+    ],
+    workdir: '${game_directory}',
+  },
+});
+```
+
+<!-- prettier-ignore -->
+```jsonc
+// у маніфесті
+"launch": {
+  // '@minecraft.command'
+  "command": "${java_bin}",
+  "args": [
+    // '@minecraft.jvmArgs'
+    { "rules": "allow.os.osx", "value": ["-XstartOnFirstThread"] },
+    "-Djava.library.path=${natives_directory}",
+    "-Dminecraft.launcher.brand=${launcher_name}",
+    // … ще кілька
+    "-cp",
+    "${classpath}",
+    // '@minecraft.mainClass'
+    "net.minecraft.client.main.Main",
+    // '@minecraft.gameArgs'
+    "--username", "${auth_player_name}",
+    "--version", "${version_name}",
+    "--gameDir", "${game_directory}",
+    "--assetsDir", "${assets_root}",
+    "--uuid", "${auth_uuid}",
+    "--accessToken", "${auth_access_token}",
+    // … ще кілька
+    { "rules": "allow.features.is_demo_user", "value": ["--demo"] },
+    {
+      "rules": "allow.features.has_custom_resolution",
+      "value": ["--width", "${resolution_width}", "--height", "${resolution_height}"]
+    }
+  ],
+  "workdir": "${game_directory}"
+}
+```
+
+| Ви пишете                | Стає                                             |
+| ------------------------ | ------------------------------------------------ |
+| `'@minecraft.command'`   | Програма для запуску: та Java, що її має збірка. |
+| `'@minecraft.jvmArgs'`   | Аргументи самої Java, наприкінці з classpath.    |
+| `'@minecraft.mainClass'` | Клас для старту. Один аргумент.                  |
+| `'@minecraft.gameArgs'`  | Аргументи гри: хто грає і де що лежить.          |
+
+**Чому чотири фрагменти:** щоб ви могли покласти власні аргументи між
+ними. Прапорці JVM ідуть перед головним класом, прапорці гри після.
+
+### Змінні
+
+Три групи. Усі вони у `vars` маніфесту.
+
+#### Теки
+
+Усе тримається на `root`. Пересуньте `root`, і пересунеться все
+встановлення. Використовуйте їх у `to` і у власних шляхах.
+
+<!-- prettier-ignore -->
+```jsonc
+// у маніфесті
+"vars": {
+  "root": ".",
+  "game_directory": "${root}/",                       // збереження, моди, налаштування
+  "library_directory": "${root}/libraries",
+  "assets_root": "${root}/assets",
+  "version_dir": "${root}/versions/${version_name}",  // jar гри
+  "natives_directory": "${version_dir}/natives"
+}
+```
+
+#### Гравець
+
+Гра очікує ці імена. Кожне вказує на змінну, яку маніфест **не**
+визначає.
+
+<!-- prettier-ignore -->
+```jsonc
+// у маніфесті
+"vars": {
+  "auth_player_name": "${username}",
+  "auth_uuid": "${uuid}",
+  "auth_access_token": "${token}",
+  "auth_session": "${token}"
+}
+```
+
+Отже, `username`, `uuid` і `token` **залишені відкритими** разом із
+`root`. Задайте їх у [`run`](/uk/basics/config#run), через `--var` або з
+лаунчера.
+
+| Ім'я       | Що це                           | Якщо його пропущено                     |
+| ---------- | ------------------------------- | --------------------------------------- |
+| `root`     | Тека, у яку все встановлюється. | `.`, поточна тека. Завжди задавайте її. |
+| `username` | Ім'я гравця.                    | Гра отримає текст `${username}`.        |
+| `uuid`     | ID гравця.                      | Гра отримає текст `${uuid}`.            |
+| `token`    | Токен доступу. `0` грає офлайн. | Гра отримає текст `${token}`.           |
+
+**Чому відкриті:** вони різняться для кожного гравця, а бандл один для
+всіх.
+
+#### Що повідомляють грі
+
+Їх можна ігнорувати. Власні аргументи гри посилаються на них.
+
+<!-- prettier-ignore -->
+```jsonc
+// у маніфесті
+"vars": {
+  "version_name": "1.21.1",
+  "version_type": "release",
+  "assets_index_name": "17",
+  "game_assets": "${assets_root}",
+  "launcher_name": "opys",
+  "launcher_version": "0.2.0",
+  "user_type": "mojang",
+  "user_properties": "{}",
+  "clientid": "",
+  "classpath_separator": [
+    { "value": ";", "rules": "allow.os.windows" },
+    { "value": ":", "rules": "allow.os.linux" },
+    { "value": ":", "rules": "allow.os.osx" }
+  ],
+  "classpath": [/* кожна бібліотека, потім jar гри, на кожну ОС */]
+}
+```
+
+## Прапорці
+
+Перемикачі, які лаунчер або `--feature` можуть увімкнути. Ці два з
+власних даних гри:
+
+| Прапорець               | Ефект                                                                         |
+| ----------------------- | ----------------------------------------------------------------------------- |
+| `has_custom_resolution` | Передає розмір вікна. Також задайте `resolution_width` і `resolution_height`. |
+| `is_demo_user`          | Запускає гру в деморежимі.                                                    |
+
+```sh
+opys launch --feature has_custom_resolution \
+  --var resolution_width=1280 --var resolution_height=720
+```
+
+## Додавання або заміна бібліотеки
+
+Кожен завантажувач приймає `libraries` для бібліотеки, якої гра не має,
+або виправленої копії тієї, що має:
 
 ```js
-args: ({ minecraft }) => [
-  minecraft.jvmArgs,
-  minecraft.mainClass,
-  minecraft.gameArgs,
-],
+forge({
+  version: '1.20.1',
+  libraries: [
+    {
+      name: 'com.google.code.gson:gson:2.11.0',
+      artifact: {
+        path: 'com/google/code/gson/gson/2.11.0/gson-2.11.0.jar',
+        source: { file: 'libs/gson-2.11.0.jar' },
+      },
+    },
+  ],
+}),
 ```
 
-## Змінні {#variables}
+| Поле              | Що це                                                  |
+| ----------------- | ------------------------------------------------------ |
+| `name`            | `group:artifact:version`.                              |
+| `artifact.path`   | Куди jar лягає всередині теки `libraries`.             |
+| `artifact.source` | `{ url }` або `{ file }` поруч із вашою конфігурацією. |
 
-Плагін визначає такі змінні. На них можна посилатися з маніфесту або з команди запуску як на `${name}`.
+Решта `artifact` це звичайний [артефакт](/uk/format/artifacts):
+`integrity`, `rules`, `extract`.
 
-| Змінна                | Значення                                                                                                                        |
-| --------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| `root`                | `.`, доки машина запуску не вкаже інше, зазвичай каталог з `userDataDir()`                                                      |
-| `launcher_name`       | `opys`                                                                                                                          |
-| `launcher_version`    | Версія opys                                                                                                                     |
-| `version_type`        | Тип релізу з документа версії, наприклад `release`                                                                              |
-| `version_name`        | Ідентифікатор версії, наприклад `1.21.1`                                                                                        |
-| `game_directory`      | `${root}/`                                                                                                                      |
-| `assets_root`         | `${root}/assets`                                                                                                                |
-| `game_assets`         | Каталог, який гра отримує для своїх ресурсів. Див. [розкладки ресурсів](/uk/reference/asset-layouts)                            |
-| `assets_index_name`   | Ідентифікатор індексу ресурсів, наприклад `1.20` або `legacy`                                                                   |
-| `version_dir`         | `${root}/versions/${version_name}`                                                                                              |
-| `library_directory`   | `${root}/libraries`                                                                                                             |
-| `natives_directory`   | `${version_dir}/natives`                                                                                                        |
-| `classpath`           | Бібліотеки, які дозволяють правила операційної системи, а потім клієнтський jar. Окреме значення для кожної операційної системи |
-| `classpath_separator` | `;` у Windows, `:` у Linux і macOS                                                                                              |
-| `auth_player_name`    | `${username}`                                                                                                                   |
-| `auth_uuid`           | `${uuid}`                                                                                                                       |
-| `auth_session`        | `${token}`                                                                                                                      |
-| `auth_access_token`   | `${token}`                                                                                                                      |
-| `user_type`           | `mojang`                                                                                                                        |
-| `user_properties`     | `{}`                                                                                                                            |
-| `clientid`            | Порожньо                                                                                                                        |
+- `file` подорожує всередині бандла.
+- `url` без `integrity` завантажується раз під час збирання, щоб
+  зафіксувати його хеш.
+- Ваші бібліотеки ідуть **першими** у classpath.
 
-Плагін не визначає `username`, `uuid` і `token`, і вони не мають типових значень, тому їх має надати машина запуску. Так само вона має надати `root`, якщо гра повинна жити деінде, а не в `.`. Вкажіть їх у `runClient`, як описує сторінка [значень під час запуску](/uk/guide/run-client), або через `--var`, коли запускаєте бандл. Повний список імен разом з іменами від `java` є на сторінці [змінних](/uk/launcher/vars).
+**Однакова назва замінює.** Та, що має той самий `group:artifact`, що й
+бібліотека, яку використовує гра, стає на її місце в кожній операційній
+системі. Приклад замінює Gson гри.
 
-## Яка Java {#which-java}
+**Чому в кожній ОС:** перевизначення ціле. Якщо ви обмежите власне однією
+ОС через `rules`, решта не отримає жодної копії. Додайте запис на кожну
+ОС.
 
-Вибирайте версію Java за версією Minecraft. opys не перевіряє цю відповідність, тому невідповідність проявиться під час старту гри, а не під час збирання.
+## Варто знати
 
-| Версія Minecraft     | Java |
-| -------------------- | ---- |
-| 1.16.5 і старіші     | `8`  |
-| від 1.17 до 1.20.4   | `17` |
-| від 1.20.5 до 1.21.x | `21` |
-| 26.x                 | `25` |
-
-```js
-plugins: [minecraft('1.21.1'), java('21')],
-```
-
-## Як це працює {#how-it-works}
-
-Під час збирання `minecraft()` виконує три запити: маніфест версій, документ версії названої версії та її індекс ресурсів. З них він створює чотири види сутностей:
-
-- **Клієнтський jar.** Один артефакт за шляхом `${version_dir}/client.jar`, зафіксований хешем sha1 і розміром з документа версії.
-- **Бібліотеки.** Один артефакт для кожної бібліотеки за шляхом `${library_directory}/<maven path>`. Кожен зберігає правила з документа версії, тож на платформі, якій бібліотека не потрібна, вона не завантажується. Бібліотека без sha1 у документі версії завантажується без хеша для перевірки.
-- **Нативні бібліотеки.** Нативна бібліотека розпаковується до `${natives_directory}` під час встановлення. Старіші документи версій перелічують нативні бібліотеки в полі `natives`, новіші називають класифікатор виду `natives-…`. Розпакування працює з увімкненим прапорцем `clean` і пропускає `META-INF/`.
-- **Ресурси.** Індекс ресурсів за шляхом `${assets_root}/indexes/<id>.json` і один артефакт для кожного об’єкта ресурсів, зафіксований його sha1. Куди потрапляють об’єкти, залежить від версії. Див. [розкладки ресурсів](/uk/reference/asset-layouts).
-
-Крім того, плагін додає наведені вище змінні та чотири групи запуску. Classpath збирається окремо для кожної операційної системи, і клієнтський jar у ньому завжди йде останнім, після всіх бібліотек.
-
-## Приклад {#example}
-
-Ця конфігурація встановлює ванільну 1.21.1 і запускає її на середовищі Java 21. Це той самий файл, який використовує посібник [з перших кроків](/uk/guide/getting-started):
-
-<<< @/examples/vanilla/opys.config.mjs
-
-Щоб читати маніфест версій з дзеркала, передайте об’єкт параметрів:
-
-```js
-plugins: [
-  minecraft('1.21.1', {
-    manifestBase: 'https://mirror.example.com/mc/version_manifest_v2.json',
-  }),
-  java('21'),
-],
-```
-
-Кожне значення в `runClient` постачається під час старту гри, тому бандл, зібраний з цієї конфігурації, не містить ні імені користувача, ні токена, ні шляху з вашої машини. Решту полів описує сторінка [файлу конфігурації](/uk/guide/config).
+- Не перелічуйте `minecraft()` поруч із завантажувачем. Завантажувач уже
+  включає його, і ви отримаєте попередження за кожну продубльовану
+  змінну.
+- Він не додає Java. Додайте [`java`](./java).
