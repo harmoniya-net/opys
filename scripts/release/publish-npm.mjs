@@ -43,6 +43,23 @@ function published(name, version) {
   }
 }
 
+// Asked first, because the registry answers a publish it will not allow
+// with a 404 for the package, which reads as a missing package and is a
+// token: one that has expired, or one that may not create a package.
+if (!dryRun) {
+  try {
+    const who = execFileSync('npm', ['whoami'], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    console.log(`publishing as ${who.trim()}`);
+  } catch (error) {
+    throw new Error(
+      `the npm token is not accepted (expired or revoked?): ${String(error.stderr).trim().split('\n')[0]}`,
+    );
+  }
+}
+
 for (const dir of dirs) {
   const { name, version, private: isPrivate } = readJson(`${dir}/package.json`);
   if (isPrivate) continue;
@@ -58,14 +75,22 @@ for (const dir of dirs) {
       throw new Error(`${name}: ${dir}/${addon} was not built`);
   }
   console.log(`${name}@${version}: publishing`);
-  execFileSync(
-    'npm',
-    [
-      'publish',
-      '--access',
-      'public',
-      ...(dryRun ? ['--dry-run'] : ['--provenance']),
-    ],
-    { cwd: dir, stdio: 'inherit' },
-  );
+  try {
+    execFileSync(
+      'npm',
+      [
+        'publish',
+        '--access',
+        'public',
+        ...(dryRun ? ['--dry-run'] : ['--provenance']),
+      ],
+      { cwd: dir, stdio: 'inherit' },
+    );
+  } catch {
+    throw new Error(
+      `${name}@${version} was not published. A 404 here, for a package that ` +
+        'has never been published, means the token may not create packages ' +
+        'in the scope.',
+    );
+  }
 }
