@@ -1,4 +1,6 @@
 import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { createServer } from 'node:http';
+import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, test } from 'vitest';
@@ -6,6 +8,7 @@ import {
   blobBytes,
   blobFile,
   blobId,
+  options,
   writeBundle,
   type Blobs,
 } from '@opys/bundle';
@@ -15,6 +18,7 @@ import {
   currentPlatform,
   install,
   prepare,
+  readHead,
   type InstallProgress,
 } from '../../lib';
 
@@ -210,5 +214,57 @@ describe('@opys/runtime — napi boundary smoke', () => {
     });
     expect(spec.command).toBe('java');
     expect(() => readFileSync(join(dir, 'hello.txt'))).toThrow();
+  });
+
+  describe('readHead', () => {
+    const form = options().feature('fullscreen').title('Fullscreen');
+    const written = async () => {
+      const { manifest, blobs } = hello(tmp('head-root'));
+      const bundle = join(tmp('head'), 'game.opys');
+      await writeBundle(bundle, manifest, blobs, { options: form });
+      return { bundle, manifest };
+    };
+    const head = {
+      format: 1,
+      options: [{ feature: 'fullscreen', title: 'Fullscreen' }],
+    };
+
+    test('gives the options of a bundle on disk', async () => {
+      const { bundle } = await written();
+      expect(await readHead({ bundle })).toEqual(head);
+    });
+
+    test('asks a URL for the front of the file alone', async () => {
+      const { bundle } = await written();
+      const ranges: (string | undefined)[] = [];
+      const server = createServer((req, res) => {
+        ranges.push(req.headers.range);
+        res.end(readFileSync(bundle));
+      });
+      await new Promise<void>((ready) => server.listen(0, '127.0.0.1', ready));
+      try {
+        const { port } = server.address() as AddressInfo;
+        const url = `http://127.0.0.1:${port}/game.opys`;
+        expect(await readHead({ url })).toEqual(head);
+        expect(ranges).toEqual(['bytes=0-16383']);
+      } finally {
+        server.close();
+      }
+    });
+
+    test('a manifest in memory is in no bundle and has no head', async () => {
+      const { manifest } = await written();
+      expect(await readHead({ manifest: { ...manifest, artifacts: [] } })).toBe(
+        undefined,
+      );
+    });
+
+    test('a file that is not a bundle is a manifest error', async () => {
+      const file = join(tmp('not'), 'game.opys');
+      writeFileSync(file, 'not a zip');
+      await expect(readHead({ bundle: file })).rejects.toMatchObject({
+        code: 'manifest',
+      });
+    });
   });
 });

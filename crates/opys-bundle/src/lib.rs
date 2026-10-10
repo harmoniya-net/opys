@@ -161,6 +161,67 @@ pub fn read_bundle_head<R: Read + Seek>(reader: R) -> Result<Head, BundleError> 
     parse_head(&read_entry(&mut archive, HEAD_ENTRY)?)
 }
 
+/// What the first bytes of a bundle give of its head.
+#[derive(Debug, Clone, PartialEq)]
+pub enum Front {
+    Head(Head),
+    /// The head ends past what was given: it takes this many bytes, counted
+    /// from the start of the file.
+    Needs(u64),
+}
+
+const LOCAL_HEADER: [u8; 4] = *b"PK\x03\x04";
+const LOCAL_HEADER_LEN: usize = 30;
+/// Set when an entry's sizes follow its data instead of preceding it.
+const SIZES_AFTER_DATA: u16 = 1 << 3;
+
+fn not_a_bundle(why: &'static str) -> BundleError {
+    BundleError::Zip(zip::result::ZipError::InvalidArchive(why))
+}
+
+/// Read a bundle's head off the front of the file, for a reader that has
+/// only that: a bundle behind a URL, asked for its first bytes.
+///
+/// A zip is read from its directory, which is at the end. The head is the
+/// first entry and stored, so its bytes are also right behind the first
+/// local header, and this reads that header by hand. It trusts what
+/// [`write_bundle`] wrote and nothing more general: any other first entry is
+/// not a bundle.
+pub fn head_from_front(front: &[u8]) -> Result<Front, BundleError> {
+    let Some(header) = front.get(..LOCAL_HEADER_LEN) else {
+        return Ok(Front::Needs(LOCAL_HEADER_LEN as u64));
+    };
+    if header[..4] != LOCAL_HEADER {
+        return Err(not_a_bundle("it does not begin with a zip entry"));
+    }
+    let short = |at: usize| u16::from_le_bytes([header[at], header[at + 1]]);
+    let long = |at: usize| {
+        u32::from_le_bytes([header[at], header[at + 1], header[at + 2], header[at + 3]])
+    };
+    let (flags, method, size) = (short(6), short(8), u64::from(long(22)));
+    let (name_len, extra_len) = (usize::from(short(26)), usize::from(short(28)));
+
+    let name_end = LOCAL_HEADER_LEN + name_len;
+    let Some(name) = front.get(LOCAL_HEADER_LEN..name_end) else {
+        return Ok(Front::Needs(name_end as u64));
+    };
+    if name != HEAD_ENTRY.as_bytes() {
+        return Err(BundleError::MissingEntry(HEAD_ENTRY));
+    }
+    if method != 0 || flags & SIZES_AFTER_DATA != 0 {
+        return Err(not_a_bundle("its head is not stored"));
+    }
+    let start = name_end + extra_len;
+    let end = start as u64 + size;
+    match usize::try_from(end)
+        .ok()
+        .and_then(|end| front.get(start..end))
+    {
+        Some(head) => parse_head(head).map(Front::Head),
+        None => Ok(Front::Needs(end)),
+    }
+}
+
 /// An open bundle: its manifest, decoded, and its blobs, still in the file.
 pub struct Bundle<R> {
     manifest: Manifest,
@@ -267,9 +328,12 @@ pub fn write_bundle<W: Write + Seek>(
     let json = |entry| move |source| BundleError::Json { entry, source };
     let mut zip = ZipWriter::new(writer);
 
+    // Both are written to be read by a person: a bundle is debugged with
+    // `unzip -p`. The manifest is deflated, so its indentation costs about
+    // one percent of the entry.
     let head = serde_json::to_vec_pretty(head).map_err(json(HEAD_ENTRY))?;
     write_json(&mut zip, HEAD_ENTRY, CompressionMethod::Stored, &head)?;
-    let body = serde_json::to_vec(manifest).map_err(json(MANIFEST_ENTRY))?;
+    let body = serde_json::to_vec_pretty(manifest).map_err(json(MANIFEST_ENTRY))?;
     write_json(&mut zip, MANIFEST_ENTRY, CompressionMethod::Deflated, &body)?;
 
     for id in manifest.blob_ids() {

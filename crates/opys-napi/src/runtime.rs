@@ -13,8 +13,8 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use opys_runtime::{
-    build_launch as rt_build_launch, install as rt_install, prepare as rt_prepare, InstallOptions,
-    InstallProgress, LaunchOptions, ManifestSource,
+    build_launch as rt_build_launch, install as rt_install, prepare as rt_prepare,
+    read_head as rt_read_head, InstallOptions, InstallProgress, LaunchOptions, ManifestSource,
 };
 
 fn map_err<E: std::fmt::Display>(e: E) -> napi::Error {
@@ -283,6 +283,19 @@ impl Task for InstallTask {
     fn resolve(&mut self, _env: napi::Env, _output: Self::Output) -> Result<Self::JsValue> {
         Ok(())
     }
+}
+
+/// The head of the bundle a source names, or `null` for a manifest in
+/// memory. The manifest is left unread, and a URL is asked for the front of
+/// the file alone.
+#[napi(namespace = "runtime", js_name = "readHead")]
+pub async fn read_head_js(source: Json) -> Result<Option<Json>> {
+    let source: ManifestSource = serde_json::from_value(source).map_err(map_err)?;
+    rt_read_head(&source)
+        .await
+        .map_err(install_err)?
+        .map(|head| serde_json::to_value(head).map_err(map_err))
+        .transpose()
 }
 
 #[napi(namespace = "runtime", object, js_name = "LaunchSpec")]

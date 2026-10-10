@@ -8,7 +8,7 @@ use std::sync::OnceLock;
 use std::time::Duration;
 
 use rand::Rng;
-use reqwest::{Client, Method, Response};
+use reqwest::{Client, Method, RequestBuilder, Response};
 
 /// `User-Agent` opys sends with every HTTP request. Some CDNs reject the
 /// bare `reqwest` default; CurseForge in particular rate-limits unidentified
@@ -60,10 +60,33 @@ pub async fn fetch_with_retry(
     url: &str,
     retry: RetryOptions,
 ) -> Result<Response, reqwest::Error> {
+    send_with_retry(|| client().request(method.clone(), url), retry).await
+}
+
+/// The first `len` bytes of `url`, asked for as a range. A server that does
+/// not serve ranges answers with the whole file, which the caller stops
+/// reading where it has enough.
+pub async fn fetch_front(
+    url: &str,
+    len: u64,
+    retry: RetryOptions,
+) -> Result<Response, reqwest::Error> {
+    let range = format!("bytes=0-{}", len.saturating_sub(1));
+    send_with_retry(
+        || client().get(url).header(reqwest::header::RANGE, &range),
+        retry,
+    )
+    .await
+}
+
+async fn send_with_retry(
+    request: impl Fn() -> RequestBuilder,
+    retry: RetryOptions,
+) -> Result<Response, reqwest::Error> {
     let mut last_err: Option<reqwest::Error> = None;
     let attempts = retry.attempts.max(1);
     for attempt in 1..=attempts {
-        let req = client().request(method.clone(), url).build()?;
+        let req = request().build()?;
         match client().execute(req).await {
             Ok(res) => {
                 let status = res.status().as_u16();

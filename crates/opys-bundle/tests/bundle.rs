@@ -3,8 +3,8 @@
 use std::io::{Cursor, Read, Write};
 
 use opys_bundle::{
-    blob_id, blob_id_of, open_bundle, read_bundle_head, write_bundle, BlobSource, Blobs,
-    BundleError, Head, BUNDLE_FORMAT,
+    blob_id, blob_id_of, head_from_front, open_bundle, read_bundle_head, write_bundle, BlobSource,
+    Blobs, BundleError, Front, Head, BUNDLE_FORMAT,
 };
 use opys_core::Manifest;
 use serde_json::json;
@@ -114,6 +114,17 @@ fn a_blob_is_read_from_a_file_as_well_as_from_memory() {
 }
 
 // ── layout ────────────────────────────────────────────────────────────────
+
+#[test]
+fn both_json_entries_are_written_to_be_read() {
+    let (manifest, blobs) = sample();
+    let all = entries(&written(&manifest, &blobs));
+    for (name, body, _) in all.iter().filter(|(name, ..)| name.ends_with(".json")) {
+        // One field to a line, indented: what `unzip -p` shows is readable.
+        let text = std::str::from_utf8(body).unwrap();
+        assert!(text.starts_with("{\n  \""), "{name}: {text}");
+    }
+}
 
 #[test]
 fn the_head_is_the_first_entry_and_is_stored_so_it_can_be_read_off_the_front() {
@@ -398,4 +409,80 @@ fn a_blob_source_crosses_as_a_path_or_as_base64() {
             "{wrong}"
         );
     }
+}
+
+// ── the head, off the front ───────────────────────────────────────────────
+
+fn with_options() -> Head {
+    serde_json::from_value(json!({
+        "format": BUNDLE_FORMAT,
+        "options": [{ "feature": "fullscreen", "title": "Fullscreen" }],
+    }))
+    .unwrap()
+}
+
+fn written_under(head: &Head) -> Vec<u8> {
+    let (manifest, blobs) = sample();
+    let mut out = Cursor::new(Vec::new());
+    write_bundle(&mut out, head, &manifest, &blobs).unwrap();
+    out.into_inner()
+}
+
+#[test]
+fn the_head_is_read_off_the_front_as_it_is_from_the_directory() {
+    let head = with_options();
+    let bytes = written_under(&head);
+    assert_eq!(head_from_front(&bytes).unwrap(), Front::Head(head.clone()));
+    assert_eq!(read_bundle_head(Cursor::new(&bytes)).unwrap(), head);
+}
+
+#[test]
+fn a_front_that_stops_short_says_how_much_the_head_takes() {
+    let head = with_options();
+    let bytes = written_under(&head);
+    // Whatever was given, the answer leads to the head in at most two more
+    // askings: the header, the name, then the head itself.
+    for given in [0, 10, 30, 35, 60] {
+        let mut front = &bytes[..given];
+        let mut asked = 0;
+        let read = loop {
+            match head_from_front(front).unwrap() {
+                Front::Head(read) => break read,
+                Front::Needs(needs) => {
+                    assert!(needs as usize > front.len(), "given {given}");
+                    front = &bytes[..needs as usize];
+                    asked += 1;
+                }
+            }
+        };
+        assert_eq!(read, head);
+        assert!(asked <= 3, "given {given}: asked {asked} times");
+    }
+}
+
+#[test]
+fn a_front_that_is_not_a_bundles_is_refused() {
+    let refusal = |bytes: &[u8]| head_from_front(bytes).unwrap_err().to_string();
+
+    assert!(refusal(&[b'<'; 64]).contains("not a bundle"));
+    // A zip, and its first entry is something else.
+    let other = zip_of(&[("readme.txt", b"hi"), ("opys.json", b"{}")]);
+    assert!(refusal(&other).contains("it has no `opys.json`"));
+    // A head some other writer compressed is not where this looks for it.
+    let deflated = zip_of(&[("opys.json", br#"{"format":1}"#)]);
+    assert!(refusal(&deflated).contains("its head is not stored"));
+}
+
+#[test]
+fn a_head_in_another_format_is_refused_off_the_front_too() {
+    let mut zip = zip::ZipWriter::new(Cursor::new(Vec::new()));
+    let stored =
+        zip::write::SimpleFileOptions::default().compression_method(zip::CompressionMethod::Stored);
+    zip.start_file("opys.json", stored).unwrap();
+    zip.write_all(br#"{"format":99}"#).unwrap();
+    let future = zip.finish().unwrap().into_inner();
+    assert!(matches!(
+        head_from_front(&future),
+        Err(BundleError::Format { found: 99 })
+    ));
 }

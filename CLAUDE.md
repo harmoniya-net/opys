@@ -129,7 +129,9 @@ them, and the list below names the layers rather than every one:
   writes, and the head says `format` and `options`. It is still the first
   entry and stored uncompressed, readable with one seek or off the front of
   the file, because it is where whatever is worth knowing about a bundle
-  without decoding its manifest goes. A bundle is written deterministically (fixed timestamps,
+  without decoding its manifest goes. Both are written indented: a bundle
+  is debugged with `unzip -p`, and the manifest is deflated, so the
+  indentation costs about one percent of it. A bundle is written deterministically (fixed timestamps,
   blobs in id order), each blob is hashed against its name as it is written,
   and a reader refuses a bundle that names a blob it does not hold before
   installing anything from it.
@@ -156,8 +158,13 @@ them, and the list below names the layers rather than every one:
   on and holds the options that only matter while it is. It is in the head
   because a launcher draws the settings before it installs anything, and
   out of the manifest because it describes a form, not an installation:
-  an install is still handed plain `vars` and `features`, and neither the
-  runtime nor `core` knows the schema exists. An option is told apart by
+  an install is still handed plain `vars` and `features`, and neither an
+  install nor `core` knows the schema exists. The runtime does hand the head
+  over, since a launcher that depends on it alone has to draw the form from
+  somewhere: `read_head` takes the source an install takes and reads
+  nothing but the head. Behind a URL that is the front of the file, asked
+  for as a range (`head_from_front`, in `opys-bundle`), which is what the
+  head being first and stored was for. An option is told apart by
   the field that holds its name, `{ "slider": "xmx" }`, as a `Source` is.
   The schema lived in the launcher's CMS before, in one object per option
   with every field of every kind nullable and every default a string, and
@@ -254,8 +261,8 @@ them, and the list below names the layers rather than every one:
   and the check that an id is well formed.
 - **`runtime` depends on `core` and the bundle alone** among `@opys/*`. The
   crate reads a bundle through `opys-bundle`; `runtime/lib` imports only
-  `@opys/core`, its namespace of the addon, and `node:`, with no third-party dependency
-  at all. It is a clean reimplementation target.
+  `@opys/core`, the type of a head from `@opys/bundle`, its namespace of the
+  addon, and `node:`, with no third-party dependency at all. It is a clean reimplementation target.
 - **`dev` and `runtime` never see each other.** `core` is the only plank across
   the build-time / runtime wall; they are joined solely by the manifest.
 - **One rule format, one implementation** — the `opys-mojang-rules` crate owns

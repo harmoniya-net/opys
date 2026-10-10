@@ -51,10 +51,16 @@ try {
 | `prepare(source, options?)`     | так        | ні           | `LaunchSpec`   |
 | `buildLaunch(source, options?)` | ні         | ні           | `LaunchSpec`   |
 | `spawnLaunch(spec)`             | ні         | так          | `ChildProcess` |
+| `readHead(source)`              | ні         | ні           | `Head`         |
 | `currentPlatform()`             |            |              | `OsOptions`    |
 
 `launch` це `prepare`, а потім `spawnLaunch`. Використовуйте ці дві
 самі, щоб змінити те, що запускається, або запустити по-своєму.
+
+`readHead` потрібна для екрана налаштувань. Вона повертає те, що бандл
+каже про себе, `{ format, options }`, а `options` це те, що може обрати
+гравець. Читається лише заголовок: бандл за URL не завантажується, тільки
+його перші байти.
 
 ## Звідки береться збірка
 
@@ -161,6 +167,11 @@ spawnLaunch({ ...spec, args: ['-Xmx8G', ...spec.args] });
 
 // що було б запущено, без нічого встановленого
 await buildLaunch(source, { vars });
+
+// що може обрати гравець, до будь-якого встановлення
+const head = await readHead({ url: 'https://example.com/game.opys' });
+// { format: 1, options: [{ slider: 'xmx', title: 'RAM', min: 2048, max: 16384, step: 512, default: 4096 }] }
+await readHead({ manifest }); // undefined: маніфест у пам'яті не лежить у бандлі
 
 // маніфест у пам'яті: добре, доки він не везе файлів
 await install({ manifest: { vars: {}, artifacts: [] } });

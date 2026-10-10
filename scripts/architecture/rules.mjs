@@ -144,7 +144,7 @@ export const packages = all(
     wrapsItsBinding,
     noThirdParty,
     because(
-      'a clean reimplementation target; the bundle is for its tests alone, which write one to install from',
+      'a clean reimplementation target; the bundle is for the type of a head, which `readHead` returns',
     ),
   ),
   pkg('@opys/dev', dependsOn('@opys/core', '@opys/bundle'), wrapsItsBinding),

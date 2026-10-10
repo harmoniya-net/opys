@@ -50,10 +50,16 @@ try {
 | `prepare(source, options?)`     | yes      | no              | `LaunchSpec`   |
 | `buildLaunch(source, options?)` | no       | no              | `LaunchSpec`   |
 | `spawnLaunch(spec)`             | no       | yes             | `ChildProcess` |
+| `readHead(source)`              | no       | no              | `Head`         |
 | `currentPlatform()`             |          |                 | `OsOptions`    |
 
 `launch` is `prepare`, then `spawnLaunch`. Use the two yourself to change
 what is started, or to spawn it your own way.
+
+`readHead` is for the settings screen. It returns what the bundle says about
+itself, `{ format, options }`, and `options` is what a player may set. It
+reads the head only: a bundle behind a URL is not downloaded, just its first
+bytes.
 
 ## Where the pack comes from
 
@@ -159,6 +165,11 @@ spawnLaunch({ ...spec, args: ['-Xmx8G', ...spec.args] });
 
 // what would be started, with nothing installed
 await buildLaunch(source, { vars });
+
+// what a player may set, before anything is installed
+const head = await readHead({ url: 'https://example.com/game.opys' });
+// { format: 1, options: [{ slider: 'xmx', title: 'RAM', min: 2048, max: 16384, step: 512, default: 4096 }] }
+await readHead({ manifest }); // undefined: a manifest in memory is in no bundle
 
 // a manifest in memory: fine as long as it carries no files
 await install({ manifest: { vars: {}, artifacts: [] } });

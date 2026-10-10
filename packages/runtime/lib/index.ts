@@ -8,6 +8,7 @@
  */
 
 import { spawn, type ChildProcess } from 'node:child_process';
+import type { Head } from '@opys/bundle';
 import type { Manifest } from '@opys/core';
 import { runtime as napi } from '@opys/binding';
 
@@ -233,6 +234,24 @@ export async function install(
   }
 }
 
+/**
+ * What a bundle says about itself, read before anything is installed: its
+ * `options` are what a launcher draws its settings from. The manifest is
+ * left unread, and a bundle behind a URL is not downloaded: only the front
+ * of the file is asked for.
+ *
+ * `undefined` for a `{ manifest }` source, which is in no bundle.
+ */
+export async function readHead(
+  source: ManifestSource,
+): Promise<Head | undefined> {
+  try {
+    return ((await napi.readHead(source)) as Head | null) ?? undefined;
+  } catch (err) {
+    throw translateError(err);
+  }
+}
+
 /** What to spawn, without installing or spawning. */
 export async function buildLaunch(
   source: ManifestSource,
@@ -286,3 +305,4 @@ export async function launch(
 export const currentPlatform = napi.currentPlatform;
 export type OsOptions = napi.OsOptions;
 export type LaunchSpec = napi.LaunchSpec;
+export type { Head } from '@opys/bundle';

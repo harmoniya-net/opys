@@ -20,10 +20,8 @@
   "type": "module",
   "dependencies": {
     "@opys/binding": "^0.2.0",
+    "@opys/bundle": "^0.2.0",
     "@opys/core": "^0.2.0"
-  },
-  "devDependencies": {
-    "@opys/bundle": "^0.2.0"
   },
   "engines": {
     "node": ">=20"
