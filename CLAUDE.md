@@ -712,7 +712,14 @@ export default defineConfig(({ mode }) => ({
   (`scripts/release/stamp.mjs`) and committed nowhere, so the number in the
   tree is not the released one: the tag is, and it is made last. Every
   publish skips what is already published, which makes a release that
-  failed halfway something to run again. A release was a script run by
+  failed halfway something to run again. npm takes it with no secret: each
+  package names this repository's `ci.yml` as its trusted publisher
+  (`scripts/release/trust.mjs`, run by a maintainer), and the job proves it
+  is that workflow. `ci.yml` and not `release.yml`, because the registry
+  checks the workflow that was triggered. A token is only for the first
+  publish of a package, which cannot have a trusted publisher before it
+  exists; the stored one had expired, and the release found out by
+  failing. A release was a script run by
   hand, which bumped, committed, tagged and pushed; it stamped neither the
   workspace's own dependency table nor a crate with a digit in its name.
 - **`npm run architecture`** holds the tree to

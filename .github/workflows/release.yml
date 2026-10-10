@@ -13,9 +13,13 @@ name: Release
 # reason: until it exists the next run works out the same version.
 on:
   workflow_call:
+    # npm needs no secret for a package that has a trusted publisher: the
+    # registry is told which workflow may publish it, and the job proves it is
+    # that workflow (`id-token: write`). The token is only for the first
+    # publish of a package, which cannot have one yet.
     secrets:
       NPM_TOKEN:
-        required: true
+        required: false
       CARGO_REGISTRY_TOKEN:
         required: true
 
@@ -160,11 +164,14 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      # Node 24 and a current npm: publishing as a trusted publisher needs
+      # npm 11.5.1 or newer, on Node 22.14 or newer.
       - uses: actions/setup-node@v6
         with:
-          node-version: 20
+          node-version: 24
           cache: npm
           registry-url: https://registry.npmjs.org/
+      - run: npm install -g npm@^11.5.1
 
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
@@ -198,7 +205,9 @@ jobs:
       - run: npm run build --workspaces --if-present
 
       # The addon's platform packages, then every workspace in dependency
-      # order, each skipped if this version of it is already published.
+      # order, each skipped if this version of it is already published. npm
+      # publishes as a trusted publisher where a package has one, and with
+      # the token where it does not.
       - name: Publish every package not yet on npm
         run: node scripts/release/publish-npm.mjs
         env:
