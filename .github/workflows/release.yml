@@ -220,6 +220,9 @@ jobs:
     name: Publish to crates.io
     needs: [plan, publish-npm]
     runs-on: ubuntu-latest
+    # Long enough for a release of nothing but new crates, at one every ten
+    # minutes.
+    timeout-minutes: 330
     steps:
       - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@stable
@@ -242,7 +245,14 @@ jobs:
               "https://crates.io/api/v1/crates/$crate/$VERSION"; then
               echo "$crate $VERSION: already published"
             else
-              cargo publish -p "$crate" --allow-dirty
+              # crates.io takes a few new crates at once and then one every
+              # ten minutes. A release that adds many is told to wait, and
+              # waits: any other failure stops it.
+              until cargo publish -p "$crate" --allow-dirty 2>&1 | tee /tmp/publish.log; do
+                grep -q "429 Too Many Requests" /tmp/publish.log || exit 1
+                echo "crates.io asks to wait: trying $crate again in ten minutes"
+                sleep 600
+              done
             fi
             echo "::endgroup::"
           done
