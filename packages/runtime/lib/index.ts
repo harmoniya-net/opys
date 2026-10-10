@@ -188,11 +188,36 @@ export function translateError(err: unknown): unknown {
   }
 }
 
-/** Adapt the caller's typed callback to the untyped one the binding takes. */
-const bridge = (onProgress: InstallOptions['onProgress']) =>
-  onProgress
-    ? (event: unknown) => onProgress(event as InstallProgress)
-    : undefined;
+type NativeProgress = (event: unknown) => void;
+
+/**
+ * Run a native call that reports progress, and settle only once every event
+ * it sent has been handed to `onProgress`.
+ *
+ * The binding's promise and its progress callback reach JS by two queues
+ * that nothing orders, so the promise could settle with the last events
+ * still on their way. The binding therefore ends the callback's queue with
+ * a marker, `{ phase: 'end' }`, which is waited for here and never passed
+ * on. A call the binding refuses before it starts throws at once and sends
+ * no marker, so nothing waits for one.
+ */
+async function withProgress<T>(
+  onProgress: InstallOptions['onProgress'],
+  run: (progress: NativeProgress | undefined) => Promise<T>,
+): Promise<T> {
+  if (!onProgress) return run(undefined);
+  let end!: () => void;
+  const drained = new Promise<void>((resolve) => (end = resolve));
+  const task = run((event) => {
+    if ((event as { phase: string }).phase === 'end') end();
+    else onProgress(event as InstallProgress);
+  });
+  try {
+    return await task;
+  } finally {
+    await drained;
+  }
+}
 
 export async function install(
   source: ManifestSource,
@@ -200,7 +225,9 @@ export async function install(
 ): Promise<void> {
   const { onProgress, ...rest } = options;
   try {
-    await napi.install(source, rest, bridge(onProgress));
+    await withProgress(onProgress, (progress) =>
+      napi.install(source, rest, progress),
+    );
   } catch (err) {
     throw translateError(err);
   }
@@ -232,11 +259,8 @@ export async function prepare(
   const { onProgress, ...installRest } = installOpts;
   try {
     // An `AsyncTask` is typed `Promise<unknown>` by the generated `.d.ts`.
-    return (await napi.prepare(
-      source,
-      launchRest,
-      installRest,
-      bridge(onProgress),
+    return (await withProgress(onProgress, (progress) =>
+      napi.prepare(source, launchRest, installRest, progress),
     )) as napi.LaunchSpec;
   } catch (err) {
     throw translateError(err);

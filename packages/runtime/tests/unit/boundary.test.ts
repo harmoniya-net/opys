@@ -63,6 +63,10 @@ describe('@opys/runtime — napi boundary smoke', () => {
     expect(events).toContain('resolve');
     expect(events).toContain('verify');
     expect(events).toContain('download:done');
+    // Everything the install sent has arrived by the time it resolves, and
+    // the marker that says so is the wrapper's own.
+    expect(events.at(-1)).toBe('verify');
+    expect(events).not.toContain('end');
   });
 
   test('a bundle carries a blob that was a file on the building machine', async () => {
@@ -147,6 +151,28 @@ describe('@opys/runtime — napi boundary smoke', () => {
     expect(spec.args).toContain('-Xmx1G');
     expect(spec.args).toContain('--linux-only');
     expect(spec.args).not.toContain('-XstartOnFirstThread');
+  });
+
+  test('a failed install still settles, with its events delivered', async () => {
+    const dir = tmp('rt-fail');
+    const events: string[] = [];
+    const { manifest, blobs } = hello(dir);
+    const escaping = {
+      ...manifest,
+      artifacts: [{ ...manifest.artifacts[0]!, path: '${root}/../out.txt' }],
+    };
+    await expect(
+      install(await bundled(escaping, blobs), {
+        onProgress: (p: InstallProgress) => events.push(p.phase),
+      }),
+    ).rejects.toMatchObject({ code: 'manifest' });
+    expect(events).toEqual(['resolve']);
+  });
+
+  test('a source the binding refuses outright rejects without waiting', async () => {
+    await expect(
+      install({ nowhere: true } as never, { onProgress: () => {} }),
+    ).rejects.toThrow();
   });
 
   test('buildLaunch reads a bundle and takes var overrides', async () => {

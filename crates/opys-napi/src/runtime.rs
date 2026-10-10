@@ -191,6 +191,28 @@ fn launch_options(options: Option<BuildLaunchOptionsJs>) -> LaunchOptions {
     opts
 }
 
+/// The phase of the event that follows every other: see [`finished`].
+const END_PHASE: &str = "end";
+
+/// Tell the callback there is nothing more to come. A promise and a
+/// threadsafe function reach JS by two queues, and nothing orders one
+/// against the other: an install could resolve with its last events still
+/// on their way, so that a caller who read its progress on return found the
+/// tail missing, now and then. The callback's own queue is in order, so the
+/// last thing put on it is a marker, and `@opys/runtime` settles once it has
+/// seen it. The marker is the wrapper's and never reaches the caller.
+fn finished(tsfn: &Option<ThreadsafeFunction<ProgressEventJs, ErrorStrategy::Fatal>>) {
+    if let Some(tsfn) = tsfn {
+        tsfn.call(
+            ProgressEventJs {
+                phase: END_PHASE.into(),
+                ..Default::default()
+            },
+            ThreadsafeFunctionCallMode::NonBlocking,
+        );
+    }
+}
+
 /// JsFunction is !Send, so it becomes a ThreadsafeFunction before the task
 /// that calls it leaves the main thread.
 fn threadsafe(
@@ -250,8 +272,12 @@ impl Task for InstallTask {
 
     fn compute(&mut self) -> Result<Self::Output> {
         let source = self.source.take().expect("a task is computed once");
-        let opts = install_options(self.options.take(), self.tsfn.take());
-        block_on(rt_install(source, opts))
+        let tsfn = self.tsfn.take();
+        let opts = install_options(self.options.take(), tsfn.clone());
+        let result = block_on(rt_install(source, opts));
+        // Whatever the outcome: a failed install has events of its own.
+        finished(&tsfn);
+        result
     }
 
     fn resolve(&mut self, _env: napi::Env, _output: Self::Output) -> Result<Self::JsValue> {
@@ -320,8 +346,11 @@ impl Task for PrepareTask {
         let source = self.source.take().expect("a task is computed once");
         let mut opts = launch_options(self.launch.take());
         opts.do_install = true;
-        opts.install = Some(install_options(self.install.take(), self.tsfn.take()));
-        block_on(rt_prepare(source, opts))
+        let tsfn = self.tsfn.take();
+        opts.install = Some(install_options(self.install.take(), tsfn.clone()));
+        let result = block_on(rt_prepare(source, opts));
+        finished(&tsfn);
+        result
     }
 
     fn resolve(&mut self, _env: napi::Env, output: Self::Output) -> Result<Self::JsValue> {
