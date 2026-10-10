@@ -109,7 +109,24 @@ jobs:
         run: |
           curl -sL https://ziglang.org/download/0.16.0/zig-x86_64-linux-0.16.0.tar.xz -o /tmp/zig.tar.xz
           tar xf /tmp/zig.tar.xz -C /tmp
-          echo "/tmp/zig-x86_64-linux-0.16.0" >> "$GITHUB_PATH"
+          # What is on the PATH is a shim. rustc 1.99 asks the linker, as 1.90 did not,
+          # to work around Cortex-A53 erratum 843419 on aarch64 musl, and
+          # zig's linker refuses the flag outright instead of ignoring it.
+          # The shim drops that one argument and hands zig the rest.
+          mkdir -p /tmp/zig-shim
+          cat > /tmp/zig-shim/zig <<'EOF'
+          #!/bin/sh
+          for arg; do
+            shift
+            case "$arg" in
+              -Wl,--fix-cortex-a53-843419 | --fix-cortex-a53-843419) ;;
+              *) set -- "$@" "$arg" ;;
+            esac
+          done
+          exec /tmp/zig-x86_64-linux-0.16.0/zig "$@"
+          EOF
+          chmod +x /tmp/zig-shim/zig
+          echo "/tmp/zig-shim" >> "$GITHUB_PATH"
 
       - run: npm ci --ignore-scripts
 
