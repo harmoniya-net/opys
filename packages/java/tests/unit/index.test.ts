@@ -262,6 +262,27 @@ describe('java', () => {
     expect(targets[0]).toMatch(/^\/zulu\/packages\/\?/);
   });
 
+  it('ships no JDK with `system`, and touches no network to say so', async () => {
+    const { ctx, logs } = makeCtx();
+    const plugin = java({ system: true });
+    const contribution = await plugin.build(ctx);
+
+    expect(targets).toHaveLength(0);
+    expect(contribution.artifacts).toEqual([]);
+    expect(Object.keys(contribution.vars ?? {})).toEqual(['java_bin']);
+    // Only `bin`: there is no JDK whose home this plugin could name.
+    expect(contribution.launch).toEqual({ bin: '${java_bin}' });
+    expect(logs).toEqual([{ scope: 'java', message: "the machine's own" }]);
+
+    // @ts-expect-error: nothing picks a JDK where none is shipped
+    const both = java({ system: true, version: '21' });
+    await expect(both.build(ctx)).rejects.toThrow(
+      /ships no JDK, so `version` has nothing to apply to/,
+    );
+    // @ts-expect-error: one or the other
+    await expect(java({}).build(ctx)).rejects.toThrow(/takes a `version`/);
+  });
+
   it('propagates a resolver failure out of build', async () => {
     const { ctx } = makeCtx();
     await expect(

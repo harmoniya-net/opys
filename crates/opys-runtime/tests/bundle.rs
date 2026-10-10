@@ -9,7 +9,7 @@ use std::path::Path;
 
 use common::{blob, blobs, serve};
 use opys_bundle::blob_id;
-use opys_bundle::{write_bundle, BUNDLE_FORMAT};
+use opys_bundle::{write_bundle, Head, BUNDLE_FORMAT};
 use opys_core::Manifest;
 use opys_runtime::{
     build_launch, install, prepare, resolve_manifest, InstallError, InstallOptions, LaunchOptions,
@@ -30,7 +30,7 @@ fn manifest(root: &Path, artifacts: serde_json::Value) -> Manifest {
 /// The manifest and the blobs written down so far, as a bundle's bytes.
 fn bundle_of(manifest: &Manifest) -> Vec<u8> {
     let mut out = Cursor::new(Vec::new());
-    write_bundle(&mut out, manifest, &blobs()).unwrap();
+    write_bundle(&mut out, &Head::default(), manifest, &blobs()).unwrap();
     out.into_inner()
 }
 

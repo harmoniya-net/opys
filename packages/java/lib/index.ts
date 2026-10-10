@@ -70,7 +70,8 @@ export interface VendorRelease {
 
 export type JavaVendor = 'temurin' | 'zulu' | 'graalvm';
 
-export interface JavaOptions {
+/** A JDK the pack ships: resolved at build time and installed with it. */
+export interface ShippedJava {
   /**
    * JDK version. Accepts:
    *   - Major:        `'21'` — resolves to the latest GA for that major.
@@ -85,7 +86,28 @@ export interface JavaOptions {
   apiBase?: string;
   /** GitHub token for higher rate limits — `graalvm` only. */
   token?: string;
+  system?: undefined;
 }
+
+/**
+ * No JDK: the game runs on a Java that is already on the machine. `java` is
+ * found on `PATH`, or, with the `custom_java` feature on, under the
+ * `java_home` the launcher passes as a var.
+ */
+export interface SystemJava {
+  system: true;
+  version?: undefined;
+  vendor?: undefined;
+  platforms?: undefined;
+  apiBase?: undefined;
+  token?: undefined;
+}
+
+/**
+ * Told apart by which field is present, like every shape in opys: a
+ * `version` ships that JDK, `system` ships none.
+ */
+export type JavaOptions = ShippedJava | SystemJava;
 
 /** Shared by the per-vendor resolvers that read an API base. */
 export interface ResolveTemurinOptions {
@@ -145,7 +167,7 @@ export interface JavaTemplate {
  * };
  * ```
  */
-export async function resolveJava(options: JavaOptions): Promise<JavaTemplate> {
+export async function resolveJava(options: ShippedJava): Promise<JavaTemplate> {
   return (await napi.resolveJava(options)) as JavaTemplate;
 }
 
@@ -180,7 +202,8 @@ export async function resolveGraalvm(
 /** What `buildJava` hands back — see `opys-java`'s `JavaBuild`. */
 interface JavaBuild {
   output: { name: string; contribution: Contribution };
-  release: VendorRelease;
+  /** Absent where the pack ships no JDK. */
+  release: VendorRelease | null;
 }
 
 /**
@@ -192,6 +215,15 @@ interface JavaBuild {
  * for an alternate distribution.
  */
 export function java(
+  options: ShippedJava,
+): ChainablePlugin<'java', 'bin' | 'home'>;
+/**
+ * Ship no JDK and run on the machine's own. It owns `java_bin` alone and
+ * exposes `bin` alone: where a JDK is, is not something this one knows, so
+ * there is no `'@java.home'` to name.
+ */
+export function java(options: SystemJava): ChainablePlugin<'java', 'bin'>;
+export function java(
   options: JavaOptions,
 ): ChainablePlugin<'java', 'bin' | 'home'> {
   pluginOptions("java({ version: '17' })", options);
@@ -200,8 +232,8 @@ export function java(
     async build(ctx) {
       const build = (await napi.buildJava(options)) as JavaBuild;
       // e.g. `Temurin 21.0.13+11` / `Zulu 21.52.15 (JDK 21.0.12)` / `GraalVM CE 21.0.2`.
-      ctx.log('java', build.release.label);
-      // The crate's contribution, whose one launch group is `bin`.
+      ctx.log('java', build.release?.label ?? "the machine's own");
+      // The crate's contribution: `bin`, and `home` where a JDK is shipped.
       return build.output.contribution as Contribution<'bin' | 'home'>;
     },
   });

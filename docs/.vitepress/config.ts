@@ -93,6 +93,18 @@ function english(): DefaultTheme.Config {
   const packages = [
     { text: 'Packages', items: [{ text: 'Overview', link: '/packages/' }] },
     {
+      text: 'Building a pack',
+      items: [
+        { text: '@opys/cli', link: '/packages/cli' },
+        { text: '@opys/dev', link: '/packages/dev' },
+        { text: '@opys/minecraft', link: '/packages/minecraft' },
+      ],
+    },
+    {
+      text: 'A launcher',
+      items: [{ text: '@opys/runtime', link: '/packages/runtime' }],
+    },
+    {
       text: 'The format',
       items: [
         { text: '@opys/core', link: '/packages/core' },
@@ -140,6 +152,13 @@ function english(): DefaultTheme.Config {
       items: [
         { text: '@opys/java', link: '/packages/java' },
         { text: '@opys/dgpuj', link: '/packages/dgpuj' },
+      ],
+    },
+    {
+      text: "Mojang's formats",
+      items: [
+        { text: '@opys/mojang', link: '/packages/mojang' },
+        { text: '@opys/mojang-rules', link: '/packages/mojang-rules' },
       ],
     },
   ];

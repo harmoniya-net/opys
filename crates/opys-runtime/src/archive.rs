@@ -1,29 +1,111 @@
 //! Zip/tar dispatch + extract rules (pick, scan, dump).
 //!
-//! Mirrors `runtime/lib/archive.ts`. `matches_glob` is the tiny dialect
-//! local to `extract`-rule includes/excludes — NOT the same as `core::glob`,
-//! which `cleanup` rules are written in (frozen — don't unify).
+//! An archive is read from disk an entry at a time and each entry goes
+//! straight to the file it becomes, so memory does not grow with the
+//! archive. It used to be read whole, and then decoded whole, before the
+//! first entry was written: a JDK cost its archive and twice its contents in
+//! memory, and picking one file out of an archive decoded all of it. The zip
+//! and tar readers block, so an extraction is one blocking task.
+//!
+//! The price is that a damaged archive is found where the damage is, with
+//! the entries ahead of it already written. Nothing depends on those: the
+//! install fails, and unpacking runs again on the next one.
+//!
+//! `matches_glob` is the tiny dialect local to `extract`-rule
+//! includes/excludes — NOT the same as `core::glob`, which `cleanup` rules
+//! are written in (frozen — don't unify).
 
-use std::io::{Cursor, Read};
-use std::path::Path;
-use tokio::fs;
-use tokio::io::AsyncWriteExt;
+use std::fs::{self, File};
+use std::io::{self, BufReader, Read};
+use std::path::{Path, PathBuf};
 
-use crate::tar_reader::{is_tar_path, read_tar_archive, TarEntry};
-
-#[derive(Debug, Clone)]
-pub struct NormalizedEntry {
-    pub name: String,
-    pub kind: EntryKind,
-    pub content: Option<Vec<u8>>,
-    pub link_target: Option<String>,
-    pub mode: Option<u32>,
+/// What an entry holds. Directories and everything a tar has besides files
+/// and symbolic links — hard links, devices — are never handed over.
+enum Body<'a> {
+    /// `mode` is a tar's. A zip entry's is ignored.
+    File {
+        content: &'a mut dyn Read,
+        mode: Option<u32>,
+    },
+    Symlink {
+        target: String,
+    },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum EntryKind {
-    File,
-    Symlink,
+/// Whether to go on to the next entry.
+enum Next {
+    Entry,
+    Stop,
+}
+
+fn invalid(error: impl Into<Box<dyn std::error::Error + Send + Sync>>) -> io::Error {
+    io::Error::new(io::ErrorKind::InvalidData, error)
+}
+
+fn is_tar_path(path: &str) -> bool {
+    path.ends_with(".tar.gz") || path.ends_with(".tgz") || path.ends_with(".tar")
+}
+
+/// Hand `visit` each entry of the archive at `archive_path`, in the order
+/// the archive holds them. An entry `visit` does not read is skipped: at no
+/// cost in a zip, which is sought, and by decoding past it in a tar.
+fn each_entry(
+    archive_path: &str,
+    mut visit: impl FnMut(&str, Body<'_>) -> io::Result<Next>,
+) -> io::Result<()> {
+    let file = BufReader::new(File::open(archive_path)?);
+    if !is_tar_path(archive_path) {
+        let mut archive = zip::ZipArchive::new(file).map_err(invalid)?;
+        for index in 0..archive.len() {
+            let mut entry = archive.by_index(index).map_err(invalid)?;
+            let name = entry.name().to_owned();
+            if name.ends_with('/') {
+                continue;
+            }
+            let body = Body::File {
+                content: &mut entry,
+                mode: None,
+            };
+            if let Next::Stop = visit(&name, body)? {
+                break;
+            }
+        }
+        return Ok(());
+    }
+
+    let reader: Box<dyn Read> = if archive_path.ends_with(".tar") {
+        Box::new(file)
+    } else {
+        Box::new(flate2::read::GzDecoder::new(file))
+    };
+    // USTAR `prefix`, GNU long names and PAX headers are the `tar` crate's.
+    let mut archive = tar::Archive::new(reader);
+    for entry in archive.entries()? {
+        let mut entry = entry?;
+        let kind = entry.header().entry_type();
+        let name = entry.path()?.to_string_lossy().replace('\\', "/");
+        let body = if kind.is_symlink() {
+            let target = entry
+                .link_name()
+                .ok()
+                .flatten()
+                .map(|path| path.to_string_lossy().replace('\\', "/"))
+                .unwrap_or_default();
+            Body::Symlink { target }
+        } else if kind.is_file() {
+            let mode = entry.header().mode().unwrap_or(0);
+            Body::File {
+                content: &mut entry,
+                mode: Some(mode),
+            }
+        } else {
+            continue;
+        };
+        if let Next::Stop = visit(&name, body)? {
+            break;
+        }
+    }
+    Ok(())
 }
 
 /// Strip `pattern` off the front of `name`, if present.
@@ -67,59 +149,6 @@ pub fn matches_glob(name: &str, pattern: &str) -> bool {
     name == pattern
 }
 
-pub fn read_archive_sync(archive_path: &str, data: &[u8]) -> std::io::Result<Vec<NormalizedEntry>> {
-    if is_tar_path(archive_path) {
-        let entries = read_tar_archive(archive_path, data)?;
-        return Ok(entries.into_iter().map(to_normalized).collect());
-    }
-    // Zip.
-    let mut archive = zip::ZipArchive::new(Cursor::new(data))
-        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
-    let mut out = Vec::with_capacity(archive.len());
-    for i in 0..archive.len() {
-        let mut file = archive
-            .by_index(i)
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
-        let name = file.name().to_owned();
-        if name.ends_with('/') {
-            continue;
-        }
-        let mut content = Vec::with_capacity(file.size() as usize);
-        file.read_to_end(&mut content)?;
-        out.push(NormalizedEntry {
-            name,
-            kind: EntryKind::File,
-            content: Some(content),
-            link_target: None,
-            mode: None,
-        });
-    }
-    Ok(out)
-}
-
-fn to_normalized(entry: TarEntry) -> NormalizedEntry {
-    match entry {
-        TarEntry::File {
-            name,
-            content,
-            mode,
-        } => NormalizedEntry {
-            name,
-            kind: EntryKind::File,
-            content: Some(content),
-            link_target: None,
-            mode: Some(mode),
-        },
-        TarEntry::Symlink { name, link_target } => NormalizedEntry {
-            name,
-            kind: EntryKind::Symlink,
-            content: None,
-            link_target: Some(link_target),
-            mode: None,
-        },
-    }
-}
-
 /// Where an entry named `out_name` lands under `dest_dir`, or a refusal.
 ///
 /// An archive is somebody else's file — a modpack's overrides are whatever
@@ -129,14 +158,9 @@ fn to_normalized(entry: TarEntry) -> NormalizedEntry {
 /// passes through a symlink, since a tar can plant a link in one entry and
 /// write through it in the next. Refused, not skipped: an archive that tries
 /// this is not one to install the rest of.
-async fn entry_dest(dest_dir: &Path, out_name: &str) -> std::io::Result<std::path::PathBuf> {
+fn entry_dest(dest_dir: &Path, out_name: &str) -> io::Result<PathBuf> {
     use std::path::Component;
-    let refuse = |why: &str| {
-        std::io::Error::new(
-            std::io::ErrorKind::InvalidData,
-            format!("archive entry '{out_name}' {why}"),
-        )
-    };
+    let refuse = |why: &str| invalid(format!("archive entry '{out_name}' {why}"));
     let mut dest = dest_dir.to_path_buf();
     let mut parts = Path::new(out_name).components().peekable();
     while let Some(part) = parts.next() {
@@ -152,7 +176,7 @@ async fn entry_dest(dest_dir: &Path, out_name: &str) -> std::io::Result<std::pat
         // Every directory on the way down, not the entry itself: replacing a
         // link an earlier extraction left is what `create_symlink` is for.
         if parts.peek().is_some() {
-            if let Ok(meta) = fs::symlink_metadata(&dest).await {
+            if let Ok(meta) = fs::symlink_metadata(&dest) {
                 if meta.file_type().is_symlink() {
                     return Err(refuse("is written through a symbolic link"));
                 }
@@ -162,149 +186,210 @@ async fn entry_dest(dest_dir: &Path, out_name: &str) -> std::io::Result<std::pat
     Ok(dest)
 }
 
-/// Write one entry and say where it went.
-async fn write_entry(
-    entry: &NormalizedEntry,
-    dest_dir: &Path,
-    out_name: &str,
-) -> std::io::Result<std::path::PathBuf> {
-    let dest = entry_dest(dest_dir, out_name).await?;
-    if let Some(parent) = dest.parent() {
-        fs::create_dir_all(parent).await?;
-    }
-    match entry.kind {
-        EntryKind::File => {
-            let mut f = fs::File::create(&dest).await?;
-            if let Some(content) = entry.content.as_deref() {
-                f.write_all(content).await?;
-            }
-            f.flush().await?;
-            apply_mode(&dest, entry.mode).await?;
+/// Whether a link at `out_name` pointing to `target` stays in the directory
+/// the archive is extracted into. A link is a path like an entry's name, and
+/// held to the same rule: [`entry_dest`] refuses to write *through* a link,
+/// but a link that points out is a door left for whatever writes next, an
+/// artifact of the same manifest included. Told from the text, since the
+/// target need not exist yet: a JDK's `legal/java.xml/COPYRIGHT` points at
+/// `../java.base/COPYRIGHT`, which is in, and an absolute target never is.
+///
+/// A target may climb only at its front. There the text is true: a link is
+/// never created through another link, so the directories above it are real
+/// and each `..` is one of them. Past a name it is not, because the name may
+/// be a link: with `sub/b -> ..` in place, `sub/b/../..` reads as staying in
+/// and is the directory above the whole extraction.
+fn link_stays_inside(out_name: &str, target: &str) -> bool {
+    use std::path::Component;
+    let normal = |path: &str| {
+        Path::new(path)
+            .components()
+            .filter(|part| matches!(part, Component::Normal(_)))
+            .count()
+    };
+    // How far below the directory the link's own directory is.
+    let mut depth = normal(out_name).saturating_sub(1);
+    let mut descended = false;
+    for part in Path::new(target).components() {
+        match part {
+            Component::Normal(_) => descended = true,
+            Component::CurDir => {}
+            Component::ParentDir if depth > 0 && !descended => depth -= 1,
+            _ => return false,
         }
-        EntryKind::Symlink => {
-            let target = entry.link_target.clone().unwrap_or_default();
-            create_symlink(&target, &dest).await?;
+    }
+    true
+}
+
+/// Write a file's content to `dest`, as it is read.
+fn write_file(content: &mut dyn Read, mode: Option<u32>, dest: &Path) -> io::Result<()> {
+    if let Some(parent) = dest.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    let mut file = File::create(dest)?;
+    io::copy(content, &mut file)?;
+    apply_mode(dest, mode)
+}
+
+/// Write one entry and say where it went.
+fn write_entry(body: Body<'_>, dest_dir: &Path, out_name: &str) -> io::Result<PathBuf> {
+    let dest = entry_dest(dest_dir, out_name)?;
+    match body {
+        Body::File { content, mode } => write_file(content, mode, &dest)?,
+        Body::Symlink { target } => {
+            if !link_stays_inside(out_name, &target) {
+                return Err(invalid(format!(
+                    "archive entry '{out_name}' is a link to '{target}', \
+                     outside the directory it is extracted into"
+                )));
+            }
+            if let Some(parent) = dest.parent() {
+                fs::create_dir_all(parent)?;
+            }
+            create_symlink(&target, &dest)?;
         }
     }
     Ok(dest)
 }
 
 #[cfg(unix)]
-async fn apply_mode(path: &Path, mode: Option<u32>) -> std::io::Result<()> {
+fn apply_mode(path: &Path, mode: Option<u32>) -> io::Result<()> {
     if let Some(mode) = mode {
         if mode & 0o111 != 0 {
             use std::os::unix::fs::PermissionsExt;
-            let perms = std::fs::Permissions::from_mode(mode & 0o777);
-            fs::set_permissions(path, perms).await?;
+            fs::set_permissions(path, fs::Permissions::from_mode(mode & 0o777))?;
         }
     }
     Ok(())
 }
 
 #[cfg(not(unix))]
-async fn apply_mode(_path: &Path, _mode: Option<u32>) -> std::io::Result<()> {
+fn apply_mode(_path: &Path, _mode: Option<u32>) -> io::Result<()> {
     Ok(())
 }
 
 #[cfg(unix)]
-async fn create_symlink(target: &str, dest: &Path) -> std::io::Result<()> {
+fn create_symlink(target: &str, dest: &Path) -> io::Result<()> {
     // Re-extraction re-creates symlinks left by a prior run — `symlink()`
     // doesn't overwrite like a file write does, so the stale link (or file)
     // at `dest` must be cleared first.
-    match fs::remove_file(dest).await {
-        Err(err) if err.kind() != std::io::ErrorKind::NotFound => return Err(err),
+    match fs::remove_file(dest) {
+        Err(err) if err.kind() != io::ErrorKind::NotFound => return Err(err),
         _ => {}
     }
     // Permission-denied is a silent skip (non-admin Windows-style guard).
-    match tokio::fs::symlink(target, dest).await {
-        Err(err) if err.kind() != std::io::ErrorKind::PermissionDenied => Err(err),
+    match std::os::unix::fs::symlink(target, dest) {
+        Err(err) if err.kind() != io::ErrorKind::PermissionDenied => Err(err),
         _ => Ok(()),
     }
 }
 
 #[cfg(windows)]
-async fn create_symlink(_target: &str, _dest: &Path) -> std::io::Result<()> {
+fn create_symlink(_target: &str, _dest: &Path) -> io::Result<()> {
     // On Windows, non-admin users can't symlink — best-effort silent skip.
     Ok(())
 }
 
-/// Read an archive off-thread (zip/tar both pull the whole thing into memory).
-async fn read_normalized(archive_path: &str) -> std::io::Result<Vec<NormalizedEntry>> {
-    let data = fs::read(archive_path).await?;
-    let path = archive_path.to_owned();
-    tokio::task::spawn_blocking(move || read_archive_sync(&path, &data))
+/// Run `work` off the async threads: everything here blocks on a disk.
+async fn blocking<T: Send + 'static>(
+    work: impl FnOnce() -> io::Result<T> + Send + 'static,
+) -> io::Result<T> {
+    tokio::task::spawn_blocking(work)
         .await
-        .map_err(std::io::Error::other)?
+        .map_err(io::Error::other)?
+}
+
+/// Where the entry `name` goes under the rules, or `None` when they leave
+/// it out.
+fn placed(
+    name: &str,
+    includes: Option<&[String]>,
+    excludes: Option<&[String]>,
+    strip_prefixes: Option<&[String]>,
+) -> Option<String> {
+    if includes.is_some_and(|globs| !globs.iter().any(|glob| matches_glob(name, glob))) {
+        return None;
+    }
+    if excludes.is_some_and(|globs| globs.iter().any(|glob| matches_glob(name, glob))) {
+        return None;
+    }
+    let Some(prefixes) = strip_prefixes else {
+        return Some(name.to_owned());
+    };
+    let stripped = prefixes
+        .iter()
+        .find_map(|prefix| strip_one(name, prefix))
+        .unwrap_or(name);
+    (!stripped.is_empty()).then(|| stripped.to_owned())
 }
 
 /// Extract entries from `archive_path` into `target_dir`, applying include/
-/// exclude globs and optional path-prefix stripping. The archive is read
-/// into memory once. Returns every path written, which is what makes an
-/// unpacked file the manifest's own when `cleanup` runs.
+/// exclude globs and optional path-prefix stripping. Returns every path
+/// written, which is what makes an unpacked file the manifest's own when
+/// `cleanup` runs.
 pub async fn extract_archive(
     archive_path: &str,
     target_dir: &Path,
     includes: Option<&[String]>,
     excludes: Option<&[String]>,
     strip_prefixes: Option<&[String]>,
-) -> std::io::Result<Vec<std::path::PathBuf>> {
-    let entries = read_normalized(archive_path).await?;
-    let mut written = Vec::new();
-    for entry in entries {
-        if let Some(inc) = includes {
-            if !inc.iter().any(|p| matches_glob(&entry.name, p)) {
-                continue;
+) -> io::Result<Vec<PathBuf>> {
+    let archive_path = archive_path.to_owned();
+    let target_dir = target_dir.to_owned();
+    let (includes, excludes, strip_prefixes) = (
+        includes.map(<[String]>::to_vec),
+        excludes.map(<[String]>::to_vec),
+        strip_prefixes.map(<[String]>::to_vec),
+    );
+    blocking(move || {
+        let mut written = Vec::new();
+        each_entry(&archive_path, |name, body| {
+            let out_name = placed(
+                name,
+                includes.as_deref(),
+                excludes.as_deref(),
+                strip_prefixes.as_deref(),
+            );
+            if let Some(out_name) = out_name {
+                written.push(write_entry(body, &target_dir, &out_name)?);
             }
-        }
-        if let Some(exc) = excludes {
-            if exc.iter().any(|p| matches_glob(&entry.name, p)) {
-                continue;
-            }
-        }
-        let mut out_name = entry.name.clone();
-        if let Some(prefixes) = strip_prefixes {
-            for p in prefixes {
-                if let Some(rest) = strip_one(&out_name, p) {
-                    out_name = rest.to_owned();
-                    break;
-                }
-            }
-            if out_name.is_empty() {
-                continue;
-            }
-        }
-        written.push(write_entry(&entry, target_dir, &out_name).await?);
-    }
-    Ok(written)
+            Ok(Next::Entry)
+        })?;
+        Ok(written)
+    })
+    .await
 }
 
-/// Extract a single named entry to a destination file.
+/// Extract a single named entry to a destination file. Reading stops at the
+/// entry: nothing after it is decoded.
 pub async fn extract_archive_pick(
     archive_path: &str,
     entry_name: &str,
     dest_path: &Path,
-) -> std::io::Result<()> {
-    let entries = read_normalized(archive_path).await?;
-    let found = entries
-        .iter()
-        .find(|e| e.name == entry_name && e.kind == EntryKind::File)
-        .ok_or_else(|| {
-            std::io::Error::new(
-                std::io::ErrorKind::NotFound,
-                format!("Archive {archive_path} has no file entry '{entry_name}'"),
-            )
+) -> io::Result<()> {
+    let archive_path = archive_path.to_owned();
+    let entry_name = entry_name.to_owned();
+    let dest_path = dest_path.to_owned();
+    blocking(move || {
+        let mut found = false;
+        each_entry(&archive_path, |name, body| match body {
+            Body::File { content, mode } if name == entry_name => {
+                write_file(content, mode, &dest_path)?;
+                found = true;
+                Ok(Next::Stop)
+            }
+            _ => Ok(Next::Entry),
         })?;
-
-    if let Some(parent) = dest_path.parent() {
-        fs::create_dir_all(parent).await?;
-    }
-    let mut f = fs::File::create(dest_path).await?;
-    if let Some(content) = found.content.as_deref() {
-        f.write_all(content).await?;
-    }
-    f.flush().await?;
-    apply_mode(dest_path, found.mode).await?;
-    Ok(())
+        if found {
+            Ok(())
+        } else {
+            Err(io::Error::new(
+                io::ErrorKind::NotFound,
+                format!("Archive {archive_path} has no file entry '{entry_name}'"),
+            ))
+        }
+    })
+    .await
 }
 
 #[cfg(all(test, unix))]
@@ -398,6 +483,82 @@ mod tests {
         assert!(!outside.join("escape.txt").exists());
     }
 
+    #[test]
+    fn a_link_may_point_anywhere_in_its_own_directory() {
+        assert!(link_stays_inside("link.txt", "payload.txt"));
+        assert!(link_stays_inside(
+            "legal/java.xml/COPYRIGHT",
+            "../java.base/COPYRIGHT"
+        ));
+        assert!(link_stays_inside("a/b/link", "../../top.txt"));
+        assert!(link_stays_inside("bin", "./jdk/Contents/Home/bin"));
+
+        assert!(!link_stays_inside("link", ".."));
+        assert!(!link_stays_inside("a/link", "../../outside"));
+        assert!(!link_stays_inside("a/link", "b/../../../outside"));
+        // `b` may itself be a link, and then `b/..` is not where it reads.
+        assert!(!link_stays_inside("a", "sub/b/.."));
+        assert!(!link_stays_inside("a/link", "b/../c"));
+        assert!(!link_stays_inside("link", "/etc"));
+    }
+
+    /// Nothing is written through this link by the archive that carries it,
+    /// so only the link itself can be refused.
+    #[tokio::test]
+    async fn a_link_that_points_out_of_the_directory_is_refused() {
+        for target in ["/etc", "../outside"] {
+            let dir = tempfile::tempdir().unwrap();
+            let into = dir.path().join("into");
+            let mut builder = tar::Builder::new(Vec::new());
+            let mut link = tar::Header::new_gnu();
+            link.set_entry_type(tar::EntryType::Symlink);
+            link.set_path("door").unwrap();
+            link.set_link_name(target).unwrap();
+            link.set_size(0);
+            link.set_cksum();
+            builder.append(&link, &[][..]).unwrap();
+            let archive_path = dir.path().join("bundle.tar");
+            std::fs::write(&archive_path, builder.into_inner().unwrap()).unwrap();
+
+            let err = extract_archive(archive_path.to_str().unwrap(), &into, None, None, None)
+                .await
+                .unwrap_err();
+
+            assert_eq!(err.kind(), std::io::ErrorKind::InvalidData, "{target}");
+            assert!(
+                std::fs::symlink_metadata(into.join("door")).is_err(),
+                "{target}"
+            );
+        }
+    }
+
+    /// Two links, each of which reads as staying in. Followed, the second
+    /// is two directories above the extraction.
+    #[tokio::test]
+    async fn links_cannot_be_chained_into_a_way_out() {
+        let dir = tempfile::tempdir().unwrap();
+        let into = dir.path().join("a/into");
+        let mut builder = tar::Builder::new(Vec::new());
+        for (name, target) in [("sub/b", ".."), ("door", "sub/b/../..")] {
+            let mut link = tar::Header::new_gnu();
+            link.set_entry_type(tar::EntryType::Symlink);
+            link.set_path(name).unwrap();
+            link.set_link_name(target).unwrap();
+            link.set_size(0);
+            link.set_cksum();
+            builder.append(&link, &[][..]).unwrap();
+        }
+        let archive_path = dir.path().join("bundle.tar");
+        std::fs::write(&archive_path, builder.into_inner().unwrap()).unwrap();
+
+        let err = extract_archive(archive_path.to_str().unwrap(), &into, None, None, None)
+            .await
+            .unwrap_err();
+
+        assert_eq!(err.kind(), std::io::ErrorKind::InvalidData);
+        assert!(std::fs::symlink_metadata(into.join("door")).is_err());
+    }
+
     /// Re-extracting the same archive into the same directory must not fail
     /// with "File exists" — install now re-extracts on every launch, so a
     /// symlink entry has to overwrite the link left by the prior run instead
@@ -425,6 +586,116 @@ mod tests {
             std::fs::read_to_string(dir.path().join("payload.txt")).unwrap(),
             "hello"
         );
+    }
+
+    fn tar_of(entries: &[(&str, &[u8])]) -> Vec<u8> {
+        let mut builder = tar::Builder::new(Vec::new());
+        for (name, content) in entries {
+            let mut header = tar::Header::new_gnu();
+            header.set_path(name).unwrap();
+            header.set_size(content.len() as u64);
+            header.set_mode(0o755);
+            header.set_cksum();
+            builder.append(&header, *content).unwrap();
+        }
+        builder.into_inner().unwrap()
+    }
+
+    fn gzipped(data: &[u8]) -> Vec<u8> {
+        let mut gz = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::fast());
+        gz.write_all(data).unwrap();
+        gz.finish().unwrap()
+    }
+
+    /// The three spellings of an archive hold the same entries, and each is
+    /// read the same way: filtered by name, stripped, written, and reported.
+    #[tokio::test]
+    async fn every_kind_of_archive_is_unpacked_alike() {
+        let entries: [(&str, &[u8]); 3] = [
+            ("top/bin/java", b"java"),
+            ("top/lib/a.so", b"lib"),
+            ("top/README", b"read"),
+        ];
+        let tar = tar_of(&entries);
+        let mut zip = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
+        zip.add_directory("top/", zip::write::SimpleFileOptions::default())
+            .unwrap();
+        for (name, content) in entries {
+            zip.start_file(name, zip::write::SimpleFileOptions::default())
+                .unwrap();
+            zip.write_all(content).unwrap();
+        }
+        let zip = zip.finish().unwrap().into_inner();
+
+        for (file, data) in [
+            ("a.tar", tar.clone()),
+            ("a.tar.gz", gzipped(&tar)),
+            ("a.tgz", gzipped(&tar)),
+            ("a.zip", zip),
+        ] {
+            let dir = tempfile::tempdir().unwrap();
+            let into = dir.path().join("into");
+            let archive_path = dir.path().join(file);
+            std::fs::write(&archive_path, data).unwrap();
+
+            let mut written = extract_archive(
+                archive_path.to_str().unwrap(),
+                &into,
+                Some(&["top/*".to_owned()]),
+                Some(&["*README".to_owned()]),
+                Some(&["*/".to_owned()]),
+            )
+            .await
+            .unwrap();
+            written.sort();
+
+            assert_eq!(
+                written,
+                [into.join("bin/java"), into.join("lib/a.so")],
+                "{file}"
+            );
+            assert_eq!(
+                std::fs::read(into.join("bin/java")).unwrap(),
+                b"java",
+                "{file}"
+            );
+            assert!(!into.join("README").exists(), "{file}");
+        }
+    }
+
+    /// A picked entry is found by its whole name, written where it is told
+    /// to go, and whatever follows it in the archive is never decoded.
+    #[tokio::test]
+    async fn a_pick_takes_one_entry_and_reads_no_further() {
+        let tar = tar_of(&[("a/one.txt", b"one"), ("a/two.txt", b"two")]);
+        // Cut short inside the second entry: reading on would fail.
+        let cut = &tar[..512 + 512 + 512 + 1];
+        let dir = tempfile::tempdir().unwrap();
+        let archive_path = dir.path().join("a.tar");
+        std::fs::write(&archive_path, cut).unwrap();
+        let archive = archive_path.to_str().unwrap();
+
+        let dest = dir.path().join("out/picked.txt");
+        extract_archive_pick(archive, "a/one.txt", &dest)
+            .await
+            .unwrap();
+        assert_eq!(std::fs::read(&dest).unwrap(), b"one");
+    }
+
+    #[tokio::test]
+    async fn a_pick_of_an_entry_that_is_not_there_says_so() {
+        let dir = tempfile::tempdir().unwrap();
+        let archive_path = dir.path().join("a.zip");
+        std::fs::write(&archive_path, zip_with(&["a.txt"])).unwrap();
+        let dest = dir.path().join("picked.txt");
+
+        let err = extract_archive_pick(archive_path.to_str().unwrap(), "b.txt", &dest)
+            .await
+            .unwrap_err();
+
+        assert_eq!(err.kind(), std::io::ErrorKind::NotFound);
+        assert!(err.to_string().contains("'b.txt'"));
+        assert!(!dest.exists());
     }
 
     #[test]

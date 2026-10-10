@@ -37,7 +37,7 @@ fn sample() -> (Manifest, Blobs) {
 
 fn written(manifest: &Manifest, blobs: &Blobs) -> Vec<u8> {
     let mut out = Cursor::new(Vec::new());
-    write_bundle(&mut out, manifest, blobs).unwrap();
+    write_bundle(&mut out, &Head::default(), manifest, blobs).unwrap();
     out.into_inner()
 }
 
@@ -235,7 +235,13 @@ fn a_manifest_with_no_blobs_is_a_bundle_with_no_blobs() {
 #[test]
 fn a_blob_the_table_does_not_hold_is_named() {
     let (manifest, _) = sample();
-    let error = write_bundle(Cursor::new(Vec::new()), &manifest, &Blobs::new()).unwrap_err();
+    let error = write_bundle(
+        Cursor::new(Vec::new()),
+        &Head::default(),
+        &manifest,
+        &Blobs::new(),
+    )
+    .unwrap_err();
     assert!(
         matches!(&error, BundleError::MissingBlob(id) if id == HELLO),
         "{error}"
@@ -246,7 +252,8 @@ fn a_blob_the_table_does_not_hold_is_named() {
 fn a_blob_that_is_not_what_its_name_says_is_refused() {
     let manifest = manifest(json!([{ "path": "a", "source": { "blob": HELLO } }]));
     let blobs = Blobs::from([(HELLO.to_owned(), BlobSource::Bytes(b"goodbye".to_vec()))]);
-    let error = write_bundle(Cursor::new(Vec::new()), &manifest, &blobs).unwrap_err();
+    let error =
+        write_bundle(Cursor::new(Vec::new()), &Head::default(), &manifest, &blobs).unwrap_err();
     let BundleError::BlobMismatch { id, found } = &error else {
         panic!("{error}");
     };
@@ -263,7 +270,7 @@ fn a_blob_file_that_is_gone_is_named_with_its_path() {
         HELLO.to_owned(),
         BlobSource::File("/nonexistent/hello.txt".into()),
     )]);
-    let message = write_bundle(Cursor::new(Vec::new()), &manifest, &blobs)
+    let message = write_bundle(Cursor::new(Vec::new()), &Head::default(), &manifest, &blobs)
         .unwrap_err()
         .to_string();
     assert!(message.contains("/nonexistent/hello.txt"), "{message}");

@@ -11,7 +11,7 @@ mod install;
 mod launch;
 mod pathnorm;
 mod platform;
-mod tar_reader;
+mod root;
 
 mod phases {
     pub mod cleanup;
@@ -28,6 +28,7 @@ pub use install::{install, InstallOptions, InstallProgress};
 pub use launch::{build_launch, launch, prepare, LaunchOptions, LaunchSpec};
 pub use phases::resolve::{resolve_manifest, ManifestSource};
 pub use platform::current_platform;
+pub use root::ROOT_VAR;
 /// Re-exported so callers can drive [`InstallOptions::cancel`] without depending
 /// on `tokio-util` directly.
 pub use tokio_util::sync::CancellationToken;

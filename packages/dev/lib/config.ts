@@ -6,6 +6,7 @@ import type {
   Val,
   Valset,
 } from '@opys/core';
+import type { OptionsInput } from '@opys/bundle';
 import type { OpysPlugin } from './plugin';
 
 /** One entry of a config's `args` — flattened, in order, to a `Valset`. */
@@ -90,6 +91,14 @@ export interface OpysConfig<
   plugins: P;
   /** Declarative manifest fields, separate from tooling config. */
   manifest: OpysManifestConfig<P, C, A, W>;
+  /**
+   * What whoever launches the pack may choose: `options().slider(…)…`, or a
+   * list of `slider(…)`, `feature(…)` and the rest. Each fills a variable or
+   * switches a feature the manifest already reads; this says which of them
+   * are a player's, and how to ask. It goes into the bundle's head, not the
+   * manifest.
+   */
+  options?: OptionsInput;
   /**
    * Launch-time manifest patch. Re-run on every `opys launch`; the returned
    * partial is shallow-merged (per field) over the loaded manifest.

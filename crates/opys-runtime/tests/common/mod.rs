@@ -47,7 +47,13 @@ pub fn blobs() -> Blobs {
 #[allow(dead_code)]
 pub fn bundled(manifest: &opys_core::Manifest) -> opys_runtime::ManifestSource {
     let file = tempfile::NamedTempFile::new().unwrap();
-    opys_bundle::write_bundle(file.as_file(), manifest, &blobs()).unwrap();
+    opys_bundle::write_bundle(
+        file.as_file(),
+        &opys_bundle::Head::default(),
+        manifest,
+        &blobs(),
+    )
+    .unwrap();
     let (_, path) = file.keep().unwrap();
     opys_runtime::ManifestSource::bundle(path)
 }

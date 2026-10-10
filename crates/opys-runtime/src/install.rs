@@ -1,4 +1,4 @@
-use opys_core::{filter_manifest, interpolate, resolve_val_defs, resolve_vars, OsOptions, VarMap};
+use opys_core::{filter_manifest, interpolate, OsOptions, VarMap};
 use std::collections::HashSet;
 use std::sync::Arc;
 use tokio_util::sync::CancellationToken;
@@ -12,6 +12,7 @@ use crate::phases::resolve::{resolve, ManifestSource, Resolved};
 use crate::phases::scan::scan;
 use crate::phases::verify::verify_all;
 use crate::platform::current_platform;
+use crate::root::{check_artifacts, confined_vars};
 
 #[derive(Debug, Clone)]
 pub enum InstallProgress {
@@ -121,14 +122,12 @@ pub(crate) async fn install_resolved(
         }
     };
 
-    let mut flat = resolve_val_defs(&manifest.vars, &platform, &features)?;
-    for (k, v) in extra_vars {
-        flat.insert(k, v);
-    }
-    let vars = resolve_vars(&flat).map_err(InstallError::other)?;
-    // Before anything is fetched: a rule this install would have to refuse
-    // should not cost a download first.
-    let cleanup_plan = plan(&manifest.cleanup, &vars).map_err(InstallError::Manifest)?;
+    let (vars, root) = confined_vars(&manifest, &platform, &features, Some(&extra_vars))?;
+    let applicable = filter_manifest(&manifest, &platform, &features)?;
+    // Before anything is fetched: a path or a rule this install would have
+    // to refuse should not cost a download first, and must not cost a write.
+    check_artifacts(&applicable.artifacts, &vars, &root).map_err(InstallError::Manifest)?;
+    let cleanup_plan = plan(&manifest.cleanup, &vars, &root).map_err(InstallError::Manifest)?;
 
     let scanned = scan(&manifest, &vars, &platform, &features).await?;
     let total_fetch = scanned.tasks.len() as u32;
@@ -219,7 +218,6 @@ pub(crate) async fn install_resolved(
         }
     }
 
-    let applicable = filter_manifest(&manifest, &platform, &features)?;
     // Extraction always reruns on every install — there is no skip-if-already-
     // extracted check. Mods/configs inside an extracted archive can change
     // between launches without the archive itself changing path, so staleness

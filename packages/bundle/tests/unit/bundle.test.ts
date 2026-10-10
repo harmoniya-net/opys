@@ -10,8 +10,12 @@ import {
   blobBytes,
   blobFile,
   blobId,
+  file,
+  optionDefs,
+  options,
   readBundle,
   readBundleHead,
+  text,
   writeBundle,
 } from '../../lib/index';
 
@@ -47,6 +51,47 @@ describe('a bundle on disk', () => {
     const path = join(dir, 'game.opys');
     await writeBundle(path, manifest, { [blobId(hello)]: blobBytes(hello) });
     expect(readBundleHead(path)).toEqual({ format: BUNDLE_FORMAT });
+  });
+
+  it('carries the options it was written with in its head', async () => {
+    const path = join(dir, 'game.opys');
+    const written = options()
+      .slider('xmx', { min: 1024, max: 16384, step: 512, default: 4096 })
+      .title('RAM')
+      .feature('custom_java', (o) =>
+        o.directory('java_home').title('Java folder'),
+      )
+      .title('Custom Java');
+    await writeBundle(
+      path,
+      { vars: {}, artifacts: [] },
+      {},
+      { options: written },
+    );
+    expect(readBundleHead(path)).toEqual({
+      format: BUNDLE_FORMAT,
+      options: optionDefs(written),
+    });
+  });
+
+  it('refuses to write options that name one variable twice', async () => {
+    const path = join(dir, 'game.opys');
+    const twice = [file('skin').title('Skin'), text('skin').title('Again')];
+    await expect(
+      writeBundle(path, { vars: {}, artifacts: [] }, {}, { options: twice }),
+    ).rejects.toThrow(/variable `skin` is an option twice/);
+  });
+
+  it('refuses to write an option nobody gave a title', async () => {
+    const path = join(dir, 'game.opys');
+    await expect(
+      writeBundle(
+        path,
+        { vars: {}, artifacts: [] },
+        {},
+        { options: [file('skin')] },
+      ),
+    ).rejects.toThrow("option 'skin' has no title");
   });
 
   it('refuses to write a manifest whose blob nothing holds', async () => {

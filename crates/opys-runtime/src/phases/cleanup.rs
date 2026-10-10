@@ -7,7 +7,8 @@
 //!   was unpacked into — so no rule can break the installation it is part of;
 //! - a rule is planned before anything is fetched and refused if it could
 //!   reach further than its author meant: an undefined variable, a relative
-//!   path, a `..`, or no directory in front of its first wildcard.
+//!   path, a `..`, a path outside the root, or no directory in front of its
+//!   first wildcard.
 
 use indexmap::IndexMap;
 use opys_core::{glob_base, glob_to_regex, interpolate, CleanupRule};
@@ -18,6 +19,7 @@ use tokio::fs;
 
 use crate::pathnorm::{is_absolute, normalize, normalize_inner, tidy};
 use crate::phases::extract::EXTRACT_MARKER_SUFFIX;
+use crate::root::Root;
 
 /// One rule, with its variables resolved and its globs compiled.
 #[derive(Debug)]
@@ -40,7 +42,7 @@ impl CleanupPlan {
 
 /// Why an include cannot be used, or `None` when it can. `glob` is already
 /// interpolated and tidied.
-fn refusal(glob: &str, windows: bool) -> Option<&'static str> {
+fn refusal(glob: &str, root: &Root, windows: bool) -> Option<&'static str> {
     if glob.contains("${") {
         return Some("names a variable that is not defined");
     }
@@ -54,6 +56,10 @@ fn refusal(glob: &str, windows: bool) -> Option<&'static str> {
     // `/*` has no base at all, and `C:/*` has only the drive.
     if base.is_empty() || (windows && base.ends_with(':')) {
         return Some("has no directory in front of its first wildcard");
+    }
+    // The directory it walks, which every path it can name is under.
+    if !root.holds(&base) {
+        return Some("is outside the root");
     }
     None
 }
@@ -73,6 +79,7 @@ fn exclude_regex(glob: &str, windows: bool) -> Regex {
 fn plan_inner(
     rules: &[CleanupRule],
     vars: &IndexMap<String, String>,
+    root: &Root,
     windows: bool,
 ) -> Result<CleanupPlan, String> {
     rules
@@ -82,7 +89,7 @@ fn plan_inner(
             let mut includes = Vec::new();
             for written in &rule.includes {
                 let glob = tidy(&interpolate(written, vars), windows);
-                if let Some(why) = refusal(&glob, windows) {
+                if let Some(why) = refusal(&glob, root, windows) {
                     return Err(format!("cleanup: `{written}` {why}"));
                 }
                 bases.insert(glob_base(&glob));
@@ -105,8 +112,12 @@ fn plan_inner(
 
 /// Resolve and check a manifest's rules. Nothing is touched: this is what an
 /// install runs first, so a rule it must refuse fails before any download.
-pub fn plan(rules: &[CleanupRule], vars: &IndexMap<String, String>) -> Result<CleanupPlan, String> {
-    plan_inner(rules, vars, cfg!(windows))
+pub fn plan(
+    rules: &[CleanupRule],
+    vars: &IndexMap<String, String>,
+    root: &Root,
+) -> Result<CleanupPlan, String> {
+    plan_inner(rules, vars, root, cfg!(windows))
 }
 
 impl Planned {
@@ -223,15 +234,25 @@ mod tests {
             .collect()
     }
 
+    /// The root every test here installs into.
+    fn root(windows: bool) -> Root {
+        Root::new(if windows { "C:\\Users\\x" } else { "/srv/game" }, windows).unwrap()
+    }
+
     fn planned(includes: &[&str], excludes: &[&str], v: &[(&str, &str)], windows: bool) -> Planned {
-        plan_inner(&[rule(includes, excludes)], &vars(v), windows)
-            .unwrap()
-            .0
-            .remove(0)
+        plan_inner(
+            &[rule(includes, excludes)],
+            &vars(v),
+            &root(windows),
+            windows,
+        )
+        .unwrap()
+        .0
+        .remove(0)
     }
 
     fn refused(include: &str, v: &[(&str, &str)], windows: bool) -> String {
-        plan_inner(&[rule(&[include], &[])], &vars(v), windows).unwrap_err()
+        plan_inner(&[rule(&[include], &[])], &vars(v), &root(windows), windows).unwrap_err()
     }
 
     #[test]
@@ -243,6 +264,10 @@ mod tests {
         assert!(refused("/*", &root, false).contains("no directory"));
         assert!(refused("/**", &root, false).contains("no directory"));
         assert!(refused("C:\\*", &root, true).contains("no directory"));
+        // Absolute, with a directory and no `..`, and still not ours.
+        assert!(refused("/home/someone/**", &root, false).contains("outside the root"));
+        assert!(refused("/srv/game-old/**", &root, false).contains("outside the root"));
+        assert!(refused("D:\\Users\\x\\mods\\*", &root, true).contains("outside the root"));
         // The message names the rule as its author wrote it.
         assert!(refused("${rot}/mods/*", &root, false).contains("`${rot}/mods/*`"));
     }
@@ -250,7 +275,7 @@ mod tests {
     #[test]
     fn one_bad_include_refuses_the_whole_plan() {
         let rules = [rule(&["/srv/game/logs/**"], &[]), rule(&["logs/**"], &[])];
-        assert!(plan_inner(&rules, &vars(&[]), false).is_err());
+        assert!(plan_inner(&rules, &vars(&[]), &root(false), false).is_err());
     }
 
     #[test]

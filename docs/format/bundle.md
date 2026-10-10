@@ -21,8 +21,8 @@ unzip -p game.opys manifest.json | jq '.launch'
 
 **Why two JSON files:** they describe different things. The manifest
 describes the installation, and is megabytes, one entry per installed file.
-The head describes the bundle, and is a few bytes. Today it holds only
-`format`.
+The head describes the bundle, and is small. It holds `format` and
+`options`.
 
 Find entries by name. Do not rely on their order.
 
@@ -52,6 +52,77 @@ format changes, a bundle is rebuilt from its config with `opys build`.
 
 For a launcher this means: update the runtime and republish the bundles
 together.
+
+## options
+
+What whoever launches the bundle may choose. Optional, in the head.
+
+```json
+{
+  "format": 1,
+  "options": [
+    {
+      "slider": "xmx",
+      "title": "RAM",
+      "min": 1024,
+      "max": 16384,
+      "step": 512,
+      "default": 4096,
+      "unit": "MB"
+    },
+    {
+      "feature": "custom_java",
+      "title": "Custom Java",
+      "options": [{ "directory": "java_home", "title": "Java folder" }]
+    }
+  ]
+}
+```
+
+A manifest reads variables and tests features. `options` says which of them
+are a player's to set, and how to ask for each. It is a schema only: the
+installer does not read it, and what a player chose reaches an install as
+plain `vars` and `features`.
+
+An option is one of six kinds. The field that says the kind also holds the
+name:
+
+| Field       | The name is | The value is            |
+| ----------- | ----------- | ----------------------- |
+| `slider`    | a variable  | a number in a range     |
+| `select`    | a variable  | one of a list           |
+| `text`      | a variable  | a line of text          |
+| `file`      | a variable  | the path of a file      |
+| `directory` | a variable  | the path of a directory |
+| `feature`   | a feature   | on or off               |
+
+Every option has a `title` and may have a `subtitle`. The rest depends on
+the kind:
+
+| Kind      | Required                        | Optional                 |
+| --------- | ------------------------------- | ------------------------ |
+| `slider`  | `min`, `max`, `step`, `default` | `unit`                   |
+| `select`  | `choices`, `default`            |                          |
+| `text`    |                                 | `placeholder`, `default` |
+| `feature` |                                 | `default`, `options`     |
+
+- `default` is a number on a slider, a string on a select or a text, and a
+  boolean on a feature. A feature with no `default` is off.
+- `choices` is a list of `{ "value", "label" }`, in the order to show them.
+- A feature's `options` are the options that only matter while it is on.
+  They may be features themselves, to any depth.
+
+A reader refuses a head whose options:
+
+- name no kind, or more than one;
+- carry a field of another kind, such as `min` on a select;
+- name one variable twice, or one feature twice, anywhere in the tree;
+- have a slider with `min` not below `max`, a `step` not above zero, or a
+  `default` outside the range;
+- have a select whose `default` is not the `value` of one of its choices.
+
+**Why in the head:** a launcher shows the settings before it installs
+anything, and the head is readable without the manifest.
 
 ## Blobs
 

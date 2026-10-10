@@ -94,6 +94,33 @@ Three layers, later ones winning:
 So a manifest can give a default (`root` is `.`) and the machine replaces
 it.
 
+## root
+
+`root` is the one variable the installer knows by name. It is the folder an
+installation lives in, and **nothing is written or deleted outside it**.
+
+| What                         | Must be                                                                        |
+| ---------------------------- | ------------------------------------------------------------------------------ |
+| An artifact's `path`         | A file inside `root`.                                                          |
+| Extract `into`               | `root` or a folder in it. With `clean: true`, or for a picked file: inside it. |
+| A cleanup `includes` pattern | Inside `root`.                                                                 |
+| `launch.workdir`             | `root` or a folder in it.                                                      |
+
+A path that breaks this stops the install before anything is downloaded.
+
+- **Inside** means the path begins with `root` and has no `..` after it. So
+  write paths with `${root}`, or with a variable built from it.
+- **A launcher should always pass `root`.** Its value wins over the
+  manifest's, so a bundle cannot choose its own folder.
+- A relative `root`, such as the default `.`, is made absolute against the
+  folder the installer runs in.
+- An install with no `root`, or with `/` or a whole drive for one, is
+  refused.
+- `launch.command` is not held to it. `java` from the `PATH` is outside
+  every root.
+- A symbolic link the player made inside `root` is followed. One that an
+  archive would create to a place outside its `into` stops the install.
+
 ## Substitution
 
 `${name}` is replaced in these places:

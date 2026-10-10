@@ -42,6 +42,25 @@ pub struct JavaOptions {
     pub api_base: Option<String>,
     /// GitHub token for higher rate limits — `graalvm` only.
     pub token: Option<String>,
+    /// Ship no JDK and run on the machine's own — see [`crate::system_java`].
+    /// It is the other way to call the plugin, not a setting of this one, so
+    /// it goes with none of the fields above.
+    pub system: bool,
+}
+
+impl JavaOptions {
+    /// The first field that asks for a JDK to be resolved, if any does.
+    pub(crate) fn resolved_field(&self) -> Option<&'static str> {
+        [
+            ("version", !self.version.is_empty()),
+            ("vendor", self.vendor.is_some()),
+            ("platforms", self.platforms.is_some()),
+            ("apiBase", self.api_base.is_some()),
+            ("token", self.token.is_some()),
+        ]
+        .into_iter()
+        .find_map(|(field, set)| set.then_some(field))
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -55,7 +74,7 @@ pub struct JavaTemplate {
     pub release: VendorRelease,
 }
 
-fn allow_os(os: OsName) -> MojangRule {
+pub(crate) fn allow_os(os: OsName) -> MojangRule {
     MojangRule::Os {
         action: RuleAction::Allow,
         os: OsConstraint {
@@ -82,7 +101,10 @@ fn os_ruleset(os: OsName) -> MojangRuleset {
     vec![allow_os(os)]
 }
 
-fn feature_rule(action: RuleAction, name: &str, required: bool) -> MojangRule {
+/// The feature that swaps Windows' `javaw` for `java`, to see the console.
+pub(crate) const JAVA_CONSOLE: &str = "java_console";
+
+pub(crate) fn feature_rule(action: RuleAction, name: &str, required: bool) -> MojangRule {
     MojangRule::Features {
         action,
         features: [(name.to_owned(), required)].into_iter().collect(),
@@ -102,14 +124,14 @@ fn windows_bin_arms() -> Vec<ConditionalVal> {
             value: "${java_home}/bin/javaw.exe".to_owned(),
             rules: vec![
                 allow_os(OsName::Windows),
-                feature_rule(RuleAction::Disallow, "java_console", true),
+                feature_rule(RuleAction::Disallow, JAVA_CONSOLE, true),
             ],
         },
         ConditionalVal {
             value: "${java_home}/bin/java.exe".to_owned(),
             rules: vec![
                 allow_os(OsName::Windows),
-                feature_rule(RuleAction::Allow, "java_console", true),
+                feature_rule(RuleAction::Allow, JAVA_CONSOLE, true),
             ],
         },
     ]
@@ -159,6 +181,12 @@ fn resolve_release(options: &JavaOptions) -> Result<VendorRelease, JavaError> {
 /// enable the `java_console` feature to switch it to `java.exe` — see
 /// [`windows_bin_arms`].
 pub fn resolve_java(options: &JavaOptions) -> Result<JavaTemplate, JavaError> {
+    if options.system {
+        return Err(JavaError::NothingToResolve);
+    }
+    if options.version.is_empty() {
+        return Err(JavaError::NoVersion);
+    }
     Ok(java_template(resolve_release(options)?))
 }
 

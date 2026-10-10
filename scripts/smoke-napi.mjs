@@ -13,6 +13,7 @@ import { mkdtempSync, readFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { isDeepStrictEqual } from 'node:util';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
@@ -153,7 +154,8 @@ const helloManifest = {
 const helloBlobs = { [worldId]: { bytes: world.toString('base64') } };
 // A blob installs from a bundle, and from nothing else.
 const helloBundle = join(dir, 'install.opys');
-await bundleNapi.writeBundle(helloBundle, helloManifest, helloBlobs);
+const helloHead = { format: bundleNapi.bundleFormat() };
+await bundleNapi.writeBundle(helloBundle, helloHead, helloManifest, helloBlobs);
 await runtime.install(
   { bundle: helloBundle },
   { verifyIntegrity: true },
@@ -165,12 +167,20 @@ check('install copies a blob to disk', written === 'world');
 
 // The same thing published: one file, read back and installed elsewhere.
 const bundlePath = join(dir, 'hello.opys');
-await bundleNapi.writeBundle(bundlePath, helloManifest, helloBlobs);
+const optionedHead = {
+  ...helloHead,
+  options: [{ feature: 'fullscreen', title: 'Fullscreen', default: true }],
+};
+await bundleNapi.writeBundle(
+  bundlePath,
+  optionedHead,
+  helloManifest,
+  helloBlobs,
+);
 check(
-  'writeBundle writes a zip whose head says its format and nothing else',
+  'writeBundle writes a zip whose head is the one it was given',
   readFileSync(bundlePath).subarray(0, 2).toString() === 'PK' &&
-    JSON.stringify(bundleNapi.readBundleHead(bundlePath)) ===
-      JSON.stringify({ format: bundleNapi.bundleFormat() }),
+    isDeepStrictEqual(bundleNapi.readBundleHead(bundlePath), optionedHead),
 );
 check(
   'readBundle gives back the manifest that was written',

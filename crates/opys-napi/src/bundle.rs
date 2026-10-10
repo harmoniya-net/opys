@@ -61,6 +61,7 @@ pub fn hash_blob_file(path: String) -> AsyncTask<HashBlobFile> {
 
 pub struct WriteBundle {
     path: String,
+    head: opys_bundle::Head,
     manifest: opys_core::Manifest,
     blobs: opys_bundle::Blobs,
 }
@@ -75,7 +76,9 @@ impl Task for WriteBundle {
         let partial = format!("{}.partial", self.path);
         let written = std::fs::File::create(&partial)
             .map_err(opys_bundle::BundleError::from)
-            .and_then(|file| opys_bundle::write_bundle(file, &self.manifest, &self.blobs))
+            .and_then(|file| {
+                opys_bundle::write_bundle(file, &self.head, &self.manifest, &self.blobs)
+            })
             .and_then(|()| Ok(std::fs::rename(&partial, &self.path)?));
         if written.is_err() {
             let _ = std::fs::remove_file(&partial);
@@ -88,11 +91,18 @@ impl Task for WriteBundle {
     }
 }
 
-/// Write `manifest` and the blobs it names to `path` as a bundle.
+/// Write `manifest` and the blobs it names to `path` as a bundle, under
+/// `head`.
 #[napi(namespace = "bundle", js_name = "writeBundle")]
-pub fn write_bundle(path: String, manifest: Json, blobs: Json) -> Result<AsyncTask<WriteBundle>> {
+pub fn write_bundle(
+    path: String,
+    head: Json,
+    manifest: Json,
+    blobs: Json,
+) -> Result<AsyncTask<WriteBundle>> {
     Ok(AsyncTask::new(WriteBundle {
         path,
+        head: from_js(head)?,
         manifest: from_js(manifest)?,
         blobs: from_js(blobs)?,
     }))

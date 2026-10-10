@@ -150,6 +150,80 @@ warning. It is the place to settle a variable two plugins both set.
 Constants only. These are baked into the bundle, so no paths and no
 secrets.
 
+## Options
+
+What a player may change before launching: memory, a resolution, a switch.
+
+<!-- prettier-ignore -->
+```js
+import { defineConfig, options } from '@opys/dev';
+
+export default defineConfig({
+  // ...
+  options: options()
+    .slider('xmx', { min: 1024, max: 16384, step: 512, default: 4096 })
+      .title('RAM')
+      .unit('MB')
+    .select('preset', { low: 'Low', high: 'High' })
+      .title('Graphics')
+      .default('high')
+    .feature('custom_java', (o) => o
+      .directory('java_home')
+        .title('Java folder'))
+      .title('Custom Java'),
+});
+```
+
+A kind adds an option. The steps after it belong to that option, until the
+next kind.
+
+| Kind                       | Sets       | To                       | Its steps                |
+| -------------------------- | ---------- | ------------------------ | ------------------------ |
+| `.slider(name, range)`     | a variable | A number in a range.     | `unit`                   |
+| `.select(name, choices)`   | a variable | One of `choices`.        | `default`                |
+| `.text(name)`              | a variable | A line of text.          | `placeholder`, `default` |
+| `.file(name)`              | a variable | The path of a file.      |                          |
+| `.directory(name)`         | a variable | The path of a directory. |                          |
+| `.feature(name, options?)` | a feature  | On or off.               | `default`, `options`     |
+
+Every kind also has `title` and `subtitle`.
+
+- The name is the variable or feature your manifest already uses: `${xmx}`
+  in an argument, `allow.features.custom_java` in a rule.
+- **Every option needs a `title`.** `opys build` names the one that has none.
+- A select starts on its first choice unless `default` says otherwise.
+- A feature is off unless `.default(true)`.
+- The options under a feature only matter while it is on.
+- `opys build` refuses a name used twice and a slider default outside its
+  range.
+
+::: warning
+Choices are shown in the order written, except values that look like whole
+numbers. JavaScript lists those first, in numeric order: `{ b: 'B', 2: 'Two',
+1: 'One' }` is shown as One, Two, B.
+:::
+
+**One by one.** Each kind is also a function, for a list or for a feature
+that reads top down:
+
+```js
+import { directory, feature, slider } from '@opys/dev';
+
+options: [
+  slider('xmx', { min: 1024, max: 16384, step: 512, default: 4096 })
+    .title('RAM')
+    .unit('MB'),
+  feature('custom_java')
+    .title('Custom Java')
+    .options(directory('java_home').title('Java folder')),
+],
+```
+
+**This is a description, not a value.** Options go into the bundle so a
+launcher can draw a settings screen. The launcher passes what the player
+chose as `vars` and `features`. `opys launch` does not read them: use
+`--var` and `--feature`.
+
 ## cleanup
 
 ```js

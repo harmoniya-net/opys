@@ -4,6 +4,7 @@ use opys_core::ValDef;
 use opys_dev::{Contribution, LaunchFragment, PluginOutput};
 
 use crate::error::JavaError;
+use crate::system::system_java;
 use crate::template::{resolve_java, JavaOptions};
 use crate::vendor::VendorRelease;
 
@@ -12,11 +13,12 @@ use crate::vendor::VendorRelease;
 pub const PLUGIN_NAME: &str = "java";
 
 /// A finished `java` build: the contribution to merge, plus the release it
-/// came from so the host can log which JDK it got.
+/// came from so the host can log which JDK it got. There is no release where
+/// the pack ships none and runs on the machine's own.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct JavaBuild {
     pub output: PluginOutput,
-    pub release: VendorRelease,
+    pub release: Option<VendorRelease>,
 }
 
 /// Provision a JDK runtime. Solely owns the `java_home` / `java_bin` /
@@ -25,7 +27,21 @@ pub struct JavaBuild {
 /// started in place of `java` and has to be told where the JDK is — the dgpuj
 /// launcher's `--dgpuj-home` — so that the config names this plugin for it
 /// rather than a variable it hopes somebody defined.
+///
+/// With `system` it ships no JDK instead: see [`system_java`]. The two are
+/// told apart by that one field, and a field of the other is refused rather
+/// than ignored, since `java({ system: true, version: '21' })` reads as a
+/// promise about which Java the game gets and nothing here could keep it.
 pub fn build_java(options: &JavaOptions) -> Result<JavaBuild, JavaError> {
+    if options.system {
+        return match options.resolved_field() {
+            Some(field) => Err(JavaError::SystemWith { field }),
+            None => Ok(JavaBuild {
+                output: system_java(),
+                release: None,
+            }),
+        };
+    }
     let template = resolve_java(options)?;
 
     let contribution = Contribution {
@@ -59,6 +75,6 @@ pub fn build_java(options: &JavaOptions) -> Result<JavaBuild, JavaError> {
             name: PLUGIN_NAME.to_owned(),
             contribution,
         },
-        release: template.release,
+        release: Some(template.release),
     })
 }

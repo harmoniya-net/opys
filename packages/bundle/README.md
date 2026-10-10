@@ -84,9 +84,10 @@ pack.opys
 
 What a bundle says about itself, apart from the installation it carries.
 
-| Field    | Type     | What it is               |
-| -------- | -------- | ------------------------ |
-| `format` | `number` | The format version: `1`. |
+| Field      | Type          | What it is                                      |
+| ---------- | ------------- | ----------------------------------------------- |
+| `format`   | `number`      | The format version: `1`.                        |
+| `options?` | `OptionDef[]` | What a player may set. See [Options](#options). |
 
 <!-- prettier-ignore -->
 ```jsonc
@@ -102,6 +103,75 @@ What a bundle says about itself, apart from the installation it carries.
   cleanup rules are in `manifest.json`.
 - The head is written first and uncompressed, so it is readable without
   unpacking the rest.
+
+### Options
+
+What whoever launches the bundle may choose, in the head. Each option fills
+a variable, or switches a feature, that the manifest already reads.
+
+<!-- prettier-ignore -->
+```js
+const written = options()
+  .slider('xmx', { min: 1024, max: 16384, step: 512, default: 4096 })
+    .title('RAM')
+    .unit('MB')
+  .select('preset', { low: 'Low', high: 'High' })
+    .title('Graphics')
+  .text('server')
+    .title('Server')
+    .placeholder('play.example.net')
+  .file('skin')
+    .title('Skin')
+  .feature('custom_java', (o) => o
+    .directory('java_home')
+      .title('Java folder'))
+    .title('Custom Java');
+```
+
+A kind adds an option, and the steps after it belong to that option.
+
+| Kind                       | Names      | In the call                     | Steps                    |
+| -------------------------- | ---------- | ------------------------------- | ------------------------ |
+| `.slider(name, range)`     | a variable | `min`, `max`, `step`, `default` | `unit`                   |
+| `.select(name, choices)`   | a variable | `{ value: label }`              | `default`                |
+| `.text(name)`              | a variable |                                 | `placeholder`, `default` |
+| `.file(name)`              | a variable |                                 |                          |
+| `.directory(name)`         | a variable |                                 |                          |
+| `.feature(name, options?)` | a feature  | its options, as a function      | `default`, `options`     |
+
+Every kind also has `title`, which it needs, and `subtitle`.
+
+Each kind is a function of its own too, for a list:
+
+<!-- prettier-ignore -->
+```js
+const written = [
+  slider('xmx', { min: 1024, max: 16384, step: 512, default: 4096 }).title('RAM'),
+  feature('custom_java')
+    .title('Custom Java')
+    .options(directory('java_home').title('Java folder')),
+];
+```
+
+In the head an option is told apart by the field that holds its name:
+
+<!-- prettier-ignore -->
+```jsonc
+{ "slider": "xmx", "title": "RAM", "min": 1024, "max": 16384, "step": 512, "default": 4096, "unit": "MB" }
+{ "select": "preset", "title": "Graphics", "choices": [{ "value": "low", "label": "Low" }, { "value": "high", "label": "High" }], "default": "low" }
+{ "feature": "custom_java", "title": "Custom Java", "options": [{ "directory": "java_home", "title": "Java folder" }] }
+```
+
+- A chain is a value. Every step returns a new one.
+- The options under a feature only matter while it is on. They nest to any
+  depth.
+- A select starts on its first choice unless `default` says otherwise.
+  Choices keep the order written, except values that look like whole
+  numbers, which JavaScript lists first.
+- A name is one option: a variable or a feature named twice is refused.
+- A slider's `default` is inside `min` to `max`.
+- This is a schema only. What a player chose reaches an install as `vars`
+  and `features`.
 
 ### Manifest
 
@@ -149,14 +219,16 @@ and its bytes are the entry `blobs/<sha256>`.
 
 ## Functions
 
-| Function                              | What it does                                      |
-| ------------------------------------- | ------------------------------------------------- |
-| `writeBundle(path, manifest, blobs?)` | Writes a bundle. Refuses a blob it was not given. |
-| `readBundle(path)`                    | The manifest of a bundle.                         |
-| `readBundleHead(path)`                | The head alone. One small read.                   |
-| `hashBlobFile(path)`, `blobId(bytes)` | The id a carried file goes by.                    |
-| `blobFile(path)`, `blobBytes(bytes)`  | Where a blob's bytes are, for `writeBundle`.      |
-| `BUNDLE_FORMAT`                       | `1`.                                              |
+| Function                                     | What it does                                      |
+| -------------------------------------------- | ------------------------------------------------- |
+| `writeBundle(path, manifest, blobs?, head?)` | Writes a bundle. Refuses a blob it was not given. |
+| `readBundle(path)`                           | The manifest of a bundle.                         |
+| `readBundleHead(path)`                       | The head alone. One small read.                   |
+| `options()`, `slider`, `select`, …           | The options of a head. See [Options](#options).   |
+| `optionDefs(options)`                        | Options as the head spells them.                  |
+| `hashBlobFile(path)`, `blobId(bytes)`        | The id a carried file goes by.                    |
+| `blobFile(path)`, `blobBytes(bytes)`         | Where a blob's bytes are, for `writeBundle`.      |
+| `BUNDLE_FORMAT`                              | `1`.                                              |
 
 ## Every function
 
@@ -168,12 +240,17 @@ await writeBundle('pack.opys', manifest, { [id]: blobFile('./server.properties')
 await writeBundle('pack.opys', manifest, { [id]: blobBytes(bytes) }); // bytes made in memory
 await writeBundle('pack.opys', { vars: {}, artifacts: [] });          // no carried files
 await writeBundle('pack.opys', manifest, {});
-// throws: the manifest names blob 3d862eef…, and nothing holds it
+// rejects: the manifest names blob 3d862eef…, and nothing holds it
+await writeBundle('pack.opys', manifest, blobs, { options: options().file('a').title('A') });
+await writeBundle('pack.opys', manifest, blobs, { options: options().file('a') });
+// rejects: option 'a' has no title: add .title('…') to it
+
+optionDefs(options().file('a').title('A')); // [{ file: 'a', title: 'A' }]
 
 await hashBlobFile('./server.properties'); // { id: '3d862eef…', size: 11 }
 blobId(new TextEncoder().encode('hello')); // '2cf24dba…'
 
-readBundleHead('pack.opys'); // { format: 1 }
+readBundleHead('pack.opys'); // { format: 1, options? }
 readBundle('pack.opys');     // { vars, artifacts, launch, cleanup }
 readBundle('notes.txt');     // throws: not a bundle: …
 BUNDLE_FORMAT;               // 1

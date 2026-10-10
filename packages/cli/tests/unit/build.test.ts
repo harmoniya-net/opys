@@ -72,6 +72,22 @@ describe('cmdBuild', () => {
     expect(existsSync(join(dir, 'game.opys.partial'))).toBe(false);
   });
 
+  it("writes the config's options into the head", async () => {
+    await writeConfig(
+      'opys.config.mjs',
+      BASE_CONFIG.replace(
+        "output: 'game.opys',",
+        `output: 'game.opys',
+  options: [{ feature: 'fullscreen', title: 'Fullscreen' }],`,
+      ),
+    );
+    await cmdBuild(['-i', join(dir, 'opys.config.mjs')], logger, 'build');
+    expect(readBundleHead(join(dir, 'game.opys'))).toEqual({
+      format: BUNDLE_FORMAT,
+      options: [{ feature: 'fullscreen', title: 'Fullscreen' }],
+    });
+  });
+
   it('the bundle is a zip that carries the blob', async () => {
     await writeConfig('opys.config.mjs', BASE_CONFIG);
     await cmdBuild(['-i', join(dir, 'opys.config.mjs')], logger, 'build');

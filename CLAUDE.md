@@ -64,7 +64,8 @@ installing machine — `file`, `string`, `bytes` — gave way to `blob`, and the
 manifest went from a JSON document to a bundle. Then `restrict`, a list of
 globs, became `cleanup`, a list of rules. Then the manifest, which a bundle
 had kept in two entries, went back to one, and the head kept nothing but
-`format`. From the first published bundle on, a change like any of these
+`format`. Since then the head has gained `options`, which is an addition
+and reshaped nothing. From the first published bundle on, a change like any of these
 raises the number.
 All four are described under _Invariants_.
 
@@ -125,10 +126,10 @@ them, and the list below names the layers rather than every one:
   and cost the format a second spelling of the manifest — two entries that
   had to be put back together, and a `Head` type that was a `Manifest` with
   a field missing. So `manifest.json` is exactly what `core` reads and
-  writes, and the head says only `format` today. It is still the first entry
-  and stored uncompressed, readable with one seek, because it is where
-  whatever is worth knowing about a bundle without decoding its manifest
-  will go. A bundle is written deterministically (fixed timestamps,
+  writes, and the head says `format` and `options`. It is still the first
+  entry and stored uncompressed, readable with one seek or off the front of
+  the file, because it is where whatever is worth knowing about a bundle
+  without decoding its manifest goes. A bundle is written deterministically (fixed timestamps,
   blobs in id order), each blob is hashed against its name as it is written,
   and a reader refuses a bundle that names a blob it does not hold before
   installing anything from it.
@@ -148,6 +149,50 @@ them, and the list below names the layers rather than every one:
   resolving a config's libraries and building their contribution, since
   they hash those to pin them; `BuildArtifact::carrying` puts the two back
   together there, and nothing past that point sees it.
+- **A bundle says what a player may set, and the installer never reads
+  it.** A manifest tests features and names variables, and nothing in it
+  says which of those are a player's. The head's `options` does: a tree in
+  which every node fills a variable except a `feature`, which switches one
+  on and holds the options that only matter while it is. It is in the head
+  because a launcher draws the settings before it installs anything, and
+  out of the manifest because it describes a form, not an installation:
+  an install is still handed plain `vars` and `features`, and neither the
+  runtime nor `core` knows the schema exists. An option is told apart by
+  the field that holds its name, `{ "slider": "xmx" }`, as a `Source` is.
+  The schema lived in the launcher's CMS before, in one object per option
+  with every field of every kind nullable and every default a string, and
+  the launcher carried decoders for that. So each kind takes its own fields
+  and refuses the rest, a default has its kind's type, and a tree that names
+  a variable twice or defaults a select to a value it does not offer does
+  not decode (`Options`, in `opys-bundle`). A config writes the tree as a
+  chain, `options().slider('xmx', range).title('RAM').unit('MB')`: what a
+  kind cannot do without is in the call, where leaving it out is a compile
+  error, and the rest is chained, each step belonging to the option just
+  added. `title` is chained and needed, so it is the one thing the compiler
+  cannot ask for, and `optionDefs` asks for it by name. A chain is a value
+  made of closures, not a class: every step returns a new one. Resolving a schema and a
+  player's choices into `vars` and `features` is not here yet: it stays
+  with whoever shows the form, and `opys launch` takes `--var` and
+  `--feature`.
+- **An install stays in its root.** `root` is the one variable the runtime
+  reads by name. Every path an install writes or removes, an artifact, an
+  extract's `into`, a `cleanup` include, and the manifest's `workdir`, is
+  held to it before anything is fetched (`opys-runtime`'s `root`). `${root}`
+  was a convention every plugin kept and nothing checked: an artifact at
+  `/etc/x` was written, `into: '${root}/..'` with `clean` emptied the
+  directory above, and a `cleanup` rule could name anybody's home as long
+  as it was absolute. A bundle is a file from somebody else, so the caller's
+  `root` wins over the manifest's and a launcher always passes one. The
+  check is on text: a path is inside when it begins with the root and has
+  no `..` after it, which makes a relative path or one elsewhere outside by
+  construction. The root is made absolute once and written back as the
+  variable, so the string that was checked is the string that is opened.
+  Links are not resolved. One a tar would plant pointing out of its `into`
+  is refused where it is made, since it is a door for the next artifact;
+  one the player made in their own root is theirs. `command` is not held to
+  the root, `java` off the `PATH` being outside all of them, and neither is
+  a `cwd` the caller gave. `build_launch` holds nothing to it either: it is
+  a question, possibly about another platform, and reads nothing.
 - **Dev and production install the same way: from a bundle.** A blob is
   copied out of a bundle and from nowhere else, so `opys launch` writes what
   it built to a temporary bundle and hands the runtime that, exactly what a
@@ -203,7 +248,7 @@ them, and the list below names the layers rather than every one:
   differ run to run.
 - **The bundle is its own crate and package, beside `core`.** `core` is the
   manifest; `opys-bundle` reads and writes the file one is published in, and
-  owns `Head` and the format number. It also owns
+  owns `Head`, the format number and the options. It also owns
   what a bundle is written from — `Blobs`, id → a file or bytes — and the
   hashing that names a blob. `core` keeps only the reference, `{ blob }`,
   and the check that an id is well formed.
@@ -561,6 +606,8 @@ export default defineConfig(({ mode }) => ({
     args: ['@forge.jvmArgs', '@forge.mainClass', '@forge.gameArgs'],
     workdir: '${game_directory}',
   },
+  // What a player may set, for a launcher to draw. Goes into the head.
+  options: options().feature('fullscreen').title('Fullscreen'),
   // `run` runs on the LAUNCH machine, every launch — the only correct
   // place for machine-specific paths. `userDataDir()` resolves the *build*
   // machine's home dir, so it must NEVER go in `manifest.vars` (baked into
@@ -587,13 +634,23 @@ export default defineConfig(({ mode }) => ({
   a wrapper around `java` — can say so without any config changing.
 - **One var, one owner.** e.g. only the `java` plugin emits
   `java_home` / `java_bin` / `java_runtime_dir`.
+- **`java({ system: true })` ships no JDK, and says so with a feature.** It
+  owns `java_bin` alone: `java` from `PATH`, or `${java_home}/bin/java` with
+  the `custom_java` feature on, where `java_home` is a var the launcher
+  hands in. It is a feature because a rule tests the OS and the features
+  and nothing else; a manifest cannot ask whether a var was given. The
+  plugin exposes `bin` and not `home`, there being no JDK whose home it
+  could name, and any option that picks a JDK is refused beside `system`
+  rather than ignored. This is the one place a manifest leaves what runs to
+  the machine, and it is the author's explicit choice: nothing is looked up
+  at install, it is only not pinned.
 - `mode` is a build-time-only `ctx` value (`opys build --mode X`).
 
 ## Build & launch
 
 - **`opys build`** — `resolveConfig` → run every plugin's `build(ctx)` in
   parallel → concat + dedup artifacts → merge vars → put `launch` together,
-  each reference replaced by the group it names → gather the blobs the manifest names → `writeBundle`. With
+  each reference replaced by the group it names → gather the blobs the manifest names → `writeBundle`, with the config's `options` as the head. With
   no output named it prints the manifest as JSON instead: a view for reading
   and diffing, not something to install from, since the blobs are not in it.
 - **`opys install`** — the same build and install as `launch`, stopping before

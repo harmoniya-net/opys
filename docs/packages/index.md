@@ -1,7 +1,17 @@
 # Packages
 
 A trial of another layout: the documentation is each package's own README,
-shown here as it is. The plugin packages, `@opys/core` and `@opys/bundle` are done so far.
+shown here as it is. Every package is done.
+
+## Building a pack
+
+- [`@opys/cli`](./cli)
+- [`@opys/dev`](./dev)
+- [`@opys/minecraft`](./minecraft)
+
+## A launcher
+
+- [`@opys/runtime`](./runtime)
 
 ## The format
 
@@ -36,3 +46,8 @@ shown here as it is. The plugin packages, `@opys/core` and `@opys/bundle` are do
 
 - [`@opys/java`](./java)
 - [`@opys/dgpuj`](./dgpuj)
+
+## Mojang's formats
+
+- [`@opys/mojang`](./mojang)
+- [`@opys/mojang-rules`](./mojang-rules)

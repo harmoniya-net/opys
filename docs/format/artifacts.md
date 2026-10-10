@@ -84,6 +84,9 @@ Where the file is written. It almost always starts with a
 "path": "${game_directory}/mods/jei.jar"
 ```
 
+It must be inside [`root`](./variables#root). A path anywhere else stops
+the install.
+
 **Two artifacts, one path:** when a config is built, the later one wins and
 the earlier is dropped. A manifest should never hold two.
 
@@ -244,6 +247,8 @@ substituted with variables. `into` is.
   entry's mode is ignored.
 - An entry that would land outside `into` (an absolute name, a `..`) stops
   the install. An archive is somebody else's file.
+- So does a symbolic link in a tar that points outside `into`.
+- `into` must be inside [`root`](./variables#root).
 - With `clean: true`, keep the archive itself outside `into`.
 
 ## metadata

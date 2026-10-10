@@ -266,6 +266,7 @@ fn options(server: &TestServer, vendor: Option<JavaVendor>) -> JavaOptions {
         platforms: Some(vec![LINUX_X64]),
         api_base: Some(server.base.clone()),
         token: None,
+        system: false,
     }
 }
 
@@ -301,7 +302,7 @@ fn builds_a_contribution_owning_the_java_vars_and_the_bin_launch_group() {
     let build = build_java(&options(&server, None)).unwrap();
 
     assert_eq!(build.output.name, "java");
-    assert_eq!(build.release.label, "Temurin 21.0.11+10");
+    assert_eq!(build.release.unwrap().label, "Temurin 21.0.11+10");
 
     let contribution = &build.output.contribution;
     assert_eq!(contribution.artifacts.len(), 1);

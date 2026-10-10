@@ -40,6 +40,48 @@ An exact build is written the vendor's way: `'21.0.12.1+1'` or
 opys does not check the pairing. A wrong Java shows up as the game failing
 to start.
 
+## The machine's own Java
+
+`java({ system: true })` ships no JDK. The game runs on a Java that is
+already installed, and nothing is downloaded.
+
+```js
+plugins: [minecraft({ version: '1.21.1' }), java({ system: true })],
+```
+
+| Feature `custom_java` | `java_bin`                                        |
+| --------------------- | ------------------------------------------------- |
+| off (default)         | `java`, found on the `PATH`.                      |
+| on                    | `${java_home}/bin/java`, from the launcher's var. |
+
+On Windows it is `javaw`, or `java` with the `java_console` feature, as for
+a shipped JDK.
+
+To let a player pick their Java, describe the two in the config's
+[options](/basics/config#options):
+
+```js
+options: options()
+  .feature('custom_java', (o) => o.directory('java_home').title('Java folder'))
+  .title('Use my own Java'),
+```
+
+- `java_home` is the JDK's folder, the one that holds `bin`. On macOS that
+  is `…/Contents/Home`.
+- It adds one variable, `java_bin`, and one launch piece, `'@java.bin'`.
+  There is no `'@java.home'`, since the pack does not know where a JDK is.
+- `JAVA_HOME` is set for the game only when `custom_java` is on.
+- No other option goes with `system`. `java({ system: true, version: '21' })`
+  stops the build: opys cannot promise which Java a machine has.
+
+**Why a feature?** A manifest cannot ask whether a variable was given. Its
+rules test the OS and the features, nothing else. So "the player named a
+Java" has to be a feature.
+
+**When to use it:** a server you run yourself, or a pack for people who
+already manage their Java. For players, ship a JDK. It is the only way to
+know which Java the game gets.
+
 ## What it adds
 
 | Kind        | What                                         |
@@ -208,9 +250,10 @@ export default defineConfig({
 
 ## Features
 
-| Feature        | Effect                                             |
-| -------------- | -------------------------------------------------- |
-| `java_console` | On Windows, run `java.exe` instead of `javaw.exe`. |
+| Feature        | Effect                                               |
+| -------------- | ---------------------------------------------------- |
+| `java_console` | On Windows, run `java.exe` instead of `javaw.exe`.   |
+| `custom_java`  | With `system: true`, run the Java in `${java_home}`. |
 
 **Why:** `javaw.exe` shows no console window, which is what players want.
 `opys launch --feature java_console` brings the game's output back when you
@@ -222,4 +265,5 @@ are debugging.
   no Java.
 - **Check what Zulu gave you.** Its API answers with its newest JDK when it
   cannot read a version. Look at the `[java]` line the build prints.
-- No pack Java at all? Leave the plugin out and supply `java_bin` yourself.
+- No pack Java at all? Use `java({ system: true })`. See
+  [The machine's own Java](#the-machine-s-own-java).

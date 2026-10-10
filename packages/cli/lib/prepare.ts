@@ -119,7 +119,9 @@ export async function prepare(
   const dir = mkdtempSync(join(tmpdir(), 'opys-'));
   process.once('exit', () => rmSync(dir, { recursive: true, force: true }));
   const written = join(dir, 'launch.opys');
-  await writeBundle(written, manifest, built.blobs);
+  await writeBundle(written, manifest, built.blobs, {
+    options: config.options,
+  });
 
   return {
     source: { bundle: written },

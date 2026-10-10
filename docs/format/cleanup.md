@@ -111,6 +111,7 @@ stops if an `includes` pattern, after substitution:
 | Is not an absolute path                 | `mods/*.jar`     |
 | Contains `..`                           | `${root}/../*`   |
 | Has no folder before its first wildcard | `/*`, `C:/*`     |
+| Is outside [`root`](./variables#root)   | `/home/me/**`    |
 
 **Why so strict:** each of these is a rule that could delete far more than
 its author meant. An empty variable turns `${root}/mods/*` into `/mods/*`.

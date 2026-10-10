@@ -36,6 +36,7 @@ export default defineConfig({
 | `platforms` | Which platforms get a JDK. All six by default.                                           |
 | `apiBase`   | A mirror of the vendor's API.                                                            |
 | `token`     | A GitHub token, for GraalVM's rate limit.                                                |
+| `system`    | `true` ships no JDK and uses the machine's own. It goes with no other option.            |
 
 Which Java for which Minecraft:
 
@@ -48,6 +49,56 @@ Which Java for which Minecraft:
 | Cleanroom, lwjgl3ify | 25   |
 
 opys does not check the pairing.
+
+## The machine's own Java
+
+`java({ system: true })` ships no JDK. The game runs on a Java that is
+already installed.
+
+```js
+plugins: [minecraft({ version: '1.21.1' }), java({ system: true })],
+```
+
+Nothing is downloaded. The plugin only says where `java` is:
+
+| Feature `custom_java` | `java_bin`                                        |
+| --------------------- | ------------------------------------------------- |
+| off (default)         | `java`, found on the `PATH`.                      |
+| on                    | `${java_home}/bin/java`, from the launcher's var. |
+
+<!-- prettier-ignore -->
+```jsonc
+// in the manifest
+"vars": {
+  "java_bin": [
+    { "value": "java" },
+    { "value": "javaw", "rules": ["allow.os.windows", "disallow.features.java_console"] },
+    { "value": "${java_home}/bin/java", "rules": "allow.features.custom_java" },
+    { "value": "${java_home}/bin/javaw.exe", "rules": ["allow.os.windows", "allow.features.custom_java", "disallow.features.java_console"] },
+    { "value": "${java_home}/bin/java.exe", "rules": ["allow.os.windows", "allow.features.custom_java", "allow.features.java_console"] }
+  ]
+},
+"launch": {
+  "envs": { "JAVA_HOME": [{ "value": "${java_home}", "rules": "allow.features.custom_java" }] }
+}
+```
+
+Let the player choose their Java with two options:
+
+```js
+options: options()
+  .feature('custom_java', (o) => o.directory('java_home').title('Java folder'))
+  .title('Use my own Java'),
+```
+
+- `java_home` is the JDK's folder, the one that holds `bin`. On macOS that
+  is `…/Contents/Home`.
+- It has only `'@java.bin'`. There is no `'@java.home'`, since the pack does
+  not know where a JDK is.
+- No other option goes with `system`. `java({ system: true, version: '21' })`
+  is refused: opys cannot promise which Java the machine has.
+- Nothing checks the version. A wrong Java shows up as the game failing to
+  start.
 
 ## What it adds
 
@@ -140,6 +191,11 @@ java({
 
 // a mirror of the vendor's API
 java({ version: '21', apiBase: 'https://mirror.example.com/adoptium/v3' });
+
+// no JDK: the machine's own Java
+java({ system: true });
+java({ system: true, version: '21' });
+// build fails: java({ system: true }) ships no JDK, so `version` has nothing to apply to
 ```
 
 ## Documentation

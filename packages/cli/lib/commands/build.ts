@@ -39,7 +39,9 @@ export async function cmdBuild(
 
   const out = outputFile ?? config.output;
   if (out) {
-    await writeBundle(resolve(configDir, out), manifest, blobs);
+    await writeBundle(resolve(configDir, out), manifest, blobs, {
+      options: config.options,
+    });
     const count = Object.keys(blobs).length;
     logger.info(
       `Written to ${out} (${manifest.artifacts.length} artifact(s), ${count} blob(s))`,

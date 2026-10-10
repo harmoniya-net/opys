@@ -40,4 +40,15 @@ pub enum JavaError {
          '.sha256' file is missing or unreadable."
     )]
     NoChecksum { asset: String },
+    #[error(
+        "java takes a `version` — java({{ version: '21' }}) — or `system: true` to ship no JDK"
+    )]
+    NoVersion,
+    #[error(
+        "java({{ system: true }}) ships no JDK, so `{field}` has nothing to apply to: \
+         leave it out, or leave `system` out to ship one"
+    )]
+    SystemWith { field: &'static str },
+    #[error("the system's Java is not resolved: there is no release to look up")]
+    NothingToResolve,
 }

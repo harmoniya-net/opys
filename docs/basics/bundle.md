@@ -9,7 +9,7 @@ A zip, with three kinds of entry:
 
 ```sh
 unzip -l game.opys
-#   opys.json        which format the bundle is written in
+#   opys.json        the format, and the options a player may set
 #   manifest.json    the files to install, and how to start the game
 #   blobs/<sha256>   your own files, carried along
 ```
@@ -114,7 +114,7 @@ used while building and are not written into the bundle.
 does every language.
 
 **Why two JSON files?** One describes the bundle, the other the
-installation. `opys.json` is a few bytes, stored first and uncompressed, so
+installation. `opys.json` is small, stored first and uncompressed, so
 a tool can tell what a bundle is without reading the megabytes of manifest.
 
 **Why are blobs named by hash?** The name is the integrity check. A bundle

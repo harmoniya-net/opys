@@ -3,7 +3,7 @@
 //! It is a zip, and deliberately nothing more — `unzip -l` reads it:
 //!
 //! ```text
-//! opys.json        the head: which format this bundle is written in
+//! opys.json        the head: the bundle's format, and its options
 //! manifest.json    the manifest, whole
 //! blobs/<sha256>   one entry per blob
 //! ```
@@ -12,8 +12,9 @@
 //! and the two are kept apart for that reason. The head is the first entry
 //! and is stored uncompressed, so what a bundle is can be read with one seek,
 //! or off the front of the file by something that never parses a zip at all.
-//! It says only `format` today; whatever else is worth knowing about a bundle
-//! without decoding megabytes of manifest goes there.
+//! It says the `format` and the `options` a player may set; whatever else is
+//! worth knowing about a bundle without decoding megabytes of manifest goes
+//! there.
 //!
 //! `manifest.json` is a [`Manifest`] as `opys-core` reads and writes it, and
 //! nothing else: the container adds no spelling of its own.
@@ -29,8 +30,10 @@ use zip::{CompressionMethod, DateTime, ZipArchive, ZipWriter};
 use opys_core::Manifest;
 
 mod blob;
+mod option;
 
 pub use blob::{blob_id, blob_id_of, BlobSource, Blobs};
+pub use option::{Choice, Label, OptionDef, Options};
 
 /// The format this reader and writer speak. A bundle that says anything else
 /// is refused before another byte of it is interpreted.
@@ -78,16 +81,28 @@ pub enum BundleError {
 ///
 /// A head that has been read is in [`BUNDLE_FORMAT`], since any other is
 /// refused; the field is kept because a head is also what gets written.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Head {
     pub format: u32,
+    /// What whoever launches the bundle may choose: the variables and
+    /// features it leaves to them, and how to ask for each.
+    #[serde(default, skip_serializing_if = "Options::is_empty")]
+    pub options: Options,
+}
+
+impl Head {
+    /// A head in the format this crate writes.
+    pub fn new(options: Options) -> Self {
+        Head {
+            format: BUNDLE_FORMAT,
+            options,
+        }
+    }
 }
 
 impl Default for Head {
     fn default() -> Self {
-        Head {
-            format: BUNDLE_FORMAT,
-        }
+        Head::new(Options::default())
     }
 }
 
@@ -230,7 +245,9 @@ fn write_json<W: Write + Seek>(
     Ok(())
 }
 
-/// Write `manifest` and the blobs it names as a bundle.
+/// Write `manifest` and the blobs it names as a bundle, under `head`.
+///
+/// A head in another format is refused: this writes the one it reads.
 ///
 /// Only blobs the manifest names are written — `blobs` may hold more, since an
 /// artifact a later plugin replaced leaves its blob behind. Each is hashed as
@@ -238,13 +255,19 @@ fn write_json<W: Write + Seek>(
 /// moment a blob table can be caught lying.
 pub fn write_bundle<W: Write + Seek>(
     writer: W,
+    head: &Head,
     manifest: &Manifest,
     blobs: &Blobs,
 ) -> Result<(), BundleError> {
+    if head.format != BUNDLE_FORMAT {
+        return Err(BundleError::Format {
+            found: u64::from(head.format),
+        });
+    }
     let json = |entry| move |source| BundleError::Json { entry, source };
     let mut zip = ZipWriter::new(writer);
 
-    let head = serde_json::to_vec_pretty(&Head::default()).map_err(json(HEAD_ENTRY))?;
+    let head = serde_json::to_vec_pretty(head).map_err(json(HEAD_ENTRY))?;
     write_json(&mut zip, HEAD_ENTRY, CompressionMethod::Stored, &head)?;
     let body = serde_json::to_vec(manifest).map_err(json(MANIFEST_ENTRY))?;
     write_json(&mut zip, MANIFEST_ENTRY, CompressionMethod::Deflated, &body)?;
