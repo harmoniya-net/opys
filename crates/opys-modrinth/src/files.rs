@@ -40,7 +40,33 @@ pub(crate) struct VersionWire {
     project_id: String,
     version_number: String,
     #[serde(default)]
+    loaders: Vec<String>,
+    #[serde(default)]
+    game_versions: Vec<String>,
+    #[serde(default)]
     files: Vec<VersionFileWire>,
+}
+
+impl VersionWire {
+    /// The file a version stands for: its primary one, or its first if none
+    /// is marked.
+    fn file(&self) -> Result<ModrinthFile, ModrinthError> {
+        let file = self
+            .files
+            .iter()
+            .find(|f| f.primary)
+            .or_else(|| self.files.first())
+            .ok_or_else(|| ModrinthError::NoFiles(self.id.clone()))?;
+        Ok(ModrinthFile {
+            filename: file.filename.clone(),
+            version_id: self.id.clone(),
+            project_id: self.project_id.clone(),
+            version_number: self.version_number.clone(),
+            size: file.size,
+            url: file.url.clone(),
+            sha1: file.hashes.sha1.clone(),
+        })
+    }
 }
 
 #[derive(Deserialize)]
@@ -83,26 +109,92 @@ pub fn resolve_modrinth_files(
 
     ids.iter()
         .map(|&id| {
-            let version = versions
+            versions
                 .get(id)
-                .ok_or_else(|| ModrinthError::UnknownVersion(id.to_owned()))?;
-            let file = version
-                .files
-                .iter()
-                .find(|f| f.primary)
-                .or_else(|| version.files.first())
-                .ok_or_else(|| ModrinthError::NoFiles(id.to_owned()))?;
-            Ok(ModrinthFile {
-                filename: file.filename.clone(),
-                version_id: version.id.clone(),
-                project_id: version.project_id.clone(),
-                version_number: version.version_number.clone(),
-                size: file.size,
-                url: file.url.clone(),
-                sha1: file.hashes.sha1.clone(),
-            })
+                .ok_or_else(|| ModrinthError::UnknownVersion(id.to_owned()))?
+                .file()
         })
         .collect()
+}
+
+/// One line per version, for an author who has to choose between them.
+fn describe(versions: &[&VersionWire]) -> String {
+    versions
+        .iter()
+        .map(|v| {
+            format!(
+                "{} ({}; {})",
+                v.id,
+                v.loaders.join(", "),
+                v.game_versions.join(", ")
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("\n  ")
+}
+
+/// Resolve a project's version, named as its author names it, to a file.
+///
+/// `version` is a version number (`mc1.21.1-0.6.13-fabric`) or a version id.
+/// An id is exact. A number is not: a project may publish one number once
+/// per loader, and `loader`, as Modrinth names one, says which is meant.
+///
+/// A loader is a filter and not a hint: a version that is not for it does
+/// not match, whether or not its number is its own. Where more than one
+/// version is left nothing is picked: they are listed with their ids, which
+/// is how one of them is named exactly.
+///
+/// The project's whole list is asked for, without changelogs, because that
+/// is the one answer in which a number shared by two versions can be seen.
+pub fn resolve_modrinth_project_file(
+    project: &str,
+    version: &str,
+    loader: Option<&str>,
+    api_base: &str,
+) -> Result<ModrinthFile, ModrinthError> {
+    let listed: Vec<VersionWire> = get_json(
+        &format!(
+            "{api_base}/project/{}/version?include_changelog=false",
+            encode_uri_component(project)
+        ),
+        &[],
+    )?;
+    let named: Vec<&VersionWire> = match listed.iter().find(|v| v.id == version) {
+        Some(exact) => vec![exact],
+        None => listed
+            .iter()
+            .filter(|v| v.version_number == version)
+            .collect(),
+    };
+    if named.is_empty() {
+        return Err(ModrinthError::UnknownProjectVersion {
+            project: project.to_owned(),
+            version: version.to_owned(),
+        });
+    }
+    let fitting: Vec<&VersionWire> = named
+        .iter()
+        .copied()
+        .filter(|v| loader.map_or(true, |loader| v.loaders.iter().any(|l| l == loader)))
+        .collect();
+    match (fitting.as_slice(), loader) {
+        ([only], _) => only.file(),
+        ([], Some(loader)) => Err(ModrinthError::NotForLoader {
+            project: project.to_owned(),
+            version: version.to_owned(),
+            loader: loader.to_owned(),
+            candidates: describe(&named),
+        }),
+        (several, _) => Err(ModrinthError::AmbiguousVersion {
+            project: project.to_owned(),
+            version: version.to_owned(),
+            way: match loader {
+                Some(_) => "name one by its id",
+                None => "say its loader, or name one by its id",
+            },
+            candidates: describe(if several.is_empty() { &named } else { several }),
+        }),
+    }
 }
 
 /// Turn resolved files into artifacts, each at the path chosen for it.

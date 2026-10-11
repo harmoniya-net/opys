@@ -1,6 +1,6 @@
 //! Mod files, by CurseForge file id.
 
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
 use opys_core::{Artifact, HashEntry, Integrity, Source};
 use opys_dev::http::post_json;
@@ -118,6 +118,45 @@ pub fn fetch_curseforge_files(
         files.extend(listed.data.into_iter().map(CurseForgeFile::from));
     }
     Ok(files)
+}
+
+#[derive(Deserialize)]
+struct ProjectsWire {
+    data: Vec<ProjectWire>,
+}
+
+#[derive(Deserialize)]
+struct ProjectWire {
+    id: u64,
+    slug: String,
+}
+
+/// The slug of each project, which is the name it has in a link.
+///
+/// A file is named by its id alone, so a slug written beside one says
+/// nothing to the API. This is what lets a caller hold the two together: a
+/// project the API does not know is simply absent.
+pub fn fetch_curseforge_slugs(
+    token: &str,
+    project_ids: &[u64],
+    api_base: &str,
+) -> Result<BTreeMap<u64, String>, CurseForgeError> {
+    let url = format!("{api_base}/mods");
+    let headers = [("x-api-key", token), ("accept", "application/json")];
+
+    let mut slugs = BTreeMap::new();
+    for batch in project_ids.chunks(FILES_BATCH_SIZE) {
+        let response = post_json(&url, &headers, &serde_json::json!({ "modIds": batch }))?;
+        if !response.ok() {
+            return Err(CurseForgeError::ProjectsApi {
+                status: response.status,
+            });
+        }
+        let listed: ProjectsWire =
+            serde_json::from_str(&response.body).map_err(CurseForgeError::Listing)?;
+        slugs.extend(listed.data.into_iter().map(|p| (p.id, p.slug)));
+    }
+    Ok(slugs)
 }
 
 /// Resolve file references to files, in the order given.

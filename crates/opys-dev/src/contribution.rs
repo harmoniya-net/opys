@@ -132,6 +132,14 @@ impl BuildArtifact {
         self
     }
 
+    /// The same artifact, with free data for whoever reads the manifest.
+    pub fn with_metadata(mut self, metadata: Option<&Value>) -> Self {
+        if let Some(metadata) = metadata {
+            self.fields.insert("metadata".to_owned(), metadata.clone());
+        }
+        self
+    }
+
     /// Where it is installed, as written.
     pub fn path(&self) -> Option<&str> {
         self.fields.get("path").and_then(Value::as_str)

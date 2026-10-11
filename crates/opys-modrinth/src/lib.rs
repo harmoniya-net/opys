@@ -26,7 +26,9 @@ mod reference;
 pub const MODRINTH_API: &str = "https://api.modrinth.com/v2";
 
 pub use error::ModrinthError;
-pub use files::{file_artifacts, resolve_modrinth_files, ModrinthFile};
+pub use files::{
+    file_artifacts, resolve_modrinth_files, resolve_modrinth_project_file, ModrinthFile,
+};
 pub use modpack::{
     loader_spec, resolve_modrinth_modpack, MrpackEnv, MrpackFile, MrpackHashes, MrpackIndex,
     MrpackSide, ResolvedModpack,

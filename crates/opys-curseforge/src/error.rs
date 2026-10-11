@@ -7,6 +7,8 @@ pub enum CurseForgeError {
     Transport(#[from] opys_dev::HttpError),
     #[error("CurseForge API {status} (POST /mods/files)")]
     Api { status: u16 },
+    #[error("CurseForge API {status} (POST /mods)")]
+    ProjectsApi { status: u16 },
     #[error("CurseForge returned an unreadable file listing: {0}")]
     Listing(#[source] serde_json::Error),
     #[error("Failed to download CurseForge modpack: HTTP {status} ({url})")]

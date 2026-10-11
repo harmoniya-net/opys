@@ -21,6 +21,27 @@ pub enum ModrinthError {
     BadModpackRef(String),
     #[error("Modrinth API did not return metadata for version {0}")]
     UnknownVersion(String),
+    #[error("Modrinth project \"{project}\" has no version \"{version}\"")]
+    UnknownProjectVersion { project: String, version: String },
+    #[error(
+        "Modrinth project \"{project}\" has no version \"{version}\" for {loader}; it has:\n  {candidates}"
+    )]
+    NotForLoader {
+        project: String,
+        version: String,
+        loader: String,
+        candidates: String,
+    },
+    #[error(
+        "Modrinth project \"{project}\" has more than one version \"{version}\"; {way}:\n  {candidates}"
+    )]
+    AmbiguousVersion {
+        project: String,
+        version: String,
+        /// What would tell them apart.
+        way: &'static str,
+        candidates: String,
+    },
     #[error("Modrinth version {0} has no downloadable files")]
     NoFiles(String),
     #[error("Modrinth version {0} has no .mrpack file — is it a modpack?")]

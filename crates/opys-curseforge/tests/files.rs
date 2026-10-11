@@ -5,7 +5,8 @@ mod common;
 
 use common::{Reply, TestServer};
 use opys_curseforge::{
-    fetch_curseforge_files, file_artifacts, resolve_curseforge_files, CurseForgeFile, FileRef,
+    fetch_curseforge_files, fetch_curseforge_slugs, file_artifacts, resolve_curseforge_files,
+    CurseForgeFile, FileRef,
 };
 use serde_json::{json, Value};
 
@@ -223,4 +224,33 @@ fn each_file_becomes_an_artifact_at_the_path_chosen_for_it() {
         message,
         "1 file(s) but 0 path(s): each file needs exactly one"
     );
+}
+
+#[test]
+fn a_projects_slug_is_asked_for_by_its_id() {
+    let server = TestServer::start(|request| {
+        let body: Value = serde_json::from_str(&request.body).unwrap_or_default();
+        let data: Vec<Value> = body["modIds"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|id| id.as_u64() != Some(404))
+            .map(|id| json!({ "id": id, "slug": format!("mod-{id}"), "name": "X" }))
+            .collect();
+        Reply::json(json!({ "data": data }).to_string())
+    });
+    let slugs = fetch_curseforge_slugs("k", &[7, 404, 9], &server.base).unwrap();
+    assert_eq!(slugs.len(), 2);
+    assert_eq!(slugs[&7], "mod-7");
+    assert_eq!(slugs[&9], "mod-9");
+
+    let request = &server.requests()[0];
+    assert_eq!(request.target, "/mods");
+    assert_eq!(request.header("x-api-key"), Some("k"));
+
+    let down = TestServer::start(|_| Reply::status(403));
+    let message = fetch_curseforge_slugs("k", &[7], &down.base)
+        .unwrap_err()
+        .to_string();
+    assert_eq!(message, "CurseForge API 403 (POST /mods)");
 }

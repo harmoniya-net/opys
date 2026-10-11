@@ -28,7 +28,10 @@ mod reference;
 pub const CURSEFORGE_API: &str = "https://api.curseforge.com/v1";
 
 pub use error::CurseForgeError;
-pub use files::{fetch_curseforge_files, file_artifacts, resolve_curseforge_files, CurseForgeFile};
+pub use files::{
+    fetch_curseforge_files, fetch_curseforge_slugs, file_artifacts, resolve_curseforge_files,
+    CurseForgeFile,
+};
 pub use modpack::{
     loader_spec, resolve_curseforge_modpack, ManifestFile, ManifestMinecraft, ModLoader,
     ModpackManifest, ResolvedModpack,
