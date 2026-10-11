@@ -9,7 +9,7 @@
 //
 // Run from the repo root:  node scripts/smoke-napi.mjs
 
-import { mkdtempSync, readFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -39,6 +39,7 @@ const dgpujNapi = binding.dgpuj;
 const bifrostNapi = binding.bifrost;
 const serverlistNapi = binding.minecraftServerlist;
 const serverNapi = binding.minecraftServer;
+const resourcesNapi = binding.minecraftResources;
 
 let ok = 0;
 let fail = 0;
@@ -1297,6 +1298,58 @@ check(
 check(
   'a core with no builds to choose lists none, and asks nobody',
   (await serverNapi.serverBuilds('neoforge', '21.1.259')).length === 0,
+);
+
+// ── resources ─────────────────────────────────────────────────────────────
+
+console.log('\n— resources —');
+
+const resourceFile = resourcesNapi.parseResources(
+  '[client.mods]\nsodium = "modrinth:sodium@0.6.13#fabric"\njei = { source = "curseforge:jei@77", metadata = { optional = true } }',
+);
+check(
+  'parseResources reads an entry per key, per directory and side',
+  resourceFile.client.mods.sodium === 'modrinth:sodium@0.6.13#fabric' &&
+    resourceFile.client.mods.jei.metadata.optional === true &&
+    Object.keys(resourceFile.server).length === 0,
+);
+let unversioned = '';
+try {
+  resourcesNapi.parseResources('[client.mods]\nsodium = "modrinth:sodium"');
+} catch (error) {
+  unversioned = error.message;
+}
+check(
+  'a source with no version is refused',
+  unversioned.includes('modrinth:sodium@<version>'),
+);
+// A file from disk resolves with no request, which keeps this hermetic.
+const resourcesDir = mkdtempSync(join(tmpdir(), 'opys-napi-resources-'));
+writeFileSync(
+  join(resourcesDir, 'resources.toml'),
+  '[server.plugins]\nown = { source = "file:own-1.2.jar", metadata = { ours = true } }\n',
+);
+writeFileSync(join(resourcesDir, 'own-1.2.jar'), 'jar');
+const readFile = resourcesNapi.readResources(
+  join(resourcesDir, 'resources.toml'),
+);
+check(
+  'readResources reads a file from disk',
+  readFile.server.plugins.own.source === 'file:own-1.2.jar',
+);
+const builtResources = await resourcesNapi.buildResources({
+  side: 'server',
+  resources: readFile,
+  base: resourcesDir,
+});
+const ownArtifact = builtResources.contribution.artifacts[0];
+check(
+  'buildResources names a file by its key and hands it over as itself',
+  builtResources.name === 'resources' &&
+    builtResources.contribution.artifacts.length === 1 &&
+    ownArtifact.path === '${root}/plugins/own.jar' &&
+    ownArtifact.source.file === join(resourcesDir, 'own-1.2.jar') &&
+    ownArtifact.metadata.ours === true,
 );
 
 // ── scanner ───────────────────────────────────────────────────────────────

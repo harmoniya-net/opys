@@ -52,10 +52,11 @@ Use one **instead of** `minecraft`. Each loader includes the game.
 
 ## Minecraft mod resources
 
-|                            | Plugin       | Does                                                   |
-| -------------------------- | ------------ | ------------------------------------------------------ |
-| [Modrinth](./modrinth)     | `modrinth`   | Mods and modpacks from Modrinth. No key needed.        |
-| [CurseForge](./curseforge) | `curseforge` | Mods and modpacks from CurseForge. Needs an API token. |
+|                                 | Plugin       | Does                                                   |
+| ------------------------------- | ------------ | ------------------------------------------------------ |
+| [A resources file](./resources) | `resources`  | Mods, packs and plugins listed in one TOML file.       |
+| [Modrinth](./modrinth)          | `modrinth`   | Mods and modpacks from Modrinth. No key needed.        |
+| [CurseForge](./curseforge)      | `curseforge` | Mods and modpacks from CurseForge. Needs an API token. |
 
 ## Java
 

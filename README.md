@@ -92,6 +92,7 @@ More: [The config](https://harmoniya-net.github.io/opys/basics/config) and
 | [`@opys/cleanroom`](packages/cleanroom)                       | Cleanroom, a successor to Forge for 1.12.2 on a modern Java               |
 | [`@opys/lwjgl3ify`](packages/lwjgl3ify)                       | lwjgl3ify: Forge 1.7.10 on LWJGL 3 and a modern Java                      |
 | [`@opys/java`](packages/java)                                 | A Java runtime for each platform                                          |
+| [`@opys/minecraft-resources`](packages/minecraft-resources)   | Mods, packs and plugins listed in one TOML file                           |
 | [`@opys/modrinth`](packages/modrinth)                         | Mods and modpacks from Modrinth                                           |
 | [`@opys/curseforge`](packages/curseforge)                     | Mods and modpacks from CurseForge                                         |
 | [`@opys/links`](packages/links)                               | Any published file, from a pasted link, as a pinned artifact              |

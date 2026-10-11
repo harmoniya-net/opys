@@ -40,6 +40,7 @@
 
 ## Ресурси модів Minecraft
 
+- [`@opys/minecraft-resources`](./minecraft-resources)
 - [`@opys/modrinth`](./modrinth)
 - [`@opys/curseforge`](./curseforge)
 

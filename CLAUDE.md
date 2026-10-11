@@ -96,6 +96,10 @@ them, and the list below names the layers rather than every one:
                      A Minecraft server: vanilla / Paper / Purpur / Fabric /
                      Forge / NeoForge, or a jar the author has. Thin wrapper
                      over the `opys-minecraft-server` crate.             → dev, core
+@opys/minecraft-resources
+                     Mods, resource packs, shaders and plugins, listed in one
+                     TOML file. Thin wrapper over the
+                     `opys-minecraft-resources` crate.                    → dev, core
 @opys/java          JDK provisioning — Temurin / Zulu / GraalVM CE.
                      Thin wrapper over the `opys-java` crate.                → dev, core
 @opys/links         A pasted link → a pinned artifact: GitHub / GitLab / Modrinth /
@@ -687,6 +691,57 @@ export default defineConfig(({ mode }) => ({
   be baked into the bundle, and a bundle is handed on, so it would agree
   for whoever received it. A feature is given at install, by `--feature`
   or from `run`, on the machine of the one who is agreeing.
+- **A pack's resources are one file, and an entry in it is one version.**
+  A TOML file has a table per side and directory, `[client.mods]`, and in
+  it a file per key. `resources(readResources(path))` gives a plugin for
+  each side, `pack.client` and `pack.server`. The plugin takes the tables
+  and not a path, which it did at first: a config is code, and may have
+  written them out or changed what it read. So reading is the config's own
+  call, made while it loads, and what it returns carries `base`, the file's
+  directory, since tables alone do not say where a `file:` path is. The
+  side is which plugin is taken and not an option, one file being both
+  packs'.
+
+  **The key is the name the file is installed by**, with the extension of
+  what it resolved to: `sodium = …` is `mods/sodium.jar`. A published name
+  carries its version, so the next version was a second jar beside the
+  first and something else had to remove the old one; a key does not
+  change, and an update overwrites. It is also why a key is no project: it
+  means the same thing whatever the source, and a link or a file from disk
+  needs no invented label. A key with a dot is the whole name, a folder
+  goes into a folder of its key, and `.` is the directory itself.
+
+  **The value is where the file is**, `modrinth:<project>@<version>`,
+  `curseforge:<project>@<file id>`, `file:<path>` or a link, and never a
+  project alone: "the newest" would make a file that nobody edited build a
+  different pack from one day to the next, and the other answer to that, a
+  lock file, is a second file to keep in step. The format went through
+  string lists, a table per mod and a table per source before this, and
+  what decided it was real projects: one number is a version per loader
+  for JEI, GeckoLib and Clumps alike, so the loader is said where the
+  version is, `…@4.9.3#fabric`, and not once for a file whose resource
+  packs and plugins have none. It is a filter and not a hint, so a version
+  that is not for it is refused even when its number is its own, and where
+  a loader leaves two the build lists the ids instead of picking. A
+  CurseForge file is named by its id alone, so the project written beside
+  it is looked up and held to it rather than left as decoration. A table
+  in place of the string holds what a string cannot: `metadata`, free data
+  copied onto the artifact, and `github` or `gitlab` as fields. A field an
+  entry does not know is left alone and not refused, which is the author's
+  choice and the one place here a misspelling passes.
+
+  **A directory is named, never made.** Five are built in, under the game
+  directory; any other is named in `[dirs]` with its whole path, which is
+  also how a list goes outside the game directory or a built-in one is
+  moved. A table for one that is neither is refused, since a misspelt
+  directory is an old one that was meant and not a new one. A path in
+  `[dirs]` begins with a variable, and on a server `${game_directory}` is
+  read as `${root}`: a server has no other, and one file is then both
+  sides'. The crate knows no API: each entry is asked through
+  `opys-modrinth`, `opys-curseforge` or `opys-links`. It has no `to`, the
+  one plugin that places files without one, because the table and the key
+  are the path.
+
 - **`java({ system: true })` ships no JDK, and says so with a feature.** It
   owns `java_bin` alone: `java` from `PATH`, or `${java_home}/bin/java` with
   the `custom_java` feature on, where `java_home` is a var the launcher

@@ -65,13 +65,14 @@ Pick one. Each brings the game, its libraries and its command line.
 
 ### Mods and other files
 
-| Plugin              | What it installs                             | Package                                                              |
-| ------------------- | -------------------------------------------- | -------------------------------------------------------------------- |
-| `modrinth`          | Files from Modrinth, by version.             | [`@opys/modrinth`](https://www.npmjs.com/package/@opys/modrinth)     |
-| `modrinthModpack`   | A whole Modrinth modpack, loader included.   | [`@opys/modrinth`](https://www.npmjs.com/package/@opys/modrinth)     |
-| `curseforge`        | Files from CurseForge, by file.              | [`@opys/curseforge`](https://www.npmjs.com/package/@opys/curseforge) |
-| `curseforgeModpack` | A whole CurseForge modpack, loader included. | [`@opys/curseforge`](https://www.npmjs.com/package/@opys/curseforge) |
-| `links`             | Any file you have a link to.                 | [`@opys/links`](https://www.npmjs.com/package/@opys/links)           |
+| Plugin              | What it installs                             | Package                                                                                |
+| ------------------- | -------------------------------------------- | -------------------------------------------------------------------------------------- |
+| `resources`         | Mods, packs and plugins from one TOML file.  | [`@opys/minecraft-resources`](https://www.npmjs.com/package/@opys/minecraft-resources) |
+| `modrinth`          | Files from Modrinth, by version.             | [`@opys/modrinth`](https://www.npmjs.com/package/@opys/modrinth)                       |
+| `modrinthModpack`   | A whole Modrinth modpack, loader included.   | [`@opys/modrinth`](https://www.npmjs.com/package/@opys/modrinth)                       |
+| `curseforge`        | Files from CurseForge, by file.              | [`@opys/curseforge`](https://www.npmjs.com/package/@opys/curseforge)                   |
+| `curseforgeModpack` | A whole CurseForge modpack, loader included. | [`@opys/curseforge`](https://www.npmjs.com/package/@opys/curseforge)                   |
+| `links`             | Any file you have a link to.                 | [`@opys/links`](https://www.npmjs.com/package/@opys/links)                             |
 
 `files`, for a folder on your disk, is in
 [`@opys/dev`](https://www.npmjs.com/package/@opys/dev).

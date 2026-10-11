@@ -1,0 +1,23 @@
+[package]
+name = "opys-minecraft-resources"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "Mods, resource packs, shaders and plugins for opys: one TOML file, a list per directory and per side."
+
+[dependencies]
+opys-core = { workspace = true }
+opys-curseforge = { workspace = true }
+opys-dev = { workspace = true, features = ["net"] }
+opys-links = { workspace = true }
+opys-modrinth = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+toml = { version = "0.8", default-features = false, features = ["parse"] }
+
+[dev-dependencies]
+tempfile = "3"

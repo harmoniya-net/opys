@@ -40,6 +40,7 @@ shown here as it is. Every package is done.
 
 ## Minecraft mod resources
 
+- [`@opys/minecraft-resources`](./minecraft-resources)
 - [`@opys/modrinth`](./modrinth)
 - [`@opys/curseforge`](./curseforge)
 

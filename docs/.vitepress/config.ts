@@ -32,6 +32,7 @@ const en = {
   authliberty: 'Custom auth server',
   loaders: 'Minecraft mod loaders',
   resources: 'Minecraft mod resources',
+  resourcesFile: 'A resources file',
   java: 'Java',
   javaRuntime: 'Java runtime',
   dgpuj: 'Discrete GPU',
@@ -76,6 +77,7 @@ const uk: typeof en = {
   authliberty: 'Власний сервер автентифікації',
   loaders: 'Завантажувачі модів Minecraft',
   resources: 'Джерела модів Minecraft',
+  resourcesFile: 'Файл ресурсів',
   java: 'Java',
   javaRuntime: 'Середовище Java',
   dgpuj: 'Дискретна відеокарта',
@@ -155,6 +157,7 @@ function site(base: string, t: typeof en): DefaultTheme.Config {
           text: t.resources,
           collapsed: false,
           items: [
+            page(t.resourcesFile, '/plugins/resources'),
             page('Modrinth', '/plugins/modrinth'),
             page('CurseForge', '/plugins/curseforge'),
           ],
@@ -206,7 +209,10 @@ function site(base: string, t: typeof en): DefaultTheme.Config {
         pkg('lwjgl3ify'),
       ],
     },
-    { text: t.resources, items: [pkg('modrinth'), pkg('curseforge')] },
+    {
+      text: t.resources,
+      items: [pkg('minecraft-resources'), pkg('modrinth'), pkg('curseforge')],
+    },
     { text: t.java, items: [pkg('java'), pkg('dgpuj')] },
     { text: t.mojangFormats, items: [pkg('mojang'), pkg('mojang-rules')] },
   ];
