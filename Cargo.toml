@@ -34,6 +34,7 @@ opys-forge = { path = "crates/opys-forge", version = "0.2.0" }
 opys-java = { path = "crates/opys-java", version = "0.2.0" }
 opys-links = { path = "crates/opys-links", version = "0.2.0" }
 opys-lwjgl3ify = { path = "crates/opys-lwjgl3ify", version = "0.2.0" }
+opys-minecraft-server = { path = "crates/opys-minecraft-server", version = "0.2.0" }
 opys-minecraft-serverlist = { path = "crates/opys-minecraft-serverlist", version = "0.2.0" }
 opys-minecraft-vanilla = { path = "crates/opys-minecraft-vanilla", version = "0.2.0" }
 opys-modpack = { path = "crates/opys-modpack", version = "0.2.0" }

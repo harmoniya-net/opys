@@ -42,12 +42,14 @@ export default defineConfig({
   },
   // What only the player's machine knows.
   run: (manifest) => ({
-    vars: {
-      ...manifest.vars,
-      root: userDataDir('my-pack'),
-      username: 'Player',
-      uuid: '00000000-0000-0000-0000-000000000001',
-      token: '0',
+    manifest: {
+      vars: {
+        ...manifest.vars,
+        root: userDataDir('my-pack'),
+        username: 'Player',
+        uuid: '00000000-0000-0000-0000-000000000001',
+        token: '0',
+      },
     },
   }),
 });
@@ -96,6 +98,7 @@ More: [The config](https://harmoniya-net.github.io/opys/basics/config) and
 | [`@opys/authliberty`](packages/authliberty)                   | Signs players in against your own auth server                             |
 | [`@opys/bifrost`](packages/bifrost)                           | Mints a signed session token at launch, for `run`                         |
 | [`@opys/minecraft-serverlist`](packages/minecraft-serverlist) | Pre-fills the multiplayer server list                                     |
+| [`@opys/minecraft-server`](packages/minecraft-server)         | A Minecraft server: vanilla, Paper, Purpur, Fabric, Forge or NeoForge     |
 | [`@opys/dgpuj`](packages/dgpuj)                               | Starts the game on the discrete GPU                                       |
 | [`@opys/mojang`](packages/mojang)                             | Parsers for Mojang's formats, and the strict rule evaluator               |
 | [`@opys/mojang-rules`](packages/mojang-rules)                 | The types of Mojang's rule format                                         |

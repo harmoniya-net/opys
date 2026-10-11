@@ -34,6 +34,7 @@ to: (file) => '${game_directory}/mods/' + file.filename,
 | ----------------------------------- | ---------------- | ------------------------------------------- |
 | [Vanilla Minecraft](./minecraft)    | `minecraft`      | The game as Mojang ships it.                |
 | [Server list](./serverlist)         | `serverlist`     | Pre-fills the multiplayer server list.      |
+| [A server](./server)                | `server`         | A Minecraft server, whichever kind.         |
 | [Custom auth server](./authliberty) | `authliberty`    | Points the game at your own account server. |
 | [Bifrost](./bifrost)                | `resolveBifrost` | Makes a player's login token at launch.     |
 

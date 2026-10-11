@@ -24,6 +24,7 @@ pub mod forge;
 pub mod java;
 pub mod links;
 pub mod lwjgl3ify;
+pub mod minecraft_server;
 pub mod minecraft_serverlist;
 pub mod minecraft_vanilla;
 pub mod modrinth;

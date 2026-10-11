@@ -1,0 +1,21 @@
+[package]
+name = "opys-minecraft-server"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "A Minecraft server for opys: vanilla, Paper, Fabric, or any jar you have."
+
+[dependencies]
+opys-core = { workspace = true }
+opys-dev = { workspace = true, features = ["net"] }
+opys-minecraft-vanilla = { workspace = true }
+indexmap = { version = "2", features = ["serde"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+tempfile = "3"

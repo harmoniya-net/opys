@@ -26,12 +26,14 @@ export default defineConfig({
     workdir: '${game_directory}',
   },
   run: (manifest) => ({
-    vars: {
-      ...manifest.vars,
-      root: userDataDir('my-pack'),
-      username: 'Player',
-      uuid: '00000000-0000-0000-0000-000000000001',
-      token: '0',
+    manifest: {
+      vars: {
+        ...manifest.vars,
+        root: userDataDir('my-pack'),
+        username: 'Player',
+        uuid: '00000000-0000-0000-0000-000000000001',
+        token: '0',
+      },
     },
   }),
 });
@@ -81,6 +83,7 @@ export default defineConfig({
 | `authliberty` | Вказує гру на ваші власні сервери авторизації.         | [`@opys/authliberty`](https://www.npmjs.com/package/@opys/authliberty)                   |
 | `bifrost`     | Підписує токен входу. Функція, вжита в `run`.          | [`@opys/bifrost`](https://www.npmjs.com/package/@opys/bifrost)                           |
 | `serverlist`  | Заповнює список серверів для багатокористувацької гри. | [`@opys/minecraft-serverlist`](https://www.npmjs.com/package/@opys/minecraft-serverlist) |
+| `server`      | Сервер Minecraft, для серверної збірки.                | [`@opys/minecraft-server`](https://www.npmjs.com/package/@opys/minecraft-server)         |
 
 ## Один імпорт чи кілька
 

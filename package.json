@@ -30,6 +30,7 @@
     "packages/links",
     "packages/bifrost",
     "packages/minecraft-serverlist",
+    "packages/minecraft-server",
     "packages/java",
     "packages/dgpuj",
     "packages/minecraft",

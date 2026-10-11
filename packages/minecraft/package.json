@@ -26,6 +26,7 @@
     "@opys/java": "^0.2.0",
     "@opys/links": "^0.2.0",
     "@opys/lwjgl3ify": "^0.2.0",
+    "@opys/minecraft-server": "^0.2.0",
     "@opys/minecraft-serverlist": "^0.2.0",
     "@opys/minecraft-vanilla": "^0.2.0",
     "@opys/modrinth": "^0.2.0",

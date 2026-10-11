@@ -26,6 +26,7 @@
 
 - [`@opys/minecraft-vanilla`](./minecraft-vanilla)
 - [`@opys/minecraft-serverlist`](./minecraft-serverlist)
+- [`@opys/minecraft-server`](./minecraft-server)
 - [`@opys/authliberty`](./authliberty)
 - [`@opys/bifrost`](./bifrost)
 

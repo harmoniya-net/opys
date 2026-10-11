@@ -92,6 +92,10 @@ them, and the list below names the layers rather than every one:
                      bifrost / serverlist helpers. Every plugin here is a thin
                      wrapper over the crate of the same name, through its
                      namespace of the addon.                → dev, core, mojang
+@opys/minecraft-server
+                     A Minecraft server: vanilla / Paper / Purpur / Fabric /
+                     Forge / NeoForge, or a jar the author has. Thin wrapper
+                     over the `opys-minecraft-server` crate.             → dev, core
 @opys/java          JDK provisioning — Temurin / Zulu / GraalVM CE.
                      Thin wrapper over the `opys-java` crate.                → dev, core
 @opys/links         A pasted link → a pinned artifact: GitHub / GitLab / Modrinth /
@@ -620,7 +624,9 @@ export default defineConfig(({ mode }) => ({
   // machine's home dir, so it must NEVER go in `manifest.vars` (baked into
   // the bundle); it belongs here.
   run: (manifest) => ({
-    vars: { ...manifest.vars, root: userDataDir('my-pack') },
+    manifest: {
+      vars: { ...manifest.vars, root: userDataDir('my-pack') },
+    },
   }),
 }));
 ```
@@ -641,6 +647,46 @@ export default defineConfig(({ mode }) => ({
   a wrapper around `java` — can say so without any config changing.
 - **One var, one owner.** e.g. only the `java` plugin emits
   `java_home` / `java_bin` / `java_runtime_dir`.
+- **A server is one jar, and what the jar fetches is the jar's.** A
+  client is hundreds of files a manifest lists and pins. A server unpacks
+  or downloads its own libraries on first start, vanilla since 1.18, Paper
+  and Fabric's launcher always, so `server()` resolves a core to that one
+  jar, pins it, and stops: the libraries are in no manifest and nothing of
+  ours verifies them. That is the one place an installation holds files a
+  manifest does not account for, and it is what a server jar is. Every
+  core is the one plugin, because they differ in where the jar is asked
+  for and in nothing after it. The field that names the core holds its
+  version, `server({ paper: '1.21.1', build })`, as a `Source` is told by
+  `url` or `blob`; it was `core: 'paper', version` for an afternoon, which
+  made `version` mean a NeoForge build in one place and a Minecraft version
+  in the rest. Each core answers three questions, `list_versions`,
+  `list_builds` and `resolve_server`, and what the last returns as `pinned`
+  is the options again with nothing left to "the newest", so following a
+  core and freezing it are one config a field apart. Whoever publishes a
+  hash is asked for it: Mojang a sha1, Paper a sha256, Purpur an md5, the
+  one it has. A jar nobody vouches for, Fabric's launcher or a pasted link,
+  is downloaded once at build time and hashed. Spigot and CraftBukkit are
+  published nowhere, so they come as a path and travel as a blob.
+- **A Forge or NeoForge server is an installer and NeoForge's starter.**
+  They publish no server: the installer patches Minecraft on the machine it
+  runs on, and the result is started through an argument file. That is two
+  commands and a manifest has one. `ServerStarterJar` is `java -jar`: it
+  runs the installer beside it where there is no server, or a newer one
+  than is installed, and then loads the server into its own process. So
+  these cores are two pinned files and the same launch line as the rest,
+  and there is no bootstrap of ours. An installed server is not bundled
+  instead, though it is only files: most of it is Mojang's code as the
+  installer patched it, which is not ours to hand on. The starter's release
+  is named in the crate with its hash and not looked up, so it is the one
+  that was tested and a build does not change under it. Forge before 1.17
+  wrote no run scripts for it to read and is refused at build.
+- **Agreeing to the EULA is a feature, never an option.** A server will
+  not start until `eula.txt` says `eula=true`, which is its operator
+  agreeing to Mojang's terms. `server()` always contributes that file,
+  behind `allow.features.eula`, and takes no `eula: true`: an option would
+  be baked into the bundle, and a bundle is handed on, so it would agree
+  for whoever received it. A feature is given at install, by `--feature`
+  or from `run`, on the machine of the one who is agreeing.
 - **`java({ system: true })` ships no JDK, and says so with a feature.** It
   owns `java_bin` alone: `java` from `PATH`, or `${java_home}/bin/java` with
   the `custom_java` feature on, where `java_home` is a var the launcher
@@ -668,9 +714,14 @@ export default defineConfig(({ mode }) => ({
   manifest, which describes an installation and not a run of one: the launch
   is built as the manifest says and the flag is added to what comes back.
 - **`opys launch`** — builds the manifest from the config, writes it and
-  what it carries to a temporary bundle, and launches from that. `run(manifest) => Partial<Manifest>` is the
-  launch-time patch, applied every launch (so e.g. `bifrost` mints a fresh
-  token) as a shallow per-field override. The build/runtime wall holds — `cli`
+  what it carries to a temporary bundle, and launches from that. `run(manifest) => { manifest?, features? }` is what
+  only the launching machine knows, applied every launch (so e.g. `bifrost`
+  mints a fresh token): `manifest` is a shallow per-field override, and
+  `features` are switched on beside `--feature`. Features have a field of
+  their own because a manifest only tests them and holds none. `run` once
+  returned the patch itself, so a field left where it used to go is refused
+  by name: a config is plain JavaScript as often as not, and one written
+  the old way would launch with its paths and credentials left out. The build/runtime wall holds — `cli`
   orchestrates `dev` + `runtime`, joined by that bundle; a _deployed_ launcher instead feeds `@opys/runtime` a published
   bundle with no `dev`.
 - **`opys launch <bundle>` / `opys install <bundle>`** — that second path,

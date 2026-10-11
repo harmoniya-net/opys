@@ -15,6 +15,7 @@ export * from '@opys/links';
 // loader is described one way whichever site it came from — and `export *`
 // refuses a name it sees twice. Name it once here.
 export type { LoaderSpec } from '@opys/modrinth';
+export * from '@opys/minecraft-server';
 export * from '@opys/minecraft-serverlist';
 export * from '@opys/java';
 

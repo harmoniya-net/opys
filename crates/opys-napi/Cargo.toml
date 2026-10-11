@@ -25,6 +25,7 @@ opys-forge = { workspace = true }
 opys-java = { workspace = true }
 opys-links = { workspace = true }
 opys-lwjgl3ify = { workspace = true }
+opys-minecraft-server = { workspace = true }
 opys-minecraft-serverlist = { workspace = true }
 opys-minecraft-vanilla = { workspace = true }
 opys-modrinth = { workspace = true }

@@ -1083,6 +1083,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "opys-minecraft-server"
+version = "0.2.0"
+dependencies = [
+ "indexmap",
+ "opys-core",
+ "opys-dev",
+ "opys-minecraft-vanilla",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror",
+]
+
+[[package]]
 name = "opys-minecraft-serverlist"
 version = "0.2.0"
 dependencies = [
@@ -1177,6 +1191,7 @@ dependencies = [
  "opys-java",
  "opys-links",
  "opys-lwjgl3ify",
+ "opys-minecraft-server",
  "opys-minecraft-serverlist",
  "opys-minecraft-vanilla",
  "opys-modrinth",

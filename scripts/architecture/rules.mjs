@@ -96,6 +96,14 @@ export const crates = all(
     exposedToJs,
     because('its tests read back the bytes it carries, hence the bundle'),
   ),
+  crate(
+    'opys-minecraft-server',
+    dependsOn('opys-core', 'opys-dev', 'opys-minecraft-vanilla'),
+    exposedToJs,
+    because(
+      'vanilla is where a version is looked up in the Mojang manifest, and a vanilla server is named by that version',
+    ),
+  ),
   crate('opys-java', dependsOn('opys-core', 'opys-dev'), exposedToJs),
   crate('opys-authliberty', dependsOn('opys-core', 'opys-dev'), exposedToJs),
   crate('opys-dgpuj', dependsOn('opys-core', 'opys-dev'), exposedToJs),
@@ -189,6 +197,11 @@ export const packages = all(
     dependsOn('@opys/core', '@opys/dev'),
     wrapsItsBinding,
   ),
+  pkg(
+    '@opys/minecraft-server',
+    dependsOn('@opys/core', '@opys/dev'),
+    wrapsItsBinding,
+  ),
 
   pkg(
     '@opys/minecraft',
@@ -210,6 +223,7 @@ export const packages = all(
       '@opys/curseforge',
       '@opys/bifrost',
       '@opys/minecraft-serverlist',
+      '@opys/minecraft-server',
     ),
     because('the umbrella: re-exports the plugins and adds nothing'),
   ),

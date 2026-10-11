@@ -26,6 +26,7 @@ shown here as it is. Every package is done.
 
 - [`@opys/minecraft-vanilla`](./minecraft-vanilla)
 - [`@opys/minecraft-serverlist`](./minecraft-serverlist)
+- [`@opys/minecraft-server`](./minecraft-server)
 - [`@opys/authliberty`](./authliberty)
 - [`@opys/bifrost`](./bifrost)
 

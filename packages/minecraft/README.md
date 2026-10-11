@@ -26,12 +26,14 @@ export default defineConfig({
     workdir: '${game_directory}',
   },
   run: (manifest) => ({
-    vars: {
-      ...manifest.vars,
-      root: userDataDir('my-pack'),
-      username: 'Player',
-      uuid: '00000000-0000-0000-0000-000000000001',
-      token: '0',
+    manifest: {
+      vars: {
+        ...manifest.vars,
+        root: userDataDir('my-pack'),
+        username: 'Player',
+        uuid: '00000000-0000-0000-0000-000000000001',
+        token: '0',
+      },
     },
   }),
 });
@@ -81,6 +83,7 @@ Pick one. Each brings the game, its libraries and its command line.
 | `authliberty` | Points the game at your own auth servers.       | [`@opys/authliberty`](https://www.npmjs.com/package/@opys/authliberty)                   |
 | `bifrost`     | Signs a login token. A function, used in `run`. | [`@opys/bifrost`](https://www.npmjs.com/package/@opys/bifrost)                           |
 | `serverlist`  | Fills the multiplayer server list.              | [`@opys/minecraft-serverlist`](https://www.npmjs.com/package/@opys/minecraft-serverlist) |
+| `server`      | A Minecraft server, for a server pack.          | [`@opys/minecraft-server`](https://www.npmjs.com/package/@opys/minecraft-server)         |
 
 ## One import or several
 

@@ -38,6 +38,7 @@ const linkNapi = binding.links;
 const dgpujNapi = binding.dgpuj;
 const bifrostNapi = binding.bifrost;
 const serverlistNapi = binding.minecraftServerlist;
+const serverNapi = binding.minecraftServer;
 
 let ok = 0;
 let fail = 0;
@@ -1265,6 +1266,37 @@ check(
   'buildServerlist carries each list as bytes on its own artifact',
   Buffer.from(listed.contribution.artifacts[0].source.bytes, 'base64')[0] ===
     0x0a,
+);
+
+// ── server ────────────────────────────────────────────────────────────────
+
+console.log('\n— server —');
+
+// A jar from disk resolves with no request, which keeps this hermetic.
+const served = await serverNapi.buildServer({ jar: '/nowhere/spigot.jar' });
+check(
+  'buildServer names the plugin and adds the jar and the EULA',
+  served.output.name === 'server' &&
+    served.output.contribution.artifacts.length === 2 &&
+    served.output.contribution.artifacts[0].source.file ===
+      '/nowhere/spigot.jar',
+);
+check(
+  'the EULA is written only behind its feature',
+  served.output.contribution.artifacts[1].rules ===
+    `allow.features.${serverNapi.eulaFeature()}`,
+);
+const pinnedServer = await serverNapi.resolveServer({
+  installer: '/nowhere/fork-installer.jar',
+});
+check(
+  'resolveServer says what was pinned, and puts the starter beside an installer',
+  pinnedServer.pinned.installer === '/nowhere/fork-installer.jar' &&
+    pinnedServer.files.length === 2,
+);
+check(
+  'a core with no builds to choose lists none, and asks nobody',
+  (await serverNapi.serverBuilds('neoforge', '21.1.259')).length === 0,
 );
 
 // ── scanner ───────────────────────────────────────────────────────────────

@@ -28,6 +28,7 @@ const en = {
   minecraft: 'Minecraft',
   vanilla: 'Vanilla Minecraft',
   serverlist: 'Server list',
+  server: 'A server',
   authliberty: 'Custom auth server',
   loaders: 'Minecraft mod loaders',
   resources: 'Minecraft mod resources',
@@ -71,6 +72,7 @@ const uk: typeof en = {
   minecraft: 'Minecraft',
   vanilla: 'Ванільний Minecraft',
   serverlist: 'Список серверів',
+  server: 'Сервер',
   authliberty: 'Власний сервер автентифікації',
   loaders: 'Завантажувачі модів Minecraft',
   resources: 'Джерела модів Minecraft',
@@ -133,6 +135,7 @@ function site(base: string, t: typeof en): DefaultTheme.Config {
           items: [
             page(t.vanilla, '/plugins/minecraft'),
             page(t.serverlist, '/plugins/serverlist'),
+            page(t.server, '/plugins/server'),
             page(t.authliberty, '/plugins/authliberty'),
             page('Bifrost', '/plugins/bifrost'),
           ],
@@ -188,6 +191,7 @@ function site(base: string, t: typeof en): DefaultTheme.Config {
       items: [
         pkg('minecraft-vanilla'),
         pkg('minecraft-serverlist'),
+        pkg('minecraft-server'),
         pkg('authliberty'),
         pkg('bifrost'),
       ],
