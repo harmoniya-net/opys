@@ -35,19 +35,21 @@ luckperms = "modrinth:luckperms@v5.5.71-bukkit"
 import { defineConfig } from '@opys/dev';
 import { resources, readResources } from '@opys/minecraft-resources';
 
-const pack = resources(readResources('resources.toml'));
+const { clientResources, serverResources } = resources(
+  readResources('resources.toml'),
+);
 
 export default defineConfig({
   plugins: [
     // …your loader and java…
-    pack.client,
+    clientResources(),
   ],
 });
 ```
 
-`resources()` gives a plugin for each side. `pack.client` installs the
-`[common.…]` and `[client.…]` tables; a server pack's config reads the
-same file and takes `pack.server`.
+`resources()` gives a plugin for each side. `clientResources()` installs
+the `[common.…]` and `[client.…]` tables; a server pack's config reads the
+same file and uses `serverResources()`.
 
 ## The file
 
@@ -181,7 +183,7 @@ build, so a typo is not a new directory.
 to get them. They can also be written in the config, in the same shape:
 
 ```js
-const pack = resources({
+const { clientResources } = resources({
   dirs: { kubejs: '${game_directory}/kubejs' },
   common: { mods: { lithium: 'modrinth:lithium@mc1.21.1-0.15.4-fabric' } },
   client: { mods: { sodium: 'modrinth:sodium@mc1.21.1-0.8.13-fabric' } },
@@ -192,7 +194,7 @@ Or read and then changed:
 
 ```js
 const file = readResources('resources.toml');
-const pack = resources({
+const { clientResources } = resources({
   ...file,
   client: {
     ...file.client,

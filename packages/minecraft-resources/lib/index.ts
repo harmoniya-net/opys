@@ -175,12 +175,15 @@ export interface ResourcesOptions {
   curseforgeApi?: string;
 }
 
-/** A pack's resources as plugins: one for each side. A config takes one. */
+/**
+ * A pack's resources as plugins: one for each side. A config calls one, as
+ * it calls every other plugin.
+ */
 export interface ResourcePlugins {
-  /** What `[common]` and `[client]` list. */
-  readonly client: ChainablePlugin<'resources', never>;
-  /** What `[common]` and `[server]` list. */
-  readonly server: ChainablePlugin<'resources', never>;
+  /** What the `common` and `client` tables list. */
+  readonly clientResources: () => ChainablePlugin<'resources', never>;
+  /** What the `common` and `server` tables list. */
+  readonly serverResources: () => ChainablePlugin<'resources', never>;
 }
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -251,11 +254,14 @@ export async function resolveResources(
 
 /**
  * Mods, resource packs, shaders and plugins, as a plugin for each side.
+ * Both are called `resources`, a config having one of them.
  *
  * ```js
- * const pack = resources(readResources('resources.toml'));
+ * const { clientResources, serverResources } = resources(
+ *   readResources('resources.toml'),
+ * );
  *
- * plugins: [pack.client], // a server pack's config takes `pack.server`
+ * plugins: [clientResources()], // a server pack's config: serverResources()
  * ```
  *
  * It takes the tables and not a path, so they can as well be written here,
@@ -288,5 +294,8 @@ export function resources(
         return output.contribution;
       },
     });
-  return { client: side('client'), server: side('server') };
+  return {
+    clientResources: () => side('client'),
+    serverResources: () => side('server'),
+  };
 }

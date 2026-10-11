@@ -694,13 +694,17 @@ export default defineConfig(({ mode }) => ({
 - **A pack's resources are one file, and an entry in it is one version.**
   A TOML file has a table per side and directory, `[client.mods]`, and in
   it a file per key. `resources(readResources(path))` gives a plugin for
-  each side, `pack.client` and `pack.server`. The plugin takes the tables
+  each side, `clientResources()` and `serverResources()`: functions, so
+  that a list of plugins is a list of calls, and named in full, so that
+  they still say what they are once destructured. They were `pack.client`
+  and `pack.server` for a day. The plugin takes the tables
   and not a path, which it did at first: a config is code, and may have
   written them out or changed what it read. So reading is the config's own
   call, made while it loads, and what it returns carries `base`, the file's
   directory, since tables alone do not say where a `file:` path is. The
-  side is which plugin is taken and not an option, one file being both
-  packs'.
+  side is which of the two is called and not an option, one file being
+  both packs'. A plugin that was not called is refused by the engine,
+  which says to call it.
 
   **The key is the name the file is installed by**, with the extension of
   what it resolved to: `sodium = …` is `mods/sodium.jar`. A published name

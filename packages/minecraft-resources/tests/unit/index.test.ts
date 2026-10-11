@@ -160,13 +160,15 @@ describe('resources', () => {
     const made = resources({
       client: { mods: { missing: 'file:not-there.jar' } },
     });
-    expect(made.client.name).toBe('resources');
-    expect(made.server.name).toBe('resources');
+    expect(made.clientResources().name).toBe('resources');
+    expect(made.serverResources().name).toBe('resources');
+    // What a list of plugins is told when the call is left off.
+    expect(made.clientResources.name).toBe('clientResources');
   });
 
   it("puts each of the client's in its directory, under its key", async () => {
     // Built elsewhere than the file: `file:` entries are beside the file.
-    const built = await pack().client.build(ctx('/elsewhere'));
+    const built = await pack().clientResources().build(ctx('/elsewhere'));
     expect(built.artifacts?.map((artifact) => artifact.path)).toEqual([
       '${game_directory}/mods/lithium.jar',
       '${game_directory}/kubejs/scripts/server/a.js',
@@ -182,7 +184,7 @@ describe('resources', () => {
   });
 
   it("puts a server's under its root", async () => {
-    const built = await pack().server.build(ctx('/elsewhere'));
+    const built = await pack().serverResources().build(ctx('/elsewhere'));
     expect(built.artifacts?.map((artifact) => artifact.path)).toEqual([
       '${root}/mods/lithium.jar',
     ]);
@@ -200,7 +202,7 @@ describe('resources', () => {
         },
       },
     });
-    const built = await made.server.build(ctx(configDir));
+    const built = await made.serverResources().build(ctx(configDir));
     expect(built.artifacts).toEqual([
       {
         path: '${root}/kubejs/startup.js',
@@ -208,7 +210,9 @@ describe('resources', () => {
         metadata: { reload: false },
       },
     ]);
-    expect((await made.client.build(ctx(configDir))).artifacts).toEqual([]);
+    expect(
+      (await made.clientResources().build(ctx(configDir))).artifacts,
+    ).toEqual([]);
   });
 
   it('refuses a path, which is what `readResources` takes', () => {

@@ -35,19 +35,21 @@ luckperms = "modrinth:luckperms@v5.5.71-bukkit"
 import { defineConfig } from '@opys/dev';
 import { resources, readResources } from '@opys/minecraft-resources';
 
-const pack = resources(readResources('resources.toml'));
+const { clientResources, serverResources } = resources(
+  readResources('resources.toml'),
+);
 
 export default defineConfig({
   plugins: [
     // …ваш завантажувач і java…
-    pack.client,
+    clientResources(),
   ],
 });
 ```
 
-`resources()` дає плагін для кожної сторони. `pack.client` встановлює
+`resources()` дає плагін для кожної сторони. `clientResources()` встановлює
 таблиці `[common.…]` і `[client.…]`; конфіг серверного паку читає той самий
-файл і бере `pack.server`.
+файл і використовує `serverResources()`.
 
 ## Файл
 
@@ -180,7 +182,7 @@ logo = "file:art/company-logo-final.png"
 формі:
 
 ```js
-const pack = resources({
+const { clientResources } = resources({
   dirs: { kubejs: '${game_directory}/kubejs' },
   common: { mods: { lithium: 'modrinth:lithium@mc1.21.1-0.15.4-fabric' } },
   client: { mods: { sodium: 'modrinth:sodium@mc1.21.1-0.8.13-fabric' } },
@@ -191,7 +193,7 @@ const pack = resources({
 
 ```js
 const file = readResources('resources.toml');
-const pack = resources({
+const { clientResources } = resources({
   ...file,
   client: {
     ...file.client,
