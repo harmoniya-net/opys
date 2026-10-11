@@ -32,6 +32,16 @@ export async function buildManifest(
   config: OpysConfig,
   ctx: BuildContext,
 ): Promise<Built> {
+  // A plugin is what a call returns, and a call is easy to leave off:
+  // `plugins: [clientResources]`. A function has a `name` and no `build`,
+  // so it would fail further on as something that is not callable.
+  config.plugins.forEach((plugin: unknown, at) => {
+    if (typeof plugin === 'function')
+      throw new TypeError(
+        `plugins[${at}] is a function and not a plugin: call it — ${plugin.name || 'plugin'}()`,
+      );
+  });
+
   ctx.log('opys', `resolving ${config.plugins.length} plugin(s)`);
   const results = await Promise.all(
     config.plugins.map(async (p) => ({

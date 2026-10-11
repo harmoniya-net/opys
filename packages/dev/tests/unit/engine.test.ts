@@ -21,6 +21,23 @@ const fakePlugin = (name: string, contribution: Contribution): OpysPlugin => ({
 // a bare string, and an arm with no rules drops the `rules` key. `opys build`
 // re-encodes before writing, so a bundle is unaffected either way.
 describe('buildManifest', () => {
+  it('refuses a plugin that was not called, and says to call it', async () => {
+    const clientResources = () =>
+      definePlugin({ name: 'x', build: () => ({}) });
+    await expect(
+      buildManifest(
+        {
+          // @ts-expect-error a function where a plugin goes
+          plugins: [clientResources],
+          manifest: { command: 'java', args: [] },
+        },
+        ctx,
+      ),
+    ).rejects.toThrow(
+      'plugins[0] is a function and not a plugin: call it — clientResources()',
+    );
+  });
+
   it('merges artifacts and vars, assembles launch from references', async () => {
     const config: OpysConfig = {
       plugins: [
