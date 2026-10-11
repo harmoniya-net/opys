@@ -96,7 +96,8 @@ impl From<FileWire> for CurseForgeFile {
 /// Look files up by id, two hundred to a request.
 ///
 /// The result is in the API's order, not the caller's, and a file the API
-/// does not know is simply absent — look one up by `file_id`.
+/// does not know is simply absent, whether it knows some of a batch or none
+/// of it — look one up by `file_id`.
 pub fn fetch_curseforge_files(
     token: &str,
     file_ids: &[u64],
@@ -108,6 +109,13 @@ pub fn fetch_curseforge_files(
     let mut files = Vec::with_capacity(file_ids.len());
     for batch in file_ids.chunks(FILES_BATCH_SIZE) {
         let response = post_json(&url, &headers, &serde_json::json!({ "fileIds": batch }))?;
+        // Not a failure of the API: it is how CurseForge says that it knows
+        // none of the ids it was asked for. Reported as a status it read as
+        // the service being down, and named no id; left out here, each id
+        // is missing from the answer and is named by whoever asked for it.
+        if response.status == 404 {
+            continue;
+        }
         if !response.ok() {
             return Err(CurseForgeError::Api {
                 status: response.status,

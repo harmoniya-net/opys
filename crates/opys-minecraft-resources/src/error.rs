@@ -70,6 +70,8 @@ pub enum ResourcesError {
         "`{entry}` is a CurseForge file, which needs an API key to resolve: pass `curseforgeToken`"
     )]
     NoCurseForgeToken { entry: String },
+    #[error("`{entry}`: CurseForge has no file {file_id}")]
+    NoSuchFile { entry: String, file_id: u64 },
     #[error("`{entry}`: file {file_id} belongs to the CurseForge project \"{actual}\"")]
     WrongProject {
         entry: String,

@@ -179,7 +179,7 @@ describe('resolveCurseforge', () => {
         { token: TOKEN, apiBase: base, to: (i) => i.filename },
         [999],
       ),
-    ).rejects.toThrow(/did not return metadata for file 999/);
+    ).rejects.toThrow(/CurseForge has no file 999/);
   });
 });
 

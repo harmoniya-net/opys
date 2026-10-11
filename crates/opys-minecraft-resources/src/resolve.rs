@@ -4,7 +4,8 @@ use std::path::{Path, PathBuf};
 
 use opys_core::HashEntry;
 use opys_curseforge::{
-    fetch_curseforge_slugs, resolve_curseforge_files, CurseForgeFile, FileRef, CURSEFORGE_API,
+    fetch_curseforge_slugs, resolve_curseforge_files, CurseForgeError, CurseForgeFile, FileRef,
+    CURSEFORGE_API,
 };
 use opys_dev::github::{fetch_github_release, GITHUB_API_BASE};
 use opys_dev::scan_directory;
@@ -241,7 +242,18 @@ fn curseforge(
     let api = options.curseforge_api.as_deref().unwrap_or(CURSEFORGE_API);
 
     let ids: Vec<FileRef> = wanted.iter().map(|(_, _, id)| FileRef::Id(*id)).collect();
-    let files = resolve_curseforge_files(token, &ids, api)?;
+    let files = resolve_curseforge_files(token, &ids, api).map_err(|error| match error {
+        // The id alone does not say which line of a file it was written on.
+        CurseForgeError::UnknownFile(file_id) => wanted
+            .iter()
+            .find(|(_, _, id)| *id == file_id)
+            .map(|(entry, _, _)| ResourcesError::NoSuchFile {
+                entry: entry.clone(),
+                file_id,
+            })
+            .unwrap_or(ResourcesError::CurseForge(error)),
+        other => other.into(),
+    })?;
     let projects: Vec<u64> = files.iter().map(|file| file.project_id).collect();
     let slugs = fetch_curseforge_slugs(token, &projects, api)?;
 

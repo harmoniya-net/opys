@@ -178,10 +178,7 @@ fn a_file_the_api_does_not_return_is_named() {
             .unwrap_err()
             .to_string();
 
-    assert_eq!(
-        message,
-        "CurseForge API did not return metadata for file 999"
-    );
+    assert_eq!(message, "CurseForge has no file 999");
 }
 
 #[test]
@@ -253,4 +250,17 @@ fn a_projects_slug_is_asked_for_by_its_id() {
         .unwrap_err()
         .to_string();
     assert_eq!(message, "CurseForge API 403 (POST /mods)");
+}
+
+#[test]
+fn a_batch_curseforge_knows_none_of_is_a_file_it_has_not_got_and_not_an_outage() {
+    // What the real API answers when every id it was asked for is unknown.
+    let server = TestServer::start(|_| Reply::status(404));
+    assert!(fetch_curseforge_files("k", &[1, 2], &server.base)
+        .unwrap()
+        .is_empty());
+    let message = resolve_curseforge_files("k", &[FileRef::Id(1)], &server.base)
+        .unwrap_err()
+        .to_string();
+    assert_eq!(message, "CurseForge has no file 1");
 }

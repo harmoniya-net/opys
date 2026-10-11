@@ -20,7 +20,7 @@ pub enum CurseForgeError {
 
     #[error("CurseForge file ref \"{0}\" does not contain \"/files/<id>\" — expected a numeric ID or a CurseForge file URL.")]
     BadFileRef(String),
-    #[error("CurseForge API did not return metadata for file {0}")]
+    #[error("CurseForge has no file {0}")]
     UnknownFile(u64),
     #[error("CurseForge API did not return the modpack file {0}")]
     UnknownModpack(u64),

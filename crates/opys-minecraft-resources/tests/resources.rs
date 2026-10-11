@@ -389,8 +389,13 @@ fn providers() -> TestServer {
                 .to_string(),
             ),
             "/mods/files" => {
+                // As the real API does: 404 when it knows none of them.
+                if ids("fileIds").iter().all(|id| *id >= 9000) {
+                    return Reply::status(404);
+                }
                 let data: Vec<Value> = ids("fileIds")
                     .into_iter()
+                    .filter(|id| *id < 9000)
                     .rev()
                     .map(|id| {
                         json!({
@@ -504,6 +509,20 @@ fn a_file_of_another_project_than_the_one_written_is_refused() {
         message,
         "`mods.sodium`: file 77 belongs to the CurseForge project \"jei\""
     );
+}
+
+#[test]
+fn a_curseforge_file_there_is_not_is_said_by_the_entry_it_was_written_on() {
+    let server = providers();
+    // Alone, the API answers 404; beside a file it knows, it leaves it out.
+    for known in ["", "jei = \"curseforge:jei@77\"\n"] {
+        let file = parse(&format!(
+            "[client.mods]\n{known}typo = \"curseforge:jei@9001\""
+        ))
+        .unwrap();
+        let message = resolve(&file, Side::Client, &options(&server, Some("key"))).unwrap_err();
+        assert_eq!(message, "`mods.typo`: CurseForge has no file 9001");
+    }
 }
 
 #[test]
