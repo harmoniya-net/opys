@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { readBundle, writeBundle } from '@opys/bundle';
 import type { Launch, Manifest } from '@opys/core';
-import { buildManifest, type BuildContext } from '@opys/dev';
+import { buildManifest, type BuildContext, type RunPatch } from '@opys/dev';
 import type { ManifestSource } from '@opys/runtime';
 import { parseArgs } from './args';
 import { UsageError } from './errors';
@@ -31,6 +31,25 @@ function parseVars(pairs: string[]): Record<string, string> {
       return [pair.slice(0, at), pair.slice(at + 1)];
     }),
   );
+}
+
+/**
+ * What a config's `run` returned, checked. `run` used to return the manifest
+ * patch itself, and a config is plain JavaScript as often as not: one still
+ * written that way would launch with its machine paths and credentials
+ * quietly left out, so a field that belongs under `manifest` is refused by
+ * name.
+ */
+function runPatch(returned: RunPatch): RunPatch {
+  const stray = Object.keys(returned ?? {}).filter(
+    (key) => key !== 'manifest' && key !== 'features',
+  );
+  if (stray.length > 0) {
+    throw new Error(
+      `\`run\` returns { manifest, features }: put \`${stray[0]}\` under \`manifest\``,
+    );
+  }
+  return returned ?? {};
 }
 
 /**
@@ -100,10 +119,11 @@ export async function prepare(
   if ('runClient' in config)
     throw new Error('`runClient` is now `run`: rename the key');
 
-  // `run` is the launch-time manifest patch: a shallow per-field override.
-  const manifest: Manifest = config.run
-    ? { ...built.manifest, ...config.run(built.manifest) }
-    : built.manifest;
+  // `run` is what only this machine knows: a patch laid over the manifest,
+  // a shallow override per field, and features beside `--feature`.
+  const patch = config.run ? runPatch(config.run(built.manifest)) : {};
+  const manifest: Manifest = { ...built.manifest, ...patch.manifest };
+  const launchFeatures = [...new Set([...features, ...(patch.features ?? [])])];
 
   for (const [key, val] of Object.entries(manifest.vars)) {
     if (typeof val !== 'string' && !Array.isArray(val)) {
@@ -126,7 +146,7 @@ export async function prepare(
   return {
     source: { bundle: written },
     launch: manifest.launch,
-    features,
+    features: launchFeatures,
     vars,
   };
 }

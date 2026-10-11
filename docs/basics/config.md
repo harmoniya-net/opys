@@ -99,18 +99,32 @@ All the names: [Variables](/plugins/minecraft#variables).
 
 ```js
 run: (manifest) => ({
-  vars: {
-    ...manifest.vars,
-    root: userDataDir('my-pack'),
-    username: 'Player',
-    uuid: '00000000-0000-0000-0000-000000000001',
-    token: '0',
+  manifest: {
+    vars: {
+      ...manifest.vars,
+      root: userDataDir('my-pack'),
+      username: 'Player',
+      uuid: '00000000-0000-0000-0000-000000000001',
+      token: '0',
+    },
   },
 }),
 ```
 
 `run` is called on the launching machine, every time the game starts. It
-returns the parts of the manifest to replace.
+returns two things, both optional:
+
+| Field      | What it is                                                     |
+| ---------- | -------------------------------------------------------------- |
+| `manifest` | The parts of the manifest to replace.                          |
+| `features` | Features to switch on, the same as `--feature` on the command. |
+
+```js
+run: (manifest) => ({
+  manifest: { vars: { ...manifest.vars, root: '/srv/minecraft' } },
+  features: ['eula'],
+}),
+```
 
 **When you need it:** always, for `opys launch`. It supplies the install
 folder and the player.
@@ -124,8 +138,8 @@ token must not be. `run` is never baked in.
 The pack then works for you and nobody else. Keep it in `run`.
 :::
 
-Keep `...manifest.vars`. Each field you return replaces the old one whole,
-so without the spread the plugins' variables are lost.
+Keep `...manifest.vars`. Each field under `manifest` replaces the old one
+whole, so without the spread the plugins' variables are lost.
 
 A bundle does not contain `run`. Whoever launches a bundle passes the same
 values with `--var`, or from their launcher.

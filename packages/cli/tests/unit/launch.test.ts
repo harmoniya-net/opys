@@ -104,12 +104,47 @@ describe('cmdLaunch — happy path', () => {
     const patched = `export default {
       plugins: [],
       manifest: { command: 'java', args: [], workdir: '.' },
-      run: (m) => ({ vars: { ...m.vars, username: 'Steve' } }),
+      run: (m) => ({ manifest: { vars: { ...m.vars, username: 'Steve' } } }),
     };`;
     const cfg = await fixture(patched);
     await cmdLaunch(['-i', cfg], logger, 'launch');
     const source = launchMock.mock.calls[0]![0];
     expect(readBundle(source.bundle).vars.username).toBe('Steve');
+  });
+});
+
+describe('cmdLaunch — what `run` returns', () => {
+  const withRun = (run: string) => `export default {
+    plugins: [],
+    manifest: { command: 'java', args: [], workdir: '.' },
+    run: ${run},
+  };`;
+
+  it('launches with the features run names, beside --feature', async () => {
+    const cfg = await fixture(withRun("() => ({ features: ['eula', 'a'] })"));
+    await cmdLaunch(['-i', cfg, '--feature', 'a,b'], logger, 'launch');
+    expect(installMock.mock.calls[0]![1].features).toEqual(['a', 'b', 'eula']);
+    expect(launchMock.mock.calls[0]![1].features).toEqual(['a', 'b', 'eula']);
+  });
+
+  it('keeps the features out of the bundle', async () => {
+    const cfg = await fixture(withRun("() => ({ features: ['eula'] })"));
+    await cmdLaunch(['-i', cfg], logger, 'launch');
+    const source = launchMock.mock.calls[0]![0];
+    expect(JSON.stringify(readBundle(source.bundle))).not.toContain('eula');
+  });
+
+  it('refuses a patch written the old way, naming the field', async () => {
+    const cfg = await fixture(withRun('(m) => ({ vars: m.vars })'));
+    await expect(cmdLaunch(['-i', cfg], logger, 'launch')).rejects.toThrow(
+      '`run` returns { manifest, features }: put `vars` under `manifest`',
+    );
+  });
+
+  it('takes a run that returns nothing to change', async () => {
+    const cfg = await fixture(withRun('() => ({})'));
+    await cmdLaunch(['-i', cfg], logger, 'launch');
+    expect(launchMock.mock.calls[0]![1].features).toEqual([]);
   });
 });
 
@@ -132,7 +167,7 @@ describe('cmdLaunch — manifest var validation', () => {
     const patched = `export default {
       plugins: [],
       manifest: { command: 'java', args: [], workdir: '.' },
-      run: () => ({ vars: { xmx: 4000 } }),
+      run: () => ({ manifest: { vars: { xmx: 4000 } } }),
     };`;
     const cfg = await fixture(patched);
     await expect(cmdLaunch(['-i', cfg], logger, 'launch')).rejects.toThrow(
@@ -145,9 +180,11 @@ describe('cmdLaunch — manifest var validation', () => {
       plugins: [],
       manifest: { command: 'java', args: [], workdir: '.' },
       run: () => ({
-        vars: {
-          xmx: '4000',
-          token: [{ value: 'abc', rules: [] }],
+        manifest: {
+          vars: {
+            xmx: '4000',
+            token: [{ value: 'abc', rules: [] }],
+          },
         },
       }),
     };`;

@@ -27,14 +27,16 @@ export default defineConfig({
     workdir: '${game_directory}',
   },
   run: (manifest) => ({
-    vars: {
-      ...manifest.vars,
-      root: userDataDir('my-pack'),
-      ...resolveBifrost({
-        privateKey: process.env.BIFROST_PRIVATE_KEY,
-        username: 'Player',
-        uuid: '00000000-0000-0000-0000-000000000001',
-      }),
+    manifest: {
+      vars: {
+        ...manifest.vars,
+        root: userDataDir('my-pack'),
+        ...resolveBifrost({
+          privateKey: process.env.BIFROST_PRIVATE_KEY,
+          username: 'Player',
+          uuid: '00000000-0000-0000-0000-000000000001',
+        }),
+      },
     },
   }),
 });

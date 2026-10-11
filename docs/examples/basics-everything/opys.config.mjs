@@ -46,12 +46,14 @@ export default defineConfig(({ mode }) => {
 
     // Runs on the player's machine, every launch. Never baked into the bundle.
     run: (manifest) => ({
-      vars: {
-        ...manifest.vars,
-        root: userDataDir(dev ? 'my-pack-dev' : 'my-pack'),
-        username: 'Player',
-        uuid: '00000000-0000-0000-0000-000000000001',
-        token: '0',
+      manifest: {
+        vars: {
+          ...manifest.vars,
+          root: userDataDir(dev ? 'my-pack-dev' : 'my-pack'),
+          username: 'Player',
+          uuid: '00000000-0000-0000-0000-000000000001',
+          token: '0',
+        },
       },
     }),
   };

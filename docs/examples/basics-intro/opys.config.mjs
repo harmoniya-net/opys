@@ -13,12 +13,14 @@ export default defineConfig({
     workdir: '${game_directory}',
   },
   run: (manifest) => ({
-    vars: {
-      ...manifest.vars,
-      root: userDataDir('my-pack'),
-      username: 'Player',
-      uuid: '00000000-0000-0000-0000-000000000001',
-      token: '0',
+    manifest: {
+      vars: {
+        ...manifest.vars,
+        root: userDataDir('my-pack'),
+        username: 'Player',
+        uuid: '00000000-0000-0000-0000-000000000001',
+        token: '0',
+      },
     },
   }),
 });

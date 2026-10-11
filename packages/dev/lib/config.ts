@@ -100,10 +100,29 @@ export interface OpysConfig<
    */
   options?: OptionsInput;
   /**
-   * Launch-time manifest patch. Re-run on every `opys launch`; the returned
-   * partial is shallow-merged (per field) over the loaded manifest.
+   * What only the launching machine knows. Re-run on every `opys launch`
+   * and never written into the bundle; see {@link RunPatch}.
    */
-  run?: (manifest: Manifest) => Partial<Manifest>;
+  run?: (manifest: Manifest) => RunPatch;
+}
+
+/**
+ * What a config's `run` hands back: how this machine launches the pack.
+ * Neither field reaches the bundle, so what is said here is said for this
+ * machine alone.
+ */
+export interface RunPatch {
+  /**
+   * Fields laid over the built manifest, a shallow override per field:
+   * `{ vars: { ...manifest.vars, root } }`.
+   */
+  readonly manifest?: Partial<Manifest>;
+  /**
+   * Features to install and launch with, beside any `--feature`. They are
+   * not part of a manifest, which only tests them, so they have a field of
+   * their own.
+   */
+  readonly features?: readonly string[];
 }
 
 export interface OpysConfigContext {

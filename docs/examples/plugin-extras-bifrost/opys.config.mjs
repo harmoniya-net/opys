@@ -16,12 +16,14 @@ export default defineConfig({
       uuid: '00000000-0000-0000-0000-000000000001',
     });
     return {
-      vars: {
-        ...manifest.vars,
-        root: userDataDir('my-pack'),
-        username: auth.username,
-        uuid: auth.uuid,
-        token: auth.token,
+      manifest: {
+        vars: {
+          ...manifest.vars,
+          root: userDataDir('my-pack'),
+          username: auth.username,
+          uuid: auth.uuid,
+          token: auth.token,
+        },
       },
     };
   },

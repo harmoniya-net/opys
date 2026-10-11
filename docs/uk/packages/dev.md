@@ -38,7 +38,9 @@ export default defineConfig({
     .title('RAM')
     .unit('MB'),
   run: (manifest) => ({
-    vars: { ...manifest.vars, root: userDataDir('my-pack') },
+    manifest: {
+      vars: { ...manifest.vars, root: userDataDir('my-pack') },
+    },
   }),
 });
 ```
@@ -90,7 +92,7 @@ export default defineConfig({
 ### run
 
 ```js
-run: (manifest) => ({ vars: { ...manifest.vars, root: userDataDir('my-pack') } }),
+run: (manifest) => ({ manifest: { vars: { ...manifest.vars, root: userDataDir('my-pack') } } }),
 ```
 
 Викликається при кожному `opys launch` і `opys install` на комп'ютері,

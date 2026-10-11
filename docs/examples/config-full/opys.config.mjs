@@ -15,12 +15,14 @@ export default defineConfig(({ mode }) => ({
     cleanup: [{ includes: ['${game_directory}/mods/*.jar'] }],
   },
   run: (manifest) => ({
-    vars: {
-      ...manifest.vars,
-      root: userDataDir('config-full'),
-      username: 'Player',
-      uuid: '00000000-0000-0000-0000-000000000001',
-      token: '0',
+    manifest: {
+      vars: {
+        ...manifest.vars,
+        root: userDataDir('config-full'),
+        username: 'Player',
+        uuid: '00000000-0000-0000-0000-000000000001',
+        token: '0',
+      },
     },
   }),
 }));
