@@ -5,7 +5,7 @@
 Запускає гру на швидкій відеокарті.
 
 <!-- prettier-ignore -->
-```js{6,9,11-12}
+```js{6,9,11}
 // opys.config.mjs
 export default defineConfig({
   plugins: [
@@ -16,8 +16,7 @@ export default defineConfig({
   manifest: {
     command: '@dgpuj.bin',
     args: [
-      '--dgpuj-home',
-      '@java.home',
+      '@minecraft.command',
       '@minecraft.jvmArgs',
       '@minecraft.mainClass',
       '@minecraft.gameArgs',
@@ -38,11 +37,11 @@ export default defineConfig({
 
 ## Параметри
 
-| Параметр                   | Що робить                                                           |
-| -------------------------- | ------------------------------------------------------------------- |
-| `version`                  | `'latest'` (за замовчуванням), `'prerelease'` або тег (`'v0.3.0'`). |
-| `platforms`                | Які платформи його отримують.                                       |
-| `repo`, `token`, `apiBase` | Звідки він завантажується, і токен GitHub.                          |
+| Параметр                   | Що робить                                                                                                   |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `version`                  | Без нього це випуск, для якого написана ця версія opys. Або `'latest'`, `'prerelease'` чи тег (`'v0.6.0'`). |
+| `platforms`                | Які платформи його отримують.                                                                               |
+| `repo`, `token`, `apiBase` | Звідки він завантажується, і токен GitHub.                                                                  |
 
 ## Що він додає
 
@@ -73,8 +72,7 @@ export default defineConfig({
   manifest: {
     command: '@dgpuj.bin',
     args: [
-      '--dgpuj-home',
-      '@java.home',
+      '@minecraft.command',
       '@minecraft.jvmArgs',
       '@minecraft.mainClass',
       '@minecraft.gameArgs',
@@ -89,10 +87,10 @@ export default defineConfig({
 // у маніфесті
 {
   "path": "${dgpuj_dir}/dgpuj-x86_64-pc-windows-msvc.zip",
-  "source": { "url": "https://github.com/harmoniya-net/dgpuj/releases/download/v0.3.0/dgpuj-x86_64-pc-windows-msvc.zip" },
-  "size": 77321,
+  "source": { "url": "https://github.com/harmoniya-net/dgpuj/releases/download/v0.6.0/dgpuj-x86_64-pc-windows-msvc.zip" },
+  "size": 947,
   "rules": ["allow.os.windows", "allow.arch.x86_64"],
-  "integrity": { "sha256": "3dc7ef481abdd390cbb0ba23137d808b4b8652b23a49915f761a4bc422969a13" },
+  "integrity": { "sha256": "d90a21ccc99625b450b897b10ac34bd4e36b7fbf03cbd7172133160f2d794fa4" },
   "extract": { "file": "dgpuj.exe", "into": "${dgpuj_dir}/dgpuj.exe" }
 }
 ```
@@ -113,8 +111,7 @@ export default defineConfig({
   manifest: {
     command: '@dgpuj.bin',
     args: [
-      '--dgpuj-home',
-      '@java.home',
+      '@minecraft.command',
       '@minecraft.jvmArgs',
       '@minecraft.mainClass',
       '@minecraft.gameArgs',
@@ -154,8 +151,7 @@ export default defineConfig({
   manifest: {
     command: '@dgpuj.bin',
     args: [
-      '--dgpuj-home',
-      '@java.home',
+      '@minecraft.command',
       '@minecraft.jvmArgs',
       '@minecraft.mainClass',
       '@minecraft.gameArgs',
@@ -174,22 +170,32 @@ export default defineConfig({
 Це єдиний випадок, коли `command` приходить не від
 завантажувача.
 
-## Як вказати, де Java
+**Чому версія типово не найновіша:** те, що ви пишете в `args`, це
+власний командний рядок dgpuj, і він змінювався між випусками. Кожна
+версія opys називає той випуск, який описує її документація, тож
+збірка отримує саме його, і той самий у кожному збиранні.
+
+## Як вказати, яку Java запускати
 
 ```js
-args: ['--dgpuj-home', '@java.home', '@forge.jvmArgs', …],
+args: ['@forge.command', '@forge.jvmArgs', …],
 ```
 
-`--dgpuj-home` це власний прапорець dgpuj, а
-[`@java.home`](./java#що-він-додає) це JDK, який встановив плагін
-`java`. Поставте цю пару першою в `args`.
+dgpuj стає перед звичайним рядком запуску. Перший аргумент це
+`java`, яку він має запустити, а це вже і є `command`
+завантажувача. Тож `command` завантажувача переходить із `command`
+на початок `args`.
 
-**Чому `dgpuj` не дає цього сам:** де знаходиться Java, каже
-плагін `java`. За такої назви конфігурація без `java` падає під
-час збирання замість старту зі зламаним шляхом.
+Це може бути шлях або просто слово `java`, тому
+[`java({ system: true })`](./java) тут теж працює.
 
-Пару можна пропустити. `java` також встановлює `JAVA_HOME`, а
-dgpuj читає її.
+**Чому `dgpuj` не дає цього сам:** яка Java запускає гру, каже
+завантажувач. За такої назви конфігурація без завантажувача падає
+під час збирання замість старту зі зламаним шляхом.
+
+**Java 8 у Windows** це виняток. Вона знаходить власні файли за
+місцем свого запускача, тому dgpuj має лежати поруч із `java.exe`,
+у теці `bin` JDK, і отримати просто слово `java`.
 
 ## Варто знати
 

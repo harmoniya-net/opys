@@ -61,7 +61,13 @@ beforeEach(async () => {
 
 afterEach(() => new Promise<void>((resolve) => server.close(() => resolve())));
 
-const options = () => ({ apiBase: base, platforms: [LINUX_X64] });
+// The newest release, by name: left out, the version is the one the crate
+// names and no request is made.
+const options = () => ({
+  apiBase: base,
+  version: 'latest',
+  platforms: [LINUX_X64],
+});
 
 function makeCtx() {
   const logs: { scope: string; message: string }[] = [];
@@ -111,6 +117,19 @@ describe('resolveDgpuj', () => {
     ]);
   });
 
+  it('takes the release the crate names when given no version, and asks nobody', async () => {
+    const t = await resolveDgpuj({ apiBase: base });
+
+    expect(targets).toEqual([]);
+    expect(t.release.tag_name).toMatch(/^v\d+\.\d+\.\d+$/);
+    expect(t.artifacts).toHaveLength(DEFAULT_PLATFORMS.length);
+    for (const artifact of t.artifacts) {
+      expect(artifact.integrity).toEqual({
+        sha256: expect.stringMatching(/^[0-9a-f]{64}$/),
+      });
+    }
+  });
+
   it('passes the repo through', async () => {
     await resolveDgpuj({ ...options(), repo: 'me/fork' });
     expect(targets[0]).toMatch(/^\/repos\/me\/fork\/releases/);
@@ -118,7 +137,7 @@ describe('resolveDgpuj', () => {
 
   it('rejects with the crate’s error when a target has no asset', async () => {
     await expect(
-      resolveDgpuj({ apiBase: base, platforms: [DEFAULT_PLATFORMS[0]!] }),
+      resolveDgpuj({ ...options(), platforms: [DEFAULT_PLATFORMS[0]!] }),
     ).rejects.toThrow(
       /No matching asset \(dgpuj-x86_64-pc-windows-msvc\.zip\)/,
     );

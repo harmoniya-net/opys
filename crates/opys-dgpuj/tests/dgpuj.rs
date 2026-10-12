@@ -65,9 +65,12 @@ fn github() -> TestServer {
     })
 }
 
+/// The newest release, asked for by name: left out, the version is the one
+/// the crate names and nothing is asked of anybody.
 fn options(server: &TestServer) -> DgpujOptions {
     DgpujOptions {
         api_base: Some(server.base.clone()),
+        version: Some("latest".to_owned()),
         ..Default::default()
     }
 }
@@ -124,8 +127,52 @@ fn the_vars_are_a_directory_and_one_binary_path_per_os() {
     );
 }
 
+/// What a config writes after `'@dgpuj.bin'` is dgpuj's own command line, so
+/// the launcher has to be the one this crate describes: named in it, with
+/// its hashes, and not whichever was published last.
 #[test]
-fn the_default_is_the_newest_stable_release() {
+fn the_default_is_the_release_the_crate_names_and_asks_nobody() {
+    let server = github();
+    let template = resolve_dgpuj(&DgpujOptions {
+        api_base: Some(server.base.clone()),
+        ..Default::default()
+    })
+    .unwrap();
+
+    assert!(server.targets().is_empty());
+    assert_eq!(template.release.tag_name, opys_dgpuj::DGPUJ_VERSION);
+    assert_eq!(template.artifacts.len(), 5);
+    let windows = serde_json::to_value(&template.artifacts[0]).unwrap();
+    assert_eq!(
+        windows["source"]["url"],
+        format!(
+            "https://github.com/harmoniya-net/dgpuj/releases/download/{}/dgpuj-x86_64-pc-windows-msvc.zip",
+            opys_dgpuj::DGPUJ_VERSION
+        )
+    );
+    assert_eq!(windows["integrity"]["sha256"].as_str().unwrap().len(), 64);
+    assert!(windows["size"].as_u64().unwrap() > 0);
+}
+
+/// Another repo has no release this crate could name, so there the default
+/// is still its newest.
+#[test]
+fn the_default_of_another_repo_is_its_newest() {
+    let server = github();
+    // The fork publishes nothing here; that it was asked is the point.
+    let _ = resolve_dgpuj(&DgpujOptions {
+        api_base: Some(server.base.clone()),
+        repo: Some("fork/dgpuj".to_owned()),
+        ..Default::default()
+    });
+    assert_eq!(
+        server.targets(),
+        ["/repos/fork/dgpuj/releases?per_page=100"]
+    );
+}
+
+#[test]
+fn latest_is_the_newest_stable_release() {
     let server = github();
     let template = resolve_dgpuj(&options(&server)).unwrap();
 
@@ -233,7 +280,7 @@ fn the_plugin_exposes_the_binary_and_nothing_of_another_plugins() {
     assert_eq!(build.output.name, "dgpuj");
     assert_eq!(build.output.contribution.artifacts.len(), 5);
     let launch = serde_json::to_value(&build.output.contribution.launch).unwrap();
-    // Where the JVM is belongs to `java`: a config writes `@java.home`.
+    // Which Java it runs belongs to the loader: a config writes `@forge.command`.
     assert_eq!(launch, json!({ "bin": "${dgpuj_bin}" }));
     // One resolve for both: the release the log line names comes with it.
     assert_eq!(build.release.tag_name, "v0.3.0");

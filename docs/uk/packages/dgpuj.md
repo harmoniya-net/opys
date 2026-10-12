@@ -25,8 +25,7 @@ export default defineConfig({
   manifest: {
     command: '@dgpuj.bin',
     args: [
-      '--dgpuj-home',
-      '@java.home',
+      '@minecraft.command',
       '@minecraft.jvmArgs',
       '@minecraft.mainClass',
       '@minecraft.gameArgs',
@@ -38,11 +37,11 @@ export default defineConfig({
 
 ## Параметри
 
-| Параметр                   | Що робить                                                 |
-| -------------------------- | --------------------------------------------------------- |
-| `version`                  | `'latest'` (типово), `'prerelease'` або тег (`'v0.3.0'`). |
-| `platforms`                | Які платформи його отримують.                             |
-| `repo`, `token`, `apiBase` | Звідки він завантажується, і токен GitHub.                |
+| Параметр                   | Що робить                                                                                                   |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `version`                  | Без нього це випуск, для якого написана ця версія opys. Або `'latest'`, `'prerelease'` чи тег (`'v0.6.0'`). |
+| `platforms`                | Які платформи його отримують.                                                                               |
+| `repo`, `token`, `apiBase` | Звідки він завантажується, і токен GitHub.                                                                  |
 
 ## Що він додає
 
@@ -58,18 +57,18 @@ export default defineConfig({
 // у маніфесті
 {
   "path": "${dgpuj_dir}/dgpuj-x86_64-pc-windows-msvc.zip",
-  "source": { "url": "https://github.com/harmoniya-net/dgpuj/releases/download/v0.3.0/dgpuj-x86_64-pc-windows-msvc.zip" },
-  "size": 77321,
+  "source": { "url": "https://github.com/harmoniya-net/dgpuj/releases/download/v0.6.0/dgpuj-x86_64-pc-windows-msvc.zip" },
+  "size": 947,
   "rules": ["allow.os.windows", "allow.arch.x86_64"],
-  "integrity": { "sha256": "3dc7ef481abdd390cbb0ba23137d808b4b8652b23a49915f761a4bc422969a13" },
+  "integrity": { "sha256": "d90a21ccc99625b450b897b10ac34bd4e36b7fbf03cbd7172133160f2d794fa4" },
   "extract": { "file": "dgpuj.exe", "into": "${dgpuj_dir}/dgpuj.exe" }
 }
 ```
 
 ### Запуск
 
-Одна частина, виконуваний файл. Він йде в `command`, і йому кажуть,
-де знаходиться Java.
+Одна частина, виконуваний файл. Він йде в `command`, а `java`, яку
+він має запустити, йде першою в `args`.
 
 <!-- prettier-ignore -->
 ```jsonc
@@ -78,9 +77,8 @@ export default defineConfig({
   // '@dgpuj.bin'
   "command": "${dgpuj_bin}",
   "args": [
-    "--dgpuj-home",
-    // '@java.home'
-    "${java_home}",
+    // '@minecraft.command'
+    "${java_bin}",
     // … власні аргументи гри
   ]
 }
@@ -108,12 +106,13 @@ export default defineConfig({
 Кожен параметр, у кожному способі використання.
 
 ```js
-// останній випуск
+// випуск, який називає ця версія opys: без пошуку, той самий у кожному збиранні
 dgpuj();
 
-// останній пререліз або один точний тег
+// найновіший випуск або пререліз, знайдений під час збирання, або один точний тег
+dgpuj({ version: 'latest' });
 dgpuj({ version: 'prerelease' });
-dgpuj({ version: 'v0.3.0' });
+dgpuj({ version: 'v0.6.0' });
 
 // лише деякі платформи; DEFAULT_PLATFORMS експортується з @opys/dgpuj
 dgpuj({ platforms: DEFAULT_PLATFORMS.filter((p) => p.os === 'windows') });

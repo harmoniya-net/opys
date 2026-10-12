@@ -12,6 +12,7 @@ use opys_dev::{Contribution, LaunchFragment, PluginOutput};
 use serde::{Deserialize, Serialize};
 
 use crate::error::DgpujError;
+use crate::release::baked_release;
 
 /// The name this plugin claims in the plugin map.
 pub const PLUGIN_NAME: &str = "dgpuj";
@@ -68,7 +69,8 @@ pub fn default_platforms() -> Vec<DgpujPlatform> {
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
 pub struct DgpujOptions {
-    /// `latest`, `prerelease`, or an exact tag (`v0.3.0`). `None` is `latest`.
+    /// `latest`, `prerelease`, or an exact tag (`v0.3.0`). `None` is the
+    /// release this crate names, [`crate::DGPUJ_VERSION`], and no lookup.
     pub version: Option<String>,
     /// The targets to provision. `None` is [`default_platforms`].
     pub platforms: Option<Vec<DgpujPlatform>>,
@@ -128,6 +130,9 @@ pub fn resolve_dgpuj(options: &DgpujOptions) -> Result<DgpujTemplate, DgpujError
     let platforms = options.platforms.clone().unwrap_or_else(default_platforms);
 
     let release = match options.version.as_deref() {
+        // The one this crate was written against. Of another repo there is no
+        // such thing to name, so there it is that repo's newest.
+        None if options.repo.is_none() => baked_release(repo),
         None | Some("latest") => {
             pick_github_release(api, repo, &ReleaseSelector::Latest, token, None)?
         }
@@ -225,11 +230,13 @@ pub struct DgpujBuild {
 /// A resolved template as a ready-to-merge contribution, with one launch
 /// group: `bin`, the launcher itself.
 ///
-/// Where the JVM is, is not this plugin's to say. It used to expose a `home`
-/// group holding `--dgpuj-home ${java_home}`, which named a var of another
-/// plugin and expanded to a literal `${java_home}` wherever that plugin was
-/// missing. A config writes `'--dgpuj-home', '@java.home'` instead, which is
-/// checked when it is built, or nothing: the launcher reads `JAVA_HOME`.
+/// Which Java it runs is not this plugin's to say. The launcher takes it as
+/// its first argument, a path or the bare word, and a config gives it the
+/// loader's own `command` there: `args: ['@forge.command', …]`, which is
+/// checked when it is built. It used to take the JDK's home behind a flag,
+/// `--dgpuj-home`, and before that this plugin exposed a `home` group that
+/// named `${java_home}`, a var of another plugin, and expanded to that
+/// literal text wherever the other plugin was missing.
 pub fn build_dgpuj(options: &DgpujOptions) -> Result<DgpujBuild, DgpujError> {
     let template = resolve_dgpuj(options)?;
     Ok(DgpujBuild {

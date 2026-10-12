@@ -25,8 +25,7 @@ export default defineConfig({
   manifest: {
     command: '@dgpuj.bin',
     args: [
-      '--dgpuj-home',
-      '@java.home',
+      '@minecraft.command',
       '@minecraft.jvmArgs',
       '@minecraft.mainClass',
       '@minecraft.gameArgs',
@@ -38,11 +37,11 @@ export default defineConfig({
 
 ## Options
 
-| Option                     | What it does                                                 |
-| -------------------------- | ------------------------------------------------------------ |
-| `version`                  | `'latest'` (default), `'prerelease'`, or a tag (`'v0.3.0'`). |
-| `platforms`                | Which platforms get it.                                      |
-| `repo`, `token`, `apiBase` | Where it is downloaded from, and a GitHub token.             |
+| Option                     | What it does                                                                                                      |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `version`                  | Left out, the release this version of opys was written for. Or `'latest'`, `'prerelease'`, or a tag (`'v0.6.0'`). |
+| `platforms`                | Which platforms get it.                                                                                           |
+| `repo`, `token`, `apiBase` | Where it is downloaded from, and a GitHub token.                                                                  |
 
 ## What it adds
 
@@ -57,17 +56,18 @@ Five archives. `rules` pick one, and `extract` takes the executable out.
 // in the manifest
 {
   "path": "${dgpuj_dir}/dgpuj-x86_64-pc-windows-msvc.zip",
-  "source": { "url": "https://github.com/harmoniya-net/dgpuj/releases/download/v0.3.0/dgpuj-x86_64-pc-windows-msvc.zip" },
-  "size": 77321,
+  "source": { "url": "https://github.com/harmoniya-net/dgpuj/releases/download/v0.6.0/dgpuj-x86_64-pc-windows-msvc.zip" },
+  "size": 947,
   "rules": ["allow.os.windows", "allow.arch.x86_64"],
-  "integrity": { "sha256": "3dc7ef481abdd390cbb0ba23137d808b4b8652b23a49915f761a4bc422969a13" },
+  "integrity": { "sha256": "d90a21ccc99625b450b897b10ac34bd4e36b7fbf03cbd7172133160f2d794fa4" },
   "extract": { "file": "dgpuj.exe", "into": "${dgpuj_dir}/dgpuj.exe" }
 }
 ```
 
 ### Launch
 
-One piece, the executable. It goes in `command`, and is told where Java is.
+One piece, the executable. It goes in `command`, and the `java` it is to
+run goes first in `args`.
 
 <!-- prettier-ignore -->
 ```jsonc
@@ -76,9 +76,8 @@ One piece, the executable. It goes in `command`, and is told where Java is.
   // '@dgpuj.bin'
   "command": "${dgpuj_bin}",
   "args": [
-    "--dgpuj-home",
-    // '@java.home'
-    "${java_home}",
+    // '@minecraft.command'
+    "${java_bin}",
     // … the game's own arguments
   ]
 }
@@ -106,12 +105,13 @@ Where the executable is, per OS.
 Each option, in each way it is used.
 
 ```js
-// the latest release
+// the release this version of opys names: no lookup, the same in every build
 dgpuj();
 
-// the latest prerelease, or one exact tag
+// the newest release or prerelease, looked up at build, or one exact tag
+dgpuj({ version: 'latest' });
 dgpuj({ version: 'prerelease' });
-dgpuj({ version: 'v0.3.0' });
+dgpuj({ version: 'v0.6.0' });
 
 // only some platforms; DEFAULT_PLATFORMS is exported by @opys/dgpuj
 dgpuj({ platforms: DEFAULT_PLATFORMS.filter((p) => p.os === 'windows') });

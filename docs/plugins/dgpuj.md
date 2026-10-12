@@ -5,7 +5,7 @@ The `dgpuj` plugin, from `@opys/minecraft`.
 Runs the game on the fast graphics card.
 
 <!-- prettier-ignore -->
-```js{6,9,11-12}
+```js{6,9,11}
 // opys.config.mjs
 export default defineConfig({
   plugins: [
@@ -16,8 +16,7 @@ export default defineConfig({
   manifest: {
     command: '@dgpuj.bin',
     args: [
-      '--dgpuj-home',
-      '@java.home',
+      '@minecraft.command',
       '@minecraft.jvmArgs',
       '@minecraft.mainClass',
       '@minecraft.gameArgs',
@@ -37,11 +36,11 @@ asks for the fast card, then runs Java inside itself.
 
 ## Options
 
-| Option                     | What it does                                                 |
-| -------------------------- | ------------------------------------------------------------ |
-| `version`                  | `'latest'` (default), `'prerelease'`, or a tag (`'v0.3.0'`). |
-| `platforms`                | Which platforms get it.                                      |
-| `repo`, `token`, `apiBase` | Where it is downloaded from, and a GitHub token.             |
+| Option                     | What it does                                                                                                      |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `version`                  | Left out, the release this version of opys was written for. Or `'latest'`, `'prerelease'`, or a tag (`'v0.6.0'`). |
+| `platforms`                | Which platforms get it.                                                                                           |
+| `repo`, `token`, `apiBase` | Where it is downloaded from, and a GitHub token.                                                                  |
 
 ## What it adds
 
@@ -72,8 +71,7 @@ export default defineConfig({
   manifest: {
     command: '@dgpuj.bin',
     args: [
-      '--dgpuj-home',
-      '@java.home',
+      '@minecraft.command',
       '@minecraft.jvmArgs',
       '@minecraft.mainClass',
       '@minecraft.gameArgs',
@@ -88,10 +86,10 @@ export default defineConfig({
 // in the manifest
 {
   "path": "${dgpuj_dir}/dgpuj-x86_64-pc-windows-msvc.zip",
-  "source": { "url": "https://github.com/harmoniya-net/dgpuj/releases/download/v0.3.0/dgpuj-x86_64-pc-windows-msvc.zip" },
-  "size": 77321,
+  "source": { "url": "https://github.com/harmoniya-net/dgpuj/releases/download/v0.6.0/dgpuj-x86_64-pc-windows-msvc.zip" },
+  "size": 947,
   "rules": ["allow.os.windows", "allow.arch.x86_64"],
-  "integrity": { "sha256": "3dc7ef481abdd390cbb0ba23137d808b4b8652b23a49915f761a4bc422969a13" },
+  "integrity": { "sha256": "d90a21ccc99625b450b897b10ac34bd4e36b7fbf03cbd7172133160f2d794fa4" },
   "extract": { "file": "dgpuj.exe", "into": "${dgpuj_dir}/dgpuj.exe" }
 }
 ```
@@ -112,8 +110,7 @@ export default defineConfig({
   manifest: {
     command: '@dgpuj.bin',
     args: [
-      '--dgpuj-home',
-      '@java.home',
+      '@minecraft.command',
       '@minecraft.jvmArgs',
       '@minecraft.mainClass',
       '@minecraft.gameArgs',
@@ -153,8 +150,7 @@ export default defineConfig({
   manifest: {
     command: '@dgpuj.bin',
     args: [
-      '--dgpuj-home',
-      '@java.home',
+      '@minecraft.command',
       '@minecraft.jvmArgs',
       '@minecraft.mainClass',
       '@minecraft.gameArgs',
@@ -172,22 +168,31 @@ export default defineConfig({
 
 This is the one case where `command` does not come from the loader.
 
-## Telling it where Java is
+**Why the version is not the newest by default:** what you write in `args`
+is dgpuj's own command line, and it has changed between releases. Each
+version of opys names the release its docs describe, so a pack gets that
+one, and the same one in every build.
+
+## Telling it which Java to run
 
 ```js
-args: ['--dgpuj-home', '@java.home', '@forge.jvmArgs', …],
+args: ['@forge.command', '@forge.jvmArgs', …],
 ```
 
-`--dgpuj-home` is dgpuj's own flag, and
-[`@java.home`](./java#what-it-adds) is the JDK the `java` plugin installed.
-Put the pair first in `args`.
+dgpuj goes in front of an ordinary launch line. The first argument is the
+`java` it is to run, and that is what the loader's `command` already is, so
+the loader's `command` moves from `command` to the head of `args`.
 
-**Why `dgpuj` does not provide this itself:** where Java is, is the `java`
-plugin's to say. Named this way, a config without `java` fails at build
+It may be a path or the bare word `java`, so
+[`java({ system: true })`](./java) works here too.
+
+**Why `dgpuj` does not provide this itself:** which Java runs the game is the
+loader's to say. Named this way, a config without a loader fails at build
 time instead of starting with a broken path.
 
-You may leave the pair out. `java` also sets `JAVA_HOME`, and dgpuj reads
-that.
+**Java 8 on Windows** is the exception. It finds its own files from where
+its launcher is, so dgpuj has to be installed beside `java.exe`, in the
+JDK's `bin`, and given the bare word `java`.
 
 ## Good to know
 

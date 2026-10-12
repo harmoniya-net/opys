@@ -757,6 +757,23 @@ export default defineConfig(({ mode }) => ({
   config did not say it ships. The two unpack into directories of their
   own, `jre-<major>` and `jdk-<major>`, so a pack that changes its mind
   does not unpack one over what the other left.
+- **dgpuj's release is named in the crate, and so is whatever a config's
+  own words depend on.** `dgpuj()` with no version is `DGPUJ_VERSION`, with
+  its hashes, and no request. It was "the newest", looked up at build, and
+  what a config writes after `command: '@dgpuj.bin'` is dgpuj's command
+  line: 0.6 takes the `java` to run as its first argument where 0.5 took
+  the JDK's home behind a flag, so the day 0.6 was published every pack
+  that was rebuilt got a launcher its config could not talk to. The docs
+  here describe one release, and that is the one a pack gets; a newer one
+  is a change to `crates/opys-dgpuj/src/release.rs`, as the server starter
+  is to its own. `'latest'` is still there to be written, by whoever means
+  it.
+- **dgpuj goes in front of a launch line, and is told which `java` to
+  be.** `command: '@dgpuj.bin', args: ['@forge.command', …]`: the loader's
+  `command` moves to the head of `args`, a path or the bare word of a
+  system Java alike. dgpuj used to host the VM itself and had to be told
+  where the JDK was, which is what `'@java.home'` was for. It is the JDK's
+  own launcher now, `JLI_Launch`, with the GPU symbols exported.
 - **`java({ system: true })` ships no JDK, and says so with a feature.** It
   owns `java_bin` alone: `java` from `PATH`, or `${java_home}/bin/java` with
   the `custom_java` feature on, where `java_home` is a var the launcher

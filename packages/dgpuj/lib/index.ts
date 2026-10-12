@@ -59,7 +59,11 @@ export interface DgpujRelease {
 }
 
 export interface DgpujOptions {
-  /** Release to use: `'latest'` (default), `'prerelease'`, or an exact tag (`'v0.3.0'`). */
+  /**
+   * Release to use. Left out, it is the one this version of opys names, with
+   * its hashes, and nothing is looked up. Or `'latest'`, `'prerelease'`, or an
+   * exact tag (`'v0.6.0'`).
+   */
   readonly version?: string;
   /** Override the platform set (default {@link DEFAULT_PLATFORMS}). */
   readonly platforms?: readonly DgpujPlatform[];
@@ -115,16 +119,16 @@ export async function resolveDgpuj(
  * Solely owns `dgpuj_dir` / `dgpuj_bin`, and exposes one launch group:
  * `bin`, the launcher binary, which takes the place of the `command`.
  *
- * It is told where the JVM is with `--dgpuj-home`, and that is `java`'s to
- * say: `'@java.home'`. Left out, the launcher reads `JAVA_HOME`, which the
- * `java` plugin also sets.
+ * It goes in front of an ordinary launch line, and its first argument is
+ * the `java` to run. That is the loader's to say, so the loader's `command`
+ * goes first in `args`: a path, or the bare word for a system Java.
  *
  * ```js
  * import { dgpuj } from '@opys/dgpuj';
  * // plugins: [forge({ version: '1.20.1' }), java({ version: '17' }), dgpuj()]
  * command: '@dgpuj.bin',
  * args: [
- *   '--dgpuj-home', '@java.home',
+ *   '@forge.command',
  *   '@forge.jvmArgs', '@forge.mainClass', '@forge.gameArgs',
  * ],
  * ```
