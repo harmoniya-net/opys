@@ -55,6 +55,8 @@ pub struct ResolveZuluOptions {
     pub platforms: Option<Vec<Platform>>,
     /// Override the Azul Metadata API base URL.
     pub api_base: Option<String>,
+    /// The whole JDK in place of the JRE.
+    pub jdk: bool,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -70,14 +72,15 @@ struct ZuluPackage {
 
 /// The version input needs no vendor-specific spelling here — Azul takes both
 /// a bare major and a full version in the same `java_version` parameter.
-fn zulu_query(platform: Platform, version: &str) -> String {
+fn zulu_query(platform: Platform, version: &str, jdk: bool) -> String {
+    let package = if jdk { "jdk" } else { "jre" };
     let java_version = encode_uri_component(version);
     let os = zulu_os(platform.os);
     let arch = zulu_arch(platform.arch);
     let archive_type = archive_type(platform.os);
     format!(
         "java_version={java_version}&os={os}&arch={arch}&archive_type={archive_type}\
-         &java_package_type=jdk&javafx_bundled=false&crac_supported=false\
+         &java_package_type={package}&javafx_bundled=false&crac_supported=false\
          &release_status=ga&page_size=10\
          &availability_types=CA&include_fields=sha256_hash&include_fields=size"
     )
@@ -116,10 +119,11 @@ fn fetch_platform(
     api_base: &str,
     platform: Platform,
     version: &str,
+    jdk: bool,
 ) -> Result<Option<Candidates>, JavaError> {
     let url = format!(
         "{api_base}/zulu/packages/?{}",
-        zulu_query(platform, version)
+        zulu_query(platform, version, jdk)
     );
     let os = zulu_os(platform.os);
     let arch = zulu_arch(platform.arch);
@@ -164,7 +168,7 @@ pub fn resolve_zulu(
     let trimmed = version.trim();
 
     let with_results: Vec<Candidates> = fan_out(platforms, |platform| {
-        fetch_platform(api_base, platform, trimmed)
+        fetch_platform(api_base, platform, trimmed, options.jdk)
     })?;
 
     if with_results.is_empty() {
@@ -199,8 +203,10 @@ pub fn resolve_zulu(
 
     let first = matched[0].1;
     Ok(VendorRelease {
+        // "JDK" here is how Azul writes a Java version, whichever image it is.
         label: format!("Zulu {} (JDK {anchor})", version_key(&first.distro_version)),
         major: first.java_version[0] as u32,
+        jdk: options.jdk,
         binaries,
     })
 }
@@ -236,7 +242,9 @@ mod tests {
                 arch: SupportedArch::Aarch64,
             },
             "21",
+            false,
         );
+        assert!(q.contains("java_package_type=jre"), "{q}");
         assert!(q.contains("os=linux-glibc"), "{q}");
         assert!(q.contains("arch=aarch64"), "{q}");
         assert!(q.contains("archive_type=tar.gz"), "{q}");
@@ -251,6 +259,7 @@ mod tests {
                 arch: SupportedArch::X86_64,
             },
             "21",
+            true,
         );
         assert!(q.contains("archive_type=zip"), "{q}");
     }

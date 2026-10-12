@@ -113,6 +113,11 @@ fn a_field_that_picks_a_jdk_is_refused_beside_system() {
         ..system()
     })
     .contains("`token`"));
+    assert!(refused(JavaOptions {
+        jdk: true,
+        ..system()
+    })
+    .contains("`jdk`"));
 }
 
 #[test]

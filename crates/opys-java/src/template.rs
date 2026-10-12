@@ -42,6 +42,10 @@ pub struct JavaOptions {
     pub api_base: Option<String>,
     /// GitHub token for higher rate limits — `graalvm` only.
     pub token: Option<String>,
+    /// Ship the whole JDK. Left out, it is the JRE: a quarter of the download,
+    /// and all a game runs on. GraalVM CE has no JRE and has to be asked for
+    /// as what it is.
+    pub jdk: bool,
     /// Ship no JDK and run on the machine's own — see [`crate::system_java`].
     /// It is the other way to call the plugin, not a setting of this one, so
     /// it goes with none of the fields above.
@@ -57,6 +61,7 @@ impl JavaOptions {
             ("platforms", self.platforms.is_some()),
             ("apiBase", self.api_base.is_some()),
             ("token", self.token.is_some()),
+            ("jdk", self.jdk),
         ]
         .into_iter()
         .find_map(|(field, set)| set.then_some(field))
@@ -144,6 +149,7 @@ fn resolve_release(options: &JavaOptions) -> Result<VendorRelease, JavaError> {
             &ResolveTemurinOptions {
                 platforms: options.platforms.clone(),
                 api_base: options.api_base.clone(),
+                jdk: options.jdk,
             },
         ),
         JavaVendor::Zulu => resolve_zulu(
@@ -151,8 +157,12 @@ fn resolve_release(options: &JavaOptions) -> Result<VendorRelease, JavaError> {
             &ResolveZuluOptions {
                 platforms: options.platforms.clone(),
                 api_base: options.api_base.clone(),
+                jdk: options.jdk,
             },
         ),
+        // Refused rather than answered with a JDK nobody asked for: what a
+        // config says it ships is what it ships.
+        JavaVendor::Graalvm if !options.jdk => Err(JavaError::NoJre),
         JavaVendor::Graalvm => resolve_graalvm(
             &options.version,
             &ResolveGraalvmOptions {
@@ -164,12 +174,17 @@ fn resolve_release(options: &JavaOptions) -> Result<VendorRelease, JavaError> {
     }
 }
 
-/// Build a manifest fragment that auto-installs a JDK runtime and exposes
+/// Build a manifest fragment that auto-installs a Java runtime and exposes
 /// `${java_home}` + `${java_bin}`.
+///
+/// It is a JRE unless `jdk` asks for the whole JDK. A game needs no compiler,
+/// and the JDK was four times the download; it was all this shipped until
+/// somebody looked at what a player was being sent.
 ///
 /// Each platform's archive is emitted as its own `Artifact` with an OS+arch
 /// rule, so only the matching binary downloads at install time. Archives
-/// extract into `${java_runtime_dir}/jdk-<major>/` with the archive's own
+/// extract into `${java_runtime_dir}/jre-<major>/`, or `jdk-<major>/` for a
+/// JDK, so that the two never share a directory, with the archive's own
 /// top-level directory glob-stripped regardless of what it's named — some
 /// vendors' archives embed a build identifier that isn't knowable at resolve
 /// time (see the `graalvm` module), so every vendor is extracted the same
@@ -193,11 +208,12 @@ pub fn resolve_java(options: &JavaOptions) -> Result<JavaTemplate, JavaError> {
 /// The vendor-agnostic half of [`resolve_java`], split out because it is
 /// pure: a resolved release in, artifacts and vars out, no I/O.
 pub fn java_template(release: VendorRelease) -> JavaTemplate {
-    // JDK runtimes install under the `java_runtime_dir` var (default
+    // Runtimes install under the `java_runtime_dir` var (default
     // `${root}/runtimes`) — override it in the config's `vars` to relocate.
     // Archives download directly into it: a sibling of, never nested inside,
     // the extract target, so no `.cache` special-casing is needed.
-    let java_root = format!("${{java_runtime_dir}}/jdk-{}", release.major);
+    let image = if release.jdk { "jdk" } else { "jre" };
+    let java_root = format!("${{java_runtime_dir}}/{image}-{}", release.major);
 
     let artifacts: Vec<Artifact> = release
         .binaries

@@ -2,7 +2,8 @@
 
 [![npm](https://img.shields.io/npm/v/@opys/java.svg)](https://www.npmjs.com/package/@opys/java)
 
-Java for opys. `java()` adds a JDK to a pack, so players need none installed.
+Java for opys. `java()` adds a Java runtime to a pack, so players need none
+installed.
 
 ```sh
 npm install -D @opys/dev @opys/java @opys/minecraft-vanilla
@@ -29,14 +30,15 @@ export default defineConfig({
 
 ## Options
 
-| Option      | What it does                                                                             |
-| ----------- | ---------------------------------------------------------------------------------------- |
-| `version`   | A major (`'21'`, its newest release) or an exact build (`'21.0.12.1+1'`, `'8u312-b07'`). |
-| `vendor`    | `'temurin'` (default), `'zulu'` or `'graalvm'`.                                          |
-| `platforms` | Which platforms get a JDK. All six by default.                                           |
-| `apiBase`   | A mirror of the vendor's API.                                                            |
-| `token`     | A GitHub token, for GraalVM's rate limit.                                                |
-| `system`    | `true` ships no JDK and uses the machine's own. It goes with no other option.            |
+| Option      | What it does                                                                                |
+| ----------- | ------------------------------------------------------------------------------------------- |
+| `version`   | A major (`'21'`, its newest release) or an exact build (`'21.0.12.1+1'`, `'8u312-b07'`).    |
+| `vendor`    | `'temurin'` (default), `'zulu'` or `'graalvm'`.                                             |
+| `jdk`       | `true` ships the whole JDK. Left out, it is a JRE: all a game needs, at a quarter the size. |
+| `platforms` | Which platforms get one. All six by default.                                                |
+| `apiBase`   | A mirror of the vendor's API.                                                               |
+| `token`     | A GitHub token, for GraalVM's rate limit.                                                   |
+| `system`    | `true` ships no JDK and uses the machine's own. It goes with no other option.               |
 
 Which Java for which Minecraft:
 
@@ -104,7 +106,7 @@ options: options()
 
 `opys build` turns the plugin into these parts of the manifest.
 
-### Files · one JDK per platform
+### Files · one JRE per platform
 
 Six archives. The `rules` mean a player downloads exactly one.
 
@@ -112,12 +114,12 @@ Six archives. The `rules` mean a player downloads exactly one.
 ```jsonc
 // in the manifest
 {
-  "path": "${java_runtime_dir}/OpenJDK21U-jdk_x64_linux_hotspot_21.0.12.1_1.tar.gz",
+  "path": "${java_runtime_dir}/OpenJDK21U-jre_x64_linux_hotspot_21.0.12.1_1.tar.gz",
   "source": { "url": "https://github.com/adoptium/temurin21-binaries/releases/download/…_x64_linux_….tar.gz" },
-  "size": 207473347,
+  "size": 52059408,
   "rules": ["allow.os.linux", "allow.arch.x86_64"],
-  "integrity": { "sha256": "ce79869e1307ed8ee1e2baa86a412b1eb5b75d10a01006d788a6f968bcfaee94" },
-  "extract": { "matches": "*", "into": "${java_runtime_dir}/jdk-21", "strip": ["*/"] }
+  "integrity": { "sha256": "2413149700df0f7d440500a84a8f764c535f21e5a5e87d38328b64eec2c5b500" },
+  "extract": { "matches": "*", "into": "${java_runtime_dir}/jre-21", "strip": ["*/"] }
 }
 ```
 
@@ -141,9 +143,9 @@ Where the JDK is, per OS.
 "vars": {
   "java_runtime_dir": "${root}/runtimes",
   "java_home": [
-    { "value": "${java_runtime_dir}/jdk-21", "rules": "allow.os.linux" },
-    { "value": "${java_runtime_dir}/jdk-21/Contents/Home", "rules": "allow.os.osx" },
-    { "value": "${java_runtime_dir}/jdk-21", "rules": "allow.os.windows" }
+    { "value": "${java_runtime_dir}/jre-21", "rules": "allow.os.linux" },
+    { "value": "${java_runtime_dir}/jre-21/Contents/Home", "rules": "allow.os.osx" },
+    { "value": "${java_runtime_dir}/jre-21", "rules": "allow.os.windows" }
   ],
   "java_bin": [
     { "value": "${java_home}/bin/java", "rules": "allow.os.linux" },
@@ -178,7 +180,16 @@ java({ version: '8u312-b07' });
 
 // another vendor
 java({ version: '21', vendor: 'zulu' });
-java({ version: '21', vendor: 'graalvm', token: process.env.GITHUB_TOKEN });
+// GraalVM is published as a JDK only, so it is asked for as one
+java({
+  version: '21',
+  vendor: 'graalvm',
+  jdk: true,
+  token: process.env.GITHUB_TOKEN,
+});
+
+// the whole JDK, compiler and tools and all
+java({ version: '21', jdk: true });
 
 // only some platforms, for a pack that runs on Windows alone
 java({

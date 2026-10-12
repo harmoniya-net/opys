@@ -213,6 +213,8 @@ pub fn resolve_graalvm(
     Ok(VendorRelease {
         label: format!("GraalVM CE {short}"),
         major: parse_major(&release.tag_name)?,
+        // The only image GraalVM CE is published as.
+        jdk: true,
         binaries,
     })
 }

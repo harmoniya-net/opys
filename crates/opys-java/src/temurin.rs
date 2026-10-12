@@ -11,8 +11,9 @@
 //!     full input is accepted bare (`"8u492-b09"`, `"21.0.13+11"`) or as a
 //!     complete release name (`"jdk8u492-b09"`, `"jdk-21.0.13+11"`).
 //!
-//! Each platform (os × arch) is queried separately with `image_type=jdk` and
-//! `jvm_impl=hotspot`. Releases that don't ship a binary for a given platform
+//! Each platform (os × arch) is queried separately with `image_type=jre`, or
+//! `jdk` when a JDK is asked for, and `jvm_impl=hotspot`. A release goes by
+//! the same name whichever image is taken from it. Releases that don't ship a binary for a given platform
 //! are soft-skipped — the resolved release only carries the platforms that
 //! have a real binary.
 
@@ -52,6 +53,8 @@ pub struct ResolveTemurinOptions {
     pub platforms: Option<Vec<Platform>>,
     /// Override the Adoptium API base URL.
     pub api_base: Option<String>,
+    /// The whole JDK in place of the JRE.
+    pub jdk: bool,
 }
 
 #[derive(Debug, Deserialize)]
@@ -117,13 +120,23 @@ fn normalize_input(input: &str) -> VersionInput {
 /// `heap_size=normal` excludes the `large` (huge-pages) variant;
 /// `vendor=eclipse` pins the distribution to Temurin. Every value is one of
 /// our own constants, so none of it needs escaping.
-fn adoptium_query(platform: Platform) -> String {
+fn adoptium_query(platform: Platform, jdk: bool) -> String {
     let arch = adoptium_arch(platform.arch);
     let os = adoptium_os(platform.os);
+    let image = image_type(jdk);
     format!(
-        "image_type=jdk&architecture={arch}&os={os}&jvm_impl=hotspot\
+        "image_type={image}&architecture={arch}&os={os}&jvm_impl=hotspot\
          &heap_size=normal&vendor={VENDOR}"
     )
+}
+
+/// Adoptium's name for what is asked for, in the query and in the answer.
+fn image_type(jdk: bool) -> &'static str {
+    if jdk {
+        "jdk"
+    } else {
+        "jre"
+    }
 }
 
 /// One platform's answer, flattened to what the template needs.
@@ -138,8 +151,9 @@ fn fetch_platform(
     api_base: &str,
     platform: Platform,
     version: &VersionInput,
+    jdk: bool,
 ) -> Result<Option<Matched>, JavaError> {
-    let query = adoptium_query(platform);
+    let query = adoptium_query(platform, jdk);
     let path = match version {
         VersionInput::Major(major) => {
             format!("/assets/feature_releases/{major}/ga?{query}&page_size=1&sort_order=DESC")
@@ -186,7 +200,7 @@ fn fetch_platform(
     let matched = release
         .binaries
         .into_iter()
-        .find(|b| b.architecture == arch && b.os == os && b.image_type == "jdk");
+        .find(|b| b.architecture == arch && b.os == os && b.image_type == image_type(jdk));
     Ok(matched.map(|binary| Matched {
         platform,
         release_name: release.release_name,
@@ -208,7 +222,7 @@ pub fn resolve_temurin(
     let parsed = normalize_input(version);
 
     let matched: Vec<Matched> = fan_out(platforms, |platform| {
-        fetch_platform(api_base, platform, &parsed)
+        fetch_platform(api_base, platform, &parsed, options.jdk)
     })?;
 
     if matched.is_empty() {
@@ -244,6 +258,7 @@ pub fn resolve_temurin(
     Ok(VendorRelease {
         label: format!("Temurin {short}"),
         major: consistent[0].major,
+        jdk: options.jdk,
         binaries,
     })
 }
@@ -285,10 +300,13 @@ mod tests {
 
     #[test]
     fn query_names_the_vendor_spelling_of_os_and_arch() {
-        let q = adoptium_query(Platform {
+        let mac = Platform {
             os: OsName::Osx,
             arch: SupportedArch::X86_64,
-        });
+        };
+        assert!(adoptium_query(mac, true).contains("image_type=jdk"));
+        let q = adoptium_query(mac, false);
+        assert!(q.contains("image_type=jre"), "{q}");
         assert!(q.contains("os=mac"), "{q}");
         assert!(q.contains("architecture=x64"), "{q}");
         assert!(q.contains("vendor=eclipse"), "{q}");

@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::platforms::Platform;
 
-/// One resolved, downloadable JDK binary for a single platform. Every vendor
+/// One resolved, downloadable Java runtime for a single platform. Every vendor
 /// resolver (temurin/zulu/graalvm) produces this shape so the template can
 /// turn it into an `Artifact` without vendor-specific branching.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -19,13 +19,19 @@ pub struct VendorBinary {
     pub sha256: Option<String>,
 }
 
-/// A resolved JDK release — vendor-agnostic input to the shared template.
+/// A resolved Java release — vendor-agnostic input to the shared template.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct VendorRelease {
     /// Human-readable label for the host's log, e.g. `Temurin 21.0.13+11`.
     pub label: String,
-    /// Major version — buckets the runtime dir as `jdk-<major>`.
+    /// Major version — buckets the runtime dir as `jre-<major>`, or
+    /// `jdk-<major>` for a JDK.
     pub major: u32,
+    /// Whether this is a whole JDK and not the JRE a game needs. Said by the
+    /// resolver that looked it up; a release built by hand that leaves it out
+    /// is taken for what the plugin ships by default.
+    #[serde(default)]
+    pub jdk: bool,
     pub binaries: Vec<VendorBinary>,
 }
 

@@ -40,6 +40,7 @@ fn options(server: &TestServer, platforms: &[Platform]) -> ResolveZuluOptions {
     ResolveZuluOptions {
         platforms: Some(platforms.to_vec()),
         api_base: Some(server.base.clone()),
+        jdk: false,
     }
 }
 
@@ -51,6 +52,24 @@ fn one_package(name: &str) -> impl Fn(&Request) -> Reply {
 // ── query construction ────────────────────────────────────────────────────
 
 #[test]
+fn asks_for_the_jdk_only_when_told_to() {
+    let server = TestServer::start(one_package("zulu-linux.tar.gz"));
+    let jdk = ResolveZuluOptions {
+        jdk: true,
+        ..options(&server, &[LINUX_X64])
+    };
+    let release = resolve_zulu("21", &jdk).unwrap();
+    assert!(release.jdk);
+    assert!(server.targets()[0].contains("java_package_type=jdk"));
+
+    assert!(
+        !resolve_zulu("21", &options(&server, &[LINUX_X64]))
+            .unwrap()
+            .jdk
+    );
+}
+
+#[test]
 fn queries_linux_glibc_with_a_tarball() {
     let server = TestServer::start(one_package("zulu-linux.tar.gz"));
     resolve_zulu("21", &options(&server, &[LINUX_X64])).unwrap();
@@ -60,7 +79,7 @@ fn queries_linux_glibc_with_a_tarball() {
     assert!(target.contains("os=linux-glibc"), "{target}");
     assert!(target.contains("arch=x64"), "{target}");
     assert!(target.contains("archive_type=tar.gz"), "{target}");
-    assert!(target.contains("java_package_type=jdk"), "{target}");
+    assert!(target.contains("java_package_type=jre"), "{target}");
     assert!(target.contains("javafx_bundled=false"), "{target}");
     assert!(target.contains("crac_supported=false"), "{target}");
     assert!(target.contains("release_status=ga"), "{target}");

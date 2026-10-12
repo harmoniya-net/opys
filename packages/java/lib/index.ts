@@ -1,5 +1,5 @@
 /**
- * `@opys/java` — JDK provisioning.
+ * `@opys/java` — Java provisioning: a JRE, or the whole JDK.
  *
  * Behaviour lives in the `opys-java` crate and reaches JS through
  * `@opys/binding`, under `java`; this module is the typed surface over it. The
@@ -42,7 +42,7 @@ export const DEFAULT_PLATFORMS: readonly Platform[] =
 // ──────────────────────────────────────────────────────────────────────────
 
 /**
- * One resolved, downloadable JDK binary for a single platform. Every vendor
+ * One resolved, downloadable Java runtime for a single platform. Every vendor
  * resolver produces this shape, so the template turns it into an `Artifact`
  * without vendor-specific branching.
  */
@@ -55,12 +55,17 @@ export interface VendorBinary {
   readonly sha256?: string;
 }
 
-/** A resolved JDK release — vendor-agnostic input to the shared template. */
+/** A resolved Java release — vendor-agnostic input to the shared template. */
 export interface VendorRelease {
   /** Human-readable label for `ctx.log`, e.g. `Temurin 21.0.13+11`. */
   readonly label: string;
-  /** Major version — buckets the runtime dir as `jdk-<major>`. */
+  /**
+   * Major version — buckets the runtime dir as `jre-<major>`, or
+   * `jdk-<major>` for a JDK.
+   */
   readonly major: number;
+  /** Whether this is a whole JDK. Left out, it is read as a JRE. */
+  readonly jdk?: boolean;
   readonly binaries: readonly VendorBinary[];
 }
 
@@ -70,16 +75,14 @@ export interface VendorRelease {
 
 export type JavaVendor = 'temurin' | 'zulu' | 'graalvm';
 
-/** A JDK the pack ships: resolved at build time and installed with it. */
-export interface ShippedJava {
+/** What every shipped Java is asked for with, whoever it is from. */
+interface ShippedJavaBase {
   /**
-   * JDK version. Accepts:
+   * Java version. Accepts:
    *   - Major:        `'21'` — resolves to the latest GA for that major.
    *   - Full version: vendor-specific exact build (see each resolver).
    */
   version: string;
-  /** Distribution to fetch from. Defaults to `'temurin'` (Eclipse Adoptium). */
-  vendor?: JavaVendor;
   /** Override the platform set. Default covers linux/osx/windows × x86_64+aarch64. */
   platforms?: readonly Platform[];
   /** API base URL override — an Adoptium/Azul mirror, or a GitHub Enterprise host. */
@@ -88,6 +91,26 @@ export interface ShippedJava {
   token?: string;
   system?: undefined;
 }
+
+/**
+ * A Java the pack ships: resolved at build time and installed with it.
+ *
+ * It is a JRE, which is all a game runs on and a quarter of the download,
+ * unless `jdk: true` asks for the whole JDK. GraalVM CE is published as a JDK
+ * and nothing else, so it is asked for as one: `vendor: 'graalvm'` without
+ * `jdk: true` does not typecheck, and is refused at build where the compiler
+ * was not looking.
+ */
+export type ShippedJava = ShippedJavaBase &
+  (
+    | {
+        /** Distribution to fetch from. Defaults to `'temurin'` (Eclipse Adoptium). */
+        vendor?: 'temurin' | 'zulu';
+        /** Ship the whole JDK in place of the JRE. */
+        jdk?: boolean;
+      }
+    | { vendor: 'graalvm'; jdk: true }
+  );
 
 /**
  * No JDK: the game runs on a Java that is already on the machine. `java` is
@@ -101,6 +124,7 @@ export interface SystemJava {
   platforms?: undefined;
   apiBase?: undefined;
   token?: undefined;
+  jdk?: undefined;
 }
 
 /**
@@ -115,6 +139,8 @@ export interface ResolveTemurinOptions {
   platforms?: readonly Platform[];
   /** Optional override for the Adoptium API base URL. */
   apiBase?: string;
+  /** Resolve the whole JDK in place of the JRE. */
+  jdk?: boolean;
 }
 
 export interface ResolveZuluOptions {
@@ -122,6 +148,8 @@ export interface ResolveZuluOptions {
   platforms?: readonly Platform[];
   /** Optional override for the Azul Metadata API base URL. */
   apiBase?: string;
+  /** Resolve the whole JDK in place of the JRE. */
+  jdk?: boolean;
 }
 
 export interface ResolveGraalvmOptions {
@@ -134,7 +162,7 @@ export interface ResolveGraalvmOptions {
 }
 
 export interface JavaTemplate {
-  /** Per-platform JDK archives, scoped by OS+arch rules and extracted on first install. */
+  /** Per-platform archives, scoped by OS+arch rules and extracted on first install. */
   artifacts: Artifact[];
   /** `java_home` and `java_bin` per OS — spread into your loader's vars. */
   vars: ValDefs;
@@ -147,12 +175,13 @@ export interface JavaTemplate {
 // ──────────────────────────────────────────────────────────────────────────
 
 /**
- * Build a manifest fragment that auto-installs a JDK runtime and exposes
- * `${java_home}` + `${java_bin}` vars.
+ * Build a manifest fragment that auto-installs a Java runtime and exposes
+ * `${java_home}` + `${java_bin}` vars. A JRE, unless `jdk: true`.
  *
  * Each platform's archive is emitted as its own `Artifact` with an OS+arch
  * rule, so only the matching binary downloads at install time. Archives
- * extract into `${java_runtime_dir}/jdk-<major>/` with the archive's own
+ * extract into `${java_runtime_dir}/jre-<major>/`, or `jdk-<major>/` for a
+ * JDK, with the archive's own
  * top-level directory glob-stripped regardless of what it's named. On macOS,
  * `${java_home}` includes the `/Contents/Home` suffix Mac JDK bundles use; on
  * Windows, `${java_bin}` defaults to `javaw.exe` (no console window) and
@@ -207,12 +236,12 @@ interface JavaBuild {
 }
 
 /**
- * Provision a JDK runtime. Solely owns the `java_home` / `java_bin` /
- * `java_runtime_dir` vars and exposes two launch groups: `bin`, the
- * executable, and `home`, the JDK it is in — `'@java.home'`, for whatever
- * starts in place of `java` and has to be told where the JDK is. Defaults
- * to Temurin (Eclipse Adoptium); pass `vendor: 'zulu'` or `vendor: 'graalvm'`
- * for an alternate distribution.
+ * Provision a Java runtime: a JRE, or with `jdk: true` the whole JDK. Solely
+ * owns the `java_home` / `java_bin` / `java_runtime_dir` vars and exposes two
+ * launch groups: `bin`, the executable, and `home`, the folder it is
+ * installed in — `'@java.home'`, for whatever has to be told where that is.
+ * Defaults to Temurin (Eclipse Adoptium); pass `vendor: 'zulu'`, or
+ * `vendor: 'graalvm'` with `jdk: true`, for an alternate distribution.
  */
 export function java(
   options: ShippedJava,

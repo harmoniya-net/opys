@@ -8,7 +8,7 @@ A Java runtime for every player.
 java({ version: '21' });
 ```
 
-Nothing is installed on your machine. The plugin adds a JDK to the pack,
+Nothing is installed on your machine. The plugin adds a JRE to the pack,
 and each player downloads the one for their computer.
 
 **Why not use the player's Java:** most players have none, or the wrong
@@ -20,9 +20,14 @@ one. A pack that brings its own always starts.
 | ----------- | ------------------------------------------------------------- |
 | `version`   | A major (`'21'`, the newest release of it) or an exact build. |
 | `vendor`    | `'temurin'` (default), `'zulu'` or `'graalvm'`.               |
-| `platforms` | Which platforms get a JDK. All six by default.                |
+| `jdk`       | `true` ships the whole JDK in place of the JRE.               |
+| `platforms` | Which platforms get one. All six by default.                  |
 | `apiBase`   | A mirror of the vendor's API.                                 |
 | `token`     | A GitHub token, for GraalVM's rate limit.                     |
+
+**Why a JRE and not a JDK:** a game needs no compiler, and the JDK is four
+times the download. Say `jdk: true` for a pack that does need one. GraalVM
+is published as a JDK only, so `vendor: 'graalvm'` has to say it too.
 
 An exact build is written the vendor's way: `'21.0.12.1+1'` or
 `'8u312-b07'` for Temurin, `'21.0.12'` for Zulu and GraalVM.
@@ -86,7 +91,7 @@ know which Java the game gets.
 
 | Kind        | What                                         |
 | ----------- | -------------------------------------------- |
-| Files       | One JDK per platform.                        |
+| Files       | One JRE per platform.                        |
 | Launch      | `bin`, `home`.                               |
 | Variables   | `java_runtime_dir`, `java_home`, `java_bin`. |
 | Environment | `JAVA_HOME`.                                 |
@@ -94,7 +99,7 @@ know which Java the game gets.
 Each one below: what it is, and how it ends up in the
 [manifest](/format/).
 
-### Files · one JDK per platform
+### Files · one JRE per platform
 
 Six archives: Linux, macOS and Windows, each on x86_64 and ARM. The `rules`
 mean a player downloads exactly one. `extract` unpacks it.
@@ -119,12 +124,12 @@ export default defineConfig({
 ```jsonc
 // in the manifest
 {
-  "path": "${java_runtime_dir}/OpenJDK21U-jdk_x64_linux_hotspot_21.0.12.1_1.tar.gz",
+  "path": "${java_runtime_dir}/OpenJDK21U-jre_x64_linux_hotspot_21.0.12.1_1.tar.gz",
   "source": { "url": "https://github.com/adoptium/temurin21-binaries/releases/download/…_x64_linux_….tar.gz" },
-  "size": 207473347,
+  "size": 52059408,
   "rules": ["allow.os.linux", "allow.arch.x86_64"],
-  "integrity": { "sha256": "ce79869e1307ed8ee1e2baa86a412b1eb5b75d10a01006d788a6f968bcfaee94" },
-  "extract": { "matches": "*", "into": "${java_runtime_dir}/jdk-21", "strip": ["*/"] }
+  "integrity": { "sha256": "2413149700df0f7d440500a84a8f764c535f21e5a5e87d38328b64eec2c5b500" },
+  "extract": { "matches": "*", "into": "${java_runtime_dir}/jre-21", "strip": ["*/"] }
 }
 ```
 
@@ -155,9 +160,9 @@ export default defineConfig({
 "vars": {
   "java_runtime_dir": "${root}/runtimes",
   "java_home": [
-    { "value": "${java_runtime_dir}/jdk-21", "rules": "allow.os.linux" },
-    { "value": "${java_runtime_dir}/jdk-21/Contents/Home", "rules": "allow.os.osx" },
-    { "value": "${java_runtime_dir}/jdk-21", "rules": "allow.os.windows" }
+    { "value": "${java_runtime_dir}/jre-21", "rules": "allow.os.linux" },
+    { "value": "${java_runtime_dir}/jre-21/Contents/Home", "rules": "allow.os.osx" },
+    { "value": "${java_runtime_dir}/jre-21", "rules": "allow.os.windows" }
   ],
   "java_bin": [
     { "value": "${java_home}/bin/java", "rules": "allow.os.linux" },
@@ -173,45 +178,8 @@ Override `java_runtime_dir` to keep JDKs somewhere else.
 ### Launch
 
 Two pieces. `bin` you rarely name, since a loader's `command` already
-resolves to it. `home` is for something that starts Java for you, such as
-[Discrete GPU](./dgpuj#telling-it-where-java-is).
-
-<!-- prettier-ignore -->
-```js{11-12}
-// opys.config.mjs
-export default defineConfig({
-  plugins: [
-    minecraft({ version: '1.21.1' }),
-    java({ version: '21' }),
-    dgpuj(),
-  ],
-  manifest: {
-    command: '@dgpuj.bin',
-    args: [
-      '--dgpuj-home',
-      '@java.home',
-      '@minecraft.jvmArgs',
-      '@minecraft.mainClass',
-      '@minecraft.gameArgs',
-    ],
-    workdir: '${game_directory}',
-  },
-});
-```
-
-<!-- prettier-ignore -->
-```jsonc
-// in the manifest
-"launch": {
-  "command": "${dgpuj_bin}",
-  "args": [
-    "--dgpuj-home",
-    // '@java.home'
-    "${java_home}"
-    // …
-  ]
-}
-```
+resolves to it. `home` is for something that wants the folder the JDK is in
+and not its `java`.
 
 | You write      | Becomes                                   |
 | -------------- | ----------------------------------------- |

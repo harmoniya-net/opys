@@ -41,6 +41,7 @@ fn release(binaries: Vec<VendorBinary>) -> VendorRelease {
     VendorRelease {
         label: "Temurin 21.0.11+10".to_owned(),
         major: 21,
+        jdk: false,
         binaries,
     }
 }
@@ -118,7 +119,7 @@ fn extracts_with_a_glob_strip_into_the_major_versioned_runtime_dir() {
         panic!("expected a scan rule, got {:?}", extract[0]);
     };
     assert_eq!(scan.matches, "*");
-    assert_eq!(scan.into, "${java_runtime_dir}/jdk-21");
+    assert_eq!(scan.into, "${java_runtime_dir}/jre-21");
     // The archive's own top-level directory embeds a build id no resolver can
     // predict, so it is stripped by shape rather than by name.
     assert_eq!(scan.strip.as_deref(), Some(["*/".to_owned()].as_slice()));
@@ -150,14 +151,14 @@ fn builds_a_suffix_free_java_home_on_linux() {
     let template = java_template(release(vec![binary(LINUX_X64, "linux.tar.gz")]));
     let home = arms(&template.vars["java_home"]);
     assert_eq!(home.len(), 1);
-    assert_eq!(home[0].value, "${java_runtime_dir}/jdk-21");
+    assert_eq!(home[0].value, "${java_runtime_dir}/jre-21");
 }
 
 #[test]
 fn appends_contents_home_on_macos() {
     let template = java_template(release(vec![binary(MAC_AARCH64, "mac.tar.gz")]));
     let home = arms(&template.vars["java_home"]);
-    assert_eq!(home[0].value, "${java_runtime_dir}/jdk-21/Contents/Home");
+    assert_eq!(home[0].value, "${java_runtime_dir}/jre-21/Contents/Home");
 }
 
 #[test]
@@ -221,11 +222,33 @@ fn passes_the_release_metadata_through() {
     assert_eq!(template.release, resolved);
 }
 
+/// A JDK and a JRE of one major are different files, and a pack that goes
+/// from one to the other must not unpack over what the other left.
+#[test]
+fn keeps_a_jdk_in_a_directory_of_its_own() {
+    let jdk = VendorRelease {
+        jdk: true,
+        ..release(vec![binary(MAC_AARCH64, "mac.tar.gz")])
+    };
+    let template = java_template(jdk);
+    let home = arms(&template.vars["java_home"]);
+    assert_eq!(home[0].value, "${java_runtime_dir}/jdk-21/Contents/Home");
+}
+
+/// A release somebody built by hand and handed over says nothing of its
+/// image, and is read as what the plugin ships.
+#[test]
+fn reads_a_release_that_does_not_say_as_a_jre() {
+    let release: VendorRelease =
+        serde_json::from_str(r#"{"label":"x","major":21,"binaries":[]}"#).unwrap();
+    assert!(!release.jdk);
+}
+
 // ── vendor dispatch ───────────────────────────────────────────────────────
 
 fn temurin_body() -> String {
     r#"[{"release_name":"jdk-21.0.11+10","version_data":{"major":21},"binaries":[
-        {"architecture":"x64","os":"linux","image_type":"jdk","jvm_impl":"hotspot",
+        {"architecture":"x64","os":"linux","image_type":"jre","jvm_impl":"hotspot",
          "package":{"checksum":"abc","link":"https://x/a.tar.gz","name":"a.tar.gz","size":1}}]}]"#
         .to_owned()
 }
@@ -266,6 +289,7 @@ fn options(server: &TestServer, vendor: Option<JavaVendor>) -> JavaOptions {
         platforms: Some(vec![LINUX_X64]),
         api_base: Some(server.base.clone()),
         token: None,
+        jdk: false,
         system: false,
     }
 }
@@ -289,9 +313,24 @@ fn dispatches_zulu_to_the_azul_api() {
 #[test]
 fn dispatches_graalvm_to_the_github_releases_api() {
     let server = TestServer::start(any_vendor());
-    let template = resolve_java(&options(&server, Some(JavaVendor::Graalvm))).unwrap();
+    let graalvm = JavaOptions {
+        jdk: true,
+        ..options(&server, Some(JavaVendor::Graalvm))
+    };
+    let template = resolve_java(&graalvm).unwrap();
     assert_eq!(template.release.label, "GraalVM CE 21.0.2");
+    assert!(template.release.jdk);
     assert!(server.targets()[0].starts_with("/repos/"));
+}
+
+/// GraalVM CE has no JRE, and the plugin ships one unless told otherwise: so
+/// it has to be told, and is not left to hand over a JDK nobody asked for.
+#[test]
+fn refuses_graalvm_until_it_is_asked_for_as_a_jdk() {
+    let server = TestServer::start(any_vendor());
+    let err = resolve_java(&options(&server, Some(JavaVendor::Graalvm))).unwrap_err();
+    assert!(err.to_string().contains("jdk: true"), "{err}");
+    assert!(server.targets().is_empty());
 }
 
 // ── the plugin's contribution ─────────────────────────────────────────────

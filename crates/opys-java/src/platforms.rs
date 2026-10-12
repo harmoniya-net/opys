@@ -61,8 +61,8 @@ pub const DEFAULT_PLATFORMS: [Platform; 6] = [
 
 /// `/Contents/Home` on macOS, empty elsewhere. Every vendor this crate
 /// supports (Temurin, Zulu, GraalVM CE) ships its macOS archive as a
-/// `.jdk`-style bundle with this layout — verified against real archives,
-/// not assumed from convention.
+/// `.jdk`-style bundle with this layout, a JRE as much as a JDK — verified
+/// against real archives, not assumed from convention.
 pub fn mac_home_suffix(os: OsName) -> &'static str {
     match os {
         OsName::Osx => "/Contents/Home",

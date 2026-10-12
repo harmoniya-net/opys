@@ -100,7 +100,8 @@ them, and the list below names the layers rather than every one:
                      Mods, resource packs, shaders and plugins, listed in one
                      TOML file. Thin wrapper over the
                      `opys-minecraft-resources` crate.                    → dev, core
-@opys/java          JDK provisioning — Temurin / Zulu / GraalVM CE.
+@opys/java          Java provisioning, a JRE unless the JDK is asked for —
+                     Temurin / Zulu / GraalVM CE.
                      Thin wrapper over the `opys-java` crate.                → dev, core
 @opys/links         A pasted link → a pinned artifact: GitHub / GitLab / Modrinth /
                      CurseForge / a plain URL.
@@ -746,6 +747,16 @@ export default defineConfig(({ mode }) => ({
   one plugin that places files without one, because the table and the key
   are the path.
 
+- **`java` ships a JRE, and the JDK when asked.** A game runs on a JRE, and
+  the JDK is four times the download: 207 MB against 52 for Temurin 21 on
+  Linux. The plugin shipped the JDK to every player until somebody looked,
+  because that was the word in the vendor's query. `jdk: true` asks for the
+  whole of it. GraalVM CE is published as a JDK and nothing else, so it has
+  to be asked for as one: `vendor: 'graalvm'` without `jdk: true` does not
+  typecheck and is refused at build, rather than answered with a JDK the
+  config did not say it ships. The two unpack into directories of their
+  own, `jre-<major>` and `jdk-<major>`, so a pack that changes its mind
+  does not unpack one over what the other left.
 - **`java({ system: true })` ships no JDK, and says so with a feature.** It
   owns `java_bin` alone: `java` from `PATH`, or `${java_home}/bin/java` with
   the `custom_java` feature on, where `java_home` is a var the launcher

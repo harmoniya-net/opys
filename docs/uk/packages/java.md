@@ -2,7 +2,7 @@
 
 [![npm](https://img.shields.io/npm/v/@opys/java.svg)](https://www.npmjs.com/package/@opys/java)
 
-Java для opys. `java()` додає JDK до збірки, щоб гравцям не треба було
+Java для opys. `java()` додає Java до збірки, щоб гравцям не треба було
 нічого встановлювати.
 
 ```sh
@@ -34,7 +34,8 @@ export default defineConfig({
 | ----------- | --------------------------------------------------------------------------------------------- |
 | `version`   | Мажорна (`'21'`, її найновіший випуск) або точна збірка (`'21.0.12.1+1'`, `'8u312-b07'`).     |
 | `vendor`    | `'temurin'` (типово), `'zulu'` або `'graalvm'`.                                               |
-| `platforms` | Які платформи отримують JDK. Типово всі шість.                                                |
+| `jdk`       | `true` везе весь JDK. Без нього це JRE: усе, що потрібно грі, і вчетверо менше.               |
+| `platforms` | Які платформи її отримують. Типово всі шість.                                                 |
 | `apiBase`   | Дзеркало API постачальника.                                                                   |
 | `token`     | Токен GitHub, для ліміту частоти GraalVM.                                                     |
 | `system`    | `true` не везе JDK і вживає власну Java комп'ютера. Не поєднується з жодним іншим параметром. |
@@ -106,7 +107,7 @@ options: options()
 
 `opys build` перетворює плагін на ці частини маніфесту.
 
-### Файли · один JDK на платформу
+### Файли · один JRE на платформу
 
 Шість архівів. `rules` означають, що гравець завантажує рівно один.
 
@@ -114,12 +115,12 @@ options: options()
 ```jsonc
 // у маніфесті
 {
-  "path": "${java_runtime_dir}/OpenJDK21U-jdk_x64_linux_hotspot_21.0.12.1_1.tar.gz",
+  "path": "${java_runtime_dir}/OpenJDK21U-jre_x64_linux_hotspot_21.0.12.1_1.tar.gz",
   "source": { "url": "https://github.com/adoptium/temurin21-binaries/releases/download/…_x64_linux_….tar.gz" },
-  "size": 207473347,
+  "size": 52059408,
   "rules": ["allow.os.linux", "allow.arch.x86_64"],
-  "integrity": { "sha256": "ce79869e1307ed8ee1e2baa86a412b1eb5b75d10a01006d788a6f968bcfaee94" },
-  "extract": { "matches": "*", "into": "${java_runtime_dir}/jdk-21", "strip": ["*/"] }
+  "integrity": { "sha256": "2413149700df0f7d440500a84a8f764c535f21e5a5e87d38328b64eec2c5b500" },
+  "extract": { "matches": "*", "into": "${java_runtime_dir}/jre-21", "strip": ["*/"] }
 }
 ```
 
@@ -143,9 +144,9 @@ options: options()
 "vars": {
   "java_runtime_dir": "${root}/runtimes",
   "java_home": [
-    { "value": "${java_runtime_dir}/jdk-21", "rules": "allow.os.linux" },
-    { "value": "${java_runtime_dir}/jdk-21/Contents/Home", "rules": "allow.os.osx" },
-    { "value": "${java_runtime_dir}/jdk-21", "rules": "allow.os.windows" }
+    { "value": "${java_runtime_dir}/jre-21", "rules": "allow.os.linux" },
+    { "value": "${java_runtime_dir}/jre-21/Contents/Home", "rules": "allow.os.osx" },
+    { "value": "${java_runtime_dir}/jre-21", "rules": "allow.os.windows" }
   ],
   "java_bin": [
     { "value": "${java_home}/bin/java", "rules": "allow.os.linux" },
@@ -180,7 +181,16 @@ java({ version: '8u312-b07' });
 
 // інший постачальник
 java({ version: '21', vendor: 'zulu' });
-java({ version: '21', vendor: 'graalvm', token: process.env.GITHUB_TOKEN });
+// GraalVM публікується лише як JDK, тож його так і просять
+java({
+  version: '21',
+  vendor: 'graalvm',
+  jdk: true,
+  token: process.env.GITHUB_TOKEN,
+});
+
+// весь JDK, з компілятором та інструментами
+java({ version: '21', jdk: true });
 
 // лише деякі платформи, для збірки, що працює лише на Windows
 java({

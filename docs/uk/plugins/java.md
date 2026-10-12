@@ -8,7 +8,7 @@
 java({ version: '21' });
 ```
 
-Нічого не встановлюється на ваш комп'ютер. Плагін додає JDK до
+Нічого не встановлюється на ваш комп'ютер. Плагін додає JRE до
 збірки, і кожен гравець завантажує той, що підходить його комп'ютеру.
 
 **Чому не Java гравця:** у більшості гравців її немає або не та версія.
@@ -16,13 +16,19 @@ java({ version: '21' });
 
 ## Параметри
 
-| Параметр    | Що робить                                                    |
-| ----------- | ------------------------------------------------------------ |
-| `version`   | Мажорна (`'21'`, її найновіший випуск) або точна збірка.     |
-| `vendor`    | `'temurin'` (за замовчуванням), `'zulu'` або `'graalvm'`.    |
-| `platforms` | Яким платформам дістанеться JDK. За замовчуванням усі шість. |
-| `apiBase`   | Дзеркало API постачальника.                                  |
-| `token`     | Токен GitHub для обмеження частоти запитів GraalVM.          |
+| Параметр    | Що робить                                                     |
+| ----------- | ------------------------------------------------------------- |
+| `version`   | Мажорна (`'21'`, її найновіший випуск) або точна збірка.      |
+| `vendor`    | `'temurin'` (за замовчуванням), `'zulu'` або `'graalvm'`.     |
+| `jdk`       | `true` привозить весь JDK замість JRE.                        |
+| `platforms` | Яким платформам вона дістанеться. За замовчуванням усі шість. |
+| `apiBase`   | Дзеркало API постачальника.                                   |
+| `token`     | Токен GitHub для обмеження частоти запитів GraalVM.           |
+
+**Чому JRE, а не JDK:** грі не потрібен компілятор, а JDK вчетверо
+більший для завантаження. Напишіть `jdk: true` для збірки, якій він
+справді потрібен. GraalVM публікується лише як JDK, тому
+`vendor: 'graalvm'` теж має це сказати.
 
 Точна збірка пишеться так, як її пише постачальник: `'21.0.12.1+1'`
 або `'8u312-b07'` для Temurin, `'21.0.12'` для Zulu і GraalVM.
@@ -87,7 +93,7 @@ options: options()
 
 | Вид        | Що                                           |
 | ---------- | -------------------------------------------- |
-| Файли      | Один JDK на платформу.                       |
+| Файли      | Один JRE на платформу.                       |
 | Запуск     | `bin`, `home`.                               |
 | Змінні     | `java_runtime_dir`, `java_home`, `java_bin`. |
 | Середовище | `JAVA_HOME`.                                 |
@@ -95,7 +101,7 @@ options: options()
 Про кожен нижче: що це і як він опиняється у
 [маніфесті](/uk/format/).
 
-### Файли · один JDK на платформу
+### Файли · один JRE на платформу
 
 Шість архівів: Linux, macOS і Windows, кожна на x86_64 і ARM. Завдяки
 `rules` гравець завантажує рівно один. `extract` розпаковує його.
@@ -120,12 +126,12 @@ export default defineConfig({
 ```jsonc
 // у маніфесті
 {
-  "path": "${java_runtime_dir}/OpenJDK21U-jdk_x64_linux_hotspot_21.0.12.1_1.tar.gz",
+  "path": "${java_runtime_dir}/OpenJDK21U-jre_x64_linux_hotspot_21.0.12.1_1.tar.gz",
   "source": { "url": "https://github.com/adoptium/temurin21-binaries/releases/download/…_x64_linux_….tar.gz" },
-  "size": 207473347,
+  "size": 52059408,
   "rules": ["allow.os.linux", "allow.arch.x86_64"],
-  "integrity": { "sha256": "ce79869e1307ed8ee1e2baa86a412b1eb5b75d10a01006d788a6f968bcfaee94" },
-  "extract": { "matches": "*", "into": "${java_runtime_dir}/jdk-21", "strip": ["*/"] }
+  "integrity": { "sha256": "2413149700df0f7d440500a84a8f764c535f21e5a5e87d38328b64eec2c5b500" },
+  "extract": { "matches": "*", "into": "${java_runtime_dir}/jre-21", "strip": ["*/"] }
 }
 ```
 
@@ -156,9 +162,9 @@ export default defineConfig({
 "vars": {
   "java_runtime_dir": "${root}/runtimes",
   "java_home": [
-    { "value": "${java_runtime_dir}/jdk-21", "rules": "allow.os.linux" },
-    { "value": "${java_runtime_dir}/jdk-21/Contents/Home", "rules": "allow.os.osx" },
-    { "value": "${java_runtime_dir}/jdk-21", "rules": "allow.os.windows" }
+    { "value": "${java_runtime_dir}/jre-21", "rules": "allow.os.linux" },
+    { "value": "${java_runtime_dir}/jre-21/Contents/Home", "rules": "allow.os.osx" },
+    { "value": "${java_runtime_dir}/jre-21", "rules": "allow.os.windows" }
   ],
   "java_bin": [
     { "value": "${java_home}/bin/java", "rules": "allow.os.linux" },
@@ -174,45 +180,8 @@ export default defineConfig({
 ### Запуск
 
 Два фрагменти. `bin` ви називаєте рідко, бо `command` завантажувача вже
-вказує на нього. `home` для того, що запускає Java замість вас,
-наприклад [дискретної відеокарти](./dgpuj#як-вказати-де-java).
-
-<!-- prettier-ignore -->
-```js{11-12}
-// opys.config.mjs
-export default defineConfig({
-  plugins: [
-    minecraft({ version: '1.21.1' }),
-    java({ version: '21' }),
-    dgpuj(),
-  ],
-  manifest: {
-    command: '@dgpuj.bin',
-    args: [
-      '--dgpuj-home',
-      '@java.home',
-      '@minecraft.jvmArgs',
-      '@minecraft.mainClass',
-      '@minecraft.gameArgs',
-    ],
-    workdir: '${game_directory}',
-  },
-});
-```
-
-<!-- prettier-ignore -->
-```jsonc
-// у маніфесті
-"launch": {
-  "command": "${dgpuj_bin}",
-  "args": [
-    "--dgpuj-home",
-    // '@java.home'
-    "${java_home}"
-    // …
-  ]
-}
-```
+вказує на нього. `home` для того, чому потрібна тека, в якій лежить JDK,
+а не її `java`.
 
 | Ви пишете      | Стає                                     |
 | -------------- | ---------------------------------------- |

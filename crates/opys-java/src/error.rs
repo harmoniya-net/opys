@@ -49,6 +49,11 @@ pub enum JavaError {
          leave it out, or leave `system` out to ship one"
     )]
     SystemWith { field: &'static str },
+    #[error(
+        "GraalVM CE is published as a JDK only: java({{ vendor: 'graalvm', jdk: true, … }}), \
+         or another vendor for a JRE"
+    )]
+    NoJre,
     #[error("the system's Java is not resolved: there is no release to look up")]
     NothingToResolve,
 }

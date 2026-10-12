@@ -8,7 +8,12 @@ const { LOADER, VERSION, JAVA, JAVA_VENDOR } = process.env;
 export default defineConfig({
   plugins: [
     mc[LOADER]({ version: VERSION }),
-    mc.java({ version: JAVA, vendor: JAVA_VENDOR || 'temurin' }),
+    // GraalVM CE is published as a JDK only, and has to be asked for as one.
+    mc.java({
+      version: JAVA,
+      vendor: JAVA_VENDOR || 'temurin',
+      jdk: JAVA_VENDOR === 'graalvm',
+    }),
   ],
   manifest: {
     command: `@${LOADER}.command`,

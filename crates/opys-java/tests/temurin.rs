@@ -39,12 +39,12 @@ fn release(platform: Platform, release_name: &str, major: u32) -> String {
           "binaries": [{{
             "architecture": "{arch}",
             "os": "{os}",
-            "image_type": "jdk",
+            "image_type": "jre",
             "jvm_impl": "hotspot",
             "package": {{
               "checksum": "abc123",
               "link": "https://github.com/adoptium/{release_name}-{os}-{arch}.tar.gz",
-              "name": "OpenJDK21U-jdk_{arch}_{os}_hotspot.tar.gz",
+              "name": "OpenJDK21U-jre_{arch}_{os}_hotspot.tar.gz",
               "size": 12345
             }}
           }}]
@@ -60,6 +60,7 @@ fn options(server: &TestServer, platforms: &[Platform]) -> ResolveTemurinOptions
     ResolveTemurinOptions {
         platforms: Some(platforms.to_vec()),
         api_base: Some(server.base.clone()),
+        jdk: false,
     }
 }
 
@@ -161,7 +162,7 @@ fn maps_adoptium_package_fields_onto_a_vendor_binary() {
     assert_eq!(result.major, 21);
     let binary = &result.binaries[0];
     assert_eq!(binary.platform, LINUX_X64);
-    assert_eq!(binary.filename, "OpenJDK21U-jdk_x64_linux_hotspot.tar.gz");
+    assert_eq!(binary.filename, "OpenJDK21U-jre_x64_linux_hotspot.tar.gz");
     assert_eq!(
         binary.url,
         "https://github.com/adoptium/jdk-21.0.11+10-linux-x64.tar.gz"
@@ -200,11 +201,11 @@ fn soft_skips_bodies_that_carry_no_usable_binary() {
         r#"[{"release_name":"jdk-21.0.11+10","version_data":{"major":21},"binaries":[]}]"#,
         // A binary for a different arch than the one queried.
         r#"[{"release_name":"jdk-21.0.11+10","version_data":{"major":21},"binaries":[
-             {"architecture":"aarch64","os":"linux","image_type":"jdk","jvm_impl":"hotspot",
+             {"architecture":"aarch64","os":"linux","image_type":"jre","jvm_impl":"hotspot",
               "package":{"checksum":"x","link":"https://x","name":"x.tar.gz","size":1}}]}]"#,
-        // A JRE where a JDK was asked for.
+        // A JDK where a JRE was asked for.
         r#"[{"release_name":"jdk-21.0.11+10","version_data":{"major":21},"binaries":[
-             {"architecture":"x64","os":"linux","image_type":"jre","jvm_impl":"hotspot",
+             {"architecture":"x64","os":"linux","image_type":"jdk","jvm_impl":"hotspot",
               "package":{"checksum":"x","link":"https://x","name":"x.tar.gz","size":1}}]}]"#,
         // An empty list.
         "[]",
@@ -300,6 +301,33 @@ fn reports_a_body_it_cannot_read() {
 // ── options ───────────────────────────────────────────────────────────────
 
 #[test]
+fn asks_for_a_jre_and_for_the_jdk_only_when_told_to() {
+    let jdk_body = r#"[{"release_name":"jdk-21.0.11+10","version_data":{"major":21},"binaries":[
+        {"architecture":"x64","os":"linux","image_type":"jdk","jvm_impl":"hotspot",
+         "package":{"checksum":"x","link":"https://x","name":"jdk.tar.gz","size":1}}]}]"#;
+    let server = TestServer::start(move |req: &Request| {
+        if req.target.contains("image_type=jdk") {
+            Reply::json(jdk_body)
+        } else {
+            Reply::json(format!("[{}]", ga_release(LINUX_X64)))
+        }
+    });
+
+    let jre = resolve_temurin("21", &options(&server, &[LINUX_X64])).unwrap();
+    assert!(!jre.jdk);
+    assert!(jre.binaries[0].filename.contains("-jre_"));
+    assert!(server.targets()[0].contains("image_type=jre"));
+
+    let whole = ResolveTemurinOptions {
+        jdk: true,
+        ..options(&server, &[LINUX_X64])
+    };
+    let jdk = resolve_temurin("21", &whole).unwrap();
+    assert!(jdk.jdk);
+    assert_eq!(jdk.binaries[0].filename, "jdk.tar.gz");
+}
+
+#[test]
 fn queries_every_default_platform_when_none_are_given() {
     let server = TestServer::start(|_: &Request| Reply::status(404));
     let _ = resolve_temurin(
@@ -307,6 +335,7 @@ fn queries_every_default_platform_when_none_are_given() {
         &ResolveTemurinOptions {
             platforms: None,
             api_base: Some(server.base.clone()),
+            jdk: false,
         },
     );
     assert_eq!(server.requests().len(), 6);

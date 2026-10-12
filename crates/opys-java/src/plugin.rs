@@ -23,10 +23,10 @@ pub struct JavaBuild {
 
 /// Provision a JDK runtime. Solely owns the `java_home` / `java_bin` /
 /// `java_runtime_dir` vars and exposes two launch groups: `bin`, the
-/// executable, and `home`, the JDK it is in. `home` is there for whatever is
-/// started in place of `java` and has to be told where the JDK is — the dgpuj
-/// launcher's `--dgpuj-home` — so that the config names this plugin for it
-/// rather than a variable it hopes somebody defined.
+/// executable, and `home`, the JDK it is in. `home` is there for whatever
+/// has to be told where the JDK is and not which `java` to run, so that the
+/// config names this plugin for it rather than a variable it hopes somebody
+/// defined. The dgpuj launcher was that until it took the `java` itself.
 ///
 /// With `system` it ships no JDK instead: see [`system_java`]. The two are
 /// told apart by that one field, and a field of the other is refused rather

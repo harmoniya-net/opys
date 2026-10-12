@@ -31,7 +31,7 @@ const TEMURIN_BODY = JSON.stringify([
       {
         architecture: 'x64',
         os: 'linux',
-        image_type: 'jdk',
+        image_type: 'jre',
         jvm_impl: 'hotspot',
         package: {
           checksum: 'abc123',
@@ -157,10 +157,20 @@ describe('resolveJava', () => {
     const graalvm = await resolveJava({
       version: '21',
       vendor: 'graalvm',
+      jdk: true,
       platforms: [LINUX_X64],
       apiBase: base,
     });
     expect(graalvm.release.label).toBe('GraalVM CE 21.0.2');
+    expect(graalvm.release.jdk).toBe(true);
+    expect(zulu.release.jdk).toBe(false);
+  });
+
+  it('refuses GraalVM as a JRE, there being none', async () => {
+    await expect(
+      // @ts-expect-error the type refuses it; a plain-JavaScript config is refused here
+      resolveJava({ version: '21', vendor: 'graalvm', apiBase: base }),
+    ).rejects.toThrow(/jdk: true/);
   });
 
   it('rejects when no platform yields a binary', async () => {
