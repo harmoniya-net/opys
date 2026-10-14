@@ -74,11 +74,11 @@ One condition. A rule has `os`, or `features`, or neither.
 
 Which machine. Every field is optional, and every field given must match.
 
-| Field      | Type     | What it is                                            |
-| ---------- | -------- | ----------------------------------------------------- |
-| `name?`    | `OsName` | `'linux'`, `'windows'` or `'osx'`.                    |
-| `arch?`    | `OsArch` | `'x86'`, `'x86_64'`, `'arm'`, `'aarch64'` or `'any'`. |
-| `version?` | `string` | A regular expression over the OS version.             |
+| Field      | Type     | What it is                                                                      |
+| ---------- | -------- | ------------------------------------------------------------------------------- |
+| `name?`    | `OsName` | `'linux'`, `'windows'`, `'osx'` or `'freebsd'`.                                 |
+| `arch?`    | `OsArch` | `'x86'`, `'x86_64'`, `'arm'`, `'aarch64'`, `'ppc64le'`, `'riscv64'` or `'any'`. |
+| `version?` | `string` | A regular expression over the OS version.                                       |
 
 ```jsonc
 { "name": "windows", "arch": "x86_64" }

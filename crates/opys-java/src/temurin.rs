@@ -17,12 +17,11 @@
 //! are soft-skipped — the resolved release only carries the platforms that
 //! have a real binary.
 
-use opys_core::OsName;
 use opys_dev::http;
 use serde::Deserialize;
 
 use crate::error::JavaError;
-use crate::platforms::{fan_out, platforms_or_default, Platform, SupportedArch};
+use crate::platforms::{fan_out, platforms_or_default, Platform, SupportedArch, SupportedOs};
 use crate::vendor::{pick_anchor, VendorBinary, VendorRelease};
 use crate::version::{is_bare_major, leading_digits, VersionInput};
 use opys_dev::url::encode_uri_component;
@@ -31,11 +30,11 @@ pub const ADOPTIUM_BASE: &str = "https://api.adoptium.net/v3";
 const VENDOR: &str = "eclipse";
 const API_NAME: &str = "Adoptium";
 
-fn adoptium_os(os: OsName) -> &'static str {
+fn adoptium_os(os: SupportedOs) -> &'static str {
     match os {
-        OsName::Linux => "linux",
-        OsName::Osx => "mac",
-        OsName::Windows => "windows",
+        SupportedOs::Linux => "linux",
+        SupportedOs::Osx => "mac",
+        SupportedOs::Windows => "windows",
     }
 }
 
@@ -301,7 +300,7 @@ mod tests {
     #[test]
     fn query_names_the_vendor_spelling_of_os_and_arch() {
         let mac = Platform {
-            os: OsName::Osx,
+            os: SupportedOs::Osx,
             arch: SupportedArch::X86_64,
         };
         assert!(adoptium_query(mac, true).contains("image_type=jdk"));

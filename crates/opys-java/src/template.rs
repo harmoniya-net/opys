@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::error::JavaError;
 use crate::graalvm::{resolve_graalvm, ResolveGraalvmOptions};
-use crate::platforms::{mac_home_suffix, Platform, SupportedArch};
+use crate::platforms::{mac_home_suffix, Platform, SupportedArch, SupportedOs};
 use crate::temurin::{resolve_temurin, ResolveTemurinOptions};
 use crate::vendor::VendorRelease;
 use crate::zulu::{resolve_zulu, ResolveZuluOptions};
@@ -89,9 +89,9 @@ pub(crate) fn allow_os(os: OsName) -> MojangRule {
     }
 }
 
-fn os_arch_ruleset(os: OsName, arch: SupportedArch) -> MojangRuleset {
+fn os_arch_ruleset(os: SupportedOs, arch: SupportedArch) -> MojangRuleset {
     vec![
-        allow_os(os),
+        allow_os(os.as_os_name()),
         MojangRule::Os {
             action: RuleAction::Allow,
             os: OsConstraint {
@@ -102,8 +102,8 @@ fn os_arch_ruleset(os: OsName, arch: SupportedArch) -> MojangRuleset {
     ]
 }
 
-fn os_ruleset(os: OsName) -> MojangRuleset {
-    vec![allow_os(os)]
+fn os_ruleset(os: SupportedOs) -> MojangRuleset {
+    vec![allow_os(os.as_os_name())]
 }
 
 /// The feature that swaps Windows' `javaw` for `java`, to see the console.
@@ -249,7 +249,7 @@ pub fn java_template(release: VendorRelease) -> JavaTemplate {
             value: format!("{java_root}{}", mac_home_suffix(os)),
             rules: os_ruleset(os),
         });
-        if os == OsName::Windows {
+        if os == SupportedOs::Windows {
             java_bin_arms.extend(windows_bin_arms());
         } else {
             java_bin_arms.push(ConditionalVal {
@@ -276,8 +276,8 @@ pub fn java_template(release: VendorRelease) -> JavaTemplate {
 
 /// The OSes the release actually ships, in first-seen order — the arms are
 /// emitted in that order, so it has to be the binaries' order, not a sort.
-fn seen_oses(release: &VendorRelease) -> Vec<OsName> {
-    let mut seen: Vec<OsName> = Vec::new();
+fn seen_oses(release: &VendorRelease) -> Vec<SupportedOs> {
+    let mut seen: Vec<SupportedOs> = Vec::new();
     for binary in &release.binaries {
         if !seen.contains(&binary.platform.os) {
             seen.push(binary.platform.os);

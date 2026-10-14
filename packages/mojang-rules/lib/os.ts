@@ -1,5 +1,6 @@
-export type OsName = 'linux' | 'windows' | 'osx';
-export type OsArch = 'x86' | 'x86_64' | 'arm' | 'aarch64' | 'any';
+export type OsName = 'linux' | 'windows' | 'osx' | 'freebsd';
+export type OsArch =
+  'x86' | 'x86_64' | 'arm' | 'aarch64' | 'ppc64le' | 'riscv64' | 'any';
 
 /** Platform context passed to rule evaluation. */
 export interface OsOptions {

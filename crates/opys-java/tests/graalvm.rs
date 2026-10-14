@@ -3,19 +3,18 @@
 mod common;
 
 use common::{Reply, Request, TestServer};
-use opys_core::OsName;
-use opys_java::{resolve_graalvm, Platform, ResolveGraalvmOptions, SupportedArch};
+use opys_java::{resolve_graalvm, Platform, ResolveGraalvmOptions, SupportedArch, SupportedOs};
 
 const LINUX_X64: Platform = Platform {
-    os: OsName::Linux,
+    os: SupportedOs::Linux,
     arch: SupportedArch::X86_64,
 };
 const MAC_AARCH64: Platform = Platform {
-    os: OsName::Osx,
+    os: SupportedOs::Osx,
     arch: SupportedArch::Aarch64,
 };
 const WIN_AARCH64: Platform = Platform {
-    os: OsName::Windows,
+    os: SupportedOs::Windows,
     arch: SupportedArch::Aarch64,
 };
 

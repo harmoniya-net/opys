@@ -5,6 +5,8 @@ pub fn current_platform() -> OsOptions {
         "windows"
     } else if cfg!(target_os = "macos") {
         "osx"
+    } else if cfg!(target_os = "freebsd") {
+        "freebsd"
     } else {
         "linux"
     };

@@ -316,7 +316,7 @@ function parseShortRule(raw: Rule): MojangRule {
       if (!rest) throw new Error('missing OS name');
       const atIdx = rest.indexOf('@');
       const name = (atIdx === -1 ? rest : rest.slice(0, atIdx)) as OsName;
-      if (!['linux', 'windows', 'osx'].includes(name))
+      if (!['linux', 'windows', 'osx', 'freebsd'].includes(name))
         throw new Error(`invalid os name '${name}'`);
       const version = atIdx === -1 ? undefined : rest.slice(atIdx + 1);
       return version
@@ -330,7 +330,17 @@ function parseShortRule(raw: Rule): MojangRule {
     case 'arch': {
       if (!rest) throw new Error('missing arch');
       const arch = rest as OsArch;
-      if (!['x86', 'x86_64', 'arm', 'aarch64', 'any'].includes(arch))
+      if (
+        ![
+          'x86',
+          'x86_64',
+          'arm',
+          'aarch64',
+          'ppc64le',
+          'riscv64',
+          'any',
+        ].includes(arch)
+      )
         throw new Error(`invalid arch '${arch}'`);
       return { action, os: { arch } };
     }

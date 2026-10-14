@@ -54,6 +54,15 @@ describe('parseShortRuleset', () => {
     expect(() => parseShortRuleset('maybe.os.linux')).toThrow(/Unknown action/);
   });
 
+  test('reads freebsd and the newer arches', () => {
+    expect(parseShortRuleset('allow.os.freebsd')).toEqual([
+      { action: 'allow', os: { name: 'freebsd' } },
+    ]);
+    expect(parseShortRuleset('allow.arch.riscv64')).toEqual([
+      { action: 'allow', os: { arch: 'riscv64' } },
+    ]);
+  });
+
   test('rejects invalid os name', () => {
     expect(() => parseShortRuleset('allow.os.bsd')).toThrow(/invalid os name/);
   });

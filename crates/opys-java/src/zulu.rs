@@ -12,12 +12,11 @@
 //! per-platform queries can independently resolve to a different latest patch
 //! when a build hasn't rolled out everywhere yet.
 
-use opys_core::OsName;
 use opys_dev::http;
 use serde::Deserialize;
 
 use crate::error::JavaError;
-use crate::platforms::{fan_out, platforms_or_default, Platform, SupportedArch};
+use crate::platforms::{fan_out, platforms_or_default, Platform, SupportedArch, SupportedOs};
 use crate::vendor::{pick_anchor, VendorBinary, VendorRelease};
 use opys_dev::url::encode_uri_component;
 
@@ -26,11 +25,11 @@ const API_NAME: &str = "Azul";
 
 /// `linux-glibc` (not the bare `linux`, which mixes in musl builds) — musl
 /// targets Alpine-style distros and isn't in scope for this resolver.
-fn zulu_os(os: OsName) -> &'static str {
+fn zulu_os(os: SupportedOs) -> &'static str {
     match os {
-        OsName::Linux => "linux-glibc",
-        OsName::Osx => "macos",
-        OsName::Windows => "windows",
+        SupportedOs::Linux => "linux-glibc",
+        SupportedOs::Osx => "macos",
+        SupportedOs::Windows => "windows",
     }
 }
 
@@ -41,9 +40,9 @@ fn zulu_arch(arch: SupportedArch) -> &'static str {
     }
 }
 
-fn archive_type(os: OsName) -> &'static str {
+fn archive_type(os: SupportedOs) -> &'static str {
     match os {
-        OsName::Windows => "zip",
+        SupportedOs::Windows => "zip",
         _ => "tar.gz",
     }
 }
@@ -238,7 +237,7 @@ mod tests {
     fn query_names_the_vendor_spelling_of_os_arch_and_archive() {
         let q = zulu_query(
             Platform {
-                os: OsName::Linux,
+                os: SupportedOs::Linux,
                 arch: SupportedArch::Aarch64,
             },
             "21",
@@ -255,7 +254,7 @@ mod tests {
     fn windows_asks_for_a_zip() {
         let q = zulu_query(
             Platform {
-                os: OsName::Windows,
+                os: SupportedOs::Windows,
                 arch: SupportedArch::X86_64,
             },
             "21",

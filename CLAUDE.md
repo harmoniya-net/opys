@@ -64,8 +64,11 @@ installing machine — `file`, `string`, `bytes` — gave way to `blob`, and the
 manifest went from a JSON document to a bundle. Then `restrict`, a list of
 globs, became `cleanup`, a list of rules. Then the manifest, which a bundle
 had kept in two entries, went back to one, and the head kept nothing but
-`format`. Since then the head has gained `options`, which is an addition
-and reshaped nothing. From the first published bundle on, a change like any of these
+`format`. Since then the head has gained `options`, and a rule the OS
+`freebsd` and the architectures `ppc64le` and `riscv64`, which Cleanroom's
+documents name; both are additions and reshaped nothing. `x64`, `arm64`
+and `arm32` are read as the architectures they name, and written as
+those. From the first published bundle on, a change like any of these
 raises the number.
 All four are described under _Invariants_.
 

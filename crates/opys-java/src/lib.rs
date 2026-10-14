@@ -23,7 +23,7 @@ mod zulu;
 
 pub use error::JavaError;
 pub use graalvm::{resolve_graalvm, ResolveGraalvmOptions};
-pub use platforms::{mac_home_suffix, Platform, SupportedArch, DEFAULT_PLATFORMS};
+pub use platforms::{mac_home_suffix, Platform, SupportedArch, SupportedOs, DEFAULT_PLATFORMS};
 pub use plugin::{build_java, JavaBuild, PLUGIN_NAME};
 pub use system::{system_java, CUSTOM_JAVA};
 pub use template::{java_template, resolve_java, JavaOptions, JavaTemplate, JavaVendor};

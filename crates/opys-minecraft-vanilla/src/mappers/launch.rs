@@ -81,6 +81,8 @@ fn os_str(os: OsName) -> &'static str {
         OsName::Linux => "linux",
         OsName::Windows => "windows",
         OsName::Osx => "osx",
+        // Not in `OSES`: no launcher this classpath is for runs there.
+        OsName::Freebsd => "freebsd",
     }
 }
 

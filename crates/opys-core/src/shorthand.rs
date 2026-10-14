@@ -51,6 +51,7 @@ fn parse_os_name(s: &str) -> Result<OsName, ShorthandError> {
         "linux" => Ok(OsName::Linux),
         "windows" => Ok(OsName::Windows),
         "osx" => Ok(OsName::Osx),
+        "freebsd" => Ok(OsName::Freebsd),
         _ => Err(ShorthandError::InvalidOsName(s.to_owned())),
     }
 }
@@ -61,6 +62,8 @@ fn parse_arch(s: &str) -> Result<OsArch, ShorthandError> {
         "x86_64" => Ok(OsArch::X86_64),
         "arm" => Ok(OsArch::Arm),
         "aarch64" => Ok(OsArch::Aarch64),
+        "ppc64le" => Ok(OsArch::Ppc64le),
+        "riscv64" => Ok(OsArch::Riscv64),
         "any" => Ok(OsArch::Any),
         _ => Err(ShorthandError::InvalidArch(s.to_owned())),
     }
@@ -138,6 +141,7 @@ fn os_name_str(n: OsName) -> &'static str {
         OsName::Linux => "linux",
         OsName::Windows => "windows",
         OsName::Osx => "osx",
+        OsName::Freebsd => "freebsd",
     }
 }
 
@@ -147,6 +151,8 @@ fn arch_str(a: OsArch) -> &'static str {
         OsArch::X86_64 => "x86_64",
         OsArch::Arm => "arm",
         OsArch::Aarch64 => "aarch64",
+        OsArch::Ppc64le => "ppc64le",
+        OsArch::Riscv64 => "riscv64",
         OsArch::Any => "any",
     }
 }

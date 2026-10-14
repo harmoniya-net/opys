@@ -25,36 +25,59 @@ impl SupportedArch {
     }
 }
 
+/// OSes every vendor resolver in this crate targets. A narrowing of
+/// [`OsName`], as [`SupportedArch`] is of [`OsArch`]: the rule format names
+/// FreeBSD, and no vendor here publishes a JDK for it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum SupportedOs {
+    Linux,
+    Windows,
+    Osx,
+}
+
+impl SupportedOs {
+    /// Widen back to the rule-format OS, for the rulesets the template
+    /// emits.
+    pub fn as_os_name(self) -> OsName {
+        match self {
+            SupportedOs::Linux => OsName::Linux,
+            SupportedOs::Windows => OsName::Windows,
+            SupportedOs::Osx => OsName::Osx,
+        }
+    }
+}
+
 /// An (OS, arch) pair a vendor resolver fetches a binary for.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Platform {
-    pub os: OsName,
+    pub os: SupportedOs,
     pub arch: SupportedArch,
 }
 
 pub const DEFAULT_PLATFORMS: [Platform; 6] = [
     Platform {
-        os: OsName::Linux,
+        os: SupportedOs::Linux,
         arch: SupportedArch::X86_64,
     },
     Platform {
-        os: OsName::Linux,
+        os: SupportedOs::Linux,
         arch: SupportedArch::Aarch64,
     },
     Platform {
-        os: OsName::Osx,
+        os: SupportedOs::Osx,
         arch: SupportedArch::X86_64,
     },
     Platform {
-        os: OsName::Osx,
+        os: SupportedOs::Osx,
         arch: SupportedArch::Aarch64,
     },
     Platform {
-        os: OsName::Windows,
+        os: SupportedOs::Windows,
         arch: SupportedArch::X86_64,
     },
     Platform {
-        os: OsName::Windows,
+        os: SupportedOs::Windows,
         arch: SupportedArch::Aarch64,
     },
 ];
@@ -63,9 +86,9 @@ pub const DEFAULT_PLATFORMS: [Platform; 6] = [
 /// supports (Temurin, Zulu, GraalVM CE) ships its macOS archive as a
 /// `.jdk`-style bundle with this layout, a JRE as much as a JDK — verified
 /// against real archives, not assumed from convention.
-pub fn mac_home_suffix(os: OsName) -> &'static str {
+pub fn mac_home_suffix(os: SupportedOs) -> &'static str {
     match os {
-        OsName::Osx => "/Contents/Home",
+        SupportedOs::Osx => "/Contents/Home",
         _ => "",
     }
 }

@@ -26,7 +26,6 @@
 //! at build time, and its hash pinned like any other. A manifest never ships a
 //! JDK it cannot verify, and never asks the installing machine to find out.
 
-use opys_core::OsName;
 use opys_dev::github::{
     github_asset_sha256, pick_github_release, GitHubAsset, GitHubRelease, ReleaseSelector,
     GITHUB_API_BASE,
@@ -36,17 +35,17 @@ use opys_dev::http::get;
 use serde::Deserialize;
 
 use crate::error::JavaError;
-use crate::platforms::{platforms_or_default, Platform, SupportedArch};
+use crate::platforms::{platforms_or_default, Platform, SupportedArch, SupportedOs};
 use crate::vendor::{VendorBinary, VendorRelease};
 use crate::version::{is_bare_major, leading_digits};
 
 const REPO: &str = "graalvm/graalvm-ce-builds";
 
-fn graalvm_os(os: OsName) -> &'static str {
+fn graalvm_os(os: SupportedOs) -> &'static str {
     match os {
-        OsName::Linux => "linux",
-        OsName::Osx => "macos",
-        OsName::Windows => "windows",
+        SupportedOs::Linux => "linux",
+        SupportedOs::Osx => "macos",
+        SupportedOs::Windows => "windows",
     }
 }
 
@@ -57,9 +56,9 @@ fn graalvm_arch(arch: SupportedArch) -> &'static str {
     }
 }
 
-fn archive_ext(os: OsName) -> &'static str {
+fn archive_ext(os: SupportedOs) -> &'static str {
     match os {
-        OsName::Windows => "zip",
+        SupportedOs::Windows => "zip",
         _ => "tar.gz",
     }
 }
@@ -259,7 +258,7 @@ mod tests {
         let found = find_asset(
             &assets,
             Platform {
-                os: OsName::Osx,
+                os: SupportedOs::Osx,
                 arch: SupportedArch::Aarch64,
             },
         );
@@ -280,7 +279,7 @@ mod tests {
         let found = find_asset(
             &assets,
             Platform {
-                os: OsName::Linux,
+                os: SupportedOs::Linux,
                 arch: SupportedArch::X86_64,
             },
         );

@@ -92,6 +92,7 @@ fn os_name(raw: &str) -> Result<OsName, MojangError> {
         "linux" => Ok(OsName::Linux),
         "windows" => Ok(OsName::Windows),
         "osx" => Ok(OsName::Osx),
+        "freebsd" => Ok(OsName::Freebsd),
         _ => Err(MojangError::InvalidOsName(raw.to_owned())),
     }
 }

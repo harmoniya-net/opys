@@ -173,3 +173,30 @@ fn satisfies_rule_bare_allow_and_disallow() {
     )
     .unwrap());
 }
+
+#[test]
+fn freebsd_is_an_os_and_a_rule_for_it_matches_nothing_else() {
+    let rules: Vec<MojangRule> = serde_json::from_value(
+        serde_json::json!([{ "action": "allow", "os": { "name": "freebsd" } }]),
+    )
+    .unwrap();
+    assert_eq!(rules, vec![allow_os(OsName::Freebsd)]);
+    assert!(!satisfies_ruleset(&rules, &linux(), &[]).unwrap());
+}
+
+#[test]
+fn another_name_for_an_arch_is_read_as_it_and_written_as_it() {
+    for (written, arch) in [
+        ("x64", OsArch::X86_64),
+        ("arm64", OsArch::Aarch64),
+        ("arm32", OsArch::Arm),
+        ("ppc64le", OsArch::Ppc64le),
+        ("riscv64", OsArch::Riscv64),
+    ] {
+        let read: OsArch = serde_json::from_value(serde_json::json!(written)).unwrap();
+        assert_eq!(read, arch, "{written}");
+    }
+    assert_eq!(serde_json::to_value(OsArch::X86_64).unwrap(), "x86_64");
+    assert_eq!(serde_json::to_value(OsArch::Aarch64).unwrap(), "aarch64");
+    assert!(serde_json::from_value::<OsArch>(serde_json::json!("m68k")).is_err());
+}

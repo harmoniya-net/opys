@@ -3,30 +3,29 @@
 mod common;
 
 use common::{Reply, Request, TestServer};
-use opys_core::OsName;
 use opys_java::{
-    resolve_temurin, Platform, ResolveTemurinOptions, SupportedArch, DEFAULT_PLATFORMS,
+    resolve_temurin, Platform, ResolveTemurinOptions, SupportedArch, SupportedOs, DEFAULT_PLATFORMS,
 };
 
 const LINUX_X64: Platform = Platform {
-    os: OsName::Linux,
+    os: SupportedOs::Linux,
     arch: SupportedArch::X86_64,
 };
 const MAC_AARCH64: Platform = Platform {
-    os: OsName::Osx,
+    os: SupportedOs::Osx,
     arch: SupportedArch::Aarch64,
 };
 const WIN_X64: Platform = Platform {
-    os: OsName::Windows,
+    os: SupportedOs::Windows,
     arch: SupportedArch::X86_64,
 };
 
 /// One Adoptium-shaped release for a given platform.
 fn release(platform: Platform, release_name: &str, major: u32) -> String {
     let os = match platform.os {
-        OsName::Linux => "linux",
-        OsName::Osx => "mac",
-        OsName::Windows => "windows",
+        SupportedOs::Linux => "linux",
+        SupportedOs::Osx => "mac",
+        SupportedOs::Windows => "windows",
     };
     let arch = match platform.arch {
         SupportedArch::X86_64 => "x64",
@@ -249,7 +248,10 @@ fn anchors_on_the_most_common_release_name_and_drops_the_rest() {
 
     assert_eq!(result.label, "Temurin 21.0.11+10");
     assert_eq!(result.binaries.len(), 2);
-    assert!(result.binaries.iter().all(|b| b.platform.os != OsName::Osx));
+    assert!(result
+        .binaries
+        .iter()
+        .all(|b| b.platform.os != SupportedOs::Osx));
 }
 
 #[test]

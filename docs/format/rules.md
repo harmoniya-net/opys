@@ -116,12 +116,17 @@ artifacts.
 
 | Value     | Possible values                         |
 | --------- | --------------------------------------- |
-| `name`    | `linux`, `windows`, `osx`               |
+| `name`    | `linux`, `windows`, `osx`, `freebsd`    |
 | `arch`    | `x86_64`, `aarch64`                     |
 | `version` | Empty, unless the launcher supplies it. |
 
 The opys runtime does not detect the OS version. A rule with a version
 pattern only works if the launcher passes a `platform` with one.
+
+A rule may also name the architectures `x86`, `arm`, `ppc64le` and
+`riscv64`, which the runtime never reports, so such a rule passes only
+where a launcher passes that `platform`. `x64`, `arm64` and `arm32`, as
+some version files write them, are read as `x86_64`, `aarch64` and `arm`.
 
 ## Features
 

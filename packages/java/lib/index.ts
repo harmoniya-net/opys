@@ -26,10 +26,12 @@ import type { Artifact, OsName, ValDefs } from '@opys/core';
 
 /** Archs every vendor resolver in this package targets. */
 export type SupportedArch = 'x86_64' | 'aarch64';
+/** The OSes a JDK is published for: the rule format's, less FreeBSD. */
+export type SupportedOs = Exclude<OsName, 'freebsd'>;
 
 /** An (OS, arch) pair a vendor resolver fetches a binary for. */
 export interface Platform {
-  readonly os: OsName;
+  readonly os: SupportedOs;
   readonly arch: SupportedArch;
 }
 

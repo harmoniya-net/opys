@@ -11,19 +11,19 @@ use opys_core::{
 };
 use opys_java::{
     build_java, java_template, resolve_java, JavaOptions, JavaVendor, Platform, SupportedArch,
-    VendorBinary, VendorRelease,
+    SupportedOs, VendorBinary, VendorRelease,
 };
 
 const LINUX_X64: Platform = Platform {
-    os: OsName::Linux,
+    os: SupportedOs::Linux,
     arch: SupportedArch::X86_64,
 };
 const MAC_AARCH64: Platform = Platform {
-    os: OsName::Osx,
+    os: SupportedOs::Osx,
     arch: SupportedArch::Aarch64,
 };
 const WIN_X64: Platform = Platform {
-    os: OsName::Windows,
+    os: SupportedOs::Windows,
     arch: SupportedArch::X86_64,
 };
 
@@ -203,7 +203,7 @@ fn emits_one_arm_per_distinct_os_not_per_arch() {
         binary(LINUX_X64, "linux-x64.tar.gz"),
         binary(
             Platform {
-                os: OsName::Linux,
+                os: SupportedOs::Linux,
                 arch: SupportedArch::Aarch64,
             },
             "linux-arm.tar.gz",

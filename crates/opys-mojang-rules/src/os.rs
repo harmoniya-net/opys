@@ -17,18 +17,29 @@ pub enum OsName {
     Linux,
     Windows,
     Osx,
+    /// Mojang has never written it; LWJGL 3 ships natives for it, and a
+    /// version JSON that lists LWJGL's own classifiers names it.
+    Freebsd,
 }
 
+/// The `x64`, `arm64` and `arm32` some version JSONs write, after LWJGL's
+/// and netty's classifiers, are other names for an architecture here and
+/// are read as it: one architecture has one spelling once decoded, and that
+/// is the one a manifest is written with.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum OsArch {
     #[serde(rename = "x86")]
     X86,
-    #[serde(rename = "x86_64")]
+    #[serde(rename = "x86_64", alias = "x64")]
     X86_64,
-    #[serde(rename = "arm")]
+    #[serde(rename = "arm", alias = "arm32")]
     Arm,
-    #[serde(rename = "aarch64")]
+    #[serde(rename = "aarch64", alias = "arm64")]
     Aarch64,
+    #[serde(rename = "ppc64le")]
+    Ppc64le,
+    #[serde(rename = "riscv64")]
+    Riscv64,
     #[serde(rename = "any")]
     Any,
 }
@@ -39,6 +50,7 @@ impl OsName {
             OsName::Linux => "linux",
             OsName::Windows => "windows",
             OsName::Osx => "osx",
+            OsName::Freebsd => "freebsd",
         }
     }
 }
@@ -50,6 +62,8 @@ impl OsArch {
             OsArch::X86_64 => "x86_64",
             OsArch::Arm => "arm",
             OsArch::Aarch64 => "aarch64",
+            OsArch::Ppc64le => "ppc64le",
+            OsArch::Riscv64 => "riscv64",
             OsArch::Any => "any",
         }
     }

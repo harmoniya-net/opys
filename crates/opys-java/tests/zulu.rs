@@ -3,19 +3,18 @@
 mod common;
 
 use common::{Reply, Request, TestServer};
-use opys_core::OsName;
-use opys_java::{resolve_zulu, Platform, ResolveZuluOptions, SupportedArch};
+use opys_java::{resolve_zulu, Platform, ResolveZuluOptions, SupportedArch, SupportedOs};
 
 const LINUX_X64: Platform = Platform {
-    os: OsName::Linux,
+    os: SupportedOs::Linux,
     arch: SupportedArch::X86_64,
 };
 const MAC_AARCH64: Platform = Platform {
-    os: OsName::Osx,
+    os: SupportedOs::Osx,
     arch: SupportedArch::Aarch64,
 };
 const WIN_X64: Platform = Platform {
-    os: OsName::Windows,
+    os: SupportedOs::Windows,
     arch: SupportedArch::X86_64,
 };
 
