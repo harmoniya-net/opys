@@ -80,6 +80,34 @@ impl VersionEntryWire {
     }
 }
 
+fn fetch_index(base: &str) -> Result<IndexWire, CleanroomError> {
+    Ok(get_json(&format!("{base}/index.json"), &[])?)
+}
+
+/// Every release the index holds, by Minecraft version and newest first
+/// within one.
+///
+/// It is not filtered by stability: Cleanroom has marked every release it
+/// ever made `-alpha`, and a list of none would be no list.
+pub fn list_cleanroom_releases(source: &str) -> Result<Vec<CleanroomRelease>, CleanroomError> {
+    let index = fetch_index(source.trim_end_matches('/'))?;
+    Ok(index
+        .versions
+        .into_iter()
+        .flat_map(|(minecraft, entry)| {
+            entry
+                .builds
+                .into_iter()
+                .rev()
+                .map(move |build| CleanroomRelease {
+                    minecraft: minecraft.clone(),
+                    cleanroom: build.build,
+                    document_url: build.url,
+                })
+        })
+        .collect())
+}
+
 /// Resolve a version string against the index.
 ///
 /// Accepted forms, in the order they are tried:
@@ -95,7 +123,7 @@ pub fn resolve_cleanroom_version(
     source: &str,
 ) -> Result<CleanroomRelease, CleanroomError> {
     let base = source.trim_end_matches('/');
-    let index: IndexWire = get_json(&format!("{base}/index.json"), &[])?;
+    let index = fetch_index(base)?;
 
     let release = |minecraft: &str, cleanroom: &str, url: &str| CleanroomRelease {
         minecraft: minecraft.to_owned(),

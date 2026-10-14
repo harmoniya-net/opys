@@ -98,10 +98,15 @@ export const crates = all(
   ),
   crate(
     'opys-minecraft-server',
-    dependsOn('opys-core', 'opys-dev', 'opys-minecraft-vanilla'),
+    dependsOn(
+      'opys-core',
+      'opys-dev',
+      'opys-minecraft-vanilla',
+      'opys-cleanroom',
+    ),
     exposedToJs,
     because(
-      'vanilla is where a version is looked up in the Mojang manifest, and a vanilla server is named by that version',
+      "vanilla is where a version is looked up in the Mojang manifest, and a vanilla server is named by that version; cleanroom is where Cleanroom's document is, and a Cleanroom server is that document's libraries",
     ),
   ),
   crate(

@@ -44,6 +44,7 @@ pub enum Core {
     Fabric,
     Forge,
     Neoforge,
+    Cleanroom,
 }
 
 impl fmt::Display for Core {
@@ -55,6 +56,7 @@ impl fmt::Display for Core {
             Core::Fabric => "Fabric",
             Core::Forge => "Forge",
             Core::Neoforge => "NeoForge",
+            Core::Cleanroom => "Cleanroom",
         })
     }
 }
@@ -93,22 +95,14 @@ pub enum ServerCore {
     },
     /// By NeoForge's own version, which is the whole of what names a build.
     Neoforge { version: String },
+    /// By its release tag, which is the whole of what names a build, or
+    /// `latest` for the newest.
+    Cleanroom { version: String },
     /// A server jar the author has.
     Jar(JarSource),
     /// An installer the author has, of a fork of Forge or NeoForge. It is
     /// run by the starter as theirs is.
     Installer(JarSource),
-}
-
-impl ServerCore {
-    /// Whether the server is put together by an installer on the machine
-    /// that runs it, and so is started through the starter.
-    pub fn installs(&self) -> bool {
-        matches!(
-            self,
-            ServerCore::Forge { .. } | ServerCore::Neoforge { .. } | ServerCore::Installer(_)
-        )
-    }
 }
 
 /// Where each core is asked. Every field is a mirror, or the loopback
@@ -132,6 +126,10 @@ pub struct Apis {
     pub forge_maven: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub neoforge: Option<String>,
+    /// The base of the published Cleanroom documents, as the `cleanroom`
+    /// plugin takes it.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cleanroom: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
@@ -177,6 +175,8 @@ pub(crate) struct ServerOptionsWire {
     #[serde(skip_serializing_if = "Option::is_none")]
     neoforge: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    cleanroom: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     jar: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     installer: Option<String>,
@@ -192,8 +192,7 @@ pub(crate) struct ServerOptionsWire {
     apis: Apis,
 }
 
-const CORES: &str =
-    "`vanilla`, `paper`, `purpur`, `fabric`, `forge`, `neoforge`, `jar` or `installer`";
+const CORES: &str = "`vanilla`, `paper`, `purpur`, `fabric`, `forge`, `neoforge`, `cleanroom`, `jar` or `installer`";
 
 impl TryFrom<ServerOptionsWire> for ServerOptions {
     type Error = String;
@@ -221,6 +220,7 @@ impl TryFrom<ServerOptionsWire> for ServerOptions {
             ("fabric", raw.fabric),
             ("forge", raw.forge),
             ("neoforge", raw.neoforge),
+            ("cleanroom", raw.cleanroom),
             ("jar", raw.jar),
             ("installer", raw.installer),
         ];
@@ -265,6 +265,10 @@ impl TryFrom<ServerOptionsWire> for ServerOptions {
                     only("NeoForge, whose version is its build", false, false)?;
                     ServerCore::Neoforge { version }
                 }
+                "cleanroom" => {
+                    only("Cleanroom, whose version is its build", false, false)?;
+                    ServerCore::Cleanroom { version }
+                }
                 "jar" => {
                     only("a jar of your own", false, false)?;
                     ServerCore::Jar(JarSource::of(version))
@@ -304,6 +308,7 @@ impl From<ServerCore> for ServerOptionsWire {
                 wire.build_text = build;
             }
             ServerCore::Neoforge { version } => wire.neoforge = Some(version),
+            ServerCore::Cleanroom { version } => wire.cleanroom = Some(version),
             ServerCore::Jar(jar) => wire.jar = Some(jar.written()),
             ServerCore::Installer(installer) => wire.installer = Some(installer.written()),
         }

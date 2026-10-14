@@ -35,7 +35,7 @@ opys launch server.opys --var root=/srv/minecraft --feature eula
 
 Сервер це один файл, або два для Forge і NeoForge. Свої бібліотеки він
 завантажує сам під час першого запуску, тож їх немає в маніфесті, і opys їх
-не перевіряє.
+не перевіряє. Виняток становить Cleanroom: див. [Cleanroom](#cleanroom).
 
 ## Який сервер
 
@@ -50,6 +50,8 @@ opys launch server.opys --var root=/srv/minecraft --feature eula
 | `server({ fabric: '1.21.1' })`                          | Fabric, найновіший стабільний завантажувач.                             |
 | `server({ forge: '1.21.1' })`                           | Forge, збірка, яку рекомендує Forge.                                    |
 | `server({ neoforge: '21.1.259' })`                      | NeoForge. Його власна версія, не версія Minecraft.                      |
+| `server({ cleanroom: '0.7.2-alpha' })`                  | Cleanroom. Його власна версія, не версія Minecraft.                     |
+| `server({ cleanroom: 'latest' })`                       | Cleanroom, його найновіший реліз.                                       |
 | `server({ jar: 'https://…/folia.jar' })`                | Будь-який jar за посиланням. Його завантажують один раз, щоб закріпити. |
 | `server({ jar: 'build/spigot-1.21.1.jar' })`            | Будь-який jar на вашому диску. Він їде в бандлі.                        |
 | `server({ installer: 'https://…/fork-installer.jar' })` | Форк Forge чи NeoForge, за його інсталятором.                           |
@@ -98,14 +100,15 @@ await resolveServer({ paper: '1.21.1' });
 `pinned` це те саме, що ви передаєте в `server()`, де вже нічого не лишено
 на «найновіше». Вставте його у свій конфіг, щоб зберегти саме цей сервер.
 
-| Сервер     | `serverVersions`             | `serverBuilds`            |
-| ---------- | ---------------------------- | ------------------------- |
-| `vanilla`  | Релізи Mojang.               | Немає.                    |
-| `paper`    | Версії Minecraft, стабільні. | Номери стабільних збірок. |
-| `purpur`   | Версії Minecraft, стабільні. | Номери збірок.            |
-| `fabric`   | Версії Minecraft, стабільні. | Версії завантажувача.     |
-| `forge`    | Версії Minecraft.            | Збірки Forge.             |
-| `neoforge` | Версії NeoForge, стабільні.  | Немає.                    |
+| Сервер      | `serverVersions`             | `serverBuilds`            |
+| ----------- | ---------------------------- | ------------------------- |
+| `vanilla`   | Релізи Mojang.               | Немає.                    |
+| `paper`     | Версії Minecraft, стабільні. | Номери стабільних збірок. |
+| `purpur`    | Версії Minecraft, стабільні. | Номери збірок.            |
+| `fabric`    | Версії Minecraft, стабільні. | Версії завантажувача.     |
+| `forge`     | Версії Minecraft.            | Збірки Forge.             |
+| `neoforge`  | Версії NeoForge, стабільні.  | Немає.                    |
+| `cleanroom` | Версії Cleanroom, усі.       | Немає.                    |
 
 Списки йдуть від найновішого. Передрелізу в списку немає, але він працює,
 якщо його назвати: `server({ neoforge: '26.3.0.69-beta' })`.
@@ -126,6 +129,23 @@ NeoForge, який запускає інсталятор, а потім стар
 - Запускайте з теки сервера: залишайте `workdir: '${root}'`.
 - Forge потребує Minecraft 1.17 або новішого. Старіший відхиляється під час
   збирання.
+
+## Cleanroom
+
+Cleanroom працює на Minecraft 1.12.2, і його інсталятор нічого не латає.
+opys робить те саме, що зробив би інсталятор: маніфест перелічує кожну
+бібліотеку, серверний jar Mojang для 1.12.2 і власний jar Cleanroom, кожен
+закріплений, а рядок запуску їх стартує. Немає ні інсталятора, ні
+завантаження під час першого запуску.
+
+- `'@server.jar'` містить `-cp`, classpath і головний клас замість `-jar`.
+  Пишіть ті самі `args`, що й для будь-якого іншого сервера.
+- Cleanroom потребує свіжої Java: 0.7 просить Java 25.
+- Кожен реліз Cleanroom позначено як alpha, тому
+  `serverVersions('cleanroom')` перелічує їх усі.
+- Без Fugue і Scalar у `mods/` Cleanroom зупиняється під час першого
+  запуску й просить `/fml confirm`. Додайте ці два моди або запускайте з
+  `-Dfml.queryResult=confirm`.
 
 ## EULA
 
@@ -209,6 +229,8 @@ links({
 
 Для Forge, NeoForge та `installer` у `'@server.jar'` є ще
 `"--installer-force"`, прапорець стартера для встановлення новішої збірки.
+Для Cleanroom там `"-cp"`, `"${classpath}"`, головний клас і
+`"--tweakClass"`, `"net.minecraftforge.fml.common.launcher.FMLServerTweaker"`.
 
 Ваші прапорці JVM ідуть перед `'@server.jar'`, а прапорці самого сервера
 після нього:
@@ -222,6 +244,9 @@ args: ['-Xms4G', '-Xmx4G', '@server.jar', '@server.args', '--port', '25566'],
 | Змінна | Значення | Що це                                             |
 | ------ | -------- | ------------------------------------------------- |
 | `root` | `.`      | Тека сервера. Задайте її через `--var` або `run`. |
+
+Cleanroom додає ще `library_directory`, `${root}/libraries`, а також
+`classpath` і `classpath_separator`, які читає його рядок запуску.
 
 ## Java
 

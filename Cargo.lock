@@ -1103,6 +1103,7 @@ name = "opys-minecraft-server"
 version = "0.2.0"
 dependencies = [
  "indexmap",
+ "opys-cleanroom",
  "opys-core",
  "opys-dev",
  "opys-minecraft-vanilla",

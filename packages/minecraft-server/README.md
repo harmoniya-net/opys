@@ -35,7 +35,8 @@ opys launch server.opys --var root=/srv/minecraft --feature eula
 
 A server is one file, or two for Forge and NeoForge. It downloads its own
 libraries the first time it starts, so they are not in the manifest and
-opys does not check them.
+opys does not check them. Cleanroom is the exception: see
+[Cleanroom](#cleanroom).
 
 ## Which server
 
@@ -50,6 +51,8 @@ The field that names the server holds its version.
 | `server({ fabric: '1.21.1' })`                          | Fabric, its newest stable loader.                 |
 | `server({ forge: '1.21.1' })`                           | Forge, the build Forge recommends.                |
 | `server({ neoforge: '21.1.259' })`                      | NeoForge. Its own version, not Minecraft's.       |
+| `server({ cleanroom: '0.7.2-alpha' })`                  | Cleanroom. Its own version, not Minecraft's.      |
+| `server({ cleanroom: 'latest' })`                       | Cleanroom, its newest release.                    |
 | `server({ jar: 'https://…/folia.jar' })`                | Any jar by link. It is downloaded once to pin it. |
 | `server({ jar: 'build/spigot-1.21.1.jar' })`            | Any jar on your disk. It travels in the bundle.   |
 | `server({ installer: 'https://…/fork-installer.jar' })` | A fork of Forge or NeoForge, by its installer.    |
@@ -98,14 +101,15 @@ await resolveServer({ paper: '1.21.1' });
 `pinned` is the same thing you pass to `server()`, with nothing left to "the
 newest". Paste it into your config to keep that exact server.
 
-| Server     | `serverVersions`                 | `serverBuilds`        |
-| ---------- | -------------------------------- | --------------------- |
-| `vanilla`  | Mojang's releases.               | None.                 |
-| `paper`    | Minecraft versions, stable ones. | Stable build numbers. |
-| `purpur`   | Minecraft versions, stable ones. | Build numbers.        |
-| `fabric`   | Minecraft versions, stable ones. | Loader versions.      |
-| `forge`    | Minecraft versions.              | Forge builds.         |
-| `neoforge` | NeoForge versions, stable ones.  | None.                 |
+| Server      | `serverVersions`                 | `serverBuilds`        |
+| ----------- | -------------------------------- | --------------------- |
+| `vanilla`   | Mojang's releases.               | None.                 |
+| `paper`     | Minecraft versions, stable ones. | Stable build numbers. |
+| `purpur`    | Minecraft versions, stable ones. | Build numbers.        |
+| `fabric`    | Minecraft versions, stable ones. | Loader versions.      |
+| `forge`     | Minecraft versions.              | Forge builds.         |
+| `neoforge`  | NeoForge versions, stable ones.  | None.                 |
+| `cleanroom` | Cleanroom versions, all of them. | None.                 |
 
 Lists are newest first. A pre-release is left out of a list and still works
 when you name it: `server({ neoforge: '26.3.0.69-beta' })`.
@@ -124,6 +128,22 @@ runs the installer and then starts the server.
 - Moving to a newer build installs it on the next start, in the same folder.
 - Start from the server's folder: keep `workdir: '${root}'`.
 - Forge needs Minecraft 1.17 or newer. An older one is refused at build.
+
+## Cleanroom
+
+Cleanroom is Minecraft 1.12.2, and its installer patches nothing. opys
+does what the installer would: the manifest lists every library, Mojang's
+1.12.2 server jar and Cleanroom's own, each pinned, and the launch line
+starts them. There is no installer and no first-start download.
+
+- `'@server.jar'` is `-cp`, the classpath and the main class instead of
+  `-jar`. Write the same `args` as for any other server.
+- Cleanroom needs a recent Java: 0.7 asks for Java 25.
+- Every Cleanroom release is an alpha, so `serverVersions('cleanroom')`
+  lists all of them.
+- Without Fugue and Scalar in `mods/`, Cleanroom stops on its first start
+  and asks for `/fml confirm`. Add the two mods, or start with
+  `-Dfml.queryResult=confirm`.
 
 ## The EULA
 
@@ -208,6 +228,8 @@ was built.
 
 For Forge, NeoForge and `installer`, `'@server.jar'` also holds
 `"--installer-force"`, the starter's flag for installing a newer build.
+For Cleanroom it is `"-cp"`, `"${classpath}"`, the main class and
+`"--tweakClass"`, `"net.minecraftforge.fml.common.launcher.FMLServerTweaker"`.
 
 Your own JVM flags go before `'@server.jar'`, and the server's own flags
 after it:
@@ -221,6 +243,9 @@ args: ['-Xms4G', '-Xmx4G', '@server.jar', '@server.args', '--port', '25566'],
 | Variable | Value | What it is                                         |
 | -------- | ----- | -------------------------------------------------- |
 | `root`   | `.`   | The server's folder. Set it with `--var` or `run`. |
+
+Cleanroom also adds `library_directory`, `${root}/libraries`, and the
+`classpath` and `classpath_separator` its launch line reads.
 
 ## Java
 

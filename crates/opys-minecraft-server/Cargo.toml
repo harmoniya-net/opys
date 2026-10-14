@@ -6,9 +6,10 @@ license.workspace = true
 rust-version.workspace = true
 repository.workspace = true
 homepage.workspace = true
-description = "A Minecraft server for opys: vanilla, Paper, Fabric, or any jar you have."
+description = "A Minecraft server for opys: vanilla, Paper, Fabric, Forge, Cleanroom, or any jar you have."
 
 [dependencies]
+opys-cleanroom = { workspace = true }
 opys-core = { workspace = true }
 opys-dev = { workspace = true, features = ["net"] }
 opys-minecraft-vanilla = { workspace = true }

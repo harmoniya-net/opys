@@ -3,7 +3,8 @@
  *
  * A server is one jar: it fetches its own libraries the first time it is
  * started. So `server()` resolves a core to that jar, pins it, and says how
- * to start it. Which cores there are, and where each is asked, is the
+ * to start it. Cleanroom is the exception, being 1.12.2, whose server
+ * fetches nothing: it is its document's libraries, each pinned. Which cores there are, and where each is asked, is the
  * `opys-minecraft-server` crate's and is tested there; this module is the
  * typed surface over it.
  *
@@ -28,7 +29,13 @@ import type { Artifact } from '@opys/core';
 
 /** A core that is looked up by version: the ones there is a list of. */
 export type Core =
-  'vanilla' | 'paper' | 'purpur' | 'fabric' | 'forge' | 'neoforge';
+  | 'vanilla'
+  | 'paper'
+  | 'purpur'
+  | 'fabric'
+  | 'forge'
+  | 'neoforge'
+  | 'cleanroom';
 
 /**
  * Where each core is asked. Every field is a mirror; one left out is the
@@ -44,6 +51,8 @@ export interface Apis {
   readonly forge?: string;
   readonly forgeMaven?: string;
   readonly neoforge?: string;
+  /** The base of the published Cleanroom documents. */
+  readonly cleanroom?: string;
 }
 
 /** Every field a core is written with, across all of them. */
@@ -54,6 +63,7 @@ type CoreField =
   | 'fabric'
   | 'forge'
   | 'neoforge'
+  | 'cleanroom'
   | 'jar'
   | 'installer'
   | 'build'
@@ -83,6 +93,8 @@ export type ServerCore =
   | Only<{ readonly forge: string; readonly build?: string }>
   /** NeoForge, by its own version. */
   | Only<{ readonly neoforge: string }>
+  /** Cleanroom, by its release tag (`0.7.2-alpha`), or `'latest'`. */
+  | Only<{ readonly cleanroom: string }>
   /**
    * A server jar you have: a link, or a path beside the config. Spigot and
    * CraftBukkit come this way, since they are built on your machine.
@@ -131,8 +143,9 @@ export const EULA_FEATURE = napi.eulaFeature();
 
 /**
  * The versions a core has a server for, newest first and stable only. They
- * are Minecraft versions, except NeoForge's, whose own version names a
- * build.
+ * are Minecraft versions, except NeoForge's and Cleanroom's, whose own
+ * version names a build. Cleanroom's are all of them, since it calls every
+ * release an alpha.
  */
 export async function serverVersions(
   core: Core,
@@ -143,8 +156,8 @@ export async function serverVersions(
 
 /**
  * The builds a core has of one version, newest first: build numbers, or for
- * Fabric its loaders. Empty for `vanilla` and `neoforge`, where the version
- * is all there is to choose.
+ * Fabric its loaders. Empty for `vanilla`, `neoforge` and `cleanroom`, where
+ * the version is all there is to choose.
  */
 export async function serverBuilds(
   core: Core,
@@ -186,7 +199,9 @@ type Groups = 'command' | 'jar' | 'args';
  *
  * Owns `root`, adds the server's files under it and, behind the `eula`
  * feature, `${root}/eula.txt`. Exposes three launch groups: `command`, the
- * `java` to run; `jar`, `-jar` and the jar; and `args`, `nogui`.
+ * `java` to run; `jar`, what starts the server, which is `-jar` and the jar
+ * for every core but Cleanroom, whose is a classpath and a main class; and
+ * `args`, `nogui`.
  *
  * ```js
  * import { server } from '@opys/minecraft-server';

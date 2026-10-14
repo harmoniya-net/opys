@@ -11,6 +11,12 @@
 //! installer where the server is not installed yet and then starts it in
 //! the same process. So they too are `java -jar server.jar`.
 //!
+//! Cleanroom is 1.12.2, whose server fetches nothing, and its installer
+//! patches nothing either: it lays out the libraries of the same document
+//! the `cleanroom` plugin reads, and Mojang's server jar. So a Cleanroom
+//! server is those files, every one pinned, started from a classpath, and
+//! the one core whose libraries a manifest lists.
+//!
 //! Every core is this one plugin, told apart by [`ServerCore`]. They differ
 //! in where the files are asked for and in nothing after that. A core
 //! answers three questions: which versions it has ([`list_versions`]), which

@@ -27,6 +27,7 @@ fn apis(server: &TestServer) -> Apis {
         "mojang": format!("{}/manifest.json", server.base),
         "paper": server.base, "purpur": server.base, "fabric": server.base,
         "forge": server.base, "forgeMaven": server.base, "neoforge": server.base,
+        "cleanroom": server.base,
     }))
     .unwrap()
 }
@@ -116,6 +117,12 @@ fn a_core_is_named_by_the_field_that_holds_its_version() {
         }
     );
     assert_eq!(
+        core(json!({ "cleanroom": "0.7.2-alpha" })),
+        ServerCore::Cleanroom {
+            version: text("0.7.2-alpha")
+        }
+    );
+    assert_eq!(
         core(json!({ "jar": "https://x/purpur.jar" })),
         ServerCore::Jar(JarSource::Link(text("https://x/purpur.jar")))
     );
@@ -138,6 +145,10 @@ fn a_server_is_one_core_and_takes_only_that_cores_fields() {
         .contains("server({ build }) means nothing for Fabric"));
     assert!(refusal(json!({ "neoforge": "21.1.259", "build": 1 }))
         .contains("means nothing for NeoForge, whose version is its build"));
+    assert!(
+        refusal(json!({ "cleanroom": "latest", "build": "0.7.2-alpha" }))
+            .contains("means nothing for Cleanroom, whose version is its build")
+    );
     assert!(refusal(json!({ "jar": "a.jar", "build": 1 }))
         .contains("means nothing for a jar of your own"));
     // What used to be written, and what was never an option.
@@ -154,6 +165,7 @@ fn a_core_is_written_back_as_the_options_it_was_read_from() {
         json!({ "fabric": "1.21.1", "loader": "0.19.5" }),
         json!({ "forge": "1.21.1", "build": "52.1.16" }),
         json!({ "neoforge": "21.1.259" }),
+        json!({ "cleanroom": "0.7.2-alpha" }),
         json!({ "jar": "https://x/a.jar" }),
         json!({ "installer": "fork-installer.jar" }),
     ] {
@@ -607,6 +619,166 @@ fn neoforge_is_named_by_its_own_version_alone() {
     );
     let err = resolve_server(&against(&server, json!({ "neoforge": "9.9.9" }))).unwrap_err();
     assert_eq!(err.to_string(), "NeoForge has no server for 9.9.9");
+}
+
+// ── Cleanroom ─────────────────────────────────────────────────────────────
+
+/// The published index and one document: a library, a library for one OS,
+/// and a native, which a server has no use for.
+fn cleanrooms() -> TestServer {
+    TestServer::start(|request| {
+        let base = base_of(request);
+        let library = |name: &str, path: &str, extra: Value| {
+            let mut library = json!({
+                "name": name,
+                "downloads": { "artifact": {
+                    "path": path, "url": format!("https://x/{path}"), "sha1": "f".repeat(40), "size": 7,
+                } },
+            });
+            library
+                .as_object_mut()
+                .unwrap()
+                .extend(extra.as_object().unwrap().clone());
+            library
+        };
+        match request.target.as_str() {
+            "/index.json" => Reply::json(
+                json!({
+                    "versions": { "1.12.2": {
+                        "latest": "0.7.2-alpha", "latestUrl": format!("{base}/0.7.2-alpha.json"),
+                        "best": "0.7.2-alpha", "bestUrl": format!("{base}/0.7.2-alpha.json"),
+                        "builds": [
+                            { "build": "0.7.1-alpha", "url": format!("{base}/0.7.1-alpha.json") },
+                            { "build": "0.7.2-alpha", "url": format!("{base}/0.7.2-alpha.json") },
+                        ],
+                    } },
+                })
+                .to_string(),
+            ),
+            "/0.7.2-alpha.json" => Reply::json(
+                json!({
+                    "id": "1.12.2", "type": "release",
+                    "time": "2017-09-18T08:39:46+00:00", "releaseTime": "2017-09-18T08:39:46+00:00",
+                    "minimumLauncherVersion": 18, "assets": "1.12", "complianceLevel": 0,
+                    "mainClass": "top.outlands.foundation.boot.Foundation",
+                    "minecraftArguments": "--tweakClass net.minecraftforge.fml.common.launcher.FMLTweaker",
+                    "assetIndex": { "id": "1.12", "sha1": "c".repeat(40), "size": 1, "totalSize": 2, "url": "https://x/1.12.json" },
+                    "downloads": {
+                        "client": { "sha1": "d".repeat(40), "size": 3, "url": "https://x/client.jar" },
+                        "server": { "sha1": "e".repeat(40), "size": 30_222_121, "url": "https://x/server.jar" },
+                    },
+                    "libraries": [
+                        library("com.cleanroommc:cleanroom:0.7.2-alpha:universal",
+                            "com/cleanroommc/cleanroom/0.7.2-alpha/cleanroom-0.7.2-alpha-universal.jar", json!({})),
+                        library("ca.weblite:java-objc-bridge:1.2", "ca/weblite/java-objc-bridge/1.2/java-objc-bridge-1.2.jar",
+                            json!({ "rules": [{ "action": "allow", "os": { "name": "osx" } }] })),
+                        {
+                            "name": "org.lwjgl:lwjgl:3.4.3",
+                            "downloads": { "classifiers": { "natives-linux": {
+                                "path": "org/lwjgl/lwjgl/3.4.3/lwjgl-3.4.3-natives-linux.jar",
+                                "url": "https://x/natives.jar", "sha1": "a".repeat(40), "size": 9,
+                            } } },
+                            "natives": { "linux": "natives-linux" },
+                        },
+                    ],
+                })
+                .to_string(),
+            ),
+            _ => Reply::status(404),
+        }
+    })
+}
+
+#[test]
+fn cleanroom_lists_every_release_and_has_no_builds() {
+    let server = cleanrooms();
+    assert_eq!(
+        list_versions(Core::Cleanroom, &apis(&server)).unwrap(),
+        ["0.7.2-alpha", "0.7.1-alpha"]
+    );
+    assert!(list_builds(Core::Cleanroom, "0.7.2-alpha", &apis(&server))
+        .unwrap()
+        .is_empty());
+}
+
+#[test]
+fn cleanroom_is_its_documents_libraries_and_mojangs_server_with_no_installer() {
+    let server = cleanrooms();
+    let library = |path: &str, rules: Option<Value>| {
+        let mut artifact = json!({
+            "path": format!("${{library_directory}}/{path}"),
+            "source": { "url": format!("https://x/{path}") },
+            "size": 7,
+            "integrity": { "sha1": "f".repeat(40) },
+        });
+        if let Some(rules) = rules {
+            artifact["rules"] = rules;
+        }
+        artifact
+    };
+    assert_eq!(
+        files(json!({ "cleanroom": "latest" }), &server),
+        json!([
+            {
+                "path": "${library_directory}/net/minecraft/server/1.12.2/server-1.12.2.jar",
+                "source": { "url": "https://x/server.jar" },
+                "size": 30_222_121,
+                "integrity": { "sha1": "e".repeat(40) },
+            },
+            library("com/cleanroommc/cleanroom/0.7.2-alpha/cleanroom-0.7.2-alpha-universal.jar", None),
+            library(
+                "ca/weblite/java-objc-bridge/1.2/java-objc-bridge-1.2.jar",
+                Some(json!("allow.os.osx")),
+            ),
+        ])
+    );
+    // `latest` is the newest release, and resolving says which.
+    assert_eq!(
+        pinned(json!({ "cleanroom": "latest" }), &server),
+        json!({ "cleanroom": "0.7.2-alpha" })
+    );
+    // Cleanroom is 1.12.2 and nothing else, so naming that chooses nothing.
+    for unknown in ["0.0.1-alpha", "1.12.2", "1.12.2-latest"] {
+        let err = resolve_server(&against(&server, json!({ "cleanroom": unknown }))).unwrap_err();
+        assert_eq!(
+            err.to_string(),
+            format!("Cleanroom has no server for {unknown}")
+        );
+    }
+}
+
+#[test]
+fn cleanroom_is_started_from_its_classpath_by_fmls_server_tweaker() {
+    let server = cleanrooms();
+    let build = build_server(&against(&server, json!({ "cleanroom": "0.7.2-alpha" }))).unwrap();
+    assert_eq!(build.label, "Cleanroom 0.7.2-alpha for Minecraft 1.12.2");
+
+    let contribution = serde_json::to_value(&build.output.contribution).unwrap();
+    assert_eq!(
+        contribution["launch"]["jar"]["value"],
+        json!([
+            "-cp",
+            "${classpath}",
+            "top.outlands.foundation.boot.Foundation",
+            "--tweakClass",
+            "net.minecraftforge.fml.common.launcher.FMLServerTweaker",
+        ])
+    );
+    let vars = &contribution["vars"];
+    assert_eq!(vars["root"], ".");
+    assert_eq!(vars["library_directory"], "${root}/libraries");
+    let universal = "${library_directory}/com/cleanroommc/cleanroom/0.7.2-alpha/cleanroom-0.7.2-alpha-universal.jar";
+    let bridge = "${library_directory}/ca/weblite/java-objc-bridge/1.2/java-objc-bridge-1.2.jar";
+    let jar = "${library_directory}/net/minecraft/server/1.12.2/server-1.12.2.jar";
+    // Per OS, the jar last, and no native anywhere.
+    assert_eq!(
+        vars["classpath"],
+        json!([
+            { "value": format!("{universal}${{classpath_separator}}{jar}"), "rules": "allow.os.linux" },
+            { "value": format!("{universal}${{classpath_separator}}{jar}"), "rules": "allow.os.windows" },
+            { "value": format!("{universal}${{classpath_separator}}{bridge}${{classpath_separator}}{jar}"), "rules": "allow.os.osx" },
+        ])
+    );
 }
 
 // ── a jar or an installer of the author's own ─────────────────────────────

@@ -3,7 +3,7 @@
 mod common;
 
 use common::{Reply, TestServer};
-use opys_cleanroom::resolve_cleanroom_version;
+use opys_cleanroom::{list_cleanroom_releases, resolve_cleanroom_version};
 use serde_json::json;
 
 const SITE: &str = "https://harmoniya-net.github.io/metadata/cleanroom";
@@ -138,4 +138,19 @@ fn a_string_that_matches_nothing_names_the_index_it_was_looked_up_in() {
     let message = error.to_string();
     assert!(message.contains("0.0.0-alpha"), "{message}");
     assert!(message.contains(&server.base), "{message}");
+}
+
+#[test]
+fn every_release_is_listed_newest_first_whatever_it_calls_itself() {
+    let server = server();
+    let releases = list_cleanroom_releases(&server.base).unwrap();
+    assert_eq!(releases[0].document_url, document("1.12.2", "0.6.13-alpha"));
+    assert_eq!(releases[3].minecraft, "1.7.10");
+    assert_eq!(
+        releases
+            .into_iter()
+            .map(|r| r.cleanroom)
+            .collect::<Vec<_>>(),
+        ["0.6.13-alpha", "0.6.12-alpha", "0.5.9-alpha", "9.0.1-alpha"]
+    );
 }

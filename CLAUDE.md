@@ -94,8 +94,8 @@ them, and the list below names the layers rather than every one:
                      namespace of the addon.                → dev, core, mojang
 @opys/minecraft-server
                      A Minecraft server: vanilla / Paper / Purpur / Fabric /
-                     Forge / NeoForge, or a jar the author has. Thin wrapper
-                     over the `opys-minecraft-server` crate.             → dev, core
+                     Forge / NeoForge / Cleanroom, or a jar the author has.
+                     Thin wrapper over the `opys-minecraft-server` crate. → dev, core
 @opys/minecraft-resources
                      Mods, resource packs, shaders and plugins, listed in one
                      TOML file. Thin wrapper over the
@@ -685,6 +685,23 @@ export default defineConfig(({ mode }) => ({
   is named in the crate with its hash and not looked up, so it is the one
   that was tested and a build does not change under it. Forge before 1.17
   wrote no run scripts for it to read and is refused at build.
+- **A Cleanroom server is its document's libraries, as a client is.**
+  1.12.2's server unpacks nothing on first start, and Cleanroom's installer
+  runs no processor: in server mode it downloads the libraries of the
+  document the `cleanroom` plugin reads, and Mojang's server jar, and
+  writes an argument file. So `server({ cleanroom })` reads that document
+  through `opys-cleanroom` and is those files, each pinned, under
+  `${library_directory}`, with the classpath built by the vanilla mappers
+  and the server jar last on it. Its natives are left out, being the game
+  window's and sound's. The document is the client's and names the
+  client's tweaker, so the server's, `FMLServerTweaker`, is named in the
+  crate, as the installer names it. It is the one core whose libraries a
+  manifest lists, and the one whose `jar` group is a classpath and a main
+  class: a config writes the same `args` whatever the core, so the group
+  is whatever starts the server.
+  It is named by its tag or `latest`, and not by `1.12.2` as the client
+  plugin also allows: Cleanroom has one Minecraft version, so naming it
+  chooses nothing.
 - **Agreeing to the EULA is a feature, never an option.** A server will
   not start until `eula.txt` says `eula=true`, which is its operator
   agreeing to Mojang's terms. `server()` always contributes that file,

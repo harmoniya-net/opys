@@ -5,10 +5,9 @@ use opys_dev::{BuildArtifact, Contribution, LaunchFragment, PluginOutput};
 use serde::Serialize;
 use serde_json::json;
 
-use crate::cores::{resolve_server, ResolvedServer, JAR_PATH};
+use crate::cores::{resolve_server, ResolvedServer};
 use crate::error::ServerError;
 use crate::options::{ServerCore, ServerOptions};
-use crate::starter::REINSTALL;
 
 /// The name this plugin claims in the plugin map.
 pub const PLUGIN_NAME: &str = "server";
@@ -23,16 +22,17 @@ const EULA_PATH: &str = "${root}/eula.txt";
 /// What a server contributes: its files, the EULA file behind its feature,
 /// and the pieces of the launch line.
 pub fn server_contribution(server: &ResolvedServer) -> Contribution {
-    let words = |value: &[&str]| {
+    let words = |value: Vec<String>| {
         LaunchFragment::One(Val {
             rules: Default::default(),
-            value: value.iter().map(|word| (*word).to_owned()).collect(),
+            value,
         })
     };
     let mut vars = ValDefs::new();
     // The current directory unless the launch says otherwise, as for a
     // client: a server is started from the folder it lives in.
     vars.insert("root".to_owned(), ValDef::Flat(".".to_owned()));
+    vars.extend(server.vars.clone());
 
     let eula: BuildArtifact = serde_json::from_value(json!({
         "path": EULA_PATH,
@@ -42,14 +42,6 @@ pub fn server_contribution(server: &ResolvedServer) -> Contribution {
     }))
     .expect("an artifact this crate spelled itself");
 
-    // The starter's own flag goes with the jar it belongs to, so a config
-    // writes the same line whatever the core.
-    let jar = if server.pinned.installs() {
-        words(&["-jar", JAR_PATH, REINSTALL])
-    } else {
-        words(&["-jar", JAR_PATH])
-    };
-
     Contribution {
         artifacts: server.files.iter().cloned().chain([eula]).collect(),
         vars,
@@ -58,8 +50,11 @@ pub fn server_contribution(server: &ResolvedServer) -> Contribution {
                 "command".to_owned(),
                 LaunchFragment::Text("${java_bin}".to_owned()),
             ),
-            ("jar".to_owned(), jar),
-            ("args".to_owned(), words(&["nogui"])),
+            // Whatever starts the server is `jar`, though for Cleanroom it
+            // is a classpath and a main class, so that a config writes the
+            // same line whatever the core.
+            ("jar".to_owned(), words(server.start.clone())),
+            ("args".to_owned(), words(vec!["nogui".to_owned()])),
         ]
         .into_iter()
         .collect(),

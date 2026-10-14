@@ -24,7 +24,9 @@ mod index;
 mod template;
 
 pub use error::CleanroomError;
-pub use index::{resolve_cleanroom_version, CleanroomRelease, DEFAULT_CLEANROOM_INDEX};
+pub use index::{
+    list_cleanroom_releases, resolve_cleanroom_version, CleanroomRelease, DEFAULT_CLEANROOM_INDEX,
+};
 pub use template::{
     build_cleanroom, fetch_document, resolve_cleanroom, CleanroomOptions, CleanroomTemplate,
     PLUGIN_NAME,

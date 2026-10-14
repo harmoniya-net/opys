@@ -10,6 +10,12 @@ pub enum ServerError {
     /// A failed JSON GET: transport, a non-2xx status, or an undecodable body.
     #[error(transparent)]
     Fetch(#[from] opys_dev::JsonGetError),
+    /// Cleanroom's document index, or a document in it.
+    #[error(transparent)]
+    Cleanroom(#[from] opys_cleanroom::CleanroomError),
+    /// A rule in a document that is not one.
+    #[error(transparent)]
+    Rule(#[from] opys_core::RuleError),
     /// Hashing a jar nobody publishes a hash for.
     #[error(transparent)]
     Pin(#[from] opys_dev::pin::PinError),
