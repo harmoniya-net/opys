@@ -157,31 +157,28 @@ fn arch_str(a: OsArch) -> &'static str {
     }
 }
 
+/// A rule as a string where the string says all of it, and as itself
+/// otherwise. `allow.os.linux` has no room for an arch, nor
+/// `allow.features.k` for a feature that must be off: both were written that
+/// way once, and a rule for one arch became a rule for every arch.
 pub fn encode_short_rule(rule: &MojangRule) -> Rule {
     let action = match rule.action() {
         RuleAction::Allow => "allow",
         RuleAction::Disallow => "disallow",
     };
     match rule {
-        MojangRule::Os { os, .. } => {
-            if let Some(name) = os.name {
-                if let Some(ver) = &os.version {
-                    return Rule::Short(format!("{action}.os.{}@{ver}", os_name_str(name)));
-                }
-                return Rule::Short(format!("{action}.os.{}", os_name_str(name)));
+        MojangRule::Os { os, .. } => match (os.name, &os.version, os.arch) {
+            (Some(name), None, None) => Rule::Short(format!("{action}.os.{}", os_name_str(name))),
+            (Some(name), Some(ver), None) => {
+                Rule::Short(format!("{action}.os.{}@{ver}", os_name_str(name)))
             }
-            if let Some(arch) = os.arch {
-                return Rule::Short(format!("{action}.arch.{}", arch_str(arch)));
-            }
-            Rule::Expanded(rule.clone())
-        }
-        MojangRule::Features { features, .. } => {
-            if features.len() == 1 {
-                let (k, _) = features.iter().next().unwrap();
-                return Rule::Short(format!("{action}.features.{k}"));
-            }
-            Rule::Expanded(rule.clone())
-        }
+            (None, None, Some(arch)) => Rule::Short(format!("{action}.arch.{}", arch_str(arch))),
+            _ => Rule::Expanded(rule.clone()),
+        },
+        MojangRule::Features { features, .. } => match features.iter().collect::<Vec<_>>()[..] {
+            [(name, true)] => Rule::Short(format!("{action}.features.{name}")),
+            _ => Rule::Expanded(rule.clone()),
+        },
         MojangRule::Plain { .. } => Rule::Short(action.to_owned()),
     }
 }

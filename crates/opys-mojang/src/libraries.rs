@@ -124,15 +124,20 @@ impl TryFrom<Vec<LibraryWire>> for Libraries {
                 let Some(artifact) = wire.downloads.classifiers.get(&key) else {
                     continue;
                 };
+                // The library's own rules and its OS: a natives entry may
+                // say more than which OS it is for, such as Cleanroom's,
+                // which name the arch each LWJGL natives jar is built for.
+                let mut rules = wire.rules.clone();
+                rules.push(MojangRule::Os {
+                    action: RuleAction::Allow,
+                    os: OsConstraint {
+                        name: Some(os_name(os)?),
+                        ..Default::default()
+                    },
+                });
                 out.push(Library {
                     name: name.clone(),
-                    rules: vec![MojangRule::Os {
-                        action: RuleAction::Allow,
-                        os: OsConstraint {
-                            name: Some(os_name(os)?),
-                            ..Default::default()
-                        },
-                    }],
+                    rules,
                     artifact: artifact.clone(),
                     native: true,
                 });

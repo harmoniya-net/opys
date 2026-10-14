@@ -340,6 +340,19 @@ them, and the list below names the layers rather than every one:
   It all happens in `opys-minecraft-vanilla`'s `add_libraries`, which every
   loader ends in; a template keeps its classpath as entries for this, since
   what a library supersedes can only be told from an entry's module.
+- **A native is its library's, and the classpath is per OS until an arch
+  says otherwise.** A `natives` entry expands into an artifact with the
+  library's own rules and its OS beside them, AND-ed, so a library a rule
+  keeps off an OS keeps its natives off it too. They were the OS rule
+  alone: 1.12.2 lists LWJGL 2.9.4 for every OS but macOS and 2.9.2 for
+  macOS only, and every OS unpacked both into one natives directory.
+  Cleanroom's documents from 0.7.1 give each LWJGL natives jar its arch,
+  and LWJGL 3 loads natives off the classpath, so `classpath_of` computes
+  an OS for `x86_64` and `aarch64`, the two archs the runtime reports, and
+  splits it into an arm per arch only where the two differ: a Mojang
+  version still comes out as one arm per OS. The shorthand writes a rule
+  as a string only where the string holds all of it: `allow.os.osx` once
+  stood for `{ name: 'osx', arch: 'aarch64' }` and lost the arch.
 - **The client jar goes last on the classpath.** After every library, which is
   where HMCL (`DefaultLauncher`: libraries into a `LinkedHashSet`, then the
   jar) and `minecraft-launcher-lib` (`get_libraries`: the loop, then the jar)

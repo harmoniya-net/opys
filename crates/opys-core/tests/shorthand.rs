@@ -263,3 +263,19 @@ fn roundtrip_array() {
     let encoded_value = serde_json::to_value(&encoded).unwrap();
     assert_eq!(encoded_value, input);
 }
+
+/// What a string has no room for is written out, so it reads back the same.
+#[test]
+fn a_rule_a_string_cannot_hold_is_written_whole() {
+    for rule in [
+        json!({ "action": "allow", "os": { "name": "linux", "arch": "aarch64" } }),
+        json!({ "action": "allow", "os": { "arch": "x86_64", "version": "^10" } }),
+        json!({ "action": "disallow", "features": { "demo": false } }),
+        json!({ "action": "allow", "features": { "a": true, "b": true } }),
+    ] {
+        let parsed: MojangRule = serde_json::from_value(rule.clone()).unwrap();
+        let encoded = encode_short_rule(&parsed);
+        assert!(matches!(encoded, Rule::Expanded(_)), "{rule}");
+        assert_eq!(parse_short_rule(encoded).unwrap(), parsed, "{rule}");
+    }
+}

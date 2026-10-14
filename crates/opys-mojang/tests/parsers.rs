@@ -158,6 +158,24 @@ fn native_classifiers_produce_one_entry_each() {
 }
 
 #[test]
+fn a_native_keeps_its_librarys_rules_beside_its_os() {
+    let libs = Libraries::from_version_json(json!([{
+        "name": "org.lwjgl:lwjgl:3.4.3",
+        "rules": [{ "action": "allow", "os": { "name": "osx", "arch": "arm64" } }],
+        "downloads": { "classifiers": { "natives-macos-arm64": artifact("natives-macos-arm64.jar") } },
+        "natives": { "osx": "natives-macos-arm64" },
+    }]))
+    .unwrap();
+    assert_eq!(
+        serde_json::to_value(&libs[0].rules).unwrap(),
+        json!([
+            { "action": "allow", "os": { "name": "osx", "arch": "aarch64" } },
+            { "action": "allow", "os": { "name": "osx" } },
+        ])
+    );
+}
+
+#[test]
 fn natives_entry_without_a_matching_classifier_is_skipped() {
     let libs = Libraries::from_version_json(json!([{
         "name": "org.lwjgl:lwjgl:3.3.1",

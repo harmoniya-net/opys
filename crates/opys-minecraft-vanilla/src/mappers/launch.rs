@@ -2,7 +2,9 @@ use std::collections::HashSet;
 
 use opys_core::{allow_os_ruleset, satisfies_ruleset, ConditionalVal, Launch, MojangRuleset, Val};
 use opys_mojang::{ArgValue, MojangArgValue};
-use opys_mojang_rules::{OsName, OsOptions, RuleError};
+use opys_mojang_rules::{
+    MojangRule, OsArch, OsConstraint, OsName, OsOptions, RuleAction, RuleError,
+};
 use serde::{Deserialize, Serialize};
 
 /// One classpath candidate: where the jar lands, and the rules that decide
@@ -95,13 +97,8 @@ fn os_str(os: OsName) -> &'static str {
 /// matters wherever a library and the client jar carry the same class: the
 /// library is the patched copy, and it only wins by being ahead.
 ///
-/// Minecraft / forge / cleanroom library `rules` gate on OS only, never
-/// `arch` (verified across version JSONs 1.7.10–1.21.4 — the only arch
-/// dimension Mojang ever used is the legacy `natives`-map `${arch}`
-/// substitution, handled separately). So the classpath is computed once per
-/// OS; the `arch` below is a fixed placeholder, required solely because
-/// `OsOptions` mandates the field. If an `os.arch` rule ever appears in a
-/// version JSON, this must become per-(os, arch).
+/// The arms are per OS and, where a library's rules name an arch, per arch
+/// as well: see [`classpath_of`].
 ///
 /// The only way this fails is an `os.version` pattern that is not a valid
 /// regex — a defect in the version JSON, reported rather than silently
@@ -125,27 +122,71 @@ pub fn classpath_entries(libs: &[ClasspathEntry], client_jar_path: &str) -> Vec<
         .collect()
 }
 
-/// One arm per OS, each keeping the entries that OS's rules allow.
+/// The archs a classpath is computed for: the two the runtime reports.
+const ARCHES: [OsArch; 2] = [OsArch::X86_64, OsArch::Aarch64];
+
+fn arch_str(arch: OsArch) -> &'static str {
+    match arch {
+        OsArch::X86_64 => "x86_64",
+        _ => "aarch64",
+    }
+}
+
+/// The entries `name` on `arch` keeps, joined.
+fn classpath_on(
+    entries: &[ClasspathEntry],
+    name: OsName,
+    arch: OsArch,
+) -> Result<String, RuleError> {
+    let os = OsOptions {
+        name: os_str(name).to_owned(),
+        version: String::new(),
+        arch: arch_str(arch).to_owned(),
+    };
+    let mut parts = Vec::new();
+    for entry in entries {
+        if satisfies_ruleset(&entry.rules, &os, &[])? {
+            parts.push(entry.artifact_path.clone());
+        }
+    }
+    Ok(parts.join("${classpath_separator}"))
+}
+
+/// One arm per OS, each keeping the entries that OS's rules allow; or one
+/// per OS and arch, where the archs keep different ones.
+///
+/// Mojang's own version JSONs gate a library on its OS and never its arch,
+/// and those come out as one arm per OS, as they always did. Cleanroom's
+/// since 0.7.1 give each LWJGL natives jar the arch it is for, and LWJGL 3
+/// finds its natives on the classpath: an arm64 Mac must be handed the
+/// arm64 jar, so its OS is split in two.
 pub fn classpath_of(entries: &[ClasspathEntry]) -> Result<Vec<ConditionalVal>, RuleError> {
-    OSES.iter()
-        .map(|&name| {
-            let os = OsOptions {
-                name: os_str(name).to_owned(),
-                version: String::new(),
-                arch: "x86_64".to_owned(),
-            };
-            let mut parts = Vec::new();
-            for entry in entries {
-                if satisfies_ruleset(&entry.rules, &os, &[])? {
-                    parts.push(entry.artifact_path.clone());
-                }
-            }
-            Ok(ConditionalVal {
-                value: parts.join("${classpath_separator}"),
+    let mut arms = Vec::new();
+    for name in OSES {
+        let per_arch = ARCHES
+            .iter()
+            .map(|&arch| Ok((arch, classpath_on(entries, name, arch)?)))
+            .collect::<Result<Vec<_>, RuleError>>()?;
+        if per_arch.iter().all(|(_, value)| *value == per_arch[0].1) {
+            arms.push(ConditionalVal {
+                value: per_arch[0].1.clone(),
                 rules: allow_os_ruleset(name),
-            })
-        })
-        .collect()
+            });
+            continue;
+        }
+        arms.extend(per_arch.into_iter().map(|(arch, value)| ConditionalVal {
+            value,
+            rules: vec![MojangRule::Os {
+                action: RuleAction::Allow,
+                os: OsConstraint {
+                    name: Some(name),
+                    arch: Some(arch),
+                    ..Default::default()
+                },
+            }],
+        }));
+    }
+    Ok(arms)
 }
 
 /// The base entries an `inheritsFrom` patch supersedes: those naming a module

@@ -2,8 +2,8 @@
 //! (`packages/minecraft-vanilla/tests/unit/mappers-*.test.ts`).
 
 use opys_core::{
-    ExtractRule, HashEntry, Integrity, MojangRule, MojangRuleset, OsConstraint, OsName, RuleAction,
-    Source,
+    ExtractRule, HashEntry, Integrity, MojangRule, MojangRuleset, OsArch, OsConstraint, OsName,
+    RuleAction, Source,
 };
 use opys_minecraft_vanilla::{
     asset_directory, build_classpath, build_launch, inherited_classpath, library_to_artifact,
@@ -347,6 +347,45 @@ fn classpath_keeps_the_order_it_was_given() {
     assert!(arms[0]
         .value
         .starts_with("b.jar${classpath_separator}a.jar"));
+}
+
+#[test]
+fn an_os_whose_archs_keep_different_jars_is_split_by_arch() {
+    let on = |name: OsName, arch: OsArch| {
+        vec![MojangRule::Os {
+            action: RuleAction::Allow,
+            os: OsConstraint {
+                name: Some(name),
+                arch: Some(arch),
+                ..Default::default()
+            },
+        }]
+    };
+    let arms = build_classpath(
+        &[
+            entry("natives-macos.jar", on(OsName::Osx, OsArch::X86_64)),
+            entry("natives-macos-arm64.jar", on(OsName::Osx, OsArch::Aarch64)),
+            entry(
+                "natives-linux-riscv64.jar",
+                on(OsName::Linux, OsArch::Riscv64),
+            ),
+        ],
+        "client.jar",
+    )
+    .unwrap();
+    let sep = "${classpath_separator}";
+    // Linux and Windows keep the same jars on both archs, and one arm each.
+    assert_eq!(arms.len(), 4);
+    assert_eq!(arms[0].rules, allow_os(OsName::Linux));
+    assert_eq!(arms[0].value, "client.jar");
+    assert_eq!(arms[1].rules, allow_os(OsName::Windows));
+    assert_eq!(arms[2].rules, on(OsName::Osx, OsArch::X86_64));
+    assert_eq!(arms[2].value, format!("natives-macos.jar{sep}client.jar"));
+    assert_eq!(arms[3].rules, on(OsName::Osx, OsArch::Aarch64));
+    assert_eq!(
+        arms[3].value,
+        format!("natives-macos-arm64.jar{sep}client.jar")
+    );
 }
 
 #[test]
