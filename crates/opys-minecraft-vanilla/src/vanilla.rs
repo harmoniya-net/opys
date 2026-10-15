@@ -133,7 +133,12 @@ pub fn client_to_template(
     flat("auth_access_token", "${token}");
     flat("user_type", "mojang");
     flat("user_properties", "{}");
+    // A Microsoft account's client id and Xbox user id, which a version since
+    // 1.18 passes as `--clientId` and `--xuid`. An account that is not
+    // Microsoft's has neither, and the official launcher and HMCL pass both
+    // empty; left undefined, the game was handed the text `${auth_xuid}`.
     flat("clientid", "");
+    flat("auth_xuid", "");
 
     let separator = |sep: &str, os: OsName| ConditionalVal {
         value: sep.to_owned(),

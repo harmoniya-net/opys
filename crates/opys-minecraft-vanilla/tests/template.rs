@@ -1,6 +1,8 @@
 //! `client_to_template` — the pure half every loader in the family reuses.
 
-use opys_core::{Source, ValDef};
+use opys_core::{
+    interpolate, resolve_val_defs, resolve_vars, resolved_args, OsOptions, Source, ValDef,
+};
 use opys_minecraft_vanilla::client_to_template;
 use opys_mojang::{AssetManifest, Client};
 use serde_json::json;
@@ -154,4 +156,63 @@ fn the_template_roundtrips_through_json() {
     let json = serde_json::to_value(&t).unwrap();
     let back: opys_minecraft_vanilla::MinecraftTemplate = serde_json::from_value(json).unwrap();
     assert_eq!(back, t);
+}
+
+#[test]
+fn the_launch_line_of_a_modern_version_names_no_undefined_variable() {
+    // 1.20.1's own arguments, less the ones behind a feature: since 1.18 they
+    // pass a Microsoft account's `--clientId` and `--xuid`, which a launcher
+    // hands no var for, and the template has to define both.
+    let t = client_to_template(
+        &fixture(
+            json!([gson()]),
+            json!({
+                "game": [
+                    "--username", "${auth_player_name}", "--version", "${version_name}",
+                    "--gameDir", "${game_directory}", "--assetsDir", "${assets_root}",
+                    "--assetIndex", "${assets_index_name}", "--uuid", "${auth_uuid}",
+                    "--accessToken", "${auth_access_token}", "--clientId", "${clientid}",
+                    "--xuid", "${auth_xuid}", "--userType", "${user_type}",
+                    "--versionType", "${version_type}",
+                ],
+                "jvm": [
+                    "-Djava.library.path=${natives_directory}",
+                    "-Dminecraft.launcher.brand=${launcher_name}",
+                    "-Dminecraft.launcher.version=${launcher_version}",
+                    "-cp", "${classpath}",
+                ],
+            }),
+        ),
+        &assets(json!({})),
+    )
+    .unwrap();
+
+    let linux = OsOptions {
+        name: "linux".to_owned(),
+        version: String::new(),
+        arch: "x86_64".to_owned(),
+    };
+    // What a launcher hands in: the account, and nothing of Microsoft's.
+    let mut flat = resolve_val_defs(&t.vars, &linux, &[]).unwrap();
+    for (key, value) in [("username", "Steve"), ("uuid", "0"), ("token", "0")] {
+        flat.insert(key.to_owned(), value.to_owned());
+    }
+    let vars = resolve_vars(&flat).unwrap();
+    let args: Vec<String> = resolved_args(&t.launch, &linux, &[])
+        .unwrap()
+        .iter()
+        .map(|a| interpolate(a, &vars))
+        .collect();
+
+    let unresolved: Vec<&String> = args.iter().filter(|a| a.contains("${")).collect();
+    assert!(unresolved.is_empty(), "unresolved: {unresolved:?}");
+    // An empty value is an empty argument, kept in its place: the game reads
+    // `--xuid` as taking one.
+    let after = |flag: &str| {
+        let i = args.iter().position(|a| a == flag).unwrap();
+        args[i + 1].as_str()
+    };
+    assert_eq!(after("--xuid"), "");
+    assert_eq!(after("--clientId"), "");
+    assert_eq!(after("--userType"), "mojang");
 }
