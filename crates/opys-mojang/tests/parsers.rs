@@ -192,16 +192,21 @@ fn natives_entry_without_a_matching_classifier_is_skipped() {
 
 #[test]
 fn arch_placeholder_is_substituted_in_the_classifier_key() {
+    // 1.8.9's own entry: the Windows natives are named `${arch}`, and the
+    // classifiers spell it out.
     let libs = Libraries::from_version_json(json!([{
-        "name": "ca.weblite:java-objc-bridge:1.1",
+        "name": "tv.twitch:twitch-external-platform:4.5",
         "downloads": {
-            "classifiers": { "natives-osx-64": artifact("java-objc-bridge-1.1-natives-osx-64.jar") },
+            "classifiers": {
+                "natives-windows-32": artifact("twitch-external-platform-4.5-natives-windows-32.jar"),
+                "natives-windows-64": artifact("twitch-external-platform-4.5-natives-windows-64.jar"),
+            },
         },
-        "natives": { "osx": "natives-osx-{arch}" },
+        "natives": { "windows": "natives-windows-${arch}" },
     }]))
     .unwrap();
     assert_eq!(libs.len(), 1);
-    assert!(libs[0].artifact.path.contains("natives-osx-64"));
+    assert!(libs[0].artifact.path.contains("natives-windows-64"));
 }
 
 // ── arguments ────────────────────────────────────────────────────────────

@@ -115,12 +115,12 @@ impl TryFrom<Vec<LibraryWire>> for Libraries {
             }
 
             for (os, classifier_key) in &wire.natives {
-                // Only the legacy `ca.weblite:java-objc-bridge` classifier
-                // uses the `{arch}` placeholder, and opys targets 64-bit
-                // exclusively. `replacen(.., 1)` matches JS `String.replace`
-                // with a string pattern, which substitutes the first
-                // occurrence only.
-                let key = classifier_key.replacen("{arch}", "64", 1);
+                // `natives-windows-${arch}`: Twitch's natives in 1.7-1.8 are
+                // published as `-32` and `-64`, and the runtime only runs
+                // 64-bit Java. The placeholder is spelt with its `$`; once
+                // it was matched without, which left `natives-windows-$64`,
+                // a classifier nothing has, and the natives were skipped.
+                let key = classifier_key.replace("${arch}", "64");
                 let Some(artifact) = wire.downloads.classifiers.get(&key) else {
                     continue;
                 };
