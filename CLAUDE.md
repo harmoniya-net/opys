@@ -56,8 +56,8 @@ files, and a bundle is cheap to rebuild from its config. So a format change
 ships with no code for the format it replaces, and the answer to an old
 bundle is `opys build`.
 
-Nothing has been published yet, so the format is still 1, and it has
-already been reshaped on purpose four times. `pointer` sources and the
+The format is 1, and before anything was published it was reshaped on
+purpose four times. `pointer` sources and the
 `discovery` block were removed, because a manifest must be fully resolved.
 Then the three sources that put a file _into_ the manifest or read it off the
 installing machine — `file`, `string`, `bytes` — gave way to `blob`, and the
@@ -70,8 +70,11 @@ every text in an option a string or a map of translations, an artifact
 `riscv64`, which Cleanroom's documents name; all are additions and
 reshaped nothing. `x64`, `arm64`
 and `arm32` are read as the architectures they name, and written as
-those. From the first published bundle on, a change like any of these
-raises the number.
+those. The first bundles were published with 0.9, and `overwrite` was
+added after them on purpose: a field left out means what a format-1
+bundle always meant, and a reader that predates it refuses it as an
+unknown field rather than misreading it. From here on, a change like any
+of these raises the number.
 All four are described under _Invariants_.
 
 ## Packages
