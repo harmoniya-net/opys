@@ -5,7 +5,7 @@ export class UsageError extends Error {
   }
 }
 
-/** What `opys` started ran and reported failure — the game, or horno's install pass. */
+/** The game `opys` started ran and reported failure. */
 export class ChildExitError extends Error {
   constructor(readonly exitCode: number) {
     super(`exited with code ${exitCode}`);

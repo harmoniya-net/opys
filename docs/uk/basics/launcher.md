@@ -143,26 +143,6 @@ const child = spawn(spec.command, spec.args, {
 });
 ```
 
-**Випадок: швидкий перший запуск із Forge.** Forge і NeoForge
-завершують встановлення під час першого запуску, що робить його
-повільним. Щоб зробити це за власним екраном прогресу, запустіть раз з
-одним зайвим аргументом. Гра не стартує:
-
-```js
-import { install, buildLaunch, spawnLaunch } from '@opys/runtime';
-
-await install(source, { vars });
-const spec = await buildLaunch(source, { vars });
-
-if (spec.args.some((arg) => arg.startsWith('-Dhorno.'))) {
-  const child = spawnLaunch({
-    ...spec,
-    args: ['-Dhorno.installOnly=true', ...spec.args],
-  });
-  await new Promise((done) => child.on('exit', done));
-}
-```
-
 ## Параметри
 
 | Параметр          | Де                  | Що означає                                                       |

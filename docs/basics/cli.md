@@ -27,14 +27,18 @@ opys launch game.opys --var root=/tmp/test …   # test it as a player
 **No argument:** they read `opys.config.mjs`, build it into a temporary bundle,
 and apply your `run`. This is for you, while making the pack.
 
-**A bundle path:** they use that file as it is. No config is read, so there
-is no `run`, and the player's values come from `--var`. This is what a
-player does.
+**A bundle path or URL:** they use that bundle as it is. No config is read,
+so there is no `run`, and the player's values come from `--var`. This is
+what a player does.
 
 ```sh
 opys launch game.opys --var root=/path/to/install --var username=Player \
   --var uuid=00000000-0000-0000-0000-000000000001 --var token=0
+opys install https://example.com/packs/game.opys --var root=/path/to/install
 ```
+
+A URL is read in pieces, as a launcher reads one: the bundle's directory and
+manifest, then only the files the installation lacks.
 
 ## Flags
 
@@ -57,11 +61,12 @@ Good to know:
 
 ## When to use `install`
 
-Forge and NeoForge finish their setup on the player's machine, normally
-during the first launch. `opys install` does it ahead of time.
+It installs the files and stops. Use it to prepare an installation, or in a
+script that should not start the game.
 
-Use it to prepare an installation, or in a script that should not start the
-game.
+Forge and NeoForge finish their setup on the player's machine when the game
+first starts. `install` does not run the game, so that still happens on the
+first launch.
 
 ## Exit codes
 

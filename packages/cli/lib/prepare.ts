@@ -1,8 +1,8 @@
 import { join, resolve } from 'node:path';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { readBundle, writeBundle } from '@opys/bundle';
-import type { Launch, Manifest } from '@opys/core';
+import { writeBundle } from '@opys/bundle';
+import type { Manifest } from '@opys/core';
 import { buildManifest, type BuildContext, type RunPatch } from '@opys/dev';
 import type { ManifestSource } from '@opys/runtime';
 import { parseArgs } from './args';
@@ -13,8 +13,6 @@ import type { Logger } from './logger';
 export interface Prepared {
   /** What `@opys/runtime` installs and launches from. */
   source: ManifestSource;
-  /** The manifest's launch block. */
-  launch: Launch | undefined;
   features: string[];
   /** `--var` overrides, layered over the manifest's own vars. */
   vars: Record<string, string>;
@@ -53,14 +51,24 @@ function runPatch(returned: RunPatch): RunPatch {
 }
 
 /**
+ * A bundle named on the command line: a URL, read in pieces as a launcher
+ * reads one, or a path. A URL is anything with an `http` or `https` scheme.
+ */
+function bundleSource(bundle: string): ManifestSource {
+  return /^https?:\/\//i.test(bundle)
+    ? { url: bundle }
+    : { bundle: resolve(bundle) };
+}
+
+/**
  * What `launch` and `install` both do before they differ: turn the command
  * line into something to install from.
  *
  * There are two ways in. With no argument, the config file is built
- * and written to a temporary bundle, which is installed from. With a path,
- * that bundle is what gets installed, exactly as a deployed launcher would
- * install it: no config, no `dev`, and so no `run` either, which is
- * what `--var` is for.
+ * and written to a temporary bundle, which is installed from. With a path
+ * or a URL, that bundle is what gets installed, exactly as a deployed
+ * launcher would install it: no config, no `dev`, and so no `run` either,
+ * which is what `--var` is for.
  */
 export async function prepare(
   argv: string[],
@@ -94,13 +102,7 @@ export async function prepare(
         'a bundle is installed as it is — it cannot be combined with --input',
       );
     }
-    const path = resolve(bundle);
-    return {
-      source: { bundle: path },
-      launch: readBundle(path).launch,
-      features,
-      vars,
-    };
+    return { source: bundleSource(bundle), features, vars };
   }
 
   const inputFile = args.getString('input') ?? 'opys.config.mjs';
@@ -146,7 +148,6 @@ export async function prepare(
 
   return {
     source: { bundle: written },
-    launch: manifest.launch,
     features: launchFeatures,
     vars,
   };

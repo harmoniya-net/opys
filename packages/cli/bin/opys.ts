@@ -18,8 +18,8 @@ USAGE
   opys build   [-i <opys.config.mjs>] [-o <out.opys>] [--mode <m>]  Build a bundle
   opys install [-i <opys.config.mjs>] [--mode <m>]  Build and install, no launch
   opys launch  [-i <opys.config.mjs>] [--mode <m>]  Build, install, launch
-  opys install <bundle.opys> [--var k=v]...         Install a built bundle
-  opys launch  <bundle.opys> [--var k=v]...         Install and launch one
+  opys install <bundle.opys|url> [--var k=v]...     Install a built bundle
+  opys launch  <bundle.opys|url> [--var k=v]...     Install and launch one
 
 OPTIONS
   -i, --input          Config file  (default: opys.config.mjs)

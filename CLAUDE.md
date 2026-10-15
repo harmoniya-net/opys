@@ -881,12 +881,12 @@ export default defineConfig(({ mode }) => ({
   no output named it prints the manifest as JSON instead: a view for reading
   and diffing, not something to install from, since the blobs are not in it.
 - **`opys install`** — the same build and install as `launch`, stopping before
-  the game. Where the manifest's own arguments name horno, it is run once with
-  `-Dhorno.installOnly=true` prepended, because the loader's processors — and,
-  pre-1.13, rewriting the client jar — happen on the launching machine and
-  `install()` cannot do them. The flag goes on the JVM line, never into the
-  manifest, which describes an installation and not a run of one: the launch
-  is built as the manifest says and the flag is added to what comes back.
+  the game, and nothing more: it installs what the manifest lists. A loader's
+  own first-run work, Forge's processors patching the client jar, happens when
+  the game starts, as it does from a launcher. It once ran horno with
+  `-Dhorno.installOnly=true`, which made the CLI know one loader by its
+  property names, and put the flag ahead of dgpuj's arguments where dgpuj
+  read it as the `java` to run; an install knows no loader.
 - **`opys launch`** — builds the manifest from the config, writes it and
   what it carries to a temporary bundle, and launches from that. `run(manifest) => { manifest?, features? }` is what
   only the launching machine knows, applied every launch (so e.g. `bifrost`
@@ -899,7 +899,9 @@ export default defineConfig(({ mode }) => ({
   orchestrates `dev` + `runtime`, joined by that bundle; a _deployed_ launcher instead feeds `@opys/runtime` a published
   bundle with no `dev`.
 - **`opys launch <bundle>` / `opys install <bundle>`** — that second path,
-  from the command line: install and launch a built bundle as it is. No config
+  from the command line: install and launch a built bundle as it is. A
+  bundle is a path or an `http(s)` URL, which is read in pieces as a
+  launcher reads one. No config
   is loaded, so there is no `run`; machine paths and credentials come
   from `--var key=value`.
 - The runtime install pipeline is phased: resolve → scan → fetch → verify →
@@ -944,7 +946,13 @@ export default defineConfig(({ mode }) => ({
   (`scripts/release/stamp.mjs`) and committed nowhere, so the number in the
   tree is not the released one: the tag is, and it is made last. Every
   publish skips what is already published, which makes a release that
-  failed halfway something to run again. npm takes it with no secret: each
+  failed halfway something to run again. npm takes the packages in
+  dependency order, derived like the crates' (`order.mjs`), and each only
+  once what it depends on is visible to installs: the workspaces list is
+  build order, with the binding last, and a release that published
+  `@opys/core` before `@opys/binding` and its platform packages had
+  resolved, for whoever installed in those minutes, to a binding nobody
+  could fetch, which npm wrote into a lockfile with no version. npm takes it with no secret: each
   package names this repository's `ci.yml` as its trusted publisher
   (`scripts/release/trust.mjs`, run by a maintainer), and the job proves it
   is that workflow. `ci.yml` and not `release.yml`, because the registry

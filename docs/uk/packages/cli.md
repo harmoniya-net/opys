@@ -44,8 +44,11 @@ opys launch game.opys --var root=/path/to/install --var username=Player \
 
 - Без названого бандла команда читає `opys.config.mjs` у поточній
   теці.
-- `opys install` також виконує власний крок встановлення завантажувача
-  модів, який інакше відбувається під час першого запуску.
+- `opys install` встановлює файли й зупиняється. Власна робота
+  завантажувача модів під час першого запуску, як-от латання гри Forge,
+  відбувається, коли гра вперше стартує.
+- Бандл це шлях або URL `http(s)`. URL читається частинами, як його читає
+  лаунчер: завантажується лише те, чого бракує встановленню.
 - З названим бандлом жодна конфігурація не завантажується, тому її `run`
   не відбувається. Передайте те, що він би встановив, через `--var`.
 
@@ -92,6 +95,7 @@ opys build > manifest.json               # вихід не названо: ма�
 opys install
 opys install --feature java_console
 opys install game.opys --var root=/srv/game
+opys install https://example.com/game.opys --var root=/srv/game
 
 # запуск
 opys launch

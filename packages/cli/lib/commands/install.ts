@@ -1,60 +1,19 @@
-import { buildLaunch, spawnLaunch } from '@opys/runtime';
-import { valValues, type Valset } from '@opys/core';
 import { prepare } from '../prepare';
 import { installWithProgress } from '../install-progress';
-import { awaitExit } from '../child';
 import type { Logger } from '../logger';
 
 /**
- * The flag that tells horno to stop after installing.
+ * Install what the manifest lists and stop before the game starts.
  *
- * It goes at the front of the JVM line, where any `-D` is valid, rather than
- * into the manifest — a manifest describes an installation, not a particular
- * run of one, and a bundle being installed is not ours to rewrite. So the
- * launch is built as the manifest says and the flag is added to what comes
- * back. This is a CLI feature, not a format change.
- */
-const INSTALL_ONLY = '-Dhorno.installOnly=true';
-
-/** Whether the manifest's own arguments name horno at all. */
-function usesHorno(args: Valset): boolean {
-  return args.some((arg) =>
-    valValues(arg).some((value) => value.startsWith('-Dhorno.')),
-  );
-}
-
-/**
- * Install everything and stop before the game starts.
- *
- * Two halves, and only the first is opys's. `install()` fetches, verifies and
- * extracts what the manifest lists. What it cannot do is the part that exists
- * only on the machine that runs it: the loader's processors build a patched
- * client jar, and pre-1.13 the client jar is rewritten outright. Both are
- * horno's, and horno does them on the way into the game — so this runs horno
- * once with nothing to launch afterwards.
- *
- * A build with no loader install step — 1.6.1 to 1.12.2, where Forge is a
- * LaunchWrapper tweaker and a list of libraries — names no horno properties,
- * and there the artifact install is the whole installation.
+ * That is the whole of it. Whatever a loader does on its own first run, such
+ * as Forge building a patched client jar, happens when the game starts, as it
+ * does from a launcher; an install knows nothing of any loader.
  */
 export async function cmdInstall(
   argv: string[],
   logger: Logger,
   command: string,
 ): Promise<void> {
-  const prepared = await prepare(argv, logger, command);
-  const { source, features, vars } = prepared;
-
+  const { source, features, vars } = await prepare(argv, logger, command);
   await installWithProgress(source, { features, vars }, logger);
-
-  if (!prepared.launch || !usesHorno(prepared.launch.args)) {
-    logger.info(' No loader install step; everything is in place');
-    return;
-  }
-
-  logger.info('Running the loader install...');
-  const spec = await buildLaunch(source, { features, vars });
-  const child = spawnLaunch({ ...spec, args: [INSTALL_ONLY, ...spec.args] });
-  await awaitExit(child);
-  logger.info(' Installed');
 }

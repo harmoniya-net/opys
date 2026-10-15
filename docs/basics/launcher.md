@@ -143,26 +143,6 @@ const child = spawn(spec.command, spec.args, {
 });
 ```
 
-**Use case: a fast first launch with Forge.** Forge and NeoForge finish
-installing during the first launch, which makes it slow. To do that behind
-your own progress screen, run once with one extra argument. The game is not
-started:
-
-```js
-import { install, buildLaunch, spawnLaunch } from '@opys/runtime';
-
-await install(source, { vars });
-const spec = await buildLaunch(source, { vars });
-
-if (spec.args.some((arg) => arg.startsWith('-Dhorno.'))) {
-  const child = spawnLaunch({
-    ...spec,
-    args: ['-Dhorno.installOnly=true', ...spec.args],
-  });
-  await new Promise((done) => child.on('exit', done));
-}
-```
-
 ## Options
 
 | Option            | Where               | Means                                             |

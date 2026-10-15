@@ -197,7 +197,7 @@ export default defineConfig({
 ```
 
 **Why the first launch is slower:** horno does its work then. Nothing to
-configure. `opys install` does it ahead of time.
+configure.
 
 ## Good to know
 

@@ -108,8 +108,7 @@ the game's.
 }
 ```
 
-The first launch is slower, because horno does its work then. `opys install`
-does it ahead of time.
+The first launch is slower, because horno does its work then.
 
 ## Every option
 

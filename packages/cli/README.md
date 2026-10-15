@@ -44,8 +44,11 @@ opys launch game.opys --var root=/path/to/install --var username=Player \
 
 - With no bundle named, a command reads `opys.config.mjs` in the current
   directory.
-- `opys install` also runs the mod loader's own install step, which
-  otherwise happens during the first launch.
+- `opys install` installs the files and stops. A mod loader's own
+  first-run work, such as Forge patching the game, happens when the game
+  first starts.
+- A bundle is a path or an `http(s)` URL. A URL is read in pieces, as a
+  launcher reads it: only what the installation lacks is downloaded.
 - With a bundle named, no config is loaded, so its `run` does not happen.
   Pass what it would have set with `--var`.
 
@@ -92,6 +95,7 @@ opys build > manifest.json               # no output named: the manifest, as JSO
 opys install
 opys install --feature java_console
 opys install game.opys --var root=/srv/game
+opys install https://example.com/game.opys --var root=/srv/game
 
 # launch
 opys launch

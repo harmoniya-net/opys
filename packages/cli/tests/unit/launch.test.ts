@@ -271,13 +271,31 @@ describe('cmdLaunch — a built bundle', () => {
     );
   });
 
-  it('fails on a file that is not a bundle before installing anything', async () => {
-    const path = join(dir, 'opys.json');
-    await writeFile(path, '{ "vars": {}, "artifacts": [] }', 'utf8');
-    await expect(cmdLaunch([path], logger, 'launch')).rejects.toThrow(
-      /not a bundle/,
-    );
-    expect(installMock).not.toHaveBeenCalled();
+  it('reads a bundle behind a URL in place, as a launcher does', async () => {
+    const url = 'https://example.com/packs/game.opys';
+    await cmdLaunch([url, '--var', 'root=/srv/game'], logger, 'launch');
+    expect(installMock.mock.calls[0]![0]).toEqual({ url });
+    expect(launchMock.mock.calls[0]![0]).toEqual({ url });
+    expect(launchMock.mock.calls[0]![1]).toMatchObject({
+      vars: { root: '/srv/game' },
+    });
+  });
+
+  it('takes only http and https as a URL, and anything else as a path', async () => {
+    await cmdLaunch(['HTTP://example.com/a.opys'], logger, 'launch');
+    expect(launchMock.mock.calls[0]![0]).toEqual({
+      url: 'HTTP://example.com/a.opys',
+    });
+    await cmdLaunch(['ftp://example.com/a.opys'], logger, 'launch');
+    const { bundle: path } = launchMock.mock.calls[1]![0];
+    expect(isAbsolute(path)).toBe(true);
+  });
+
+  it('refuses a URL together with a config', async () => {
+    const cfg = await fixture();
+    await expect(
+      cmdLaunch(['https://example.com/a.opys', '-i', cfg], logger, 'launch'),
+    ).rejects.toThrow(/cannot be combined with --input/);
   });
 });
 
