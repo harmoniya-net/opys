@@ -296,6 +296,7 @@ pub fn file_artifacts(
             integrity: file.integrity.clone().map(Integrity::One),
             metadata: None,
             extract: None,
+            once: false,
         })
         .collect())
 }

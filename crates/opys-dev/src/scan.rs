@@ -162,6 +162,7 @@ pub fn scanned_files(files: &[PlacedFile], hash: ScanHash) -> Result<Contributio
                     integrity: Some(Integrity::One(entry)),
                     metadata: None,
                     extract: None,
+                    once: false,
                 }
                 .into()
             }

@@ -24,6 +24,7 @@ from, how it is checked.
 | `size`      | no       | Size in bytes.                      |
 | `rules`     | no       | Which machines get it.              |
 | `extract`   | no       | How to unpack it.                   |
+| `once`      | no       | The player's after it is installed. |
 | `metadata`  | no       | Anything. The installer ignores it. |
 
 An unknown field is an error. A field a reader does not understand could
@@ -148,7 +149,8 @@ It is used twice:
 
 ::: warning No hash, no updates
 An artifact without `integrity` is never checked. Once its file exists it
-is kept as it is, even if the source changed. Always give a hash.
+is kept as it is, even if the source changed. Always give a hash. A file
+that is meant to be kept once it exists says so with [`once`](#once).
 :::
 
 ## size
@@ -250,6 +252,29 @@ substituted with variables. `into` is.
 - So does a symbolic link in a tar that points outside `into`.
 - `into` must be inside [`root`](./variables#root).
 - With `clean: true`, keep the archive itself outside `into`.
+
+## once
+
+`true` makes the file the player's. It is installed where it is missing,
+and from then on a file at its path is kept whatever its bytes:
+`options.txt`, a config the player edits, a server list they add to.
+
+```json
+{
+  "path": "${game_directory}/options.txt",
+  "source": { "blob": "3d862eef…" },
+  "once": true
+}
+```
+
+- **What is installed is still verified.** `once` says nothing about the
+  bytes: a download is checked against its `integrity` and a blob against
+  its name, as any other.
+- **Any source.** A carried file and a download alike. A carried file
+  always has its blob's hash, so `once` is the only way to keep one.
+- **Not with `extract`.** An archive is unpacked on every install, so its
+  files cannot also be the player's. A manifest with both is refused.
+- [`cleanup`](./cleanup) never removes it: it is the manifest's own.
 
 ## metadata
 

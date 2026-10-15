@@ -88,6 +88,7 @@ impl PackArchive {
                     })
                     .collect(),
             ),
+            once: false,
         }
     }
 }

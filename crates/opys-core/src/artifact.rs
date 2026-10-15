@@ -16,6 +16,10 @@ pub struct Artifact {
     pub integrity: Option<Integrity>,
     pub metadata: Option<serde_json::Value>,
     pub extract: Option<Vec<ExtractRule>>,
+    /// Installed where the file is missing, and the player's from then on:
+    /// a file already at `path` is kept whatever its bytes. What is
+    /// installed is still verified; what is kept is not compared.
+    pub once: bool,
 }
 
 /// `source` is the domain `Source`, which carries its own wire conversion —
@@ -41,6 +45,8 @@ pub(crate) struct ArtifactWire {
     metadata: Option<serde_json::Value>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     extract: Option<ExtractWire>,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    once: bool,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -51,6 +57,10 @@ pub enum ArtifactError {
         "{path}: a blob is verified by its own name, and this integrity names different bytes"
     )]
     BlobIntegrity { path: String },
+    #[error(
+        "{path}: an archive is unpacked again on every install, so it cannot also be the player's (`once`)"
+    )]
+    OnceExtract { path: String },
 }
 
 /// A blob's name is the sha256 of its bytes, so a blob artifact needs no
@@ -82,6 +92,9 @@ impl TryFrom<ArtifactWire> for Artifact {
     type Error = ArtifactError;
 
     fn try_from(raw: ArtifactWire) -> Result<Self, Self::Error> {
+        if raw.once && raw.extract.is_some() {
+            return Err(ArtifactError::OnceExtract { path: raw.path });
+        }
         Ok(Artifact {
             integrity: integrity_of(&raw.path, &raw.source, raw.integrity)?,
             path: raw.path,
@@ -94,6 +107,7 @@ impl TryFrom<ArtifactWire> for Artifact {
                 .unwrap_or_default(),
             metadata: raw.metadata,
             extract: raw.extract.map(decode_extract),
+            once: raw.once,
         })
     }
 }
@@ -114,6 +128,7 @@ impl From<Artifact> for ArtifactWire {
             integrity,
             extract: u.extract.as_deref().map(encode_extract),
             metadata: u.metadata,
+            once: u.once,
         }
     }
 }
@@ -170,6 +185,7 @@ impl Artifact {
             rules: MojangRuleset::default(),
             metadata: None,
             extract: None,
+            once: false,
         }
     }
 

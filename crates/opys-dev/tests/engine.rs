@@ -24,6 +24,7 @@ fn artifact(path: &str, url: &str) -> Artifact {
         integrity: None,
         metadata: None,
         extract: None,
+        once: false,
     }
 }
 
@@ -742,4 +743,18 @@ fn a_plugin_name_with_a_dot_in_it_can_still_be_named() {
         out.manifest.launch.expect("a launch").command,
         "/usr/bin/java"
     );
+}
+
+#[test]
+fn a_carried_file_left_to_the_player_stays_so_once_it_is_a_blob() {
+    let built: opys_dev::BuildArtifact = serde_json::from_value(serde_json::json!({
+        "path": "${game_directory}/options.txt",
+        "source": { "bytes": "Zm92" },
+        "once": true,
+    }))
+    .unwrap();
+    let (artifact, held) = built.resolve().unwrap();
+    assert!(artifact.once);
+    assert!(artifact.blob_id().is_some());
+    assert!(held.is_some());
 }

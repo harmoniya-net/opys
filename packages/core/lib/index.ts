@@ -193,6 +193,13 @@ export interface Artifact {
   readonly metadata?: unknown;
   /** One rule or several — both are the manifest format; read with `extractRules`. */
   readonly extract?: ExtractRule | ExtractRule[];
+  /**
+   * Installed where the file is missing, and the player's from then on: a
+   * file already there is kept whatever its bytes. What is installed is still
+   * verified. An archive is unpacked again on every install, so an artifact
+   * with `extract` cannot be `once`.
+   */
+  readonly once?: boolean;
 }
 
 /**

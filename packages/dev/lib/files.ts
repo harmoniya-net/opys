@@ -70,8 +70,7 @@ export interface PublishedFiles extends FilesFrom {
   url: FilePlace;
   /**
    * What each file is pinned with. It is always hashed, so a content change
-   * re-fetches it; clear integrity with `removeIntegrity` for deliberate
-   * path-trust.
+   * re-fetches it. A file the player edits is left to them with `.once(…)`.
    */
   hash?: 'sha1' | 'sha256';
 }

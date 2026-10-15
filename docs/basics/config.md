@@ -322,9 +322,21 @@ breaks on macOS, one download you want from your own mirror.
 | `.updateFirst(match, patch)` | Changes fields of the first match.  |
 | `.updateMany(match, patch)`  | Changes fields of every match.      |
 | `.removeIntegrity(match)`    | Installs them without a hash check. |
+| `.once(match)`               | Leaves them to the player.          |
 
 `match` is a glob over file paths, or a function. Start a glob with `**/`:
 it is compared with the path before variables are filled in.
+
+`.once` is for a file the player changes, such as `options.txt`: it is
+installed where it is missing and kept from then on. `.removeIntegrity` is
+refused on a file carried in the bundle, which is always checked against
+its own bytes; `.once` is what keeps it.
+
+```js
+files({ from: 'client', to: (file) => `${GAME}/${file.rel}` }).once(
+  '**/options.txt',
+);
+```
 
 ## The same plugin twice
 

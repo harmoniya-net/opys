@@ -65,9 +65,10 @@ manifest went from a JSON document to a bundle. Then `restrict`, a list of
 globs, became `cleanup`, a list of rules. Then the manifest, which a bundle
 had kept in two entries, went back to one, and the head kept nothing but
 `format`. Since then the head has gained `options` and then `locale`, with
-every text in an option a string or a map of translations, and a rule the
-OS `freebsd` and the architectures `ppc64le` and `riscv64`, which
-Cleanroom's documents name; all are additions and reshaped nothing. `x64`, `arm64`
+every text in an option a string or a map of translations, an artifact
+`once`, and a rule the OS `freebsd` and the architectures `ppc64le` and
+`riscv64`, which Cleanroom's documents name; all are additions and
+reshaped nothing. `x64`, `arm64`
 and `arm32` are read as the architectures they name, and written as
 those. From the first published bundle on, a change like any of these
 raises the number.
@@ -247,6 +248,23 @@ them, and the list below names the layers rather than every one:
   is what HTTP leaves a client; that is a property of the server, not a
   second way to install. An entry is taken to run to the next entry's
   header, so its local header's own lengths are never trusted to find it.
+- **Whether a file is current and whether it is the player's are two
+  fields.** `integrity` pins bytes: a download is checked against it as it
+  arrives, and a file on disk that does not match is installed again. That
+  is the whole of it, and it says nothing about who owns the file. `once`
+  does: the file is installed where it is missing and is the player's from
+  then on, kept whatever its bytes, while what is installed is verified as
+  any file is. The two were one field. A file a player edits, `options.txt`,
+  was spelled as a download without `integrity`, since a file with nothing
+  to compare against is kept once it exists; a carried file always has its
+  blob's hash, so `.removeIntegrity()` on one did nothing, and every install
+  put the shipped `options.txt` back over the player's. Four packs worked
+  around it by hosting such files unpinned beside the bundle, in a public
+  repository. So `removeIntegrity` is refused on a carried file, naming
+  `.once(…)`, and a download without `integrity` is still what it was, a
+  file nobody could pin. `once` and `extract` are refused together: an
+  archive is unpacked on every install, so its files cannot be the
+  player's.
 - **A manifest is fully resolved; the installer looks nothing up.** Every
   artifact names a concrete source and, wherever one can be had, a pinned
   hash. Finding out what to download or what its hash should be is build-time
@@ -650,7 +668,7 @@ are inferred; see _Invariants_.
   zero I/O; all network/fs work happens inside `build`.
 - **`build` is the only hook** — build-phase only; plugins never run at launch.
 - `definePlugin` returns the plugin with the post-processing methods
-  attached — `exclude`, `addRule`, `removeIntegrity`, `updateFirst`,
+  attached — `exclude`, `addRule`, `removeIntegrity`, `once`, `updateFirst`,
   `updateMany` — each a selector plus what to do to the artifacts it matches,
   applied to what `build` returns. `as` gives it another name.
 

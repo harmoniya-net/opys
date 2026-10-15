@@ -20,8 +20,10 @@ pub struct ScanResult {
 /// Decide which artifacts need fetching. A present file is skipped only if it
 /// still matches its hash — so corruption or truncation of an existing file is
 /// caught and re-fetched on every run, not trusted just because the path exists.
-/// Hashless artifacts pass (there's nothing to check). The re-hashing runs with
-/// bounded concurrency.
+/// Two kinds of present file are kept without a hash being compared: one with
+/// nothing to compare against (a download the manifest could not pin), and a
+/// `once` artifact's, which is the player's after its first install. The
+/// re-hashing runs with bounded concurrency.
 pub async fn scan(
     manifest: &Manifest,
     vars: &indexmap::IndexMap<String, String>,
@@ -31,18 +33,21 @@ pub async fn scan(
     let applicable = filter_manifest(manifest, platform, feats)?;
 
     // Missing artifacts go straight to the fetch list; present ones are
-    // queued for a hash check.
+    // queued for a hash check, unless they are the player's.
     let mut tasks = Vec::new();
     let mut present = Vec::new();
+    let mut kept: u32 = 0;
     for u in applicable.artifacts {
         let final_path = interpolate(&u.path, vars);
-        if Path::new(&final_path).exists() {
-            present.push(ScanTask {
+        if !Path::new(&final_path).exists() {
+            tasks.push(ScanTask {
                 artifact: u,
                 final_path,
             });
+        } else if u.once {
+            kept += 1;
         } else {
-            tasks.push(ScanTask {
+            present.push(ScanTask {
                 artifact: u,
                 final_path,
             });
@@ -60,7 +65,7 @@ pub async fn scan(
         .collect()
         .await;
 
-    let mut skipped: u32 = 0;
+    let mut skipped = kept;
     for (task, ok) in verified {
         if ok {
             skipped += 1;

@@ -207,6 +207,7 @@ pub fn resolve_modrinth_modpack(
                     .map(|sha1| Integrity::One(HashEntry::Sha1 { sha1: sha1.clone() })),
                 metadata: None,
                 extract: None,
+                once: false,
             })
         })
         .collect::<Result<Vec<_>, ModrinthError>>()?;

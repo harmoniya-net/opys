@@ -120,6 +120,7 @@ pub fn resolve_authliberty(
         }),
         metadata: None,
         extract: None,
+        once: false,
     };
 
     let jvm_args = std::iter::once(val(format!("-javaagent:{path}")))

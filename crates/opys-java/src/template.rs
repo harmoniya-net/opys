@@ -236,6 +236,7 @@ pub fn java_template(release: VendorRelease) -> JavaTemplate {
                 includes: None,
                 excludes: None,
             })]),
+            once: false,
         })
         .collect();
 

@@ -79,6 +79,38 @@ describe('ChainablePlugin', () => {
     expect(a!.integrity).toBeUndefined();
   });
 
+  it('removeIntegrity refuses a carried file, and names once', async () => {
+    for (const source of [
+      { file: '/pack/options.txt' },
+      { bytes: new Uint8Array([1]) },
+      sourceBlob('0'.repeat(64)),
+    ]) {
+      const base = fake({
+        artifacts: [{ path: 'options.txt', source, rules: [] }],
+      });
+      await expect(built(base.removeIntegrity('*.txt'))).rejects.toThrow(
+        'fake: removeIntegrity matched options.txt, which is carried in the bundle and so always verified by its bytes; to leave it to the player, use .once(…)',
+      );
+    }
+  });
+
+  it('once leaves matched artifacts to the player, carried or not', async () => {
+    const base = fake({
+      artifacts: [
+        art('mods/a.jar'),
+        {
+          path: 'options.txt',
+          source: { file: '/pack/options.txt' },
+          rules: [],
+        },
+      ],
+    });
+    const [jar, options] = await built(base.once('*.txt'));
+    expect(jar!.once).toBeUndefined();
+    expect(options!.once).toBe(true);
+    expect(options!.source).toEqual({ file: '/pack/options.txt' });
+  });
+
   it('updateMany shallow-merges a partial into every match', async () => {
     const base = fake({ artifacts: [art('mods/a.jar'), art('mods/b.jar')] });
     const out = await built(

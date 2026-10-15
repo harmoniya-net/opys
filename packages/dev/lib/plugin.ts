@@ -111,8 +111,19 @@ export interface ChainablePlugin<
    * matched artifact's existing `rules`.
    */
   addRule(match: Selector, rules: RulesetInput): ChainablePlugin<N, G>;
-  /** Clear `integrity` on matched artifacts, so they install unverified. */
+  /**
+   * Clear `integrity` on matched downloads, so they install unverified and a
+   * file already there counts as installed. A carried file is named by its
+   * bytes and so is always verified: matching one is refused, and the way to
+   * leave a file to the player is {@link ChainablePlugin.once}.
+   */
   removeIntegrity(match: Selector): ChainablePlugin<N, G>;
+  /**
+   * Make matched artifacts the player's: installed where missing, and kept
+   * from then on whatever their bytes — `options.txt`, a config the player
+   * edits. What is installed is still verified.
+   */
+  once(match: Selector): ChainablePlugin<N, G>;
   /** Shallow-merge a patch into the first matching artifact (input order). */
   updateFirst(match: Selector, patch: ArtifactPatch): ChainablePlugin<N, G>;
   /** Shallow-merge a patch into every matching artifact. */
@@ -167,11 +178,15 @@ function chainable<N extends string, G extends string>(
       ),
     removeIntegrity: (match) =>
       push(
-        mapMatched(match, (a) => ({
-          ...a,
-          integrity: undefined,
-        })),
+        mapMatched(match, (a) => {
+          if (!('url' in a.source))
+            throw new Error(
+              `${base.name}: removeIntegrity matched ${a.path}, which is carried in the bundle and so always verified by its bytes; to leave it to the player, use .once(…)`,
+            );
+          return { ...a, integrity: undefined };
+        }),
       ),
+    once: (match) => push(mapMatched(match, (a) => ({ ...a, once: true }))),
     updateMany: (match, patch) =>
       push(mapMatched(match, (a) => merge(a, patch))),
     updateFirst: (match, patch) =>
@@ -189,7 +204,7 @@ function chainable<N extends string, G extends string>(
 /**
  * Identity helper for authoring a plugin — returns a {@link ChainablePlugin}
  * so the result carries the fluent `exclude` / `addRule` / `removeIntegrity` /
- * `updateFirst` / `updateMany` post-processing methods.
+ * `once` / `updateFirst` / `updateMany` post-processing methods.
  *
  * The plugin's name and the launch groups it returns are part of its type,
  * which is what lets `defineConfig` check `'@name.group'`. Both are inferred;
