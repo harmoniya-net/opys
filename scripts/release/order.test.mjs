@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { publishOrder } from './order.mjs';
+import { npmPublishOrder, publishOrder } from './order.mjs';
 
 const crate = (name, deps = [], extra = {}) => ({
   name,
@@ -69,4 +69,41 @@ test('a cycle is reported, not looped on', () => {
     () => publishOrder([crate('a', ['b']), crate('b', ['a'])]),
     /dependency cycle: a → b → a/,
   );
+});
+
+// ── npm ──────────────────────────────────────────────────────────────────
+
+test('the binding goes after its platform packages and before what depends on it, wherever the workspaces list it', () => {
+  const order = npmPublishOrder([
+    { name: '@opys/cli', dependencies: { '@opys/core': '^0.9.4' } },
+    {
+      name: '@opys/core',
+      dependencies: { '@opys/binding': '^0.9.4', zod: '^3' },
+    },
+    {
+      name: '@opys/binding',
+      optionalDependencies: {
+        '@opys/binding-linux-x64-gnu': '0.9.4',
+        '@opys/binding-darwin-x64': '0.9.4',
+      },
+    },
+    { name: '@opys/binding-darwin-x64' },
+    { name: '@opys/binding-linux-x64-gnu' },
+  ]);
+  assert.deepEqual(order, [
+    '@opys/binding-darwin-x64',
+    '@opys/binding-linux-x64-gnu',
+    '@opys/binding',
+    '@opys/core',
+    '@opys/cli',
+  ]);
+});
+
+test('a package from outside the tree orders nothing, and a private one is left out', () => {
+  const order = npmPublishOrder([
+    { name: 'root', private: true, devDependencies: { '@opys/a': '*' } },
+    { name: '@opys/a', peerDependencies: { react: '*' } },
+    { name: '@opys/b', devDependencies: { '@opys/a': '*' } },
+  ]);
+  assert.deepEqual(order, ['@opys/a', '@opys/b']);
 });

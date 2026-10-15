@@ -10,24 +10,67 @@
  * attempt that published everything from the start would stop at the first
  * package the first attempt got out.
  *
- * The addon's platform packages go first, then the workspaces in the order
- * `package.json` lists them, which is dependency order: nothing is on the
- * registry before what it depends on.
+ * Every package goes after the packages of the tree it depends on
+ * (`order.mjs`), and only once those are visible where an install looks for
+ * them. The registry takes minutes to show a new version to installs, and a
+ * package published before that resolved, for whoever installed in between,
+ * to a dependency that could not be fetched: npm then writes the lockfile
+ * entry of an optional one with no version, and `npm ci` refuses the file.
  *
  * `--provenance` is what a trusted publisher adds anyway; it is spelled out
  * for the publish that goes by token.
  */
 import { execFileSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { npmPublishOrder } from './order.mjs';
 
 const dryRun = process.argv.includes('--dry-run');
 const readJson = (path) => JSON.parse(readFileSync(path, 'utf8'));
 
 const ADDON = 'crates/opys-napi';
-const dirs = [
-  ...readdirSync(`${ADDON}/npm`).map((dir) => `${ADDON}/npm/${dir}`),
-  ...readJson('package.json').workspaces,
-].filter((dir) => existsSync(`${dir}/package.json`));
+const dirByName = new Map(
+  [
+    ...readdirSync(`${ADDON}/npm`).map((dir) => `${ADDON}/npm/${dir}`),
+    ...readJson('package.json').workspaces,
+  ]
+    .filter((dir) => existsSync(`${dir}/package.json`))
+    .map((dir) => [readJson(`${dir}/package.json`).name, dir]),
+);
+const order = npmPublishOrder(
+  [...dirByName.values()].map((dir) => readJson(`${dir}/package.json`)),
+);
+
+/**
+ * Whether an install would find this version: the abbreviated document npm
+ * resolves from, not the full one `npm view` reads, since the two are cached
+ * apart and the install's is the one that lags.
+ */
+async function visible(name, version) {
+  const response = await fetch(
+    `https://registry.npmjs.org/${name.replace('/', '%2f')}`,
+    {
+      headers: { accept: 'application/vnd.npm.install-v1+json' },
+      cache: 'no-store',
+    },
+  );
+  if (response.status === 404) return false;
+  if (!response.ok)
+    throw new Error(`${name}: the registry answered ${response.status}`);
+  return Boolean((await response.json()).versions?.[version]);
+}
+
+/** Wait, as long as a registry reasonably takes, until an install sees it. */
+async function untilVisible(name, version) {
+  const deadline = Date.now() + 30 * 60_000;
+  while (!(await visible(name, version))) {
+    if (Date.now() > deadline)
+      throw new Error(
+        `${name}@${version} is published but installs still do not see it`,
+      );
+    console.log(`${name}@${version}: waiting for installs to see it`);
+    await new Promise((done) => setTimeout(done, 15_000));
+  }
+}
 
 /** Whether the registry already has this version of this package. */
 function published(name, version) {
@@ -68,11 +111,12 @@ if (!dryRun) {
   }
 }
 
-for (const dir of dirs) {
-  const { name, version, private: isPrivate } = readJson(`${dir}/package.json`);
-  if (isPrivate) continue;
+for (const name of order) {
+  const dir = dirByName.get(name);
+  const { version } = readJson(`${dir}/package.json`);
   if (published(name, version)) {
     console.log(`${name}@${version}: already published`);
+    if (!dryRun) await untilVisible(name, version);
     continue;
   }
   // A platform package with no `.node` in it would install and then fail
@@ -104,4 +148,5 @@ for (const dir of dirs) {
             'for this one release, then run scripts/release/trust.mjs).'),
     );
   }
+  if (!dryRun) await untilVisible(name, version);
 }

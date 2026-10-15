@@ -42,3 +42,40 @@ export function publishOrder(crates) {
   for (const name of [...publishable.keys()].sort()) visit(name, []);
   return order;
 }
+
+/** The fields of a `package.json` that a package needs installed to work. */
+const NEEDED = ['dependencies', 'optionalDependencies', 'peerDependencies'];
+
+/**
+ * The order npm packages are published in: every package after the packages
+ * of the tree it depends on, the same way crates are.
+ *
+ * It was the order `package.json` lists the workspaces in, which is build
+ * order, and there the addon comes last. So `@opys/core` and everything else
+ * that depends on `@opys/binding` reached the registry before the binding
+ * did; an install in between resolved a version of the tree that named a
+ * binding nobody could fetch yet. Platform packages count too: `@opys/binding`
+ * names each one, exactly, as an optional dependency.
+ *
+ * @param {{ name: string, private?: boolean, [field: string]: unknown }[]} manifests
+ *   the `package.json` of every package of the tree, as stamped
+ * @returns {string[]} the names of those to publish, dependencies first
+ */
+export function npmPublishOrder(manifests) {
+  const ours = new Set(manifests.map((m) => m.name));
+  return publishOrder(
+    manifests.map((m) => ({
+      name: m.name,
+      publish: !m.private,
+      deps: [
+        ...NEEDED.flatMap((field) =>
+          Object.keys(m[field] ?? {}).map((name) => ({ name, kind: 'normal' })),
+        ),
+        ...Object.keys(m.devDependencies ?? {}).map((name) => ({
+          name,
+          kind: 'dev',
+        })),
+      ].filter((dep) => ours.has(dep.name)),
+    })),
+  );
+}
