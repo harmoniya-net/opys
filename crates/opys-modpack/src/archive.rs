@@ -88,7 +88,7 @@ impl PackArchive {
                     })
                     .collect(),
             ),
-            once: false,
+            overwrite: Default::default(),
         }
     }
 }

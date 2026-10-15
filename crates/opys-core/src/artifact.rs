@@ -16,10 +16,31 @@ pub struct Artifact {
     pub integrity: Option<Integrity>,
     pub metadata: Option<serde_json::Value>,
     pub extract: Option<Vec<ExtractRule>>,
-    /// Installed where the file is missing, and the player's from then on:
-    /// a file already at `path` is kept whatever its bytes. What is
-    /// installed is still verified; what is kept is not compared.
-    pub once: bool,
+    /// What becomes of a file already at `path`. A missing one is always
+    /// installed, and whatever is installed is verified.
+    pub overwrite: Overwrite,
+}
+
+/// Whether an install replaces a file that is already there.
+///
+/// An enum and not a flag because a third answer is wanted and not yet
+/// possible: replace a file only while the player has not changed it since
+/// it was installed, which needs the installer to remember what it wrote.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Overwrite {
+    /// A file whose bytes do not match `integrity` is installed again.
+    #[default]
+    Always,
+    /// The file is the player's as soon as it exists, and is kept whatever its
+    /// bytes.
+    Never,
+}
+
+impl Overwrite {
+    fn is_always(&self) -> bool {
+        *self == Overwrite::Always
+    }
 }
 
 /// `source` is the domain `Source`, which carries its own wire conversion —
@@ -45,8 +66,8 @@ pub(crate) struct ArtifactWire {
     metadata: Option<serde_json::Value>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     extract: Option<ExtractWire>,
-    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
-    once: bool,
+    #[serde(default, skip_serializing_if = "Overwrite::is_always")]
+    overwrite: Overwrite,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -58,9 +79,9 @@ pub enum ArtifactError {
     )]
     BlobIntegrity { path: String },
     #[error(
-        "{path}: an archive is unpacked again on every install, so it cannot also be the player's (`once`)"
+        "{path}: an archive is unpacked again on every install, so it cannot be left to the player (`overwrite: never`)"
     )]
-    OnceExtract { path: String },
+    NeverOverwrittenArchive { path: String },
 }
 
 /// A blob's name is the sha256 of its bytes, so a blob artifact needs no
@@ -92,8 +113,8 @@ impl TryFrom<ArtifactWire> for Artifact {
     type Error = ArtifactError;
 
     fn try_from(raw: ArtifactWire) -> Result<Self, Self::Error> {
-        if raw.once && raw.extract.is_some() {
-            return Err(ArtifactError::OnceExtract { path: raw.path });
+        if raw.overwrite == Overwrite::Never && raw.extract.is_some() {
+            return Err(ArtifactError::NeverOverwrittenArchive { path: raw.path });
         }
         Ok(Artifact {
             integrity: integrity_of(&raw.path, &raw.source, raw.integrity)?,
@@ -107,7 +128,7 @@ impl TryFrom<ArtifactWire> for Artifact {
                 .unwrap_or_default(),
             metadata: raw.metadata,
             extract: raw.extract.map(decode_extract),
-            once: raw.once,
+            overwrite: raw.overwrite,
         })
     }
 }
@@ -128,7 +149,7 @@ impl From<Artifact> for ArtifactWire {
             integrity,
             extract: u.extract.as_deref().map(encode_extract),
             metadata: u.metadata,
-            once: u.once,
+            overwrite: u.overwrite,
         }
     }
 }
@@ -185,7 +206,7 @@ impl Artifact {
             rules: MojangRuleset::default(),
             metadata: None,
             extract: None,
-            once: false,
+            overwrite: Default::default(),
         }
     }
 

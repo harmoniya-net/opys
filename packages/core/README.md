@@ -265,9 +265,10 @@ manifest: {
   change what gets installed.
 - Without `integrity` a file is never checked: once it exists it is kept, even
   if the source changed.
-- `once: true` makes a file the player's: installed where it is missing, and
-  kept from then on whatever its bytes. What is installed is still verified,
-  and it cannot go with `extract`.
+- `overwrite: 'never'` makes a file the player's: installed where it is
+  missing, and kept from then on whatever its bytes. What is installed is
+  still verified, and it cannot go with `extract`. The default, `'always'`,
+  installs a file again when its bytes do not match `integrity`.
 - Most artifacts come from plugins. One written by hand replaces a plugin's
   at the same `path`.
 

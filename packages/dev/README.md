@@ -201,7 +201,7 @@ files.
 | `.exclude(match)`            | Drops the matching files.                 |
 | `.addRule(match, rules)`     | Adds rules to them: `'allow.os.windows'`. |
 | `.removeIntegrity(match)`    | Installs downloads without a hash check.  |
-| `.once(match)`               | Leaves them to the player once installed. |
+| `.overwrite(match, 'never')` | Leaves them to the player once installed. |
 | `.updateFirst(match, patch)` | Changes fields of the first match.        |
 | `.updateMany(match, patch)`  | Changes fields of every match.            |
 | `.as(name)`                  | The same plugin under another name.       |

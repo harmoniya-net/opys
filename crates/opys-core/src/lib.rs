@@ -18,7 +18,7 @@ mod source;
 mod val;
 mod valdefs;
 
-pub use artifact::{deduplicate_artifacts, Artifact, ArtifactError};
+pub use artifact::{deduplicate_artifacts, Artifact, ArtifactError, Overwrite};
 pub use cleanup::CleanupRule;
 pub use extract::{ExtractDump, ExtractPick, ExtractRule, ExtractScan};
 pub use glob::{glob_base, glob_to_regex};

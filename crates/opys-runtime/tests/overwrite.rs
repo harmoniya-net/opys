@@ -1,6 +1,6 @@
-//! `once`: a file installed where it is missing and the player's afterwards.
-//! What is installed is verified as any file is; what is kept is never
-//! compared, whatever its source says about its bytes.
+//! `overwrite`: what becomes of a file that is already there. A missing file
+//! is always installed and verified; with `never`, a present one is kept and
+//! never compared, whatever its source says about its bytes.
 
 mod common;
 
@@ -26,7 +26,7 @@ async fn a_missing_file_is_installed_from_its_blob() {
     let root = dir.path().to_string_lossy().into_owned();
     install_artifact(
         &root,
-        json!({ "path": "${root}/options.txt", "source": { "blob": blob("fov:70") }, "once": true }),
+        json!({ "path": "${root}/options.txt", "source": { "blob": blob("fov:70") }, "overwrite": "never" }),
     )
     .await;
     assert_eq!(
@@ -42,7 +42,7 @@ async fn a_present_file_is_the_players_and_is_kept() {
     std::fs::write(dir.path().join("options.txt"), "fov:110").unwrap();
     install_artifact(
         &root,
-        json!({ "path": "${root}/options.txt", "source": { "blob": blob("fov:70") }, "once": true }),
+        json!({ "path": "${root}/options.txt", "source": { "blob": blob("fov:70") }, "overwrite": "never" }),
     )
     .await;
     assert_eq!(
@@ -64,7 +64,7 @@ async fn a_kept_download_is_not_asked_for() {
             "path": "${root}/servers.dat",
             "source": { "url": "http://127.0.0.1:1/servers.dat" },
             "integrity": { "sha256": "0".repeat(64) },
-            "once": true,
+            "overwrite": "never",
         }),
     )
     .await;
@@ -75,7 +75,7 @@ async fn a_kept_download_is_not_asked_for() {
 }
 
 #[tokio::test]
-async fn without_once_a_changed_file_is_put_back() {
+async fn by_default_a_changed_file_is_put_back() {
     let dir = tempdir().unwrap();
     let root = dir.path().to_string_lossy().into_owned();
     std::fs::write(dir.path().join("options.txt"), "fov:110").unwrap();

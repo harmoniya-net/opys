@@ -222,7 +222,7 @@ impl From<ExtraLibrary> for ExtraLibraryWire {
             integrity: library.integrity,
             metadata: library.metadata,
             extract: library.extract,
-            once: false,
+            overwrite: Default::default(),
         });
         let mut artifact = match written {
             Ok(Value::Object(fields)) => fields,
@@ -310,7 +310,7 @@ pub fn resolve_libraries(
             integrity,
             metadata: library.metadata.clone(),
             extract: library.extract.clone().or_else(|| native_extract(native)),
-            once: false,
+            overwrite: Default::default(),
         };
         let entry = ClasspathEntry {
             rules: library.rules.clone(),

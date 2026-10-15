@@ -11,7 +11,7 @@ describe('definePlugin', () => {
       'exclude',
       'addRule',
       'removeIntegrity',
-      'once',
+      'overwrite',
       'updateFirst',
       'updateMany',
     ] as const) {

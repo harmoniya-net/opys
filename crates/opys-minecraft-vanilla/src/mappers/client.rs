@@ -15,6 +15,6 @@ pub fn map_client_jar(client: &Client) -> Artifact {
         })),
         metadata: None,
         extract: None,
-        once: false,
+        overwrite: Default::default(),
     }
 }

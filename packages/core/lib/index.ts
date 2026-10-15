@@ -194,13 +194,17 @@ export interface Artifact {
   /** One rule or several — both are the manifest format; read with `extractRules`. */
   readonly extract?: ExtractRule | ExtractRule[];
   /**
-   * Installed where the file is missing, and the player's from then on: a
-   * file already there is kept whatever its bytes. What is installed is still
-   * verified. An archive is unpacked again on every install, so an artifact
-   * with `extract` cannot be `once`.
+   * What becomes of a file already there; a missing one is always installed,
+   * and verified. `'always'`, the default: one whose bytes do not match
+   * `integrity` is installed again. `'never'`: the file is the player's as
+   * soon as it exists, kept whatever its bytes. An archive is unpacked again
+   * on every install, so an artifact with `extract` cannot be `'never'`.
    */
-  readonly once?: boolean;
+  readonly overwrite?: Overwrite;
 }
+
+/** Whether an install replaces a file that is already there. */
+export type Overwrite = 'always' | 'never';
 
 /**
  * The object spelling of a launch argument. `value` is one string or many —

@@ -1,4 +1,11 @@
-import type { Artifact, Source, ValDefs, Val, Valset } from '@opys/core';
+import type {
+  Artifact,
+  Overwrite,
+  Source,
+  ValDefs,
+  Val,
+  Valset,
+} from '@opys/core';
 import { parseShortRuleset } from '@opys/core';
 import { matchesSelector, type RulesetInput, type Selector } from './selector';
 
@@ -115,15 +122,15 @@ export interface ChainablePlugin<
    * Clear `integrity` on matched downloads, so they install unverified and a
    * file already there counts as installed. A carried file is named by its
    * bytes and so is always verified: matching one is refused, and the way to
-   * leave a file to the player is {@link ChainablePlugin.once}.
+   * leave a file to the player is {@link ChainablePlugin.overwrite}.
    */
   removeIntegrity(match: Selector): ChainablePlugin<N, G>;
   /**
-   * Make matched artifacts the player's: installed where missing, and kept
-   * from then on whatever their bytes — `options.txt`, a config the player
-   * edits. What is installed is still verified.
+   * Say what becomes of a matched file that is already there. `'never'`
+   * makes it the player's — `options.txt`, a config the player edits — kept
+   * whatever its bytes; what is installed is still verified.
    */
-  once(match: Selector): ChainablePlugin<N, G>;
+  overwrite(match: Selector, overwrite: Overwrite): ChainablePlugin<N, G>;
   /** Shallow-merge a patch into the first matching artifact (input order). */
   updateFirst(match: Selector, patch: ArtifactPatch): ChainablePlugin<N, G>;
   /** Shallow-merge a patch into every matching artifact. */
@@ -181,12 +188,13 @@ function chainable<N extends string, G extends string>(
         mapMatched(match, (a) => {
           if (!('url' in a.source))
             throw new Error(
-              `${base.name}: removeIntegrity matched ${a.path}, which is carried in the bundle and so always verified by its bytes; to leave it to the player, use .once(…)`,
+              `${base.name}: removeIntegrity matched ${a.path}, which is carried in the bundle and so always verified by its bytes; to leave it to the player, use .overwrite(…, 'never')`,
             );
           return { ...a, integrity: undefined };
         }),
       ),
-    once: (match) => push(mapMatched(match, (a) => ({ ...a, once: true }))),
+    overwrite: (match, overwrite) =>
+      push(mapMatched(match, (a) => ({ ...a, overwrite }))),
     updateMany: (match, patch) =>
       push(mapMatched(match, (a) => merge(a, patch))),
     updateFirst: (match, patch) =>
@@ -204,7 +212,7 @@ function chainable<N extends string, G extends string>(
 /**
  * Identity helper for authoring a plugin — returns a {@link ChainablePlugin}
  * so the result carries the fluent `exclude` / `addRule` / `removeIntegrity` /
- * `once` / `updateFirst` / `updateMany` post-processing methods.
+ * `overwrite` / `updateFirst` / `updateMany` post-processing methods.
  *
  * The plugin's name and the launch groups it returns are part of its type,
  * which is what lets `defineConfig` check `'@name.group'`. Both are inferred;

@@ -15,7 +15,7 @@ pub fn map_asset_index(index: &AssetIndex) -> Artifact {
         })),
         metadata: None,
         extract: None,
-        once: false,
+        overwrite: Default::default(),
     }
 }
 
@@ -68,7 +68,7 @@ pub fn map_asset_objects(manifest: &AssetManifest, index_id: &str) -> Vec<Artifa
             })),
             metadata: Some(serde_json::json!({ "name": name })),
             extract: None,
-            once: false,
+            overwrite: Default::default(),
         })
         .collect()
 }

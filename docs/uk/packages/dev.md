@@ -201,7 +201,7 @@ options: options()
 | `.exclude(match)`            | Відкидає файли, що збігаються.          |
 | `.addRule(match, rules)`     | Додає їм правила: `'allow.os.windows'`. |
 | `.removeIntegrity(match)`    | Встановлює завантаження без хешу.       |
-| `.once(match)`               | Після встановлення лишає їх гравцю.     |
+| `.overwrite(match, 'never')` | Після встановлення лишає їх гравцю.     |
 | `.updateFirst(match, patch)` | Змінює поля першого збігу.              |
 | `.updateMany(match, patch)`  | Змінює поля кожного збігу.              |
 | `.as(name)`                  | Той самий плагін під іншою назвою.      |

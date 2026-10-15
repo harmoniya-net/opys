@@ -182,7 +182,7 @@ pub fn resolve_dgpuj(options: &DgpujOptions) -> Result<DgpujTemplate, DgpujError
                     file: platform.bin.clone(),
                     into: format!("${{dgpuj_dir}}/{}", platform.bin),
                 })]),
-                once: false,
+                overwrite: Default::default(),
             })
         })
         .collect::<Result<Vec<_>, DgpujError>>()?;

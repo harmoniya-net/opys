@@ -79,7 +79,7 @@ describe('ChainablePlugin', () => {
     expect(a!.integrity).toBeUndefined();
   });
 
-  it('removeIntegrity refuses a carried file, and names once', async () => {
+  it('removeIntegrity refuses a carried file, and names overwrite', async () => {
     for (const source of [
       { file: '/pack/options.txt' },
       { bytes: new Uint8Array([1]) },
@@ -89,12 +89,12 @@ describe('ChainablePlugin', () => {
         artifacts: [{ path: 'options.txt', source, rules: [] }],
       });
       await expect(built(base.removeIntegrity('*.txt'))).rejects.toThrow(
-        'fake: removeIntegrity matched options.txt, which is carried in the bundle and so always verified by its bytes; to leave it to the player, use .once(…)',
+        "fake: removeIntegrity matched options.txt, which is carried in the bundle and so always verified by its bytes; to leave it to the player, use .overwrite(…, 'never')",
       );
     }
   });
 
-  it('once leaves matched artifacts to the player, carried or not', async () => {
+  it('overwrite says what becomes of matched files, carried or not', async () => {
     const base = fake({
       artifacts: [
         art('mods/a.jar'),
@@ -105,9 +105,9 @@ describe('ChainablePlugin', () => {
         },
       ],
     });
-    const [jar, options] = await built(base.once('*.txt'));
-    expect(jar!.once).toBeUndefined();
-    expect(options!.once).toBe(true);
+    const [jar, options] = await built(base.overwrite('*.txt', 'never'));
+    expect(jar!.overwrite).toBeUndefined();
+    expect(options!.overwrite).toBe('never');
     expect(options!.source).toEqual({ file: '/pack/options.txt' });
   });
 

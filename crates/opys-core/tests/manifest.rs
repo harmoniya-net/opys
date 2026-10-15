@@ -43,7 +43,7 @@ fn make_artifact(path: &str) -> Artifact {
         integrity: None,
         metadata: None,
         extract: None,
-        once: false,
+        overwrite: Default::default(),
     }
 }
 

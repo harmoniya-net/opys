@@ -107,7 +107,7 @@ pub fn library_artifact(lib: &FabricLibrary) -> Result<(Artifact, ClasspathEntry
         }),
         metadata: None,
         extract: None,
-        once: false,
+        overwrite: Default::default(),
     };
     let entry = ClasspathEntry {
         rules: Vec::new(),

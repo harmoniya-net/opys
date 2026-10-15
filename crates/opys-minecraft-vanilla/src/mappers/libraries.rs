@@ -38,7 +38,7 @@ pub fn library_to_artifact(lib: &Library) -> Artifact {
         }),
         metadata: None,
         extract,
-        once: false,
+        overwrite: Default::default(),
     }
 }
 

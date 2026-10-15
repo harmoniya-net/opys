@@ -70,7 +70,8 @@ export interface PublishedFiles extends FilesFrom {
   url: FilePlace;
   /**
    * What each file is pinned with. It is always hashed, so a content change
-   * re-fetches it. A file the player edits is left to them with `.once(…)`.
+   * re-fetches it. A file the player edits is left to them with
+   * `.overwrite(…, 'never')`.
    */
   hash?: 'sha1' | 'sha256';
 }

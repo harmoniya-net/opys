@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use futures::stream::{self, StreamExt};
-use opys_core::{filter_manifest, interpolate, Artifact, Manifest, OsOptions};
+use opys_core::{filter_manifest, interpolate, Artifact, Manifest, OsOptions, Overwrite};
 
 use crate::constants::DEFAULT_CONCURRENCY;
 use crate::errors::InstallError;
@@ -21,8 +21,9 @@ pub struct ScanResult {
 /// still matches its hash — so corruption or truncation of an existing file is
 /// caught and re-fetched on every run, not trusted just because the path exists.
 /// Two kinds of present file are kept without a hash being compared: one with
-/// nothing to compare against (a download the manifest could not pin), and a
-/// `once` artifact's, which is the player's after its first install. The
+/// nothing to compare against (a download the manifest could not pin), and
+/// one that is never overwritten, which is the player's as soon as it
+/// exists. The
 /// re-hashing runs with bounded concurrency.
 pub async fn scan(
     manifest: &Manifest,
@@ -44,7 +45,7 @@ pub async fn scan(
                 artifact: u,
                 final_path,
             });
-        } else if u.once {
+        } else if u.overwrite == Overwrite::Never {
             kept += 1;
         } else {
             present.push(ScanTask {

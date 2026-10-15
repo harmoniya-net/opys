@@ -99,7 +99,7 @@ pub fn resource_artifacts(
                     integrity: found.integrity.clone().map(Integrity::One),
                     metadata,
                     extract: None,
-                    once: false,
+                    overwrite: Default::default(),
                 }
                 .into(),
             }

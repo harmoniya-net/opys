@@ -105,7 +105,7 @@ pub fn mod_artifact(asset: &GitHubAsset) -> Result<Artifact, Lwjgl3ifyError> {
         })),
         metadata: None,
         extract: None,
-        once: false,
+        overwrite: Default::default(),
     })
 }
 
