@@ -231,6 +231,22 @@ them, and the list below names the layers rather than every one:
   before anything is installed. There is no source kind that exists only on
   a developer's machine and no install path production never exercises. The
   cost is zipping the carried files on each launch.
+- **A bundle behind a URL is read in pieces, and what is installed is not
+  asked for again.** The zip's directory is asked for off the end of the
+  file, then the head and the manifest, and then a blob only when the scan
+  finds its file missing or stale: a launch that changes nothing costs the
+  directory and the manifest, whatever the bundle weighs. It was downloaded
+  whole, every launch, which made a pack's carried files a toll on every
+  start. Where an entry is in the file is `opys-bundle`'s to read, from byte
+  slices (`directory_from_back`, `Entry::decoder`); the requests are
+  `opys-runtime`'s. Every request after the first carries `If-Range` with
+  the version the first one read, so a bundle republished halfway through an
+  install is refused (`Republished`, reported as `network`) and never
+  installed as half of each. A server that serves no ranges, or names no
+  version of its file to pin them to, has the bundle downloaded whole, which
+  is what HTTP leaves a client; that is a property of the server, not a
+  second way to install. An entry is taken to run to the next entry's
+  header, so its local header's own lengths are never trusted to find it.
 - **A manifest is fully resolved; the installer looks nothing up.** Every
   artifact names a concrete source and, wherever one can be had, a pinned
   hash. Finding out what to download or what its hash should be is build-time
@@ -861,7 +877,7 @@ export default defineConfig(({ mode }) => ({
   from `--var key=value`.
 - The runtime install pipeline is phased: resolve → scan → fetch → verify →
   extract → cleanup. A manifest comes from one of three sources — a bundle on
-  disk, a URL to one (downloaded whole first), or memory — and `prepare`
+  disk, a URL to one (read in pieces; see _Invariants_), or memory — and `prepare`
   resolves it once for both the install and the launch spec. A failure is
   told apart by its `code` — `network`, `integrity`, `extraction`, `manifest`,
   `io`, `cancelled`, `other` — which the crate reports as data

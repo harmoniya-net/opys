@@ -10,6 +10,11 @@ pub enum InstallError {
         body: String,
     },
 
+    /// The bundle behind `url` was replaced between two requests of one
+    /// install, and what was read of it would be half of each.
+    #[error("{url} changed while it was being installed; install again")]
+    Republished { url: String, status: u16 },
+
     #[error("Integrity check failed: {}", .paths.join(", "))]
     Integrity { paths: Vec<String> },
 
@@ -119,6 +124,12 @@ impl InstallError {
                 status: *status,
                 body: body.clone(),
             },
+            InstallError::Republished { url, status } => ErrorReport::Network {
+                message,
+                url: url.clone(),
+                status: *status,
+                body: String::new(),
+            },
             InstallError::Integrity { paths } => ErrorReport::Integrity {
                 message,
                 paths: paths.clone(),
@@ -166,6 +177,21 @@ mod tests {
                 "body": "",
             })
         );
+    }
+
+    #[test]
+    fn a_bundle_replaced_mid_install_reports_as_the_network_it_came_over() {
+        let error = InstallError::Republished {
+            url: "https://example.test/game.opys".into(),
+            status: 200,
+        };
+        let report = serde_json::to_value(error.report()).unwrap();
+        assert_eq!(report["code"], "network");
+        assert_eq!(report["status"], 200);
+        assert!(report["message"]
+            .as_str()
+            .unwrap()
+            .contains("changed while it was being installed"));
     }
 
     #[test]

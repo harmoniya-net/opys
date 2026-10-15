@@ -67,9 +67,17 @@ The first argument of every function.
 
 | Source         | What it is                                                       |
 | -------------- | ---------------------------------------------------------------- |
-| `{ url }`      | A bundle to download. It is downloaded whole before installing.  |
+| `{ url }`      | A bundle on a server, read in pieces.                            |
 | `{ bundle }`   | The path of a bundle on disk.                                    |
 | `{ manifest }` | A manifest in memory. It cannot carry files, only download them. |
+
+A `{ url }` is not downloaded whole. Its directory and manifest are read,
+a few hundred kilobytes, and then only the carried files the installation
+lacks, so a launch with nothing new costs no more than that. Every request
+after the first is pinned to the same version of the file with `If-Range`:
+a bundle replaced mid-install fails with a `NetworkError` rather than
+installing half of each. A server that serves no ranges, or names no
+version of its file, gets the bundle downloaded whole.
 
 ## Options
 

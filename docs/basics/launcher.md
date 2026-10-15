@@ -49,8 +49,12 @@ launcher ships something small.
 | `{ bundle }`   | You downloaded it yourself. Pass an absolute path. |
 | `{ manifest }` | A manifest in memory, with no carried files.       |
 
-`{ url }` downloads the bundle on every call. To avoid that, fetch it when
-it changes and pass `{ bundle }`.
+`{ url }` does not download the whole bundle. It reads the bundle's
+directory and manifest, a few hundred kilobytes, and then only the carried
+files the installation is missing or has changed. A launch with nothing new
+costs those few hundred kilobytes, however large the pack. The server has to
+answer range requests and send an `ETag` or `Last-Modified`; one that does
+not gets the bundle downloaded whole, every call.
 
 ## Showing progress
 

@@ -1,16 +1,14 @@
 use std::fs::File;
-use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
-use futures::StreamExt;
 use opys_bundle::{open_bundle, BundleError};
 use opys_core::Manifest;
 use serde::Deserialize;
 
 use crate::blobs::BlobStore;
 use crate::errors::InstallError;
-use crate::fetch::{fetch_with_retry, RetryOptions};
+use crate::remote::{self, Opened};
 
 /// Where the manifest to install comes from.
 ///
@@ -24,8 +22,8 @@ pub enum ManifestSource {
     Manifest(Box<Manifest>),
     /// Local filesystem path to a bundle.
     Bundle(PathBuf),
-    /// HTTP(S) URL to a bundle. It is downloaded whole before anything is
-    /// installed from it.
+    /// HTTP(S) URL to a bundle. It is read in pieces: its directory and
+    /// manifest, then each blob the install is missing.
     Url(String),
 }
 
@@ -98,37 +96,6 @@ fn resolve_bundle(
     })
 }
 
-async fn download(url: &str) -> Result<tempfile::TempPath, InstallError> {
-    let network = |status: u16, body: String| InstallError::Network {
-        url: url.to_owned(),
-        status,
-        body,
-    };
-    let res = fetch_with_retry(reqwest::Method::GET, url, RetryOptions::default())
-        .await
-        .map_err(|e| network(0, e.to_string()))?;
-    let status = res.status();
-    if !status.is_success() {
-        return Err(network(
-            status.as_u16(),
-            res.text().await.unwrap_or_default(),
-        ));
-    }
-    let mut file = tempfile::NamedTempFile::new().map_err(|source| InstallError::Io {
-        path: std::env::temp_dir().display().to_string(),
-        source,
-    })?;
-    let mut stream = res.bytes_stream();
-    while let Some(chunk) = stream.next().await {
-        let chunk = chunk.map_err(|e| network(0, e.to_string()))?;
-        file.write_all(&chunk).map_err(|source| InstallError::Io {
-            path: file.path().display().to_string(),
-            source,
-        })?;
-    }
-    Ok(file.into_temp_path())
-}
-
 pub(crate) async fn resolve(source: ManifestSource) -> Result<Resolved, InstallError> {
     match source {
         ManifestSource::Manifest(manifest) => {
@@ -143,11 +110,16 @@ pub(crate) async fn resolve(source: ManifestSource) -> Result<Resolved, InstallE
             })
         }
         ManifestSource::Bundle(path) => resolve_bundle(&path, None),
-        ManifestSource::Url(url) => {
-            let downloaded = download(&url).await?;
-            let path = downloaded.to_path_buf();
-            resolve_bundle(&path, Some(downloaded))
-        }
+        ManifestSource::Url(url) => match remote::open(&url).await? {
+            Opened::Remote(remote, manifest) => Ok(Resolved {
+                manifest: *manifest,
+                blobs: BlobStore::Remote(remote),
+            }),
+            Opened::Whole(downloaded) => {
+                let path = downloaded.to_path_buf();
+                resolve_bundle(&path, Some(downloaded))
+            }
+        },
     }
 }
 

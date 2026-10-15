@@ -226,6 +226,13 @@ for each artifact with source.blob:
 Then, when installing an artifact with a blob: copy the entry to its
 `path`, and refuse it if its sha256 is not the id.
 
+A reader of a bundle behind a URL need not download it. A zip's directory
+is at its end and says where every entry is, so the directory, then the
+head and manifest, then each blob the installation lacks can each be asked
+for as a range. Ask every range after the first with `If-Range` and the
+version the first response named, so a bundle replaced in the meantime is
+noticed instead of read as half of each.
+
 ## The file name
 
 By convention `<name>.opys`. Nothing in the format depends on it.

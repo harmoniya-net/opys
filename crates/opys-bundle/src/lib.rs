@@ -30,10 +30,12 @@ use zip::{CompressionMethod, DateTime, ZipArchive, ZipWriter};
 use opys_core::Manifest;
 
 mod blob;
+mod directory;
 mod localized;
 mod option;
 
 pub use blob::{blob_id, blob_id_of, BlobSource, Blobs};
+pub use directory::{directory_from_back, Back, Directory, Entry, EntryDecoder};
 pub use localized::{is_language_tag, Localized};
 pub use option::{Choice, Label, OptionDef, Options};
 

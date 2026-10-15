@@ -17,7 +17,8 @@ import { runtime as napi } from '@opys/binding';
  * present, like every shape in the format:
  *
  *  - `{ bundle }` — a bundle on disk;
- *  - `{ url }` — a bundle to download, whole, before anything is installed;
+ *  - `{ url }` — a bundle on a server, read in pieces: its directory and
+ *    manifest, then only the carried files the installation lacks;
  *  - `{ manifest }` — a manifest in memory. It can name no blob: a blob is
  *    an entry of a bundle.
  */

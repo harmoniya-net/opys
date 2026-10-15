@@ -71,9 +71,32 @@ pub async fn fetch_front(
     len: u64,
     retry: RetryOptions,
 ) -> Result<Response, reqwest::Error> {
-    let range = format!("bytes=0-{}", len.saturating_sub(1));
+    fetch_range(
+        url,
+        &format!("bytes=0-{}", len.saturating_sub(1)),
+        None,
+        retry,
+    )
+    .await
+}
+
+/// `url` asked for as `range` (`bytes=…`), and, given `if_range`, only if
+/// the file is still the one that validator names: a server whose file has
+/// changed answers with the whole new one instead, which the caller refuses.
+pub async fn fetch_range(
+    url: &str,
+    range: &str,
+    if_range: Option<&str>,
+    retry: RetryOptions,
+) -> Result<Response, reqwest::Error> {
     send_with_retry(
-        || client().get(url).header(reqwest::header::RANGE, &range),
+        || {
+            let request = client().get(url).header(reqwest::header::RANGE, range);
+            match if_range {
+                Some(validator) => request.header(reqwest::header::IF_RANGE, validator),
+                None => request,
+            }
+        },
         retry,
     )
     .await

@@ -97,12 +97,7 @@ async fn fetch_once(
             file.flush().await.ok();
         }
         Source::Blob { blob } => {
-            // A local read, off the async threads.
-            let (store, id, tmp) = (Arc::clone(blobs), blob.clone(), tmp_path.clone());
-            let written = tokio::task::spawn_blocking(move || store.copy_to(&id, Path::new(&tmp)))
-                .await
-                .map_err(|e| InstallError::other(format!("join error: {e}")))??;
-            on_bytes(written);
+            blobs.copy_to(blob, Path::new(&tmp_path), on_bytes).await?;
         }
     }
 
@@ -129,8 +124,10 @@ async fn fetch_one(
                 let _ = fs::remove_file(format!("{}.partial", task.final_path)).await;
                 // Waiting only helps a network. A blob that could not be read
                 // from this machine will not read better in eight seconds.
-                let local = matches!(task.artifact.source, Source::Blob { .. });
-                if local || attempt >= RETRY_DELAYS_MS.len() {
+                let local = matches!(task.artifact.source, Source::Blob { .. }) && blobs.is_local();
+                // Nor does a bundle replaced since the install began.
+                let replaced = matches!(err, InstallError::Republished { .. });
+                if local || replaced || attempt >= RETRY_DELAYS_MS.len() {
                     return Err(err);
                 }
                 tokio::time::sleep(std::time::Duration::from_millis(RETRY_DELAYS_MS[attempt]))

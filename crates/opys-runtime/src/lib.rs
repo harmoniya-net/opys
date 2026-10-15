@@ -12,6 +12,7 @@ mod install;
 mod launch;
 mod pathnorm;
 mod platform;
+mod remote;
 mod root;
 
 mod phases {
