@@ -56,12 +56,17 @@ describe('a bundle on disk', () => {
   it('carries the options it was written with in its head', async () => {
     const path = join(dir, 'game.opys');
     const written = options()
-      .slider('xmx', { min: 1024, max: 16384, step: 512, default: 4096 })
-      .title('RAM')
-      .feature('custom_java', (o) =>
-        o.directory('java_home').title('Java folder'),
-      )
-      .title('Custom Java');
+      .slider('xmx', {
+        title: 'RAM',
+        min: 1024,
+        max: 16384,
+        step: 512,
+        default: 4096,
+      })
+      .feature('custom_java', {
+        title: 'Custom Java',
+        options: options().directory('java_home', { title: 'Java folder' }),
+      });
     await writeBundle(
       path,
       { vars: {}, artifacts: [] },
@@ -74,24 +79,49 @@ describe('a bundle on disk', () => {
     });
   });
 
-  it('refuses to write options that name one variable twice', async () => {
+  it('says the language its options are written in', async () => {
     const path = join(dir, 'game.opys');
-    const twice = [file('skin').title('Skin'), text('skin').title('Again')];
-    await expect(
-      writeBundle(path, { vars: {}, artifacts: [] }, {}, { options: twice }),
-    ).rejects.toThrow(/variable `skin` is an option twice/);
+    const written = options().file('skin', {
+      title: { en: 'Skin', uk: 'Скін' },
+    });
+    await writeBundle(
+      path,
+      { vars: {}, artifacts: [] },
+      {},
+      { locale: 'en', options: written },
+    );
+    expect(readBundleHead(path)).toEqual({
+      format: BUNDLE_FORMAT,
+      locale: 'en',
+      options: optionDefs(written),
+    });
   });
 
-  it('refuses to write an option nobody gave a title', async () => {
+  it('refuses a translation without the language it falls back to', async () => {
     const path = join(dir, 'game.opys');
+    const written = [file('skin', { title: { uk: 'Скін' } })];
+    await expect(
+      writeBundle(path, { vars: {}, artifacts: [] }, {}, { options: written }),
+    ).rejects.toThrow(/names no locale to fall back to/);
     await expect(
       writeBundle(
         path,
         { vars: {}, artifacts: [] },
         {},
-        { options: [file('skin')] },
+        { locale: 'en', options: written },
       ),
-    ).rejects.toThrow("option 'skin' has no title");
+    ).rejects.toThrow(/not into the head's locale, `en`/);
+  });
+
+  it('refuses to write options that name one variable twice', async () => {
+    const path = join(dir, 'game.opys');
+    const twice = [
+      file('skin', { title: 'Skin' }),
+      text('skin', { title: 'Again' }),
+    ];
+    await expect(
+      writeBundle(path, { vars: {}, artifacts: [] }, {}, { options: twice }),
+    ).rejects.toThrow(/variable `skin` is an option twice/);
   });
 
   it('refuses to write a manifest whose blob nothing holds', async () => {

@@ -87,6 +87,7 @@ What a bundle says about itself, apart from the installation it carries.
 | Field      | Type          | What it is                                      |
 | ---------- | ------------- | ----------------------------------------------- |
 | `format`   | `number`      | The format version: `1`.                        |
+| `locale?`  | `string`      | The language the options are written in.        |
 | `options?` | `OptionDef[]` | What a player may set. See [Options](#options). |
 
 <!-- prettier-ignore -->
@@ -112,44 +113,44 @@ a variable, or switches a feature, that the manifest already reads.
 <!-- prettier-ignore -->
 ```js
 const written = options()
-  .slider('xmx', { min: 1024, max: 16384, step: 512, default: 4096 })
-    .title('RAM')
-    .unit('MB')
-  .select('preset', { low: 'Low', high: 'High' })
-    .title('Graphics')
-  .text('server')
-    .title('Server')
-    .placeholder('play.example.net')
-  .file('skin')
-    .title('Skin')
-  .feature('custom_java', (o) => o
-    .directory('java_home')
-      .title('Java folder'))
-    .title('Custom Java');
+  .slider('xmx', {
+    title: 'RAM',
+    unit: 'MB',
+    min: 1024, max: 16384, step: 512, default: 4096,
+  })
+  .select('preset', { title: 'Graphics', choices: { low: 'Low', high: 'High' } })
+  .text('server', { title: 'Server', placeholder: 'play.example.net' })
+  .file('skin', { title: 'Skin' })
+  .feature('custom_java', {
+    title: 'Custom Java',
+    options: options().directory('java_home', { title: 'Java folder' }),
+  });
 ```
 
-A kind adds an option, and the steps after it belong to that option.
+Each kind adds an option: the name it fills, then its fields in one object.
 
-| Kind                       | Names      | In the call                     | Steps                    |
-| -------------------------- | ---------- | ------------------------------- | ------------------------ |
-| `.slider(name, range)`     | a variable | `min`, `max`, `step`, `default` | `unit`                   |
-| `.select(name, choices)`   | a variable | `{ value: label }`              | `default`                |
-| `.text(name)`              | a variable |                                 | `placeholder`, `default` |
-| `.file(name)`              | a variable |                                 |                          |
-| `.directory(name)`         | a variable |                                 |                          |
-| `.feature(name, options?)` | a feature  | its options, as a function      | `default`, `options`     |
+| Kind                       | Names      | Needs                            | May have                 |
+| -------------------------- | ---------- | -------------------------------- | ------------------------ |
+| `.slider(name, fields)`    | a variable | `min`, `max`, `step`, `default`  | `unit`                   |
+| `.select(name, fields)`    | a variable | `choices`, as `{ value: label }` | `default`                |
+| `.text(name, fields)`      | a variable |                                  | `placeholder`, `default` |
+| `.file(name, fields)`      | a variable |                                  |                          |
+| `.directory(name, fields)` | a variable |                                  |                          |
+| `.feature(name, fields)`   | a feature  |                                  | `default`, `options`     |
 
-Every kind also has `title`, which it needs, and `subtitle`.
+Every kind also takes `title`, which it needs, and `subtitle`. A title left
+out is a type error, and `writeBundle` refuses a head without one.
 
 Each kind is a function of its own too, for a list:
 
 <!-- prettier-ignore -->
 ```js
 const written = [
-  slider('xmx', { min: 1024, max: 16384, step: 512, default: 4096 }).title('RAM'),
-  feature('custom_java')
-    .title('Custom Java')
-    .options(directory('java_home').title('Java folder')),
+  slider('xmx', { title: 'RAM', min: 1024, max: 16384, step: 512, default: 4096 }),
+  feature('custom_java', {
+    title: 'Custom Java',
+    options: [directory('java_home', { title: 'Java folder' })],
+  }),
 ];
 ```
 
@@ -172,6 +173,27 @@ In the head an option is told apart by the field that holds its name:
 - A slider's `default` is inside `min` to `max`.
 - This is a schema only. What a player chose reaches an install as `vars`
   and `features`.
+
+**Translations.** `title`, `subtitle`, `unit`, `placeholder` and a choice's
+label are each a string or language to text, the type `Localized`:
+
+<!-- prettier-ignore -->
+```js
+await writeBundle('pack.opys', manifest, blobs, {
+  locale: 'en',
+  options: options().slider('xmx', {
+    title: { en: 'RAM', uk: "Пам'ять" },
+    min: 1024, max: 16384, step: 512, default: 4096,
+  }),
+});
+```
+
+- A plain string is in the head's `locale`, a tag such as `en` or `pt-BR`.
+- A translation must hold `locale`. One without it, or any translation in
+  a head with no `locale`, is refused.
+- Names, choice values and defaults are never translated.
+- Which language to show is the launcher's choice: the player's, else
+  `locale`.
 
 ### Manifest
 
@@ -241,16 +263,18 @@ await writeBundle('pack.opys', manifest, { [id]: blobBytes(bytes) }); // bytes m
 await writeBundle('pack.opys', { vars: {}, artifacts: [] });          // no carried files
 await writeBundle('pack.opys', manifest, {});
 // rejects: the manifest names blob 3d862eef…, and nothing holds it
-await writeBundle('pack.opys', manifest, blobs, { options: options().file('a').title('A') });
-await writeBundle('pack.opys', manifest, blobs, { options: options().file('a') });
-// rejects: option 'a' has no title: add .title('…') to it
+await writeBundle('pack.opys', manifest, blobs, { options: options().file('a', { title: 'A' }) });
+await writeBundle('pack.opys', manifest, blobs, { options: [{ file: 'a' }] });
+// rejects: missing field `title`
+await writeBundle('pack.opys', manifest, blobs, { options: [file('a', { title: { uk: 'А' } })] });
+// rejects: a text is translated (`uk`), and the head names no locale to fall back to
 
-optionDefs(options().file('a').title('A')); // [{ file: 'a', title: 'A' }]
+optionDefs(options().file('a', { title: 'A' })); // [{ file: 'a', title: 'A' }]
 
 await hashBlobFile('./server.properties'); // { id: '3d862eef…', size: 11 }
 blobId(new TextEncoder().encode('hello')); // '2cf24dba…'
 
-readBundleHead('pack.opys'); // { format: 1, options? }
+readBundleHead('pack.opys'); // { format: 1, locale?, options? }
 readBundle('pack.opys');     // { vars, artifacts, launch, cleanup }
 readBundle('notes.txt');     // throws: not a bundle: …
 BUNDLE_FORMAT;               // 1

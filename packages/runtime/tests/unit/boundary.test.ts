@@ -217,7 +217,7 @@ describe('@opys/runtime — napi boundary smoke', () => {
   });
 
   describe('readHead', () => {
-    const form = options().feature('fullscreen').title('Fullscreen');
+    const form = options().feature('fullscreen', { title: 'Fullscreen' });
     const written = async () => {
       const { manifest, blobs } = hello(tmp('head-root'));
       const bundle = join(tmp('head'), 'game.opys');

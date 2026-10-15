@@ -11,7 +11,7 @@ use serde_json::{json, Value};
 
 fn label(title: &str) -> Label {
     Label {
-        title: title.to_owned(),
+        title: title.into(),
         subtitle: None,
     }
 }
@@ -106,7 +106,7 @@ fn an_option_is_told_apart_by_the_field_that_names_it() {
         }
     );
     assert_eq!(custom_java.name(), "custom_java");
-    assert_eq!(custom_java.label().title, "Custom Java");
+    assert_eq!(custom_java.label().title, "Custom Java".into());
     let OptionDef::Feature {
         default, options, ..
     } = custom_java
@@ -272,7 +272,7 @@ fn a_name_is_one_option_however_deep() {
 
 #[test]
 fn a_bundle_carries_its_options_in_its_head() {
-    let head = Head::new(decode(sample()).unwrap());
+    let head = Head::new(None, decode(sample()).unwrap()).unwrap();
     let mut out = Cursor::new(Vec::new());
     write_bundle(&mut out, &head, &Manifest::default(), &Blobs::new()).unwrap();
     let bytes = out.into_inner();
@@ -318,6 +318,7 @@ fn a_bundle_whose_options_mean_nothing_is_not_read() {
 fn a_head_in_another_format_is_not_written() {
     let head = Head {
         format: BUNDLE_FORMAT + 1,
+        locale: None,
         options: Options::default(),
     };
     let error = write_bundle(

@@ -33,10 +33,14 @@ export default defineConfig({
     ],
     workdir: '${game_directory}',
   },
-  options: options()
-    .slider('xmx', { min: 2048, max: 16384, step: 512, default: 4096 })
-    .title('RAM')
-    .unit('MB'),
+  options: options().slider('xmx', {
+    title: 'RAM',
+    unit: 'MB',
+    min: 2048,
+    max: 16384,
+    step: 512,
+    default: 4096,
+  }),
   run: (manifest) => ({
     manifest: {
       vars: { ...manifest.vars, root: userDataDir('my-pack') },
@@ -56,6 +60,7 @@ export default defineConfig({
 | `manifest` | Як її запустити, і все написане вручну. Див. нижче.          |
 | `output?`  | Куди `opys build` записує бандл, відносно конфігурації.      |
 | `options?` | Що може налаштувати гравець. Див. [Параметри](#параметри).   |
+| `locale?`  | Мова, якою написані `options`: `'en'`.                       |
 | `run?`     | Викликається на комп'ютері гравця при кожному `opys launch`. |
 
 ### manifest
@@ -107,28 +112,32 @@ run: (manifest) => ({ manifest: { vars: { ...manifest.vars, root: userDataDir('m
 <!-- prettier-ignore -->
 ```js
 options: options()
-  .slider('xmx', { min: 1024, max: 16384, step: 512, default: 4096 })
-    .title('RAM')
-    .unit('MB')
-  .select('preset', { low: 'Low', high: 'High' })
-    .title('Graphics')
-  .feature('custom_java', (o) => o
-    .directory('java_home')
-      .title('Java folder'))
-    .title('Custom Java'),
+  .slider('xmx', {
+    title: 'RAM',
+    unit: 'MB',
+    min: 1024, max: 16384, step: 512, default: 4096,
+  })
+  .select('preset', { title: 'Graphics', choices: { low: 'Low', high: 'High' } })
+  .feature('custom_java', {
+    title: 'Custom Java',
+    options: options().directory('java_home', { title: 'Java folder' }),
+  }),
 ```
 
-| Вид                        | Встановлює | Його кроки               |
-| -------------------------- | ---------- | ------------------------ |
-| `.slider(name, range)`     | змінну     | `unit`                   |
-| `.select(name, choices)`   | змінну     | `default`                |
-| `.text(name)`              | змінну     | `placeholder`, `default` |
-| `.file(name)`              | змінну     |                          |
-| `.directory(name)`         | змінну     |                          |
-| `.feature(name, options?)` | прапорець  | `default`, `options`     |
+| Вид                        | Встановлює | Потребує                         | Може мати                |
+| -------------------------- | ---------- | -------------------------------- | ------------------------ |
+| `.slider(name, fields)`    | змінну     | `min`, `max`, `step`, `default`  | `unit`                   |
+| `.select(name, fields)`    | змінну     | `choices`, як `{ value: label }` | `default`                |
+| `.text(name, fields)`      | змінну     |                                  | `placeholder`, `default` |
+| `.file(name, fields)`      | змінну     |                                  |                          |
+| `.directory(name, fields)` | змінну     |                                  |                          |
+| `.feature(name, fields)`   | прапорець  |                                  | `default`, `options`     |
 
-Кожен вид також має `title`, який йому потрібен, і `subtitle`. Повний
-опис у [`@opys/bundle`](https://www.npmjs.com/package/@opys/bundle#options).
+Кожен вид також бере `title`, який йому потрібен, і `subtitle`. Без
+`title` це помилка типів, а збирання відхиляє заголовок без нього. Будь-який
+текст, який читає гравець, може бути перекладом, `{ en: 'RAM', uk: "Пам'ять" }`,
+що мусить містити `locale` конфігурації.
+Повний опис у [`@opys/bundle`](https://www.npmjs.com/package/@opys/bundle#options).
 
 ## files
 

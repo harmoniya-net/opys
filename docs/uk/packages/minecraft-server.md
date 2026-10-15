@@ -175,7 +175,7 @@ run: (manifest) => ({
 - Для панелі чи лаунчера запропонуйте це як прапорець у налаштуваннях:
 
 ```js
-options: options().feature('eula').title('I agree to the Minecraft EULA'),
+options: options().feature('eula', { title: 'I agree to the Minecraft EULA' }),
 ```
 
 ## Ваш світ і налаштування

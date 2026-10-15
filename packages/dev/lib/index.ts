@@ -15,6 +15,7 @@ export {
   file,
   directory,
   feature,
+  type Localized,
   type OptionDef,
   type OptionsInput,
 } from '@opys/bundle';

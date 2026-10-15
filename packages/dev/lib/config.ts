@@ -100,6 +100,12 @@ export interface OpysConfig<
    */
   options?: OptionsInput;
   /**
+   * The language `options` are written in, as a tag: `'en'`. A plain string
+   * is in it, and a translated one, `{ en: 'RAM', uk: "Пам'ять" }`, must hold
+   * it. Needed once any text is translated; it goes into the head.
+   */
+  locale?: string;
+  /**
    * What only the launching machine knows. Re-run on every `opys launch`
    * and never written into the bundle; see {@link RunPatch}.
    */

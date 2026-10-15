@@ -179,39 +179,43 @@ import { defineConfig, options } from '@opys/dev';
 export default defineConfig({
   // ...
   options: options()
-    .slider('xmx', { min: 1024, max: 16384, step: 512, default: 4096 })
-      .title('RAM')
-      .unit('MB')
-    .select('preset', { low: 'Low', high: 'High' })
-      .title('Graphics')
-      .default('high')
-    .feature('custom_java', (o) => o
-      .directory('java_home')
-        .title('Java folder'))
-      .title('Custom Java'),
+    .slider('xmx', {
+      title: 'RAM',
+      unit: 'MB',
+      min: 1024, max: 16384, step: 512, default: 4096,
+    })
+    .select('preset', {
+      title: 'Graphics',
+      choices: { low: 'Low', high: 'High' },
+      default: 'high',
+    })
+    .feature('custom_java', {
+      title: 'Custom Java',
+      options: options().directory('java_home', { title: 'Java folder' }),
+    }),
 });
 ```
 
-Вид додає налаштування. Кроки після нього належать цьому
-налаштуванню, до наступного виду.
+Кожен вид додає налаштування: ім'я, яке воно задає, і його поля одним
+об'єктом.
 
-| Вид                        | Задає     | У                       | Його кроки               |
-| -------------------------- | --------- | ----------------------- | ------------------------ |
-| `.slider(name, range)`     | змінну    | Число в діапазоні.      | `unit`                   |
-| `.select(name, choices)`   | змінну    | Один із `choices`.      | `default`                |
-| `.text(name)`              | змінну    | Рядок тексту.           | `placeholder`, `default` |
-| `.file(name)`              | змінну    | Шлях файла.             |                          |
-| `.directory(name)`         | змінну    | Шлях теки.              |                          |
-| `.feature(name, options?)` | прапорець | Увімкнено або вимкнено. | `default`, `options`     |
+| Вид                        | Задає     | У                       | Потребує                         | Може мати                |
+| -------------------------- | --------- | ----------------------- | -------------------------------- | ------------------------ |
+| `.slider(name, fields)`    | змінну    | Число в діапазоні.      | `min`, `max`, `step`, `default`  | `unit`                   |
+| `.select(name, fields)`    | змінну    | Один із `choices`.      | `choices`, як `{ value: label }` | `default`                |
+| `.text(name, fields)`      | змінну    | Рядок тексту.           |                                  | `placeholder`, `default` |
+| `.file(name, fields)`      | змінну    | Шлях файла.             |                                  |                          |
+| `.directory(name, fields)` | змінну    | Шлях теки.              |                                  |                          |
+| `.feature(name, fields)`   | прапорець | Увімкнено або вимкнено. |                                  | `default`, `options`     |
 
-Кожен вид також має `title` і `subtitle`.
+Кожен вид також бере `title`, без якого не обійтися, і `subtitle`.
 
 - Ім'я це змінна або прапорець, які ваш маніфест уже використовує:
   `${xmx}` в аргументі, `allow.features.custom_java` у правилі.
-- **Кожне налаштування потребує `title`.** `opys build` назве те, в
-  якого його немає.
+- **`title` обов'язковий.** Без нього це помилка типів, а бандл відхиляє
+  заголовок без нього.
 - Вибір починається з першого варіанта, якщо `default` не каже інакше.
-- Прапорець вимкнений, якщо немає `.default(true)`.
+- Прапорець вимкнений, якщо немає `default: true`.
 - Налаштування під прапорцем мають значення, лише поки він увімкнений.
 - `opys build` відхиляє ім'я, використане двічі, і типову
   повзунка поза його діапазоном.
@@ -222,19 +226,17 @@ export default defineConfig({
 `{ b: 'B', 2: 'Two', 1: 'One' }` показаний як One, Two, B.
 :::
 
-**По одному.** Кожен вид це також функція, для списку або для
-прапорця, що читається згори вниз:
+**По одному.** Кожен вид це також функція, для списку:
 
 ```js
 import { directory, feature, slider } from '@opys/dev';
 
 options: [
-  slider('xmx', { min: 1024, max: 16384, step: 512, default: 4096 })
-    .title('RAM')
-    .unit('MB'),
-  feature('custom_java')
-    .title('Custom Java')
-    .options(directory('java_home').title('Java folder')),
+  slider('xmx', { title: 'RAM', unit: 'MB', min: 1024, max: 16384, step: 512, default: 4096 }),
+  feature('custom_java', {
+    title: 'Custom Java',
+    options: [directory('java_home', { title: 'Java folder' })],
+  }),
 ],
 ```
 
@@ -242,6 +244,37 @@ options: [
 намалювати екран налаштувань. Лаунчер передає вибране гравцем як `vars`
 і `features`. `opys launch` їх не читає: використовуйте `--var` і
 `--feature`.
+
+### Переклади
+
+Будь-який текст, який читає гравець, можна дати кожною мовою: `title`,
+`subtitle`, `unit`, `placeholder` і підпис варіанта. Мову, якою написана
+конфігурація, називає `locale`:
+
+<!-- prettier-ignore -->
+```js
+export default defineConfig({
+  locale: 'en',
+  options: options()
+    .slider('xmx', {
+      title: { en: 'RAM', uk: "Пам'ять" },
+      unit: 'MB',
+      min: 1024, max: 16384, step: 512, default: 4096,
+    })
+    .select('preset', {
+      title: { en: 'Graphics', uk: 'Графіка' },
+      choices: { low: { en: 'Low', uk: 'Низька' }, high: 'High' },
+    }),
+});
+```
+
+- Звичайний рядок написаний мовою `locale`.
+- Переклад мусить містити `locale`. `opys build` відхиляє той, що не
+  містить, і будь-який переклад у конфігурації без `locale`.
+- Мова це тег: `en`, `uk`, `pt-BR`.
+- Імена, значення варіантів і `default` ніколи не перекладаються: їх читає
+  маніфест.
+- Лаунчер обирає мову гравця, а інакше бере `locale`.
 
 ## cleanup
 

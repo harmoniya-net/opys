@@ -88,9 +88,10 @@ Nothing is downloaded. The plugin only says where `java` is:
 Let the player choose their Java with two options:
 
 ```js
-options: options()
-  .feature('custom_java', (o) => o.directory('java_home').title('Java folder'))
-  .title('Use my own Java'),
+options: options().feature('custom_java', {
+  title: 'Use my own Java',
+  options: options().directory('java_home', { title: 'Java folder' }),
+}),
 ```
 
 - `java_home` is the JDK's folder, the one that holds `bin`. On macOS that

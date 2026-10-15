@@ -64,9 +64,10 @@ installing machine — `file`, `string`, `bytes` — gave way to `blob`, and the
 manifest went from a JSON document to a bundle. Then `restrict`, a list of
 globs, became `cleanup`, a list of rules. Then the manifest, which a bundle
 had kept in two entries, went back to one, and the head kept nothing but
-`format`. Since then the head has gained `options`, and a rule the OS
-`freebsd` and the architectures `ppc64le` and `riscv64`, which Cleanroom's
-documents name; both are additions and reshaped nothing. `x64`, `arm64`
+`format`. Since then the head has gained `options` and then `locale`, with
+every text in an option a string or a map of translations, and a rule the
+OS `freebsd` and the architectures `ppc64le` and `riscv64`, which
+Cleanroom's documents name; all are additions and reshaped nothing. `x64`, `arm64`
 and `arm32` are read as the architectures they name, and written as
 those. From the first published bundle on, a change like any of these
 raises the number.
@@ -138,7 +139,7 @@ them, and the list below names the layers rather than every one:
   and cost the format a second spelling of the manifest — two entries that
   had to be put back together, and a `Head` type that was a `Manifest` with
   a field missing. So `manifest.json` is exactly what `core` reads and
-  writes, and the head says `format` and `options`. It is still the first
+  writes, and the head says `format`, `locale` and `options`. It is still the first
   entry and stored uncompressed, readable with one seek or off the front of
   the file, because it is where whatever is worth knowing about a bundle
   without decoding its manifest goes. Both are written indented: a bundle
@@ -183,13 +184,23 @@ them, and the list below names the layers rather than every one:
   the launcher carried decoders for that. So each kind takes its own fields
   and refuses the rest, a default has its kind's type, and a tree that names
   a variable twice or defaults a select to a value it does not offer does
-  not decode (`Options`, in `opys-bundle`). A config writes the tree as a
-  chain, `options().slider('xmx', range).title('RAM').unit('MB')`: what a
-  kind cannot do without is in the call, where leaving it out is a compile
-  error, and the rest is chained, each step belonging to the option just
-  added. `title` is chained and needed, so it is the one thing the compiler
-  cannot ask for, and `optionDefs` asks for it by name. A chain is a value
-  made of closures, not a class: every step returns a new one. Resolving a schema and a
+  not decode (`Options`, in `opys-bundle`). A config writes an option as its
+  kind, its name and its fields in one object, `slider('xmx', { title:
+'RAM', unit: 'MB', min, max, step, default })`, and a list as a chain of
+  them, `options().slider(…).feature(…)`. The fields were chained steps
+  once, `.title('RAM').unit('MB')`, which left the title — the one field
+  every option needs — as the one the compiler could not ask for. In an
+  object it is a compile error to leave out, and the decoder refuses a head
+  without one. A chain is a value made of closures, not a class: every step
+  returns a new one. Every text a player reads — a title, a subtitle, a
+  unit, a placeholder, a choice's label — is a string or language to text,
+  `{ en: 'RAM', uk: "Пам'ять" }`, inline where it is read rather than keyed
+  into a table beside the tree, so there is no key to dangle and no second
+  place to look (`Localized`, in `opys-bundle`). A string is in the head's
+  `locale`, and a map that does not hold it, or a map in a head that names
+  none, does not decode: whatever a launcher asks for, there is a fallback.
+  Which language a player gets is the launcher's to choose, as their
+  choices are. Resolving a schema and a
   player's choices into `vars` and `features` is not here yet: it stays
   with whoever shows the form, and `opys launch` takes `--var` and
   `--feature`.
@@ -639,7 +650,7 @@ export default defineConfig(({ mode }) => ({
     workdir: '${game_directory}',
   },
   // What a player may set, for a launcher to draw. Goes into the head.
-  options: options().feature('fullscreen').title('Fullscreen'),
+  options: options().feature('fullscreen', { title: 'Fullscreen' }),
   // `run` runs on the LAUNCH machine, every launch — the only correct
   // place for machine-specific paths. `userDataDir()` resolves the *build*
   // machine's home dir, so it must NEVER go in `manifest.vars` (baked into

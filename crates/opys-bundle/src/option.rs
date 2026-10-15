@@ -13,19 +13,21 @@ use std::collections::BTreeSet;
 
 use serde::{Deserialize, Serialize};
 
+use crate::localized::Localized;
+
 /// One value a `select` offers, and what to call it.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Choice {
     pub value: String,
-    pub label: String,
+    pub label: Localized,
 }
 
 /// What every option says about itself to the person choosing.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Label {
-    pub title: String,
-    pub subtitle: Option<String>,
+    pub title: Localized,
+    pub subtitle: Option<Localized>,
 }
 
 /// One option. `name` is the variable it fills or, for a `Feature`, the
@@ -40,7 +42,7 @@ pub enum OptionDef {
         max: f64,
         step: f64,
         default: f64,
-        unit: Option<String>,
+        unit: Option<Localized>,
     },
     Select {
         name: String,
@@ -51,7 +53,7 @@ pub enum OptionDef {
     Text {
         name: String,
         label: Label,
-        placeholder: Option<String>,
+        placeholder: Option<Localized>,
         default: Option<String>,
     },
     File {
@@ -92,12 +94,30 @@ impl OptionDef {
             | OptionDef::Feature { label, .. } => label,
         }
     }
+
+    /// Every text a player reads on this option and the ones under it.
+    pub fn texts(&self) -> Vec<&Localized> {
+        let label = self.label();
+        let mut texts: Vec<&Localized> = std::iter::once(&label.title)
+            .chain(label.subtitle.as_ref())
+            .collect();
+        match self {
+            OptionDef::Slider { unit, .. } => texts.extend(unit),
+            OptionDef::Select { choices, .. } => texts.extend(choices.iter().map(|c| &c.label)),
+            OptionDef::Text { placeholder, .. } => texts.extend(placeholder),
+            OptionDef::Feature { options, .. } => {
+                texts.extend(options.iter().flat_map(OptionDef::texts))
+            }
+            OptionDef::File { .. } | OptionDef::Directory { .. } => {}
+        }
+        texts
+    }
 }
 
 /// Discriminated by which field is present, like every wire shape here, and
 /// that field holds the name: `{ "slider": "xmx", … }`. A struct of options
 /// rather than an untagged enum, so a field on the wrong kind is named.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct OptionWire {
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -113,9 +133,9 @@ pub(crate) struct OptionWire {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     feature: Option<String>,
 
-    title: String,
+    title: Localized,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    subtitle: Option<String>,
+    subtitle: Option<Localized>,
 
     #[serde(default, skip_serializing_if = "Option::is_none")]
     min: Option<f64>,
@@ -124,11 +144,11 @@ pub(crate) struct OptionWire {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     step: Option<f64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    unit: Option<String>,
+    unit: Option<Localized>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     choices: Option<Vec<Choice>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    placeholder: Option<String>,
+    placeholder: Option<Localized>,
     /// A number on a slider, a string on a select or a text, a boolean on a
     /// feature: the one field whose type depends on the kind.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -250,7 +270,20 @@ impl From<OptionDef> for OptionWire {
         let labelled = |label: Label| OptionWire {
             title: label.title,
             subtitle: label.subtitle,
-            ..OptionWire::default()
+            slider: None,
+            select: None,
+            text: None,
+            file: None,
+            directory: None,
+            feature: None,
+            min: None,
+            max: None,
+            step: None,
+            unit: None,
+            choices: None,
+            placeholder: None,
+            default: None,
+            options: None,
         };
         match option {
             OptionDef::Slider {
@@ -341,6 +374,11 @@ impl Options {
 
     pub fn as_slice(&self) -> &[OptionDef] {
         &self.0
+    }
+
+    /// Every text a player reads anywhere in the tree.
+    pub fn texts(&self) -> Vec<&Localized> {
+        self.0.iter().flat_map(OptionDef::texts).collect()
     }
 }
 

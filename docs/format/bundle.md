@@ -21,8 +21,8 @@ unzip -p game.opys manifest.json | jq '.launch'
 
 **Why two JSON files:** they describe different things. The manifest
 describes the installation, and is megabytes, one entry per installed file.
-The head describes the bundle, and is small. It holds `format` and
-`options`.
+The head describes the bundle, and is small. It holds `format`, `locale`
+and `options`.
 
 Find entries by name. Do not rely on their order.
 
@@ -111,6 +111,8 @@ the kind:
 - `choices` is a list of `{ "value", "label" }`, in the order to show them.
 - A feature's `options` are the options that only matter while it is on.
   They may be features themselves, to any depth.
+- `title`, `subtitle`, `unit`, `placeholder` and a choice's `label` are
+  text, which may be translated: see [locale](#locale).
 
 A reader refuses a head whose options:
 
@@ -119,10 +121,61 @@ A reader refuses a head whose options:
 - name one variable twice, or one feature twice, anywhere in the tree;
 - have a slider with `min` not below `max`, a `step` not above zero, or a
   `default` outside the range;
-- have a select whose `default` is not the `value` of one of its choices.
+- have a select whose `default` is not the `value` of one of its choices;
+- have a text that breaks the rules of [locale](#locale).
 
 **Why in the head:** a launcher shows the settings before it installs
 anything, and the head is readable without the manifest.
+
+## locale
+
+The language the options are written in. Optional, in the head.
+
+```json
+{
+  "format": 1,
+  "locale": "en",
+  "options": [
+    {
+      "slider": "xmx",
+      "title": { "en": "RAM", "uk": "Пам'ять" },
+      "min": 1024,
+      "max": 16384,
+      "step": 512,
+      "default": 4096,
+      "unit": "MB"
+    }
+  ]
+}
+```
+
+`locale` is a language tag: a language of two or three letters, then
+subtags of one to eight letters or digits, joined by `-`. `en`, `uk`,
+`pt-BR`.
+
+Every text a player reads is either:
+
+- a **string**, in the head's `locale`; or
+- an **object** from a language tag to the text in that language.
+
+The texts are `title`, `subtitle`, `unit`, `placeholder` and a choice's
+`label`. A name, a choice's `value` and a `default` are never translated:
+they are what the manifest reads.
+
+A reader refuses a head:
+
+- whose `locale` is not a language tag;
+- with a translated text and no `locale`;
+- with a translated text that does not hold the `locale`;
+- with a translated text that is empty, or has a key that is not a language
+  tag.
+
+**Which language to show is the reader's choice.** Match the player's
+language, then fall back to `locale`. A translated text always holds it, so
+there is always something to show.
+
+**Why inline:** a text is read where it is shown. There is no table of keys
+beside the options, so no key can point at nothing.
 
 ## Blobs
 

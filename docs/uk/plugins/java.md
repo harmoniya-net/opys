@@ -67,9 +67,10 @@ plugins: [minecraft({ version: '1.21.1' }), java({ system: true })],
 [налаштуваннях](/uk/basics/config#параметри) конфігурації:
 
 ```js
-options: options()
-  .feature('custom_java', (o) => o.directory('java_home').title('Java folder'))
-  .title('Use my own Java'),
+options: options().feature('custom_java', {
+  title: 'Use my own Java',
+  options: options().directory('java_home', { title: 'Java folder' }),
+}),
 ```
 
 - `java_home` це тека JDK, та, що містить `bin`. У macOS це

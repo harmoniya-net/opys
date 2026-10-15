@@ -88,9 +88,10 @@ plugins: [minecraft({ version: '1.21.1' }), java({ system: true })],
 Дайте гравцю вибрати свою Java двома налаштуваннями:
 
 ```js
-options: options()
-  .feature('custom_java', (o) => o.directory('java_home').title('Java folder'))
-  .title('Use my own Java'),
+options: options().feature('custom_java', {
+  title: 'Use my own Java',
+  options: options().directory('java_home', { title: 'Java folder' }),
+}),
 ```
 
 - `java_home` це тека JDK, та, що тримає `bin`. На macOS це

@@ -175,38 +175,42 @@ import { defineConfig, options } from '@opys/dev';
 export default defineConfig({
   // ...
   options: options()
-    .slider('xmx', { min: 1024, max: 16384, step: 512, default: 4096 })
-      .title('RAM')
-      .unit('MB')
-    .select('preset', { low: 'Low', high: 'High' })
-      .title('Graphics')
-      .default('high')
-    .feature('custom_java', (o) => o
-      .directory('java_home')
-        .title('Java folder'))
-      .title('Custom Java'),
+    .slider('xmx', {
+      title: 'RAM',
+      unit: 'MB',
+      min: 1024, max: 16384, step: 512, default: 4096,
+    })
+    .select('preset', {
+      title: 'Graphics',
+      choices: { low: 'Low', high: 'High' },
+      default: 'high',
+    })
+    .feature('custom_java', {
+      title: 'Custom Java',
+      options: options().directory('java_home', { title: 'Java folder' }),
+    }),
 });
 ```
 
-A kind adds an option. The steps after it belong to that option, until the
-next kind.
+Each kind adds an option: the name it sets, then its fields in one object.
 
-| Kind                       | Sets       | To                       | Its steps                |
-| -------------------------- | ---------- | ------------------------ | ------------------------ |
-| `.slider(name, range)`     | a variable | A number in a range.     | `unit`                   |
-| `.select(name, choices)`   | a variable | One of `choices`.        | `default`                |
-| `.text(name)`              | a variable | A line of text.          | `placeholder`, `default` |
-| `.file(name)`              | a variable | The path of a file.      |                          |
-| `.directory(name)`         | a variable | The path of a directory. |                          |
-| `.feature(name, options?)` | a feature  | On or off.               | `default`, `options`     |
+| Kind                       | Sets       | To                       | Needs                            | May have                 |
+| -------------------------- | ---------- | ------------------------ | -------------------------------- | ------------------------ |
+| `.slider(name, fields)`    | a variable | A number in a range.     | `min`, `max`, `step`, `default`  | `unit`                   |
+| `.select(name, fields)`    | a variable | One of `choices`.        | `choices`, as `{ value: label }` | `default`                |
+| `.text(name, fields)`      | a variable | A line of text.          |                                  | `placeholder`, `default` |
+| `.file(name, fields)`      | a variable | The path of a file.      |                                  |                          |
+| `.directory(name, fields)` | a variable | The path of a directory. |                                  |                          |
+| `.feature(name, fields)`   | a feature  | On or off.               |                                  | `default`, `options`     |
 
-Every kind also has `title` and `subtitle`.
+Every kind also takes `title`, which it needs, and `subtitle`.
 
 - The name is the variable or feature your manifest already uses: `${xmx}`
   in an argument, `allow.features.custom_java` in a rule.
-- **Every option needs a `title`.** `opys build` names the one that has none.
+- **A title is required.** Leaving it out is a type error, and the bundle
+  refuses a head without one.
 - A select starts on its first choice unless `default` says otherwise.
-- A feature is off unless `.default(true)`.
+- A feature is off unless `default: true`.
 - The options under a feature only matter while it is on.
 - `opys build` refuses a name used twice and a slider default outside its
   range.
@@ -217,19 +221,17 @@ numbers. JavaScript lists those first, in numeric order: `{ b: 'B', 2: 'Two',
 1: 'One' }` is shown as One, Two, B.
 :::
 
-**One by one.** Each kind is also a function, for a list or for a feature
-that reads top down:
+**One by one.** Each kind is also a function, for a list:
 
 ```js
 import { directory, feature, slider } from '@opys/dev';
 
 options: [
-  slider('xmx', { min: 1024, max: 16384, step: 512, default: 4096 })
-    .title('RAM')
-    .unit('MB'),
-  feature('custom_java')
-    .title('Custom Java')
-    .options(directory('java_home').title('Java folder')),
+  slider('xmx', { title: 'RAM', unit: 'MB', min: 1024, max: 16384, step: 512, default: 4096 }),
+  feature('custom_java', {
+    title: 'Custom Java',
+    options: [directory('java_home', { title: 'Java folder' })],
+  }),
 ],
 ```
 
@@ -237,6 +239,37 @@ options: [
 launcher can draw a settings screen. The launcher passes what the player
 chose as `vars` and `features`. `opys launch` does not read them: use
 `--var` and `--feature`.
+
+### Translations
+
+Any text a player reads can be given per language: `title`, `subtitle`,
+`unit`, `placeholder` and a choice's label. Name the language the config is
+written in with `locale`:
+
+<!-- prettier-ignore -->
+```js
+export default defineConfig({
+  locale: 'en',
+  options: options()
+    .slider('xmx', {
+      title: { en: 'RAM', uk: "Пам'ять" },
+      unit: 'MB',
+      min: 1024, max: 16384, step: 512, default: 4096,
+    })
+    .select('preset', {
+      title: { en: 'Graphics', uk: 'Графіка' },
+      choices: { low: { en: 'Low', uk: 'Низька' }, high: 'High' },
+    }),
+});
+```
+
+- A plain string is in `locale`.
+- A translation must include `locale`. `opys build` refuses one that does
+  not, and any translation in a config with no `locale`.
+- A language is a tag: `en`, `uk`, `pt-BR`.
+- Names, choice values and defaults are never translated: the manifest
+  reads them.
+- The launcher picks the player's language, and falls back to `locale`.
 
 ## cleanup
 

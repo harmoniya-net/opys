@@ -33,10 +33,14 @@ export default defineConfig({
     ],
     workdir: '${game_directory}',
   },
-  options: options()
-    .slider('xmx', { min: 2048, max: 16384, step: 512, default: 4096 })
-    .title('RAM')
-    .unit('MB'),
+  options: options().slider('xmx', {
+    title: 'RAM',
+    unit: 'MB',
+    min: 2048,
+    max: 16384,
+    step: 512,
+    default: 4096,
+  }),
   run: (manifest) => ({
     manifest: {
       vars: { ...manifest.vars, root: userDataDir('my-pack') },
@@ -56,6 +60,7 @@ returns one.
 | `manifest` | How to start it, and anything written by hand. See below.     |
 | `output?`  | Where `opys build` writes the bundle, relative to the config. |
 | `options?` | What a player may set. See [Options](#options).               |
+| `locale?`  | The language `options` are written in: `'en'`.                |
 | `run?`     | Called on the player's machine at every `opys launch`.        |
 
 ### manifest
@@ -107,27 +112,31 @@ for a launcher to draw a settings screen.
 <!-- prettier-ignore -->
 ```js
 options: options()
-  .slider('xmx', { min: 1024, max: 16384, step: 512, default: 4096 })
-    .title('RAM')
-    .unit('MB')
-  .select('preset', { low: 'Low', high: 'High' })
-    .title('Graphics')
-  .feature('custom_java', (o) => o
-    .directory('java_home')
-      .title('Java folder'))
-    .title('Custom Java'),
+  .slider('xmx', {
+    title: 'RAM',
+    unit: 'MB',
+    min: 1024, max: 16384, step: 512, default: 4096,
+  })
+  .select('preset', { title: 'Graphics', choices: { low: 'Low', high: 'High' } })
+  .feature('custom_java', {
+    title: 'Custom Java',
+    options: options().directory('java_home', { title: 'Java folder' }),
+  }),
 ```
 
-| Kind                       | Sets       | Its steps                |
-| -------------------------- | ---------- | ------------------------ |
-| `.slider(name, range)`     | a variable | `unit`                   |
-| `.select(name, choices)`   | a variable | `default`                |
-| `.text(name)`              | a variable | `placeholder`, `default` |
-| `.file(name)`              | a variable |                          |
-| `.directory(name)`         | a variable |                          |
-| `.feature(name, options?)` | a feature  | `default`, `options`     |
+| Kind                       | Sets       | Needs                            | May have                 |
+| -------------------------- | ---------- | -------------------------------- | ------------------------ |
+| `.slider(name, fields)`    | a variable | `min`, `max`, `step`, `default`  | `unit`                   |
+| `.select(name, fields)`    | a variable | `choices`, as `{ value: label }` | `default`                |
+| `.text(name, fields)`      | a variable |                                  | `placeholder`, `default` |
+| `.file(name, fields)`      | a variable |                                  |                          |
+| `.directory(name, fields)` | a variable |                                  |                          |
+| `.feature(name, fields)`   | a feature  |                                  | `default`, `options`     |
 
-Every kind also has `title`, which it needs, and `subtitle`. The full
+Every kind also takes `title`, which it needs, and `subtitle`. A title left
+out is a type error, and the build refuses a head without one. Any text a
+player reads may be a translation, `{ en: 'RAM', uk: "Пам'ять" }`, which
+must hold the config's `locale`. The full
 description is in [`@opys/bundle`](https://www.npmjs.com/package/@opys/bundle#options).
 
 ## files

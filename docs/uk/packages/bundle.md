@@ -87,6 +87,7 @@ pack.opys
 | Поле       | Тип           | Що це                                                     |
 | ---------- | ------------- | --------------------------------------------------------- |
 | `format`   | `number`      | Версія формату: `1`.                                      |
+| `locale?`  | `string`      | Мова, якою написані параметри.                            |
 | `options?` | `OptionDef[]` | Що гравець може встановити. Див. [Параметри](#параметри). |
 
 <!-- prettier-ignore -->
@@ -112,44 +113,45 @@ pack.opys
 <!-- prettier-ignore -->
 ```js
 const written = options()
-  .slider('xmx', { min: 1024, max: 16384, step: 512, default: 4096 })
-    .title('RAM')
-    .unit('MB')
-  .select('preset', { low: 'Low', high: 'High' })
-    .title('Graphics')
-  .text('server')
-    .title('Server')
-    .placeholder('play.example.net')
-  .file('skin')
-    .title('Skin')
-  .feature('custom_java', (o) => o
-    .directory('java_home')
-      .title('Java folder'))
-    .title('Custom Java');
+  .slider('xmx', {
+    title: 'RAM',
+    unit: 'MB',
+    min: 1024, max: 16384, step: 512, default: 4096,
+  })
+  .select('preset', { title: 'Graphics', choices: { low: 'Low', high: 'High' } })
+  .text('server', { title: 'Server', placeholder: 'play.example.net' })
+  .file('skin', { title: 'Skin' })
+  .feature('custom_java', {
+    title: 'Custom Java',
+    options: options().directory('java_home', { title: 'Java folder' }),
+  });
 ```
 
-Вид додає параметр, а кроки після нього належать цьому параметру.
+Кожен вид додає параметр: назву, яку він заповнює, і його поля одним
+об'єктом.
 
-| Вид                        | Називає   | У виклику                       | Кроки                    |
-| -------------------------- | --------- | ------------------------------- | ------------------------ |
-| `.slider(name, range)`     | змінну    | `min`, `max`, `step`, `default` | `unit`                   |
-| `.select(name, choices)`   | змінну    | `{ value: label }`              | `default`                |
-| `.text(name)`              | змінну    |                                 | `placeholder`, `default` |
-| `.file(name)`              | змінну    |                                 |                          |
-| `.directory(name)`         | змінну    |                                 |                          |
-| `.feature(name, options?)` | прапорець | його налаштування, як функція   | `default`, `options`     |
+| Вид                        | Називає   | Потребує                         | Може мати                |
+| -------------------------- | --------- | -------------------------------- | ------------------------ |
+| `.slider(name, fields)`    | змінну    | `min`, `max`, `step`, `default`  | `unit`                   |
+| `.select(name, fields)`    | змінну    | `choices`, як `{ value: label }` | `default`                |
+| `.text(name, fields)`      | змінну    |                                  | `placeholder`, `default` |
+| `.file(name, fields)`      | змінну    |                                  |                          |
+| `.directory(name, fields)` | змінну    |                                  |                          |
+| `.feature(name, fields)`   | прапорець |                                  | `default`, `options`     |
 
-Кожен вид також має `title`, який йому потрібен, і `subtitle`.
+Кожен вид також бере `title`, який йому потрібен, і `subtitle`. Без
+`title` це помилка типів, а `writeBundle` відхиляє заголовок без нього.
 
 Кожен вид це також окрема функція, для списку:
 
 <!-- prettier-ignore -->
 ```js
 const written = [
-  slider('xmx', { min: 1024, max: 16384, step: 512, default: 4096 }).title('RAM'),
-  feature('custom_java')
-    .title('Custom Java')
-    .options(directory('java_home').title('Java folder')),
+  slider('xmx', { title: 'RAM', min: 1024, max: 16384, step: 512, default: 4096 }),
+  feature('custom_java', {
+    title: 'Custom Java',
+    options: [directory('java_home', { title: 'Java folder' })],
+  }),
 ];
 ```
 
@@ -173,6 +175,27 @@ const written = [
 - `default` повзунка лежить від `min` до `max`.
 - Це лише схема. Що гравець вибрав, доходить до встановлення як `vars`
   і `features`.
+
+**Переклади.** `title`, `subtitle`, `unit`, `placeholder` і підпис варіанта
+це рядок або мова → текст, тип `Localized`:
+
+<!-- prettier-ignore -->
+```js
+await writeBundle('pack.opys', manifest, blobs, {
+  locale: 'en',
+  options: options().slider('xmx', {
+    title: { en: 'RAM', uk: "Пам'ять" },
+    min: 1024, max: 16384, step: 512, default: 4096,
+  }),
+});
+```
+
+- Звичайний рядок написаний мовою `locale` заголовка, тегом на кшталт `en`
+  чи `pt-BR`.
+- Переклад мусить містити `locale`. Переклад без нього, як і будь-який
+  переклад у заголовку без `locale`, відхиляється.
+- Імена, значення варіантів і `default` не перекладаються.
+- Яку мову показати, вирішує лаунчер: мову гравця, інакше `locale`.
 
 ### Manifest
 
@@ -242,16 +265,18 @@ await writeBundle('pack.opys', manifest, { [id]: blobBytes(bytes) }); // бай�
 await writeBundle('pack.opys', { vars: {}, artifacts: [] });          // без перенесених файлів
 await writeBundle('pack.opys', manifest, {});
 // rejects: the manifest names blob 3d862eef…, and nothing holds it
-await writeBundle('pack.opys', manifest, blobs, { options: options().file('a').title('A') });
-await writeBundle('pack.opys', manifest, blobs, { options: options().file('a') });
-// rejects: option 'a' has no title: add .title('…') to it
+await writeBundle('pack.opys', manifest, blobs, { options: options().file('a', { title: 'A' }) });
+await writeBundle('pack.opys', manifest, blobs, { options: [{ file: 'a' }] });
+// rejects: missing field `title`
+await writeBundle('pack.opys', manifest, blobs, { options: [file('a', { title: { uk: 'А' } })] });
+// rejects: a text is translated (`uk`), and the head names no locale to fall back to
 
-optionDefs(options().file('a').title('A')); // [{ file: 'a', title: 'A' }]
+optionDefs(options().file('a', { title: 'A' })); // [{ file: 'a', title: 'A' }]
 
 await hashBlobFile('./server.properties'); // { id: '3d862eef…', size: 11 }
 blobId(new TextEncoder().encode('hello')); // '2cf24dba…'
 
-readBundleHead('pack.opys'); // { format: 1, options? }
+readBundleHead('pack.opys'); // { format: 1, locale?, options? }
 readBundle('pack.opys');     // { vars, artifacts, launch, cleanup }
 readBundle('notes.txt');     // throws: not a bundle: …
 BUNDLE_FORMAT;               // 1

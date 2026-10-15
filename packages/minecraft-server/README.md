@@ -174,7 +174,7 @@ run: (manifest) => ({
 - For a panel or a launcher, offer it as a checkbox:
 
 ```js
-options: options().feature('eula').title('I agree to the Minecraft EULA'),
+options: options().feature('eula', { title: 'I agree to the Minecraft EULA' }),
 ```
 
 ## Your world and settings
