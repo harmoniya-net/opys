@@ -68,12 +68,13 @@ jobs:
             target: x86_64-unknown-linux-musl
           - host: ubuntu-latest
             target: aarch64-unknown-linux-musl
-          # Both darwin targets cross-compile on macos-14 (arm64 host). macos-13
-          # queue availability is unreliable; the macOS SDK is universal, so
-          # `--target x86_64-apple-darwin` builds fine from an arm64 host.
-          - host: macos-14
+          # Both darwin targets cross-compile on macos-15 (arm64 host). The
+          # macOS SDK is universal, so `--target x86_64-apple-darwin` builds
+          # fine from an arm64 host. macos-14 was retired by GitHub: a job on
+          # it is cancelled before it starts ("configuration not supported").
+          - host: macos-15
             target: x86_64-apple-darwin
-          - host: macos-14
+          - host: macos-15
             target: aarch64-apple-darwin
           - host: windows-latest
             target: x86_64-pc-windows-msvc
