@@ -87,7 +87,6 @@ pack.opys
 | Поле       | Тип           | Що це                                                     |
 | ---------- | ------------- | --------------------------------------------------------- |
 | `format`   | `number`      | Версія формату: `1`.                                      |
-| `locale?`  | `string`      | Мова, якою написані параметри.                            |
 | `options?` | `OptionDef[]` | Що гравець може встановити. Див. [Параметри](#параметри). |
 
 <!-- prettier-ignore -->
@@ -182,7 +181,6 @@ const written = [
 <!-- prettier-ignore -->
 ```js
 await writeBundle('pack.opys', manifest, blobs, {
-  locale: 'en',
   options: options().slider('xmx', {
     title: { en: 'RAM', uk: "Пам'ять" },
     min: 1024, max: 16384, step: 512, default: 4096,
@@ -190,12 +188,11 @@ await writeBundle('pack.opys', manifest, blobs, {
 });
 ```
 
-- Звичайний рядок написаний мовою `locale` заголовка, тегом на кшталт `en`
-  чи `pt-BR`.
-- Переклад мусить містити `locale`. Переклад без нього, як і будь-який
-  переклад у заголовку без `locale`, відхиляється.
+- Звичайний рядок однаковий усіма мовами. Мова це тег на кшталт `en` чи
+  `pt-BR`, і переклади не мусять мати спільної.
 - Імена, значення варіантів і `default` не перекладаються.
-- Яку мову показати, вирішує лаунчер: мову гравця, інакше `locale`.
+- Яку мову показати і що показати, де текст її не має, вирішує лаунчер.
+  Бандл не називає власної мови.
 
 ### Manifest
 
@@ -268,15 +265,13 @@ await writeBundle('pack.opys', manifest, {});
 await writeBundle('pack.opys', manifest, blobs, { options: options().file('a', { title: 'A' }) });
 await writeBundle('pack.opys', manifest, blobs, { options: [{ file: 'a' }] });
 // rejects: missing field `title`
-await writeBundle('pack.opys', manifest, blobs, { options: [file('a', { title: { uk: 'А' } })] });
-// rejects: a text is translated (`uk`), and the head names no locale to fall back to
 
 optionDefs(options().file('a', { title: 'A' })); // [{ file: 'a', title: 'A' }]
 
 await hashBlobFile('./server.properties'); // { id: '3d862eef…', size: 11 }
 blobId(new TextEncoder().encode('hello')); // '2cf24dba…'
 
-readBundleHead('pack.opys'); // { format: 1, locale?, options? }
+readBundleHead('pack.opys'); // { format: 1, options? }
 readBundle('pack.opys');     // { vars, artifacts, launch, cleanup }
 readBundle('notes.txt');     // throws: not a bundle: …
 BUNDLE_FORMAT;               // 1

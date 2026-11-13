@@ -243,13 +243,11 @@ chose as `vars` and `features`. `opys launch` does not read them: use
 ### Translations
 
 Any text a player reads can be given per language: `title`, `subtitle`,
-`unit`, `placeholder` and a choice's label. Name the language the config is
-written in with `locale`:
+`unit`, `placeholder` and a choice's label:
 
 <!-- prettier-ignore -->
 ```js
 export default defineConfig({
-  locale: 'en',
   options: options()
     .slider('xmx', {
       title: { en: 'RAM', uk: "Пам'ять" },
@@ -263,13 +261,13 @@ export default defineConfig({
 });
 ```
 
-- A plain string is in `locale`.
-- A translation must include `locale`. `opys build` refuses one that does
-  not, and any translation in a config with no `locale`.
-- A language is a tag: `en`, `uk`, `pt-BR`.
+- A plain string is the same in every language.
+- A language is a tag: `en`, `uk`, `pt-BR`. Translations need not share
+  one.
 - Names, choice values and defaults are never translated: the manifest
   reads them.
-- The launcher picks the player's language, and falls back to `locale`.
+- The launcher picks the player's language, and what to show where a text
+  lacks it. The config names no language of its own.
 
 ## cleanup
 

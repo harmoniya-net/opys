@@ -64,9 +64,9 @@ installing machine — `file`, `string`, `bytes` — gave way to `blob`, and the
 manifest went from a JSON document to a bundle. Then `restrict`, a list of
 globs, became `cleanup`, a list of rules. Then the manifest, which a bundle
 had kept in two entries, went back to one, and the head kept nothing but
-`format`. Since then the head has gained `options` and then `locale`, with
-every text in an option a string or a map of translations, an artifact
-`overwrite`, and a rule the OS `freebsd` and the architectures `ppc64le` and
+`format`. Since then the head has gained `options`, with every text in
+an option a string or a map of translations, an artifact `overwrite`,
+and a rule the OS `freebsd` and the architectures `ppc64le` and
 `riscv64`, which Cleanroom's documents name; all are additions and
 reshaped nothing. `x64`, `arm64`
 and `arm32` are read as the architectures they name, and written as
@@ -143,7 +143,7 @@ them, and the list below names the layers rather than every one:
   and cost the format a second spelling of the manifest — two entries that
   had to be put back together, and a `Head` type that was a `Manifest` with
   a field missing. So `manifest.json` is exactly what `core` reads and
-  writes, and the head says `format`, `locale` and `options`. It is still the first
+  writes, and the head says `format` and `options`. It is still the first
   entry and stored uncompressed, readable with one seek or off the front of
   the file, because it is where whatever is worth knowing about a bundle
   without decoding its manifest goes. Both are written indented: a bundle
@@ -200,11 +200,14 @@ them, and the list below names the layers rather than every one:
   unit, a placeholder, a choice's label — is a string or language to text,
   `{ en: 'RAM', uk: "Пам'ять" }`, inline where it is read rather than keyed
   into a table beside the tree, so there is no key to dangle and no second
-  place to look (`Localized`, in `opys-bundle`). A string is in the head's
-  `locale`, and a map that does not hold it, or a map in a head that names
-  none, does not decode: whatever a launcher asks for, there is a fallback.
-  Which language a player gets is the launcher's to choose, as their
-  choices are. Resolving a schema and a
+  place to look (`Localized`, in `opys-bundle`). A string is the same in
+  every language, and a map holds whichever languages its author wrote.
+  Which language a player gets, and what stands in for one a map lacks, is
+  the launcher's to choose, as their choices are: a bundle names no
+  language of its own. The head once had a `locale`, which every map had
+  to hold, and that was the launcher's fallback decided in every pack
+  instead of once; it was taken out without a new format, since the
+  format gates the manifest and not the head. Resolving a schema and a
   player's choices into `vars` and `features` is not here yet: it stays
   with whoever shows the form, and `opys launch` takes `--var` and
   `--feature`.

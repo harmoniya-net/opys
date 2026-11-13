@@ -87,7 +87,6 @@ What a bundle says about itself, apart from the installation it carries.
 | Field      | Type          | What it is                                      |
 | ---------- | ------------- | ----------------------------------------------- |
 | `format`   | `number`      | The format version: `1`.                        |
-| `locale?`  | `string`      | The language the options are written in.        |
 | `options?` | `OptionDef[]` | What a player may set. See [Options](#options). |
 
 <!-- prettier-ignore -->
@@ -180,7 +179,6 @@ label are each a string or language to text, the type `Localized`:
 <!-- prettier-ignore -->
 ```js
 await writeBundle('pack.opys', manifest, blobs, {
-  locale: 'en',
   options: options().slider('xmx', {
     title: { en: 'RAM', uk: "Пам'ять" },
     min: 1024, max: 16384, step: 512, default: 4096,
@@ -188,12 +186,11 @@ await writeBundle('pack.opys', manifest, blobs, {
 });
 ```
 
-- A plain string is in the head's `locale`, a tag such as `en` or `pt-BR`.
-- A translation must hold `locale`. One without it, or any translation in
-  a head with no `locale`, is refused.
+- A plain string is the same in every language. A language is a tag such
+  as `en` or `pt-BR`, and translations need not share one.
 - Names, choice values and defaults are never translated.
-- Which language to show is the launcher's choice: the player's, else
-  `locale`.
+- Which language to show, and what to show where a text lacks it, is the
+  launcher's choice. A bundle names no language of its own.
 
 ### Manifest
 
@@ -266,15 +263,13 @@ await writeBundle('pack.opys', manifest, {});
 await writeBundle('pack.opys', manifest, blobs, { options: options().file('a', { title: 'A' }) });
 await writeBundle('pack.opys', manifest, blobs, { options: [{ file: 'a' }] });
 // rejects: missing field `title`
-await writeBundle('pack.opys', manifest, blobs, { options: [file('a', { title: { uk: 'А' } })] });
-// rejects: a text is translated (`uk`), and the head names no locale to fall back to
 
 optionDefs(options().file('a', { title: 'A' })); // [{ file: 'a', title: 'A' }]
 
 await hashBlobFile('./server.properties'); // { id: '3d862eef…', size: 11 }
 blobId(new TextEncoder().encode('hello')); // '2cf24dba…'
 
-readBundleHead('pack.opys'); // { format: 1, locale?, options? }
+readBundleHead('pack.opys'); // { format: 1, options? }
 readBundle('pack.opys');     // { vars, artifacts, launch, cleanup }
 readBundle('notes.txt');     // throws: not a bundle: …
 BUNDLE_FORMAT;               // 1

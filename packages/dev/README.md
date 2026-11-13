@@ -60,7 +60,6 @@ returns one.
 | `manifest` | How to start it, and anything written by hand. See below.     |
 | `output?`  | Where `opys build` writes the bundle, relative to the config. |
 | `options?` | What a player may set. See [Options](#options).               |
-| `locale?`  | The language `options` are written in: `'en'`.                |
 | `run?`     | Called on the player's machine at every `opys launch`.        |
 
 ### manifest
@@ -135,8 +134,7 @@ options: options()
 
 Every kind also takes `title`, which it needs, and `subtitle`. A title left
 out is a type error, and the build refuses a head without one. Any text a
-player reads may be a translation, `{ en: 'RAM', uk: "Пам'ять" }`, which
-must hold the config's `locale`. The full
+player reads may be a translation, `{ en: 'RAM', uk: "Пам'ять" }`. The full
 description is in [`@opys/bundle`](https://www.npmjs.com/package/@opys/bundle#options).
 
 ## files

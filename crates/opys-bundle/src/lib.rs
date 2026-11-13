@@ -86,61 +86,27 @@ pub enum BundleError {
 /// A head that has been read is in [`BUNDLE_FORMAT`], since any other is
 /// refused; the field is kept because a head is also what gets written.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(try_from = "HeadWire", into = "HeadWire")]
+#[serde(from = "HeadWire", into = "HeadWire")]
 pub struct Head {
     pub format: u32,
-    /// The language the options are written in: a plain string is in it,
-    /// and a translated one must hold it, so a launcher always has something
-    /// to fall back to. Needed only once some text is translated.
-    pub locale: Option<String>,
     /// What whoever launches the bundle may choose: the variables and
     /// features it leaves to them, and how to ask for each.
     pub options: Options,
 }
 
 impl Head {
-    /// A head in the format this crate writes. Refuses a `locale` that is no
-    /// language tag, and a translated text with no `locale` or without it.
-    pub fn new(locale: Option<String>, options: Options) -> Result<Self, String> {
-        if let Some(bad) = locale.as_deref().filter(|tag| !is_language_tag(tag)) {
-            return Err(format!("the head's locale, `{bad}`, is not a language tag"));
-        }
-        for text in options.texts() {
-            let Localized::Translated(map) = text else {
-                continue;
-            };
-            let languages = || map.keys().cloned().collect::<Vec<_>>().join("`, `");
-            match &locale {
-                None => {
-                    return Err(format!(
-                        "a text is translated (`{}`), and the head names no locale to fall back to",
-                        languages()
-                    ))
-                }
-                Some(locale) if !map.contains_key(locale) => {
-                    return Err(format!(
-                        "a text is translated (`{}`) and not into the head's locale, `{locale}`",
-                        languages()
-                    ))
-                }
-                Some(_) => {}
-            }
-        }
-        Ok(Head {
+    /// A head in the format this crate writes.
+    pub fn new(options: Options) -> Self {
+        Head {
             format: BUNDLE_FORMAT,
-            locale,
             options,
-        })
+        }
     }
 }
 
 impl Default for Head {
     fn default() -> Self {
-        Head {
-            format: BUNDLE_FORMAT,
-            locale: None,
-            options: Options::default(),
-        }
+        Head::new(Options::default())
     }
 }
 
@@ -150,21 +116,16 @@ impl Default for Head {
 #[derive(Serialize, Deserialize)]
 pub(crate) struct HeadWire {
     format: u32,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    locale: Option<String>,
     #[serde(default, skip_serializing_if = "Options::is_empty")]
     options: Options,
 }
 
-impl TryFrom<HeadWire> for Head {
-    type Error = String;
-
-    fn try_from(raw: HeadWire) -> Result<Self, Self::Error> {
-        let head = Head::new(raw.locale, raw.options)?;
-        Ok(Head {
+impl From<HeadWire> for Head {
+    fn from(raw: HeadWire) -> Self {
+        Head {
             format: raw.format,
-            ..head
-        })
+            options: raw.options,
+        }
     }
 }
 
@@ -172,7 +133,6 @@ impl From<Head> for HeadWire {
     fn from(head: Head) -> Self {
         HeadWire {
             format: head.format,
-            locale: head.locale,
             options: head.options,
         }
     }

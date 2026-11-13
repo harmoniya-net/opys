@@ -21,8 +21,8 @@ unzip -p game.opys manifest.json | jq '.launch'
 
 **Why two JSON files:** they describe different things. The manifest
 describes the installation, and is megabytes, one entry per installed file.
-The head describes the bundle, and is small. It holds `format`, `locale`
-and `options`.
+The head describes the bundle, and is small. It holds `format` and
+`options`.
 
 Find entries by name. Do not rely on their order.
 
@@ -112,7 +112,7 @@ the kind:
 - A feature's `options` are the options that only matter while it is on.
   They may be features themselves, to any depth.
 - `title`, `subtitle`, `unit`, `placeholder` and a choice's `label` are
-  text, which may be translated: see [locale](#locale).
+  text, which may be translated: see [Text](#text).
 
 A reader refuses a head whose options:
 
@@ -122,19 +122,18 @@ A reader refuses a head whose options:
 - have a slider with `min` not below `max`, a `step` not above zero, or a
   `default` outside the range;
 - have a select whose `default` is not the `value` of one of its choices;
-- have a text that breaks the rules of [locale](#locale).
+- have a text that breaks the rules of [Text](#text).
 
 **Why in the head:** a launcher shows the settings before it installs
 anything, and the head is readable without the manifest.
 
-## locale
+## Text
 
-The language the options are written in. Optional, in the head.
+What a player reads on an option, in one language or several.
 
 ```json
 {
   "format": 1,
-  "locale": "en",
   "options": [
     {
       "slider": "xmx",
@@ -149,30 +148,27 @@ The language the options are written in. Optional, in the head.
 }
 ```
 
-`locale` is a language tag: a language of two or three letters, then
-subtags of one to eight letters or digits, joined by `-`. `en`, `uk`,
-`pt-BR`.
-
 Every text a player reads is either:
 
-- a **string**, in the head's `locale`; or
+- a **string**, the same in every language: a name, a URL, or text nobody
+  translated; or
 - an **object** from a language tag to the text in that language.
+
+A language tag is a language of two or three letters, then subtags of one
+to eight letters or digits, joined by `-`. `en`, `uk`, `pt-BR`.
 
 The texts are `title`, `subtitle`, `unit`, `placeholder` and a choice's
 `label`. A name, a choice's `value` and a `default` are never translated:
 they are what the manifest reads.
 
-A reader refuses a head:
+A reader refuses a head with a translated text that is empty, or has a key
+that is not a language tag. Translations need not share a language: one
+text may be in `en` and `uk`, the next in `uk` alone.
 
-- whose `locale` is not a language tag;
-- with a translated text and no `locale`;
-- with a translated text that does not hold the `locale`;
-- with a translated text that is empty, or has a key that is not a language
-  tag.
-
-**Which language to show is the reader's choice.** Match the player's
-language, then fall back to `locale`. A translated text always holds it, so
-there is always something to show.
+**Which language to show is the reader's choice**, and so is what to show
+for a language a text does not have. The bundle names no language of its
+own: a fallback is the launcher's, decided once for every bundle it shows,
+not in each pack.
 
 **Why inline:** a text is read where it is shown. There is no table of keys
 beside the options, so no key can point at nothing.

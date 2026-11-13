@@ -2,10 +2,12 @@
 //!
 //! An option's title, subtitle, unit and placeholder and a choice's label are
 //! each a string or a map from a language to the string in it:
-//! `"RAM"` or `{ "en": "RAM", "uk": "Пам'ять" }`. A string is in the head's
-//! `locale`, and a map must hold that language, so whatever language a
-//! launcher asks for there is always something to show. Which language a
-//! player gets is the launcher's to choose; this says only what there is.
+//! `"RAM"` or `{ "en": "RAM", "uk": "Пам'ять" }`. A string is the same text
+//! in every language. Which entry of a map a player gets, and what stands in
+//! for a language the map does not hold, is the launcher's to choose: a
+//! bundle says what there is and names no language of its own. It once did,
+//! in the head's `locale`, which every map had to hold; that was the
+//! launcher's fallback decided in somebody else's file.
 
 use std::collections::BTreeMap;
 
@@ -16,15 +18,15 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(try_from = "LocalizedWire", into = "LocalizedWire")]
 pub enum Localized {
-    /// In the head's `locale`.
+    /// The same in every language: a name, a URL, or text nobody translated.
     Plain(String),
     /// Language to text. Never empty, and every key is a language tag.
     Translated(BTreeMap<String, String>),
 }
 
 impl Localized {
-    /// The languages a map names, and none for a string: that is in
-    /// whatever the head's `locale` is.
+    /// The languages a map names, and none for a string, which is in all
+    /// of them.
     pub fn languages(&self) -> impl Iterator<Item = &str> {
         let map = match self {
             Localized::Plain(_) => None,
@@ -80,7 +82,7 @@ impl From<Localized> for LocalizedWire {
 /// The shape of a BCP 47 tag, `uk` or `pt-BR`: a language of two or three
 /// letters, then subtags of one to eight letters or digits. Whether the
 /// language exists is not asked; a launcher that does not know it matches
-/// nothing and falls back to the head's `locale`.
+/// nothing and falls back as it would for any language a map lacks.
 pub fn is_language_tag(tag: &str) -> bool {
     let mut parts = tag.split('-');
     let language = parts.next().unwrap_or_default();

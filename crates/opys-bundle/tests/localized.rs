@@ -1,4 +1,5 @@
-//! Text a player reads: a string in the head's locale, or a map that holds it.
+//! Text a player reads: a string, the same in every language, or a map from
+//! language to text, in whichever languages its author wrote.
 
 use opys_bundle::{is_language_tag, Head, Localized, OptionDef, BUNDLE_FORMAT};
 use serde_json::{json, Value};
@@ -24,7 +25,7 @@ fn translated() -> Value {
 
 #[test]
 fn every_text_is_a_string_or_a_map_and_reads_back_as_written() {
-    let value = json!({ "format": BUNDLE_FORMAT, "locale": "en", "options": translated() });
+    let value = json!({ "format": BUNDLE_FORMAT, "options": translated() });
     let read = head(value.clone()).unwrap();
     assert_eq!(serde_json::to_value(&read).unwrap(), value);
 
@@ -38,8 +39,7 @@ fn every_text_is_a_string_or_a_map_and_reads_back_as_written() {
 
 #[test]
 fn every_text_in_the_tree_is_found_under_a_feature_too() {
-    let read =
-        head(json!({ "format": BUNDLE_FORMAT, "locale": "en", "options": translated() })).unwrap();
+    let read = head(json!({ "format": BUNDLE_FORMAT, "options": translated() })).unwrap();
     let languages: Vec<_> = read
         .options
         .texts()
@@ -53,48 +53,27 @@ fn every_text_in_the_tree_is_found_under_a_feature_too() {
 }
 
 #[test]
-fn a_translated_text_needs_the_head_to_name_its_locale() {
-    let error = head(json!({ "format": BUNDLE_FORMAT, "options": translated() })).unwrap_err();
-    assert!(error.contains("names no locale to fall back to"), "{error}");
-}
-
-#[test]
-fn a_translated_text_holds_the_heads_locale() {
-    let error = head(json!({ "format": BUNDLE_FORMAT, "locale": "uk", "options": translated() }))
-        .unwrap_err();
-    assert!(
-        error.contains("(`en`, `pt-BR`) and not into the head's locale, `uk`"),
-        "{error}"
-    );
-}
-
-#[test]
-fn plain_text_needs_no_locale_and_may_have_one() {
-    let options = json!([{ "file": "skin", "title": "Skin" }]);
+fn maps_need_not_share_a_language() {
+    // `en`/`uk` beside `en`/`pt-BR`, and one in Ukrainian alone: what stands
+    // in for a language a map lacks is the launcher's to choose.
+    let options = json!([
+        { "file": "skin", "title": { "uk": "Скін" } },
+        { "text": "args", "title": { "en": "Arguments", "uk": "Аргументи" },
+          "placeholder": { "en": "none", "pt-BR": "nenhum" } },
+    ]);
     assert!(head(json!({ "format": BUNDLE_FORMAT, "options": options })).is_ok());
-    assert!(head(json!({ "format": BUNDLE_FORMAT, "locale": "uk", "options": options })).is_ok());
 }
 
 #[test]
 fn a_map_names_a_language_and_only_languages() {
     let with = |title: Value| {
-        head(json!({ "format": BUNDLE_FORMAT, "locale": "en",
-                     "options": [{ "file": "skin", "title": title }] }))
+        head(json!({ "format": BUNDLE_FORMAT, "options": [{ "file": "skin", "title": title }] }))
     };
     assert!(with(json!({})).unwrap_err().contains("names no language"));
     assert!(with(json!({ "en": "Skin", "english!": "Skin" }))
         .unwrap_err()
         .contains("`english!` is not a language tag"));
     assert!(with(json!({ "en": 1 })).is_err());
-}
-
-#[test]
-fn the_locale_is_a_language_tag() {
-    let error = head(json!({ "format": BUNDLE_FORMAT, "locale": "" })).unwrap_err();
-    assert!(
-        error.contains("the head's locale, ``, is not a language tag"),
-        "{error}"
-    );
 }
 
 #[test]

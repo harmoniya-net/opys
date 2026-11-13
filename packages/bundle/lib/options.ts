@@ -19,8 +19,9 @@
  */
 
 /**
- * Text a player reads: a string in the head's `locale`, or language to text,
- * `{ en: 'RAM', uk: "Пам'ять" }`, which must hold that locale.
+ * Text a player reads: a string, the same in every language, or language to
+ * text, `{ en: 'RAM', uk: "Пам'ять" }`. Which a player sees, and what stands
+ * in for a language a map lacks, is the launcher's to choose.
  */
 export type Localized = string | Readonly<Record<string, string>>;
 

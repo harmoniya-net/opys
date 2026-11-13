@@ -19,12 +19,6 @@ export interface Head {
   /** The format the bundle is written in. A reader reads exactly one. */
   readonly format: number;
   /**
-   * The language the options are written in: a plain string is in it, and a
-   * translated one must hold it, so a launcher always has a fallback. Needed
-   * once any text is translated.
-   */
-  readonly locale?: string;
-  /**
    * What whoever launches the bundle may choose: the variables and features
    * it leaves to them, and how to ask for each.
    */
@@ -70,7 +64,7 @@ export async function writeBundle(
   path: string,
   manifest: Manifest,
   blobs: Blobs = {},
-  head: { readonly locale?: string; readonly options?: OptionsInput } = {},
+  head: { readonly options?: OptionsInput } = {},
 ): Promise<void> {
   // A key that is there and undefined does not cross napi as an absent one.
   const options = head.options && optionDefs(head.options);
@@ -80,7 +74,6 @@ export async function writeBundle(
     path,
     {
       format: BUNDLE_FORMAT,
-      ...(head.locale ? { locale: head.locale } : {}),
       ...(options ? { options } : {}),
     },
     manifest,

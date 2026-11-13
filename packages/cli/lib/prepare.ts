@@ -142,7 +142,6 @@ export async function prepare(
   process.once('exit', () => rmSync(dir, { recursive: true, force: true }));
   const written = join(dir, 'launch.opys');
   await writeBundle(written, manifest, built.blobs, {
-    locale: config.locale,
     options: config.options,
   });
 

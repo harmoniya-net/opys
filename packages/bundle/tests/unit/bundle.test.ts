@@ -79,38 +79,21 @@ describe('a bundle on disk', () => {
     });
   });
 
-  it('says the language its options are written in', async () => {
+  it('carries translations as written, naming no language of its own', async () => {
     const path = join(dir, 'game.opys');
-    const written = options().file('skin', {
-      title: { en: 'Skin', uk: 'Скін' },
-    });
+    const written = options()
+      .file('skin', { title: { en: 'Skin', uk: 'Скін' } })
+      .directory('saves', { title: { uk: 'Збереження' } });
     await writeBundle(
       path,
       { vars: {}, artifacts: [] },
       {},
-      { locale: 'en', options: written },
+      { options: written },
     );
     expect(readBundleHead(path)).toEqual({
       format: BUNDLE_FORMAT,
-      locale: 'en',
       options: optionDefs(written),
     });
-  });
-
-  it('refuses a translation without the language it falls back to', async () => {
-    const path = join(dir, 'game.opys');
-    const written = [file('skin', { title: { uk: 'Скін' } })];
-    await expect(
-      writeBundle(path, { vars: {}, artifacts: [] }, {}, { options: written }),
-    ).rejects.toThrow(/names no locale to fall back to/);
-    await expect(
-      writeBundle(
-        path,
-        { vars: {}, artifacts: [] },
-        {},
-        { locale: 'en', options: written },
-      ),
-    ).rejects.toThrow(/not into the head's locale, `en`/);
   });
 
   it('refuses to write options that name one variable twice', async () => {

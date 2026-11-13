@@ -40,7 +40,6 @@ export async function cmdBuild(
   const out = outputFile ?? config.output;
   if (out) {
     await writeBundle(resolve(configDir, out), manifest, blobs, {
-      locale: config.locale,
       options: config.options,
     });
     const count = Object.keys(blobs).length;
